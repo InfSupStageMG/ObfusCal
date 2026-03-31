@@ -1,2 +1,14 @@
-# VS Code
-ObfusCal.code-workspace
+# Build output
+bin/
+obj/
+
+# Rider/JetBrains
+.idea/
+
+# Visual Studio
+.vs/
+*.user
+
+# OS files
+.DS_Store
+Thumbs.db

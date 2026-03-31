@@ -1,0 +1,24 @@
+﻿{
+  "profiles": {
+    "InstanceA": {
+      "commandName": "Project",
+      "applicationUrl": "https://localhost:5001",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Sync__InstanceId": "A",
+        "Sync__Peers__0__Id": "B",
+        "Sync__Peers__0__BaseUrl": "https://localhost:5002"
+      }
+    },
+    "InstanceB": {
+      "commandName": "Project",
+      "applicationUrl": "https://localhost:5002",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Sync__InstanceId": "B",
+        "Sync__Peers__0__Id": "A",
+        "Sync__Peers__0__BaseUrl": "https://localhost:5001"
+      }
+    }
+  }
+}

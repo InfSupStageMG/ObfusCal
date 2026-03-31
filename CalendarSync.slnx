@@ -1,6 +1,0 @@
-<Solution>
-  <Project Path="CalendarSync.Api/CalendarSync.Api.csproj" />
-  <Project Path="CalendarSync.Core/CalendarSync.Core.csproj" />
-  <Project Path="CalendarSync.Infrastructure/CalendarSync.Infrastructure.csproj" />
-  <Project Path="CalendarSync.Sync/CalendarSync.Sync.csproj" />
-</Solution>

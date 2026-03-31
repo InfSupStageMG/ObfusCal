@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "skbk6N6l2Lo=",
+  "success": true,
+  "projectFilePath": "C:\\Dev\\ObfusCal\\ObfusCal.Api\\ObfusCal.Api.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\GijsP\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.5\\microsoft.aspnetcore.openapi.10.0.5.nupkg.sha512",
+    "C:\\Users\\GijsP\\.nuget\\packages\\microsoft.openapi\\2.0.0\\microsoft.openapi.2.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
