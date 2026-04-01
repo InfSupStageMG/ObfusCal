@@ -99,11 +99,8 @@ And    [optional additional outcome]
 
 | Field | Value |
 |-------|-------|
-| Component | Core sync / Obfuscation / Transport / UI / Infra |
 | Estimate | S / M / L / XL |
 | Priority | Critical / High / Medium / Low |
-| Sprint | Backlog / Sprint N |
-| Assigned to | @handle |
 
 ---
 
@@ -112,5 +109,5 @@ And    [optional additional outcome]
      yet resolved. Each question should be followed by a decision or
      a link to where it will be resolved. -->
 
-- [ ] Open question: ...
-- [ ] Open question: ...
+- Notes: ...
+- Open question: ...
