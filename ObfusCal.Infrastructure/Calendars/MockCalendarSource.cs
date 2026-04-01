@@ -1,11 +1,9 @@
-using ObfusCal.Core.Configuration;
 using ObfusCal.Core.Interfaces;
 using ObfusCal.Core.Models;
-using Microsoft.Extensions.Options;
 
 namespace ObfusCal.Infrastructure.Calendars;
 
-public class MockCalendarSource(IOptions<SyncOptions> opts) : ICalendarSource
+public class MockCalendarSource: ICalendarSource
 {
     private static readonly List<CalendarEvent> Events =
     [
