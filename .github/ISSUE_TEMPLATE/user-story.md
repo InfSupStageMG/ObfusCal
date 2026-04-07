@@ -37,50 +37,25 @@ so that _[business value or outcome]_.
 ---
 
 ## Acceptance Criteria
-<!-- Written as testable Given / When / Then statements.
-     Each criterion must be independently verifiable. -->
+<!-- List of deliverables to fulfill this user story, written as short bullet points. -->
 
-**Scenario 1:** _[short scenario name]_
-```
-Given  [a precondition or context]
-When   [an action is performed]
-Then   [an observable, testable outcome]
-```
+- On page xyz there is a submit button which ...
+- The solution contains ...
+- ...
 
-**Scenario 2:** _[short scenario name]_
-```
-Given  [a precondition or context]
-When   [an action is performed]
-Then   [an observable, testable outcome]
-And    [optional additional outcome]
-```
-
-<!-- Add more scenarios as needed. -->
+<!-- Add more deliverables as needed. -->
 
 ---
 
 ## Security & Privacy Checklist
-<!-- Mandatory for all issues touching calendar data, network, or file I/O. -->
+<!-- Mandatory for all issues touching calendar data, network, or file I/O.
+     Keep only which item(s) fit. -->
 
 - [ ] No sensitive calendar fields (title, attendees, location) leave the local domain unobfuscated
 - [ ] Data at rest is not stored outside the user's own domain
 - [ ] Any transmitted payload is encrypted end-to-end
 - [ ] No credentials, tokens or keys are logged or hardcoded
 - [ ] N/A — this issue does not touch sensitive data or network I/O
-
----
-
-## Definition of Done
-<!-- All boxes must be checked before the issue can be closed. -->
-
-- [ ] All acceptance criteria pass
-- [ ] Unit tests written and passing (coverage ≥ 80% for new code)
-- [ ] Integration or end-to-end test added where applicable
-- [ ] Security & privacy checklist completed
-- [ ] Code reviewed and approved by at least one other team member
-- [ ] No new compiler warnings or unhandled exceptions introduced
-- [ ] README / docs updated if public behaviour or setup changed
-- [ ] Issue linked to a PR and PR is merged to the target branch
 
 ---
 
@@ -95,11 +70,25 @@ And    [optional additional outcome]
 
 ---
 
+## Definition of Done
+<!-- All boxes must be checked before the issue can be closed. -->
+
+- [ ] All acceptance criteria have been verified manually
+- [ ] dotnet build produces zero errors and zero warnings
+- [ ] All tests pass with dotnet test and no tests are skipped
+- [ ] New code has corresponding unit or integration tests covering the happy path and key failure cases
+- [ ] No sensitive data (calendar fields, credentials, tokens) appears in logs, responses, or committed files
+- [ ] New configuration values are documented in .env.example or appsettings.Development.json where applicable
+- [ ] Code has been self-reviewed before opening a PR (no debug leftovers, no commented-out code, no TODOs without a linked issue)
+- [ ] Every PR is reviewed and approved by at least one other team member before merging
+- [ ] All PRs for this issue are merged and the CI pipeline passes on main
+
+---
+
 ## Metadata
 
 | Field | Value |
 |-------|-------|
-| Estimate | S / M / L / XL |
 | Priority | Critical / High / Medium / Low |
 
 ---
