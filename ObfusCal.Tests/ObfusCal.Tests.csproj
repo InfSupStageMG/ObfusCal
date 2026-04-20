@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="Xunit" />
+    <Using Include="ObfusCal.Core" />
   </ItemGroup>
 
   <ItemGroup>
