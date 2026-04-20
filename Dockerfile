@@ -6,6 +6,7 @@ COPY ObfusCal.Api/ObfusCal.Api.csproj ObfusCal.Api/
 COPY ObfusCal.Core/ObfusCal.Core.csproj ObfusCal.Core/
 COPY ObfusCal.Infrastructure/ObfusCal.Infrastructure.csproj ObfusCal.Infrastructure/
 COPY ObfusCal.Sync/ObfusCal.Sync.csproj ObfusCal.Sync/
+COPY ObfusCal.Tests/ObfusCal.Tests.csproj ObfusCal.Tests/
 
 RUN dotnet restore
 
