@@ -1,0 +1,15 @@
+# type(scope): short summary
+#
+# feat     - new feature
+# fix      - bug fix
+# refactor - code change without behavior change
+# perf     - performance improvement
+# docs     - documentation
+# test     - tests
+# build    - build / dependencies
+# ci       - pipeline
+# chore    - maintenance
+# style    - formatting
+#
+# Example:
+# feat(api): add customer endpoint
