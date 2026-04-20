@@ -1,8 +1,38 @@
-﻿var builder = WebApplication.CreateBuilder(args);
+﻿using System.Runtime.Loader;
+using ObfusCal.Core.Interfaces;
+
+var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+var pluginFolder = Path.Combine(AppContext.BaseDirectory, "plugins");
+
+if (Directory.Exists(pluginFolder))
+{
+    foreach (var dll in Directory.GetFiles(pluginFolder, "*.dll"))
+    {
+        try 
+        {
+            var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dll);
+
+            var calendarSources = assembly.GetTypes()
+                .Where(t => typeof(ICalendarSource).IsAssignableFrom(t) 
+                            && t is { IsInterface: false, IsAbstract: false });
+
+            foreach (var type in calendarSources)
+            {
+                builder.Services.AddScoped(typeof(ICalendarSource), type);
+                Console.WriteLine($"[Plugins] Loaded Calendar Source: {type.Name}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Plugins] Failed to load {dll}: {ex.Message}");
+        }
+    }
+}
 
 var app = builder.Build();
 

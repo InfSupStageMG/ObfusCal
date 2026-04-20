@@ -3,9 +3,10 @@ using ObfusCal.Core.Models;
 
 namespace ObfusCal.Tests;
 
+[TestClass]
 public class CalendarSourceContractTests
 {
-    [Fact]
+    [TestMethod]
     public async Task GetEventsAsync_ReturnsOnlyEventsWithinRequestedWindow()
     {
         // Arrange
@@ -17,7 +18,7 @@ public class CalendarSourceContractTests
         var results = await source.GetEventsAsync(from, to);
 
         // Assert
-        Assert.All(results, e => Assert.True(e.Start >= from && e.End <= to));
+        Assert.IsTrue(results.All(e => e.Start >= from && e.End <= to));
     }
 }
 
