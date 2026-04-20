@@ -3,4 +3,5 @@
   <Project Path="ObfusCal.Core/ObfusCal.Core.csproj" />
   <Project Path="ObfusCal.Infrastructure/ObfusCal.Infrastructure.csproj" />
   <Project Path="ObfusCal.Sync/ObfusCal.Sync.csproj" />
+  <Project Path="ObfusCal.Tests/ObfusCal.Tests.csproj" />
 </Solution>
