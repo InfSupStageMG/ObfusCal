@@ -94,4 +94,4 @@ This project is developed as an internship assignment at [Info Support](https://
 
 ## License
 
-MIT
+GNU GPL v3.0. See [LICENSE](LICENSE) for details.
