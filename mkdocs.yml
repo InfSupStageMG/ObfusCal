@@ -11,7 +11,11 @@ nav:
   - Home: index.md
   - Architecture: architecture.md
   - Privacy & Security: privacy.md
+  - Domain: domain.md
   - Decisions (ADRs):
       - "0001: Federated Architecture Pivot": adr/0001-federated-architecture-pivot.md
       - "0002: Tech Stack & Libraries": adr/0002-tech-stack-selection.md
       - "0003: Plugins & Testing": adr/0003-plugins-and-testing.md
+
+markdown_extensions:
+  - attr_list

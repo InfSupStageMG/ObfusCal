@@ -1,6 +1,7 @@
 ﻿# System Architecture
 
 ## The Federated Model
+![Context Diagram](img/context-diagram.png){ width="600" }
 
 The most significant architectural constraint on the project is the requirement that **no single server may hold
 calendar data from more than one organization's domain.**
@@ -11,6 +12,9 @@ This constraint rules out a single globally hosted SaaS. Instead, ObfusCal utili
 2. Cross-domain availability exchange happens exclusively through a documented REST API over HTTPS.
 3. When Instance A needs to know that a consultant is busy in Domain B, it calls Domain B's API.
 4. The API returns only pre-obfuscated busy slots. Raw data never travels across the boundary.
+
+## Cross-Domain Synchronization
+![Sequence Diagram](img/sequence-sync.png){ width="600" }
 
 ## The Fallback (ICS)
 

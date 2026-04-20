@@ -16,5 +16,8 @@ obfuscated busy slots over a secured API — no raw event data ever crosses a do
 slots are written directly into each connected calendar so that everyone's availability is visible from 
 within their existing calendar client.
 
+## System Use Cases
+![Use Case Diagram](img/use-case-diagram.png){ width="600" }
+
 Read more about our [Federated Architecture](architecture.md) or view our [Architecture Decision Records 
 (ADRs)](adr/0001-federated-architecture-pivot.md).
