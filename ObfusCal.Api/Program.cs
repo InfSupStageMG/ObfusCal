@@ -2,6 +2,7 @@
 using ObfusCal.Core;
 using ObfusCal.Core.Interfaces;
 using ObfusCal.Core.Obfuscation.Transformers;
+using ObfusCal.Infrastructure.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +10,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
+builder.Services.AddSingleton<IShadowSlotStore, InMemoryShadowSlotStore>();
 
 builder.Services.AddTransient<IObfuscationTransformer, RemoveTitleTransformer>();
 builder.Services.AddTransient<IObfuscationTransformer, RemoveAttendeesTransformer>();
