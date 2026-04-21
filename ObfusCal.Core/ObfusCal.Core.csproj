@@ -10,7 +10,6 @@
     <Folder Include="Configuration\" />
     <Folder Include="interfaces\" />
     <Folder Include="models\" />
-    <Folder Include="Obfuscation\Transformers\" />
   </ItemGroup>
 
 </Project>
