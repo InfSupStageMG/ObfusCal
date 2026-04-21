@@ -3,19 +3,59 @@ site_description: Privacy-first, cross-domain calendar synchronization.
 repo_url: https://github.com/InfSupStageMG/ObfusCal
 theme:
   name: material
+  features:
+    - navigation.sections
+    - content.code.annotate
+    - content.tabs.link
+    - content.code.copy
+    - content.code.select
+    - content.code.highlight
+    - content.code.render
   palette:
     primary: blue
     accent: light blue
 
 nav:
   - Home: index.md
-  - Architecture: architecture.md
-  - Privacy & Security: privacy.md
-  - Domain: domain.md
-  - Decisions (ADRs):
-      - "0001: Federated Architecture Pivot": adr/0001-federated-architecture-pivot.md
-      - "0002: Tech Stack & Libraries": adr/0002-tech-stack-selection.md
-      - "0003: Plugins & Testing": adr/0003-plugins-and-testing.md
+  - Architecture:
+      - "1. Introduction & Goals": 01-introduction-goals.md
+      - "2. Architecture Constraints": 02-architecture-constraints.md
+      - "3. Context & Scope": 03-context-scope.md
+      - "4. Solution Strategy": 04-solution-strategy.md
+      - "5. Building Block View": 05-building-block-view.md
+      - "6. Runtime View": 06-runtime-view.md
+      - "7. Deployment View": 07-deployment-view.md
+      - "8. Cross-cutting Concepts": 08-cross-cutting-concepts.md
+      
+      # Notice how Chapter 9 is now a dropdown that holds your ADRs!
+      - "9. Architectural Decisions":
+          - "Overview": adr/index.md
+          - "0001: Federated Architecture": adr/0001-federated-architecture.md
+          - "0002: Language Selection": adr/0002-language-selection.md
+          - "0003: Deployment - Docker": adr/0003-deployment-docker.md
+          - "0004: CI/CD - GitHub Actions": adr/0004-cicd-github-actions.md
+          - "0005: Calendar Libraries": adr/0005-calendar-libraries.md
+          - "0006: Plugin Architecture": adr/0006-plugin-architecture.md
+          - "0007: Testing Framework": adr/0007-testing-framework.md
+
+      - "10. Quality Requirements": 10-quality-requirements.md
+      - "11. Risks & Technical Debt": 11-risks-technical-debt.md
+      - "12. Glossary": 12-glossary.md
 
 markdown_extensions:
   - attr_list
+  - tables
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.details
+  - pymdownx.tabbed
+
+extra_javascript:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
+
+extra:
+  mermaid:
+    theme: default

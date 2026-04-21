@@ -55,7 +55,7 @@ so that _[business value or outcome]_.
 - [ ] Data at rest is not stored outside the user's own domain
 - [ ] Any transmitted payload is encrypted end-to-end
 - [ ] No credentials, tokens or keys are logged or hardcoded
-- [ ] N/A — this issue does not touch sensitive data or network I/O
+- [ ] N/A - this issue does not touch sensitive data or network I/O
 
 ---
 

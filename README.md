@@ -1,14 +1,20 @@
 ﻿# ObfusCal
 
-ObfusCal is an open-source calendar synchronisation tool that lets users stay in sync across multiple domains without exposing sensitive information. Events from external domains appear in your calendar as obfuscated busy blocks — start and end times only, with all titles, descriptions, attendees, and locations stripped.
+ObfusCal is an open-source calendar synchronisation tool that lets users stay in sync across multiple domains without
+exposing sensitive information. Events from external domains appear in your calendar as obfuscated busy blocks. Those
+contain only start and end times, with all titles, descriptions, attendees, and locations removed.
 
-It is designed for consultants and professionals who maintain calendars in multiple organisations and need a privacy-preserving way to keep everyone in the loop.
+It is designed for consultants and professionals who maintain calendars in multiple organisations and need a
+privacy-preserving way to keep everyone in the loop.
 
 ---
 
 ## How it works
 
-Each organisation runs their own instance of ObfusCal within their own network. Instances exchange only obfuscated busy slots over a secured API — no raw event data ever crosses a domain boundary. The obfuscated slots are written directly into each connected calendar so that everyone's availability is visible from within their existing calendar client, without any additional subscriptions or tooling.
+Each organisation runs their own instance of ObfusCal within their own network. Instances exchange only obfuscated busy
+slots over a secured API. No raw event data ever crosses a domain boundary. The obfuscated slots are written directly
+into each connected calendar so that everyone's availability is visible from within their existing calendar client,
+without any additional subscriptions or tooling.
 
 ---
 
@@ -16,7 +22,7 @@ Each organisation runs their own instance of ObfusCal within their own network. 
 
 ```
 ObfusCal/
-├── ObfusCal.Api/            # ASP.NET Core web API — entry point, controllers, DI wiring
+├── ObfusCal.Api/            # ASP.NET Core web API - entry point, controllers, DI wiring
 ├── ObfusCal.Core/           # Domain models, interfaces, obfuscation pipeline
 ├── ObfusCal.Infrastructure/ # Calendar adapters, storage implementations
 ├── ObfusCal.Sync/           # Background sync service
@@ -75,6 +81,7 @@ dotnet test
 ## Roadmap
 
 Sprint 1 covers the foundational layer:
+
 - Project scaffolding and Docker setup
 - CI/CD pipeline via GitHub Actions
 - Pluggable calendar adapter interface
@@ -82,13 +89,15 @@ Sprint 1 covers the foundational layer:
 - Busy slot storage
 - REST API with OpenAPI/Swagger
 
-Later sprints will add Microsoft 365 integration via the Graph API, persistent storage, authentication via Entra ID, and the optional booking link feature.
+Later sprints will add Microsoft 365 integration via the Graph API, persistent storage, authentication via Entra ID, and
+the optional booking link feature.
 
 ---
 
 ## Contributing
 
-This project is developed as an internship assignment at [Info Support](https://www.infosupport.com). Contributions and feedback are welcome. Please open an issue before submitting a pull request.
+This project is developed as an internship assignment at [Info Support](https://www.infosupport.com). Contributions and
+feedback are welcome. Please open an issue before submitting a pull request.
 
 ---
 
