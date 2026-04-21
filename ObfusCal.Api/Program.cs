@@ -1,5 +1,7 @@
 ﻿using System.Runtime.Loader;
+using ObfusCal.Core;
 using ObfusCal.Core.Interfaces;
+using ObfusCal.Core.Obfuscation.Transformers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,18 +10,24 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
 
+builder.Services.AddTransient<IObfuscationTransformer, RemoveTitleTransformer>();
+builder.Services.AddTransient<IObfuscationTransformer, RemoveAttendeesTransformer>();
+builder.Services.AddTransient<IObfuscationTransformer, RemoveDescriptionTransformer>();
+builder.Services.AddTransient<IObfuscationTransformer, RemoveAttendeesTransformer>();
+builder.Services.AddTransient<ObfuscationPipeline>();
+
 var pluginFolder = Path.Combine(AppContext.BaseDirectory, "plugins");
 
 if (Directory.Exists(pluginFolder))
 {
     foreach (var dll in Directory.GetFiles(pluginFolder, "*.dll"))
     {
-        try 
+        try
         {
             var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dll);
 
             var calendarSources = assembly.GetTypes()
-                .Where(t => typeof(ICalendarSource).IsAssignableFrom(t) 
+                .Where(t => typeof(ICalendarSource).IsAssignableFrom(t)
                             && t is { IsInterface: false, IsAbstract: false });
 
             foreach (var type in calendarSources)
