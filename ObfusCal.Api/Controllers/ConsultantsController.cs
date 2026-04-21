@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using ObfusCal.Core;
 using ObfusCal.Core.Interfaces;
-using ObfusCal.Core.Models;
 
 namespace ObfusCal.Api.Controllers;
 
