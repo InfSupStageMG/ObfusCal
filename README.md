@@ -26,6 +26,7 @@ ObfusCal/
 ├── ObfusCal.Core/           # Domain models, interfaces, obfuscation pipeline
 ├── ObfusCal.Infrastructure/ # Calendar adapters, storage implementations
 ├── ObfusCal.Sync/           # Background sync service
+├── ObfusCal.Tests/          # Unit and integration tests
 ├── Dockerfile
 ├── .dockerignore
 ├── .gitignore
