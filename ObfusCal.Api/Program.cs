@@ -2,6 +2,7 @@
 using ObfusCal.Core;
 using ObfusCal.Core.Interfaces;
 using ObfusCal.Core.Obfuscation.Transformers;
+using ObfusCal.Infrastructure.Calendars;
 using ObfusCal.Infrastructure.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -44,6 +45,8 @@ if (Directory.Exists(pluginFolder))
         }
     }
 }
+
+builder.Services.AddScoped<ICalendarSource, MockCalendarSource>();
 
 var app = builder.Build();
 

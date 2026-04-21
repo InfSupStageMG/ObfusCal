@@ -1,0 +1,62 @@
+﻿using Microsoft.Extensions.DependencyInjection;
+using ObfusCal.Core.Interfaces;
+using ObfusCal.Infrastructure.Calendars;
+
+namespace ObfusCal.Tests;
+
+[TestClass]
+public class MockCalendarSourceTests
+{
+    public TestContext TestContext { get; set; } = null!;
+
+    [TestMethod]
+    public async Task GetEventsAsync_WithFourteenDayWindowStartingToday_ReturnsAtLeastThreeEvents()
+    {
+        var source = new MockCalendarSource();
+        var from = DateTimeOffset.UtcNow;
+        var to = from.AddDays(14);
+
+        var events = await source.GetEventsAsync(from, to, TestContext.CancellationToken);
+
+        Assert.IsTrue(events.Count >= 3);
+    }
+
+    [TestMethod]
+    public async Task GetEventsAsync_ReturnsOnlyEventsInsideRequestedWindow()
+    {
+        var source = new MockCalendarSource();
+        var from = DateTimeOffset.UtcNow;
+        var to = from.AddDays(14);
+
+        var events = await source.GetEventsAsync(from, to, TestContext.CancellationToken);
+
+        Assert.IsTrue(events.All(calendarEvent => calendarEvent.Start >= from && calendarEvent.End <= to));
+    }
+
+    [TestMethod]
+    public async Task GetEventsAsync_ReturnsAtLeastOneEventWithSensitiveFieldsPopulated()
+    {
+        var source = new MockCalendarSource();
+        var from = DateTimeOffset.UtcNow;
+        var to = from.AddDays(14);
+
+        var events = await source.GetEventsAsync(from, to, TestContext.CancellationToken);
+
+        Assert.IsTrue(events.Any(calendarEvent =>
+            !string.IsNullOrWhiteSpace(calendarEvent.Title)
+            && !string.IsNullOrWhiteSpace(calendarEvent.Description)
+            && calendarEvent.AttendeeEmails.Any(email => !string.IsNullOrWhiteSpace(email))
+            && !string.IsNullOrWhiteSpace(calendarEvent.Location)));
+    }
+
+    [TestMethod]
+    public async Task Application_ResolvesMockCalendarSource_AsActiveCalendarSource()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development");
+        using var scope = factory.Services.CreateScope();
+
+        var source = scope.ServiceProvider.GetRequiredService<ICalendarSource>();
+
+        Assert.IsInstanceOfType<MockCalendarSource>(source);
+    }
+}
