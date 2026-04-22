@@ -1,0 +1,21 @@
+﻿root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{cs,csproj,slnx,json,yaml,yml,md}]
+indent_style = space
+indent_size = 4
+
+[*.conf]
+charset = utf-8
+# Explicitly no BOM — nginx rejects UTF-8 BOM as an unknown directive
+indent_style = space
+indent_size = 4
+
+[*.{csproj,slnx,props,targets}]
+indent_size = 2
+

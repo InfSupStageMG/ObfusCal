@@ -27,7 +27,10 @@ ObfusCal/
 ├── ObfusCal.Infrastructure/ # Calendar adapters, storage implementations
 ├── ObfusCal.Sync/           # Background sync service
 ├── ObfusCal.Tests/          # Unit and integration tests
+├── docker-compose.yaml
 ├── Dockerfile
+├── nginx.conf
+├── certs/                   # Local TLS material (gitignored except README)
 ├── .dockerignore
 ├── .gitignore
 └── ObfusCal.sln
@@ -39,6 +42,7 @@ ObfusCal/
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Docker](https://www.docker.com/products/docker-desktop) (optional, for containerised runs)
+- [OpenSSL](https://openssl-library.org/source/) (for local reverse-proxy certificate generation)
 
 ---
 
@@ -46,20 +50,41 @@ ObfusCal/
 
 **With the .NET CLI:**
 
-```bash
+```powershell
 dotnet run --project ObfusCal.Api
 ```
 
 Then open `http://localhost:5000/swagger` in your browser.
 
-**With Docker:**
+**With Docker Compose + reverse proxy (HTTPS):**
 
-```bash
-docker build -t obfuscal-api .
-docker run -p 8080:8080 -e ASPNETCORE_ENVIRONMENT=Development -e ASPNETCORE_HTTP_PORTS=8080 obfuscal-api
+1. Create local certificates (see `certs/README.md`):
+
+```powershell
+New-Item -ItemType Directory -Force -Path certs\nginx | Out-Null
+New-Item -ItemType Directory -Force -Path certs\api | Out-Null
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout certs\nginx\tls.key -out certs\nginx\tls.crt -subj "/CN=obfuscal.local"
+dotnet dev-certs https -ep certs\api\api.pfx -p "change-me"
 ```
 
-Then open `http://localhost:8080/swagger` in your browser.
+2. Create a local `.env` file from `.env.example` and set `API_CERT_PASSWORD`.
+
+3. Add a hosts entry for local internal-domain testing:
+
+```text
+127.0.0.1 obfuscal.local
+```
+
+4. Start the stack:
+
+```powershell
+docker compose up --build
+```
+
+5. Verify endpoints:
+   - `https://obfuscal.local/health`
+   - `https://obfuscal.local/swagger` (Development mode)
+   - `http://obfuscal.local` redirects to HTTPS
 
 ---
 
@@ -67,13 +92,13 @@ Then open `http://localhost:8080/swagger` in your browser.
 
 Build the solution:
 
-```bash
+```powershell
 dotnet build
 ```
 
 Run all tests:
 
-```bash
+```powershell
 dotnet test
 ```
 

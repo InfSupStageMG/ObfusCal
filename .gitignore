@@ -12,3 +12,9 @@ obj/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local environment and certificates
+.env
+certs/**
+!certs/
+!certs/README.md

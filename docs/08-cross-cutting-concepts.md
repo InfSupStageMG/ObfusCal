@@ -32,9 +32,11 @@ strict data boundary at the repository layer. A user can only access their own e
 ## Obfuscation Pipeline
 
 The pipeline uses a chain-of-responsibility pattern. A raw `CalendarEvent` is passed through a sequence of
-`IEventTransformer` implementations, each applying one rule:
+`IObfuscationTransformer` implementations, each applying one rule:
 
-- `RemoveTitleTransformer`: replaces title with "Busy", removes description and location
+- `RemoveTitleTransformer`: replaces the event title with "Busy"
+- `RemoveDescriptionTransformer`: clears the event description
+- `RemoveLocationTransformer`: clears the event location
 - `RemoveAttendeesTransformer`: removes all attendee names and email addresses
 - `RoundTimesTransformer`: rounds start times down and end times up to the nearest 15 minutes
 - `MergeBlocksTransformer`: collapses overlapping or adjacent slots into a single block

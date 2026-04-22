@@ -49,12 +49,12 @@ ObfusCal.Api
 
 ### ObfusCal.Api
 
-| Component               | Responsibility                                                                                               |
-|-------------------------|--------------------------------------------------------------------------------------------------------------|
-| `BusySlotsController`   | Exposes `GET /api/users/{id}/busy-slots` for peer instances to pull obfuscated slots                         |
-| `ShadowSlotsController` | Exposes `POST /api/users/{id}/shadow-slots` for peer instances to push their slots                           |
-| `FreeBusyController`    | Exposes `GET /api/users/{id}/free-busy` returning the merged availability view                               |
-| `PluginLoader`          | Scans `plugins/` at startup and registers discovered `ICalendarSource` / `IEventTransformer` implementations |
+| Component               | Responsibility                                                                                                         |
+|-------------------------|------------------------------------------------------------------------------------------------------------------------|
+| `ConsultantsController` | Exposes `GET /api/consultants/{id}/busy-slots` — runs the obfuscation pipeline and returns busy slots for a consultant |
+| `ShadowSlotsController` | Exposes `POST /api/shadow-slots` — accepts inbound obfuscated slots pushed by a known peer instance                    |
+| `FreeBusyController`    | Exposes `GET /api/users/{id}/free-busy` returning the merged availability view                                         |
+| `PluginLoader`          | Scans `plugins/` at startup and registers discovered `ICalendarSource` / `IObfuscationTransformer` implementations     |
 
 ## Domain Model
 
