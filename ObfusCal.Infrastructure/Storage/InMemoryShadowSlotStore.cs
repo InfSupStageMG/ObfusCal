@@ -39,4 +39,17 @@ public sealed class InMemoryShadowSlotStore : IShadowSlotStore
 
         return Task.FromResult<IReadOnlyList<BusySlot>>(result);
     }
+
+    public Task<IReadOnlyList<BusySlot>> GetAllSlotsAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var allSlots = _slotsByPeer.Values.SelectMany(slots => slots).ToArray();
+
+        Log.ForContext("PeerCount", _slotsByPeer.Count)
+            .ForContext("BusySlotCount", allSlots.Length)
+            .Debug("Read all shadow slots from all peers");
+
+        return Task.FromResult<IReadOnlyList<BusySlot>>(allSlots);
+    }
 }
