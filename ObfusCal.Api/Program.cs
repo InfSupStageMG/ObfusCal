@@ -19,6 +19,8 @@ builder.Services.AddTransient<IObfuscationTransformer, RemoveTitleTransformer>()
 builder.Services.AddTransient<IObfuscationTransformer, RemoveDescriptionTransformer>();
 builder.Services.AddTransient<IObfuscationTransformer, RemoveLocationTransformer>();
 builder.Services.AddTransient<IObfuscationTransformer, RemoveAttendeesTransformer>();
+builder.Services.AddTransient<IObfuscationTransformer, RoundTimesTransformer>();
+builder.Services.AddTransient<IBusySlotTransformer, MergeBlocksTransformer>();
 builder.Services.AddTransient<ObfuscationPipeline>();
 
 var pluginFolder = Path.Combine(AppContext.BaseDirectory, "plugins");
