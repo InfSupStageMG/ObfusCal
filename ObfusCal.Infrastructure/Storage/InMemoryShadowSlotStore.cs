@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using ObfusCal.Core.Interfaces;
 using ObfusCal.Core.Models;
+using Serilog;
 
 namespace ObfusCal.Infrastructure.Storage;
 
@@ -13,7 +14,13 @@ public sealed class InMemoryShadowSlotStore : IShadowSlotStore
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
         ArgumentNullException.ThrowIfNull(slots);
         ct.ThrowIfCancellationRequested();
+
         _slotsByPeer[peerId] = slots.ToArray();
+
+        Log.ForContext("PeerId", peerId)
+            .ForContext("BusySlotCount", slots.Count)
+            .Information("Stored shadow slots for peer");
+
         return Task.CompletedTask;
     }
 
@@ -21,9 +28,15 @@ public sealed class InMemoryShadowSlotStore : IShadowSlotStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
         ct.ThrowIfCancellationRequested();
+
         var result = _slotsByPeer.TryGetValue(peerId, out var slots)
             ? slots.ToArray()
             : [];
+
+        Log.ForContext("PeerId", peerId)
+            .ForContext("BusySlotCount", result.Length)
+            .Debug("Read shadow slots for peer");
+
         return Task.FromResult<IReadOnlyList<BusySlot>>(result);
     }
 }
