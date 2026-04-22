@@ -1,5 +1,6 @@
 using ObfusCal.Core.Interfaces;
 using ObfusCal.Core.Models;
+using Serilog;
 
 namespace ObfusCal.Core;
 
@@ -11,10 +12,17 @@ public sealed class ObfuscationPipeline
     {
         _transformers = transformers;
     }
-    
-    public IReadOnlyList<BusySlot> Process(IEnumerable<CalendarEvent> events) =>
-        events
-            .Select(e => _transformers.Aggregate(e, (current, transformer) => transformer.Transform(current)))
-            .Select(e => new BusySlot(e.Id, e.Start, e.End))
+
+    public IReadOnlyList<BusySlot> Process(IEnumerable<CalendarEvent> events)
+    {
+        var inputEvents = events as IReadOnlyCollection<CalendarEvent> ?? events.ToArray();
+
+        Log.ForContext<ObfuscationPipeline>()
+            .Information("Processed {EventCount} events through obfuscation pipeline", inputEvents.Count);
+
+        return inputEvents
+            .Select(calendarEvent => _transformers.Aggregate(calendarEvent, (current, transformer) => transformer.Transform(current)))
+            .Select(calendarEvent => new BusySlot(calendarEvent.Id, calendarEvent.Start, calendarEvent.End))
             .ToList();
+    }
 }
