@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Configuration\" />
     <Folder Include="interfaces\" />
     <Folder Include="models\" />
   </ItemGroup>

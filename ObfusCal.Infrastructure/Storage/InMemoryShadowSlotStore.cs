@@ -8,20 +8,22 @@ public sealed class InMemoryShadowSlotStore : IShadowSlotStore
 {
     private readonly ConcurrentDictionary<string, IReadOnlyList<BusySlot>> _slotsByPeer = new();
 
-    public void SetSlots(string peerId, IReadOnlyList<BusySlot> slots)
+    public Task SetSlotsAsync(string peerId, IReadOnlyList<BusySlot> slots, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
         ArgumentNullException.ThrowIfNull(slots);
-
+        ct.ThrowIfCancellationRequested();
         _slotsByPeer[peerId] = slots.ToArray();
+        return Task.CompletedTask;
     }
 
-    public IReadOnlyList<BusySlot> GetSlots(string peerId)
+    public Task<IReadOnlyList<BusySlot>> GetSlotsAsync(string peerId, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
-
-        return _slotsByPeer.TryGetValue(peerId, out var slots)
+        ct.ThrowIfCancellationRequested();
+        var result = _slotsByPeer.TryGetValue(peerId, out var slots)
             ? slots.ToArray()
             : [];
+        return Task.FromResult<IReadOnlyList<BusySlot>>(result);
     }
 }

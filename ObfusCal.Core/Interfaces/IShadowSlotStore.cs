@@ -4,6 +4,6 @@ namespace ObfusCal.Core.Interfaces;
 
 public interface IShadowSlotStore
 {
-    void SetSlots(string peerId, IReadOnlyList<BusySlot> slots);
-    IReadOnlyList<BusySlot> GetSlots(string peerId);
+    Task SetSlotsAsync(string peerId, IReadOnlyList<BusySlot> slots, CancellationToken ct = default);
+    Task<IReadOnlyList<BusySlot>> GetSlotsAsync(string peerId, CancellationToken ct = default);
 }

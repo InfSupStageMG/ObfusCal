@@ -1,5 +1,6 @@
 ﻿using System.Runtime.Loader;
 using ObfusCal.Core;
+using ObfusCal.Core.Configuration;
 using ObfusCal.Core.Interfaces;
 using ObfusCal.Core.Obfuscation.Transformers;
 using ObfusCal.Infrastructure.Calendars;
@@ -11,11 +12,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
+builder.Services.Configure<SyncOptions>(builder.Configuration.GetSection(SyncOptions.SectionName));
 builder.Services.AddSingleton<IShadowSlotStore, InMemoryShadowSlotStore>();
 
 builder.Services.AddTransient<IObfuscationTransformer, RemoveTitleTransformer>();
-builder.Services.AddTransient<IObfuscationTransformer, RemoveAttendeesTransformer>();
 builder.Services.AddTransient<IObfuscationTransformer, RemoveDescriptionTransformer>();
+builder.Services.AddTransient<IObfuscationTransformer, RemoveLocationTransformer>();
 builder.Services.AddTransient<IObfuscationTransformer, RemoveAttendeesTransformer>();
 builder.Services.AddTransient<ObfuscationPipeline>();
 
