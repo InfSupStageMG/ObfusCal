@@ -60,4 +60,78 @@ public class InMemoryShadowSlotStoreTests
             Assert.HasCount(1, result);
         }
     }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_ReturnsEmptyArray_WhenNoSlotsAreStored()
+    {
+        var store = new InMemoryShadowSlotStore();
+
+        var allSlots = await store.GetAllSlotsAsync();
+
+        Assert.HasCount(0, allSlots);
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_ReturnsSlotsFromSinglePeer()
+    {
+        var store = new InMemoryShadowSlotStore();
+        var slots = new[]
+        {
+            new BusySlot("evt-1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1)),
+            new BusySlot("evt-2", DateTimeOffset.UtcNow.AddHours(2), DateTimeOffset.UtcNow.AddHours(3))
+        };
+
+        await store.SetSlotsAsync("peer-a", slots);
+        var allSlots = await store.GetAllSlotsAsync();
+
+        Assert.HasCount(2, allSlots);
+        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "evt-1"));
+        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "evt-2"));
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_ReturnsSlotsFromMultiplePeers()
+    {
+        var store = new InMemoryShadowSlotStore();
+
+        await store.SetSlotsAsync("peer-a", 
+            [new BusySlot("a-evt-1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1)),
+             new BusySlot("a-evt-2", DateTimeOffset.UtcNow.AddHours(2), DateTimeOffset.UtcNow.AddHours(3))]);
+        
+        await store.SetSlotsAsync("peer-b", 
+            [new BusySlot("b-evt-1", DateTimeOffset.UtcNow.AddHours(4), DateTimeOffset.UtcNow.AddHours(5))]);
+
+        var allSlots = await store.GetAllSlotsAsync();
+
+        Assert.HasCount(3, allSlots);
+        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "a-evt-1"));
+        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "a-evt-2"));
+        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "b-evt-1"));
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_ReturnsSlotsAfterReplacingPeerSlots()
+    {
+        var store = new InMemoryShadowSlotStore();
+
+        var initialSlots = new[] 
+        { 
+            new BusySlot("evt-1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))
+        };
+        await store.SetSlotsAsync("peer-a", initialSlots);
+
+        var replacementSlots = new[]
+        {
+            new BusySlot("evt-2", DateTimeOffset.UtcNow.AddHours(2), DateTimeOffset.UtcNow.AddHours(3)),
+            new BusySlot("evt-3", DateTimeOffset.UtcNow.AddHours(4), DateTimeOffset.UtcNow.AddHours(5))
+        };
+        await store.SetSlotsAsync("peer-a", replacementSlots);
+
+        var allSlots = await store.GetAllSlotsAsync();
+
+        Assert.HasCount(2, allSlots);
+        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "evt-2"));
+        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "evt-3"));
+        Assert.IsFalse(allSlots.Any(s => s.SourceEventId == "evt-1"));
+    }
 }
