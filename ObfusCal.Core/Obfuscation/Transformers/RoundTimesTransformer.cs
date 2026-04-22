@@ -22,10 +22,7 @@ public sealed class RoundTimesTransformer : IObfuscationTransformer
             End = roundedEnd
         };
     }
-
-    /// <summary>
-    /// Rounds a timestamp down to the nearest 15-minute boundary.
-    /// </summary>
+    
     private static DateTimeOffset RoundDown(DateTimeOffset dateTime)
     {
         var totalMinutes = dateTime.TimeOfDay.TotalMinutes;
@@ -34,10 +31,7 @@ public sealed class RoundTimesTransformer : IObfuscationTransformer
         var roundedDateTime = dateTime.Date.Add(timeSpan);
         return new DateTimeOffset(roundedDateTime, dateTime.Offset);
     }
-
-    /// <summary>
-    /// Rounds a timestamp up to the nearest 15-minute boundary.
-    /// </summary>
+    
     private static DateTimeOffset RoundUp(DateTimeOffset dateTime)
     {
         var totalMinutes = dateTime.TimeOfDay.TotalMinutes;
