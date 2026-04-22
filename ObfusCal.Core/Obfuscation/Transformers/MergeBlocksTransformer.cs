@@ -1,5 +1,6 @@
 ﻿using ObfusCal.Core.Interfaces;
 using ObfusCal.Core.Models;
+using Serilog;
 
 namespace ObfusCal.Core.Obfuscation.Transformers;
 
@@ -36,6 +37,16 @@ public sealed class MergeBlocksTransformer : IBusySlotTransformer
         }
 
         merged.Add(current);
+
+        if (merged.Count < slots.Count)
+        {
+            Log.ForContext<MergeBlocksTransformer>()
+                .ForContext("InputSlotCount", slots.Count)
+                .ForContext("OutputSlotCount", merged.Count)
+                .ForContext("MergedBlockCount", slots.Count - merged.Count)
+                .Information("Merged overlapping busy slots into continuous blocks");
+        }
+
         return merged.AsReadOnly();
     }
 

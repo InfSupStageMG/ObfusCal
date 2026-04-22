@@ -22,7 +22,7 @@ public class ObfuscationPipelineLoggingTests
                 .WriteTo.Sink(sink)
                 .CreateLogger();
 
-            var pipeline = new ObfuscationPipeline([]);
+            var pipeline = new ObfuscationPipeline([], []);
             var sensitiveEvent = new CalendarEvent(
                 Id: "evt-1",
                 Title: "Confidential title",

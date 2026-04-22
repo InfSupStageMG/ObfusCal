@@ -1,5 +1,6 @@
 ﻿using ObfusCal.Core.Interfaces;
 using ObfusCal.Core.Models;
+using Serilog;
 
 namespace ObfusCal.Core.Obfuscation.Transformers;
 
@@ -15,6 +16,18 @@ public sealed class RoundTimesTransformer : IObfuscationTransformer
     {
         var roundedStart = RoundDown(calendarEvent.Start);
         var roundedEnd = RoundUp(calendarEvent.End);
+
+        var wasModified = roundedStart != calendarEvent.Start || roundedEnd != calendarEvent.End;
+        if (wasModified)
+        {
+            Log.ForContext<RoundTimesTransformer>()
+                .ForContext("EventId", calendarEvent.Id)
+                .ForContext("OriginalStart", calendarEvent.Start)
+                .ForContext("OriginalEnd", calendarEvent.End)
+                .ForContext("RoundedStart", roundedStart)
+                .ForContext("RoundedEnd", roundedEnd)
+                .Debug("Rounded event times to 15-minute boundary");
+        }
 
         return calendarEvent with
         {
@@ -50,5 +63,3 @@ public sealed class RoundTimesTransformer : IObfuscationTransformer
         return new DateTimeOffset(roundedDateTime2, dateTime.Offset);
     }
 }
-
-
