@@ -56,9 +56,12 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext) : IShadowSlotS
         return result;
     }
 
-    public async Task<IReadOnlyList<CoreBusySlot>> GetAllSlotsAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<CoreBusySlot>> GetAllSlotsAsync(
+        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
     {
-        var entities = await dbContext.BusySlots.ToListAsync(ct);
+        var entities = await dbContext.BusySlots
+            .Where(b => b.Start >= from && b.End <= to)
+            .ToListAsync(ct);
 
         var result = entities
             .Select(e => new CoreBusySlot(e.SourceEventId, e.Start, e.End))

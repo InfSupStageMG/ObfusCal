@@ -8,25 +8,19 @@ namespace ObfusCal.Api.Controllers;
 
 [ApiController]
 [Route("api/calendar-owners")]
-public class CalendarOwnersController : ControllerBase
+public class CalendarOwnersController(
+    ICalendarSource calendarSource,
+    ObfuscationPipeline obfuscationPipeline,
+    IShadowSlotStore shadowSlotStore,
+    string calendarOwnerId)
+    : ControllerBase
 {
-    private readonly ICalendarSource _calendarSource;
-    private readonly ObfuscationPipeline _obfuscationPipeline;
-    private readonly IShadowSlotStore _shadowSlotStore;
-
-    public CalendarOwnersController(ICalendarSource calendarSource, ObfuscationPipeline obfuscationPipeline, IShadowSlotStore shadowSlotStore)
-    {
-        _calendarSource = calendarSource;
-        _obfuscationPipeline = obfuscationPipeline;
-        _shadowSlotStore = shadowSlotStore;
-    }
-
     [HttpGet("{id}/busy-slots")]
     public async Task<IActionResult> GetBusySlots(string id, [FromQuery] string? from, [FromQuery] string? to, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to))
         {
-            Log.ForContext("CalendarOwnerId", id)
+            Log.ForContext(calendarOwnerId, id)
                 .Warning("Rejected busy-slot request because required query parameters are missing");
             return BadRequest("Query parameters 'from' and 'to' are required.");
         }
@@ -34,15 +28,15 @@ public class CalendarOwnersController : ControllerBase
         if (!DateTimeOffset.TryParse(from, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var fromDate)
             || !DateTimeOffset.TryParse(to, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var toDate))
         {
-            Log.ForContext("CalendarOwnerId", id)
+            Log.ForContext(calendarOwnerId, id)
                 .Warning("Rejected busy-slot request because query parameters are invalid date-time values");
             return BadRequest("Query parameters 'from' and 'to' must be valid date-time strings.");
         }
 
-        var events = await _calendarSource.GetEventsAsync(fromDate, toDate, ct);
-        var busySlots = _obfuscationPipeline.Process(events);
+        var events = await calendarSource.GetEventsAsync(fromDate, toDate, ct);
+        var busySlots = obfuscationPipeline.Process(events);
 
-        Log.ForContext("CalendarOwnerId", id)
+        Log.ForContext(calendarOwnerId, id)
             .ForContext("BusySlotCount", busySlots.Count)
             .ForContext("From", fromDate)
             .ForContext("To", toDate)
@@ -58,7 +52,7 @@ public class CalendarOwnersController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to))
         {
-            Log.ForContext("CalendarOwnerId", id)
+            Log.ForContext(calendarOwnerId, id)
                 .Warning("Rejected merged-freebusy request because required query parameters are missing");
             return BadRequest("Query parameters 'from' and 'to' are required.");
         }
@@ -66,22 +60,22 @@ public class CalendarOwnersController : ControllerBase
         if (!DateTimeOffset.TryParse(from, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var fromDate)
             || !DateTimeOffset.TryParse(to, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var toDate))
         {
-            Log.ForContext("CalendarOwnerId", id)
+            Log.ForContext(calendarOwnerId, id)
                 .Warning("Rejected merged-freebusy request because query parameters are invalid date-time values");
             return BadRequest("Query parameters 'from' and 'to' must be valid date-time strings.");
         }
 
         // Get own obfuscated busy slots
-        var events = await _calendarSource.GetEventsAsync(fromDate, toDate, ct);
-        var ownBusySlots = _obfuscationPipeline.Process(events);
+        var events = await calendarSource.GetEventsAsync(fromDate, toDate, ct);
+        var ownBusySlots = obfuscationPipeline.Process(events);
 
         // Get shadow slots from all peers
-        var shadowSlots = await _shadowSlotStore.GetAllSlotsAsync(ct);
+        var shadowSlots = await shadowSlotStore.GetAllSlotsAsync(fromDate, toDate, ct);
 
         // Combine into a single list
         var mergedSlots = ownBusySlots.Concat(shadowSlots).OrderBy(s => s.Start).ToList();
 
-        Log.ForContext("CalendarOwnerId", id)
+        Log.ForContext(calendarOwnerId, id)
             .ForContext("OwnBusySlotCount", ownBusySlots.Count)
             .ForContext("ShadowSlotCount", shadowSlots.Count)
             .ForContext("MergedSlotCount", mergedSlots.Count)
@@ -94,4 +88,3 @@ public class CalendarOwnersController : ControllerBase
         return Ok(result);
     }
 }
-

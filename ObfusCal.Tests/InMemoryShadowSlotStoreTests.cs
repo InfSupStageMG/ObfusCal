@@ -66,7 +66,8 @@ public class InMemoryShadowSlotStoreTests
     {
         var store = new InMemoryShadowSlotStore();
 
-        var allSlots = await store.GetAllSlotsAsync();
+        var allSlots = await store.GetAllSlotsAsync(
+            DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
 
         Assert.HasCount(0, allSlots);
     }
@@ -82,11 +83,12 @@ public class InMemoryShadowSlotStoreTests
         };
 
         await store.SetSlotsAsync("peer-a", slots);
-        var allSlots = await store.GetAllSlotsAsync();
+        var allSlots = await store.GetAllSlotsAsync(
+            DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
 
         Assert.HasCount(2, allSlots);
-        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "evt-1"));
-        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "evt-2"));
+        Assert.Contains(s => s.SourceEventId == "evt-1", allSlots);
+        Assert.Contains(s => s.SourceEventId == "evt-2", allSlots);
     }
 
     [TestMethod]
@@ -94,19 +96,20 @@ public class InMemoryShadowSlotStoreTests
     {
         var store = new InMemoryShadowSlotStore();
 
-        await store.SetSlotsAsync("peer-a", 
+        await store.SetSlotsAsync("peer-a",
             [new BusySlot("a-evt-1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1)),
              new BusySlot("a-evt-2", DateTimeOffset.UtcNow.AddHours(2), DateTimeOffset.UtcNow.AddHours(3))]);
-        
-        await store.SetSlotsAsync("peer-b", 
+
+        await store.SetSlotsAsync("peer-b",
             [new BusySlot("b-evt-1", DateTimeOffset.UtcNow.AddHours(4), DateTimeOffset.UtcNow.AddHours(5))]);
 
-        var allSlots = await store.GetAllSlotsAsync();
+        var allSlots = await store.GetAllSlotsAsync(
+            DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
 
         Assert.HasCount(3, allSlots);
-        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "a-evt-1"));
-        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "a-evt-2"));
-        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "b-evt-1"));
+        Assert.Contains(s => s.SourceEventId == "a-evt-1", allSlots);
+        Assert.Contains(s => s.SourceEventId == "a-evt-2", allSlots);
+        Assert.Contains(s => s.SourceEventId == "b-evt-1", allSlots);
     }
 
     [TestMethod]
@@ -114,8 +117,8 @@ public class InMemoryShadowSlotStoreTests
     {
         var store = new InMemoryShadowSlotStore();
 
-        var initialSlots = new[] 
-        { 
+        var initialSlots = new[]
+        {
             new BusySlot("evt-1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))
         };
         await store.SetSlotsAsync("peer-a", initialSlots);
@@ -127,11 +130,12 @@ public class InMemoryShadowSlotStoreTests
         };
         await store.SetSlotsAsync("peer-a", replacementSlots);
 
-        var allSlots = await store.GetAllSlotsAsync();
+        var allSlots = await store.GetAllSlotsAsync(
+            DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
 
         Assert.HasCount(2, allSlots);
-        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "evt-2"));
-        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "evt-3"));
-        Assert.IsFalse(allSlots.Any(s => s.SourceEventId == "evt-1"));
+        Assert.Contains(s => s.SourceEventId == "evt-2", allSlots);
+        Assert.Contains(s => s.SourceEventId == "evt-3", allSlots);
+        Assert.DoesNotContain(s => s.SourceEventId == "evt-1", allSlots);
     }
 }

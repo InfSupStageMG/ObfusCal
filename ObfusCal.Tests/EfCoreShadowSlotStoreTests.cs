@@ -35,7 +35,7 @@ public class EfCoreShadowSlotStoreTests
         await _postgres.DisposeAsync();
     }
 
-    private AppDbContext CreateDbContext()
+    private static AppDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(_connectionString)
@@ -104,10 +104,11 @@ public class EfCoreShadowSlotStoreTests
         await store.SetSlotsAsync("ef-get-all-b",
             [new BusySlot("ga-evt-2", DateTimeOffset.UtcNow.AddHours(2), DateTimeOffset.UtcNow.AddHours(3))]);
 
-        var all = await store.GetAllSlotsAsync();
+        var allSlots = await store.GetAllSlotsAsync(
+            DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
 
-        Assert.IsTrue(all.Any(s => s.SourceEventId == "ga-evt-1"));
-        Assert.IsTrue(all.Any(s => s.SourceEventId == "ga-evt-2"));
+        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "ga-evt-1"));
+        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "ga-evt-2"));
     }
 }
 
