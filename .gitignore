@@ -12,5 +12,9 @@ obj/
 # OS files
 .DS_Store
 Thumbs.db
-# Local environment variables (contains secrets - never commit)
+
+# Local environment and certificates
 .env
+certs/**
+!certs/
+!certs/README.md
