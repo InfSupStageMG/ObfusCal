@@ -26,8 +26,7 @@ nav:
       - "6. Runtime View": 06-runtime-view.md
       - "7. Deployment View": 07-deployment-view.md
       - "8. Cross-cutting Concepts": 08-cross-cutting-concepts.md
-      
-      # Notice how Chapter 9 is now a dropdown that holds your ADRs!
+
       - "9. Architectural Decisions":
           - "Overview": adr/index.md
           - "0001: Federated Architecture": adr/0001-federated-architecture.md
@@ -37,6 +36,7 @@ nav:
           - "0005: Calendar Libraries": adr/0005-calendar-libraries.md
           - "0006: Plugin Architecture": adr/0006-plugin-architecture.md
           - "0007: Testing Framework": adr/0007-testing-framework.md
+          - "0008: Project Structure": adr/0008-project-structure.md
 
       - "10. Quality Requirements": 10-quality-requirements.md
       - "11. Risks & Technical Debt": 11-risks-technical-debt.md
