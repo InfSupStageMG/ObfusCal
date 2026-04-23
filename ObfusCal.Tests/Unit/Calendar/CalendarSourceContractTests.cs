@@ -1,7 +1,7 @@
 ﻿using ObfusCal.Core.Interfaces;
 using ObfusCal.Core.Models;
 
-namespace ObfusCal.Tests;
+namespace ObfusCal.Tests.Unit.Calendar;
 
 [TestClass]
 public class CalendarSourceContractTests
@@ -26,13 +26,13 @@ file class StubCalendarSource : ICalendarSource
 {
     private static readonly List<CalendarEvent> Events =
     [
-        new("1", "Inside",  null, 
+        new("1", "Inside",  null,
             new DateTimeOffset(2026, 1, 12, 9, 0, 0, TimeSpan.Zero),
-            new DateTimeOffset(2026, 1, 12, 10, 0, 0, TimeSpan.Zero), 
+            new DateTimeOffset(2026, 1, 12, 10, 0, 0, TimeSpan.Zero),
             [], null),
-        new("2", "Outside", null, 
+        new("2", "Outside", null,
             new DateTimeOffset(2026, 1, 25, 9, 0, 0, TimeSpan.Zero),
-            new DateTimeOffset(2026, 1, 25, 10, 0, 0, TimeSpan.Zero), 
+            new DateTimeOffset(2026, 1, 25, 10, 0, 0, TimeSpan.Zero),
             [], null),
     ];
 

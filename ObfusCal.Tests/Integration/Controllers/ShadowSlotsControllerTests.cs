@@ -2,8 +2,9 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using ObfusCal.Core.Interfaces;
+using ObfusCal.Tests.Helpers;
 
-namespace ObfusCal.Tests;
+namespace ObfusCal.Tests.Integration.Controllers;
 
 [TestClass]
 public class ShadowSlotsControllerTests

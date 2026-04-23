@@ -1,7 +1,8 @@
 ﻿using System.Net;
 using System.Text.Json;
+using ObfusCal.Tests.Helpers;
 
-namespace ObfusCal.Tests;
+namespace ObfusCal.Tests.Integration.Controllers;
 
 [TestClass]
 public class CalendarOwnersControllerTests
@@ -22,7 +23,7 @@ public class CalendarOwnersControllerTests
 
         var json = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
         using var document = JsonDocument.Parse(json);
-        Assert.IsTrue(document.RootElement.ValueKind == JsonValueKind.Array);
+        Assert.AreEqual(JsonValueKind.Array, document.RootElement.ValueKind);
     }
 
     [TestMethod]
@@ -91,7 +92,7 @@ public class CalendarOwnersControllerTests
 
         var json = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
         using var document = JsonDocument.Parse(json);
-        Assert.IsTrue(document.RootElement.ValueKind == JsonValueKind.Array);
+        Assert.AreEqual(JsonValueKind.Array, document.RootElement.ValueKind);
     }
 
     [TestMethod]
@@ -160,7 +161,7 @@ public class CalendarOwnersControllerTests
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
 
-        Assert.IsTrue(root.ValueKind == JsonValueKind.Array);
+        Assert.AreEqual(JsonValueKind.Array, root.ValueKind);
         if (root.GetArrayLength() > 0)
         {
             var firstElement = root[0];
