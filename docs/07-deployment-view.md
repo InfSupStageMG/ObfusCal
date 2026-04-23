@@ -11,8 +11,10 @@ flowchart TB
 %% Company Network
 subgraph CN["Company Network"]
     subgraph DH1["Docker Host"]
-        API1["obfuscal-api (.NET 10)\n:8080"]
+        NGINX1["nginx reverse-proxy\n:80 (→ HTTPS) / :443"]
+        API1["obfuscal-api (.NET 10)\n:8443 (internal)"]
         DB["PostgreSQL\n(later sprint)"]
+        NGINX1 --> API1
         API1 --> DB
     end
 end
@@ -20,12 +22,14 @@ end
 %% Client Network
 subgraph CL["Client Network (e.g. Client A)"]
     subgraph DH2["Docker Host"]
-        API2["obfuscal-api\n:8080"]
+        NGINX2["nginx reverse-proxy\n:80 / :443"]
+        API2["obfuscal-api\n:8443 (internal)"]
+        NGINX2 --> API2
     end
 end
 
 %% Connection
-API1 -- "HTTPS (API Key auth)" --> API2
+NGINX1 -- "HTTPS (API Key auth)" --> NGINX2
 ```
 
 ## Deployment Steps
@@ -40,12 +44,16 @@ The `docker-compose.yaml` at the repository root configures the required environ
 
 ## Environment Variables
 
-| Variable                     | Purpose                                                                |
-|------------------------------|------------------------------------------------------------------------|
-| `ASPNETCORE_ENVIRONMENT`     | Set to `Development` for Swagger UI; `Production` for live deployments |
-| `ASPNETCORE_HTTP_PORTS`      | Port the API listens on inside the container (default: `8080`)         |
-| `ConnectionStrings__Default` | PostgreSQL connection string (later sprint)                            |
-| `Sync__IntervalSeconds`      | How often the background sync runs (default: `900` = 15 minutes)       |
+| Variable                                              | Purpose                                                                |
+|-------------------------------------------------------|------------------------------------------------------------------------|
+| `ASPNETCORE_ENVIRONMENT`                              | Set to `Development` for Swagger UI; `Production` for live deployments |
+| `ASPNETCORE_URLS`                                     | Kestrel listen URL inside the container (e.g. `https://+:8443`)        |
+| `ASPNETCORE_Kestrel__Certificates__Default__Path`     | Path to the PFX certificate file mounted into the container            |
+| `ASPNETCORE_Kestrel__Certificates__Default__Password` | Password for the PFX certificate (sourced from `.env`)                 |
+| `API_CERT_PASSWORD`                                   | Passed to `docker compose` via `.env`; sets the Kestrel cert password  |
+| `Sync__KnownPeerIds__0`, `__1`, …                     | Comma-indexed list of peer IDs accepted by `ShadowSlotsController`     |
+| `ConnectionStrings__Default`                          | PostgreSQL connection string (later sprint)                            |
+| `Sync__IntervalSeconds`                               | How often the background sync runs (default: `900` = 15 minutes)       |
 
 ## CI/CD
 
@@ -64,9 +72,9 @@ docker compose up -d
 
 ## PoC vs Production Differences
 
-| Concern | PoC                           | Production                                    |
-|---------|-------------------------------|-----------------------------------------------|
-| Storage | In-memory                     | PostgreSQL via EF Core                        |
-| TLS     | Not handled by container      | Terminated at reverse proxy (nginx / Traefik) |
-| Auth    | API key header (peer-to-peer) | API key + Entra ID OIDC (human users)         |
-| Secrets | Environment variables         | Secrets manager or Docker secrets             |
+| Concern | PoC                                       | Production                                  |
+|---------|-------------------------------------------|---------------------------------------------|
+| Storage | In-memory                                 | PostgreSQL via EF Core                      |
+| TLS     | Terminated at nginx sidecar (self-signed) | Terminated at reverse proxy with valid cert |
+| Auth    | API key header (peer-to-peer)             | API key + Entra ID OIDC (human users)       |
+| Secrets | Environment variables / `.env` file       | Secrets manager or Docker secrets           |
