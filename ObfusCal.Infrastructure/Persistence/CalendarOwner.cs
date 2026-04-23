@@ -1,10 +1,9 @@
 ﻿namespace ObfusCal.Infrastructure.Persistence;
 
-public class Consultant
+public class CalendarOwner
 {
     public Guid Id { get; set; }
     public required string Name { get; set; }
 
-    public ICollection<ConsultantPeerMapping> PeerMappings { get; set; } = [];
+    public ICollection<CalendarOwnerPeerMapping> PeerMappings { get; set; } = [];
 }
-

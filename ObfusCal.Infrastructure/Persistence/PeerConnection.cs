@@ -6,6 +6,6 @@ public class PeerConnection
     public required string InstanceId { get; set; }
     public required string BaseAddress { get; set; }
 
-    public ICollection<ConsultantPeerMapping> ConsultantMappings { get; set; } = [];
+    public ICollection<CalendarOwnerPeerMapping> CalendarOwnerMappings { get; set; } = [];
 }
 

@@ -49,7 +49,7 @@ namespace ObfusCal.Infrastructure.Migrations
                     b.ToTable("BusySlots");
                 });
 
-            modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.Consultant", b =>
+            modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.CalendarOwner", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -61,16 +61,16 @@ namespace ObfusCal.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Consultants");
+                    b.ToTable("CalendarOwners");
                 });
 
-            modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.ConsultantPeerMapping", b =>
+            modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.CalendarOwnerPeerMapping", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ConsultantId")
+                    b.Property<Guid>("CalendarOwnerId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("PeerConnectionId")
@@ -78,11 +78,11 @@ namespace ObfusCal.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ConsultantId");
+                    b.HasIndex("CalendarOwnerId");
 
                     b.HasIndex("PeerConnectionId");
 
-                    b.ToTable("ConsultantPeerMappings");
+                    b.ToTable("CalendarOwnerPeerMappings");
                 });
 
             modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.PeerConnection", b =>
@@ -104,33 +104,33 @@ namespace ObfusCal.Infrastructure.Migrations
                     b.ToTable("PeerConnections");
                 });
 
-            modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.ConsultantPeerMapping", b =>
+            modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.CalendarOwnerPeerMapping", b =>
                 {
-                    b.HasOne("ObfusCal.Infrastructure.Persistence.Consultant", "Consultant")
+                    b.HasOne("ObfusCal.Infrastructure.Persistence.CalendarOwner", "CalendarOwner")
                         .WithMany("PeerMappings")
-                        .HasForeignKey("ConsultantId")
+                        .HasForeignKey("CalendarOwnerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("ObfusCal.Infrastructure.Persistence.PeerConnection", "PeerConnection")
-                        .WithMany("ConsultantMappings")
+                        .WithMany("CalendarOwnerMappings")
                         .HasForeignKey("PeerConnectionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Consultant");
+                    b.Navigation("CalendarOwner");
 
                     b.Navigation("PeerConnection");
                 });
 
-            modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.Consultant", b =>
+            modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.CalendarOwner", b =>
                 {
                     b.Navigation("PeerMappings");
                 });
 
             modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.PeerConnection", b =>
                 {
-                    b.Navigation("ConsultantMappings");
+                    b.Navigation("CalendarOwnerMappings");
                 });
 #pragma warning restore 612, 618
         }

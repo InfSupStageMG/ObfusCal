@@ -43,7 +43,7 @@ public sealed class MockCalendarSource : ICalendarSource
             Description: "Review open items and confirm the next milestone scope.",
             Start: anchor.AddDays(4).AddHours(13),
             End: anchor.AddDays(4).AddHours(14.5),
-            AttendeeEmails: ["consultant@obfuscal.test", "client@partner.test"],
+            AttendeeEmails: ["calendarowner@obfuscal.test", "client@partner.test"],
             Location: "Contoso HQ"),
         new(
             Id: "mock-security-review",

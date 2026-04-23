@@ -4,14 +4,14 @@ namespace ObfusCal.Infrastructure.Persistence;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    public DbSet<Consultant> Consultants => Set<Consultant>();
+    public DbSet<CalendarOwner> CalendarOwners => Set<CalendarOwner>();
     public DbSet<PeerConnection> PeerConnections => Set<PeerConnection>();
-    public DbSet<ConsultantPeerMapping> ConsultantPeerMappings => Set<ConsultantPeerMapping>();
+    public DbSet<CalendarOwnerPeerMapping> CalendarOwnerPeerMappings => Set<CalendarOwnerPeerMapping>();
     public DbSet<BusySlot> BusySlots => Set<BusySlot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Consultant>(e =>
+        modelBuilder.Entity<CalendarOwner>(e =>
         {
             e.HasKey(c => c.Id);
             e.Property(c => c.Name).IsRequired();
@@ -24,14 +24,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(p => p.BaseAddress).IsRequired();
         });
 
-        modelBuilder.Entity<ConsultantPeerMapping>(e =>
+        modelBuilder.Entity<CalendarOwnerPeerMapping>(e =>
         {
             e.HasKey(m => m.Id);
-            e.HasOne(m => m.Consultant)
+            e.HasOne(m => m.CalendarOwner)
                 .WithMany(c => c.PeerMappings)
-                .HasForeignKey(m => m.ConsultantId);
+                .HasForeignKey(m => m.CalendarOwnerId);
             e.HasOne(m => m.PeerConnection)
-                .WithMany(pc => pc.ConsultantMappings)
+                .WithMany(pc => pc.CalendarOwnerMappings)
                 .HasForeignKey(m => m.PeerConnectionId);
         });
 

@@ -27,7 +27,7 @@ namespace ObfusCal.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Consultants",
+                name: "CalendarOwners",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
@@ -35,7 +35,7 @@ namespace ObfusCal.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Consultants", x => x.Id);
+                    table.PrimaryKey("PK_CalendarOwners", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -52,24 +52,24 @@ namespace ObfusCal.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "ConsultantPeerMappings",
+                name: "CalendarOwnerPeerMappings",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ConsultantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CalendarOwnerId = table.Column<Guid>(type: "uuid", nullable: false),
                     PeerConnectionId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ConsultantPeerMappings", x => x.Id);
+                    table.PrimaryKey("PK_CalendarOwnerPeerMappings", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_ConsultantPeerMappings_Consultants_ConsultantId",
-                        column: x => x.ConsultantId,
-                        principalTable: "Consultants",
+                        name: "FK_CalendarOwnerPeerMappings_CalendarOwners_CalendarOwnerId",
+                        column: x => x.CalendarOwnerId,
+                        principalTable: "CalendarOwners",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_ConsultantPeerMappings_PeerConnections_PeerConnectionId",
+                        name: "FK_CalendarOwnerPeerMappings_PeerConnections_PeerConnectionId",
                         column: x => x.PeerConnectionId,
                         principalTable: "PeerConnections",
                         principalColumn: "Id",
@@ -82,13 +82,13 @@ namespace ObfusCal.Infrastructure.Migrations
                 column: "PeerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ConsultantPeerMappings_ConsultantId",
-                table: "ConsultantPeerMappings",
-                column: "ConsultantId");
+                name: "IX_CalendarOwnerPeerMappings_CalendarOwnerId",
+                table: "CalendarOwnerPeerMappings",
+                column: "CalendarOwnerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ConsultantPeerMappings_PeerConnectionId",
-                table: "ConsultantPeerMappings",
+                name: "IX_CalendarOwnerPeerMappings_PeerConnectionId",
+                table: "CalendarOwnerPeerMappings",
                 column: "PeerConnectionId");
         }
 
@@ -99,10 +99,10 @@ namespace ObfusCal.Infrastructure.Migrations
                 name: "BusySlots");
 
             migrationBuilder.DropTable(
-                name: "ConsultantPeerMappings");
+                name: "CalendarOwnerPeerMappings");
 
             migrationBuilder.DropTable(
-                name: "Consultants");
+                name: "CalendarOwners");
 
             migrationBuilder.DropTable(
                 name: "PeerConnections");
