@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace ObfusCal.Tests;
 
 [TestClass]
-public class ConsultantsControllerTests
+public class CalendarOwnersControllerTests
 {
     public TestContext TestContext { get; set; } = null!;
 
@@ -16,7 +16,7 @@ public class ConsultantsControllerTests
 
         var from = "2023-01-01T00:00:00Z";
         var to = "2023-01-02T00:00:00Z";
-        var response = await client.GetAsync($"/api/consultants/1/busy-slots?from={from}&to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/1/busy-slots?from={from}&to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
 
@@ -32,7 +32,7 @@ public class ConsultantsControllerTests
         using var client = factory.CreateClient();
 
         var to = "2023-01-02T00:00:00Z";
-        var response = await client.GetAsync($"/api/consultants/1/busy-slots?to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/1/busy-slots?to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -44,7 +44,7 @@ public class ConsultantsControllerTests
         using var client = factory.CreateClient();
 
         var from = "2023-01-01T00:00:00Z";
-        var response = await client.GetAsync($"/api/consultants/1/busy-slots?from={from}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/1/busy-slots?from={from}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -57,7 +57,7 @@ public class ConsultantsControllerTests
 
         var from = "invalid-date";
         var to = "2023-01-02T00:00:00Z";
-        var response = await client.GetAsync($"/api/consultants/1/busy-slots?from={from}&to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/1/busy-slots?from={from}&to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -70,7 +70,7 @@ public class ConsultantsControllerTests
 
         var from = "2023-01-01T00:00:00Z";
         var to = "invalid-date";
-        var response = await client.GetAsync($"/api/consultants/1/busy-slots?from={from}&to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/1/busy-slots?from={from}&to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -85,7 +85,7 @@ public class ConsultantsControllerTests
 
         var from = "2023-01-01T00:00:00Z";
         var to = "2023-01-02T00:00:00Z";
-        var response = await client.GetAsync($"/api/consultants/1/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/1/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
 
@@ -101,7 +101,7 @@ public class ConsultantsControllerTests
         using var client = factory.CreateClient();
 
         var to = "2023-01-02T00:00:00Z";
-        var response = await client.GetAsync($"/api/consultants/1/merged-freebusy?to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/1/merged-freebusy?to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -113,7 +113,7 @@ public class ConsultantsControllerTests
         using var client = factory.CreateClient();
 
         var from = "2023-01-01T00:00:00Z";
-        var response = await client.GetAsync($"/api/consultants/1/merged-freebusy?from={from}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/1/merged-freebusy?from={from}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -126,7 +126,7 @@ public class ConsultantsControllerTests
 
         var from = "invalid-date";
         var to = "2023-01-02T00:00:00Z";
-        var response = await client.GetAsync($"/api/consultants/1/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/1/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -139,7 +139,7 @@ public class ConsultantsControllerTests
 
         var from = "2023-01-01T00:00:00Z";
         var to = "invalid-date";
-        var response = await client.GetAsync($"/api/consultants/1/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/1/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -152,7 +152,7 @@ public class ConsultantsControllerTests
 
         var from = "2023-01-01T00:00:00Z";
         var to = "2023-01-02T00:00:00Z";
-        var response = await client.GetAsync($"/api/consultants/1/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/1/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
 
@@ -170,5 +170,6 @@ public class ConsultantsControllerTests
         }
     }
 }
+
 
 

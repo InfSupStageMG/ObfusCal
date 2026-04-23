@@ -1,11 +1,13 @@
 ﻿using System.Runtime.Loader;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using ObfusCal.Core;
 using ObfusCal.Core.Configuration;
 using ObfusCal.Core.Interfaces;
 using ObfusCal.Core.Obfuscation.Transformers;
 using ObfusCal.Infrastructure.Calendars;
+using ObfusCal.Infrastructure.Persistence;
 using ObfusCal.Infrastructure.Storage;
 using Serilog;
 
@@ -27,7 +29,20 @@ try
     builder.Services.AddSwaggerGen();
     builder.Services.AddHealthChecks();
     builder.Services.Configure<SyncOptions>(builder.Configuration.GetSection(SyncOptions.SectionName));
-    builder.Services.AddSingleton<IShadowSlotStore, InMemoryShadowSlotStore>();
+
+    builder.Services.AddDbContext<AppDbContext>(options =>
+    {
+        options.UseNpgsql(
+            builder.Configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found."));
+
+        // Suppress the pending model changes warning during migration
+        // This is safe since we're applying migrations at startup
+        options.ConfigureWarnings(w =>
+            w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+    });
+
+    builder.Services.AddScoped<IShadowSlotStore, EfCoreShadowSlotStore>();
 
     builder.Services.AddTransient<IObfuscationTransformer, RemoveTitleTransformer>();
     builder.Services.AddTransient<IObfuscationTransformer, RemoveDescriptionTransformer>();
@@ -108,6 +123,13 @@ try
     app.UseAuthorization();
     app.MapControllers();
     app.MapHealthChecks("/health");
+
+    // Apply pending migrations at startup
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await dbContext.Database.MigrateAsync();
+    }
 
     await app.RunAsync();
 }
