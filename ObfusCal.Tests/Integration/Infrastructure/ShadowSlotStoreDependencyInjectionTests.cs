@@ -2,7 +2,7 @@
 using ObfusCal.Core.Interfaces;
 using ObfusCal.Infrastructure.Storage;
 
-namespace ObfusCal.Tests;
+namespace ObfusCal.Tests.Integration.Infrastructure;
 
 [TestClass]
 public class ShadowSlotStoreDependencyInjectionTests
@@ -11,6 +11,7 @@ public class ShadowSlotStoreDependencyInjectionTests
     public void ShadowSlotStore_IsRegisteredAsSingleton()
     {
         var services = new ServiceCollection();
+        services.AddSingleton(Serilog.Log.Logger);
         services.AddSingleton<IShadowSlotStore, InMemoryShadowSlotStore>();
 
         using var provider = services.BuildServiceProvider();

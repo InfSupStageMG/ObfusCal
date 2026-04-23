@@ -1,7 +1,7 @@
 ﻿using ObfusCal.Core.Models;
 using ObfusCal.Infrastructure.Storage;
 
-namespace ObfusCal.Tests;
+namespace ObfusCal.Tests.Unit.Storage;
 
 [TestClass]
 public class InMemoryShadowSlotStoreTests
@@ -9,7 +9,7 @@ public class InMemoryShadowSlotStoreTests
     [TestMethod]
     public async Task SetSlotsAsync_ThenGetSlotsAsync_ReturnsSavedSlotsForPeer()
     {
-        var store = new InMemoryShadowSlotStore();
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
         var slots = new[]
         {
             new BusySlot("evt-1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))
@@ -25,10 +25,12 @@ public class InMemoryShadowSlotStoreTests
     [TestMethod]
     public async Task SetSlotsAsync_ForDifferentPeers_KeepsDataIsolated()
     {
-        var store = new InMemoryShadowSlotStore();
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
 
-        await store.SetSlotsAsync("peer-a", [new BusySlot("a-evt", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(30))]);
-        await store.SetSlotsAsync("peer-b", [new BusySlot("b-evt", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(45))]);
+        await store.SetSlotsAsync("peer-a",
+            [new BusySlot("a-evt", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(30))]);
+        await store.SetSlotsAsync("peer-b",
+            [new BusySlot("b-evt", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(45))]);
 
         var peerASlots = await store.GetSlotsAsync("peer-a");
         var peerBSlots = await store.GetSlotsAsync("peer-b");
@@ -40,7 +42,7 @@ public class InMemoryShadowSlotStoreTests
     [TestMethod]
     public async Task SetSlotsAsync_AndGetSlotsAsync_AreThreadSafeUnderConcurrentAccess()
     {
-        var store = new InMemoryShadowSlotStore();
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
 
         var tasks = Enumerable.Range(0, 400)
             .Select(i => Task.Run(async () =>
@@ -64,7 +66,7 @@ public class InMemoryShadowSlotStoreTests
     [TestMethod]
     public async Task GetAllSlotsAsync_ReturnsEmptyArray_WhenNoSlotsAreStored()
     {
-        var store = new InMemoryShadowSlotStore();
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
 
         var allSlots = await store.GetAllSlotsAsync(
             DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
@@ -75,7 +77,7 @@ public class InMemoryShadowSlotStoreTests
     [TestMethod]
     public async Task GetAllSlotsAsync_ReturnsSlotsFromSinglePeer()
     {
-        var store = new InMemoryShadowSlotStore();
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
         var slots = new[]
         {
             new BusySlot("evt-1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1)),
@@ -94,11 +96,12 @@ public class InMemoryShadowSlotStoreTests
     [TestMethod]
     public async Task GetAllSlotsAsync_ReturnsSlotsFromMultiplePeers()
     {
-        var store = new InMemoryShadowSlotStore();
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
 
-        await store.SetSlotsAsync("peer-a",
-            [new BusySlot("a-evt-1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1)),
-             new BusySlot("a-evt-2", DateTimeOffset.UtcNow.AddHours(2), DateTimeOffset.UtcNow.AddHours(3))]);
+        await store.SetSlotsAsync("peer-a", [
+            new BusySlot("a-evt-1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1)),
+            new BusySlot("a-evt-2", DateTimeOffset.UtcNow.AddHours(2), DateTimeOffset.UtcNow.AddHours(3))
+        ]);
 
         await store.SetSlotsAsync("peer-b",
             [new BusySlot("b-evt-1", DateTimeOffset.UtcNow.AddHours(4), DateTimeOffset.UtcNow.AddHours(5))]);
@@ -115,7 +118,7 @@ public class InMemoryShadowSlotStoreTests
     [TestMethod]
     public async Task GetAllSlotsAsync_ReturnsSlotsAfterReplacingPeerSlots()
     {
-        var store = new InMemoryShadowSlotStore();
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
 
         var initialSlots = new[]
         {

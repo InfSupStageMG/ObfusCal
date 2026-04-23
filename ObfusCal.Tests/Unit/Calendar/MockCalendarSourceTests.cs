@@ -1,8 +1,9 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using ObfusCal.Core.Interfaces;
 using ObfusCal.Infrastructure.Calendars;
+using ObfusCal.Tests.Helpers;
 
-namespace ObfusCal.Tests;
+namespace ObfusCal.Tests.Unit.Calendar;
 
 [TestClass]
 public class MockCalendarSourceTests

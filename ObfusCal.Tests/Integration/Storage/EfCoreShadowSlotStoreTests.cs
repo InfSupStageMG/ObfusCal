@@ -4,7 +4,7 @@ using ObfusCal.Infrastructure.Storage;
 using Testcontainers.PostgreSql;
 using BusySlot = ObfusCal.Core.Models.BusySlot;
 
-namespace ObfusCal.Tests;
+namespace ObfusCal.Tests.Integration.Storage;
 
 [TestClass]
 public class EfCoreShadowSlotStoreTests
@@ -47,7 +47,7 @@ public class EfCoreShadowSlotStoreTests
     public async Task SetSlotsAsync_ThenGetSlotsAsync_ReturnsSavedSlotsForPeer()
     {
         await using var db = CreateDbContext();
-        var store = new EfCoreShadowSlotStore(db);
+        var store = new EfCoreShadowSlotStore(db, Serilog.Core.Logger.None);
 
         var slots = new[]
         {
@@ -65,28 +65,29 @@ public class EfCoreShadowSlotStoreTests
     public async Task SetSlotsAsync_ReplacesExistingSlots_ForSamePeer()
     {
         await using var db = CreateDbContext();
-        var store = new EfCoreShadowSlotStore(db);
+        var store = new EfCoreShadowSlotStore(db, Serilog.Core.Logger.None);
 
         await store.SetSlotsAsync("ef-peer-replace",
             [new BusySlot("old-evt", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
 
-        await store.SetSlotsAsync("ef-peer-replace",
-            [new BusySlot("new-evt-1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(2)),
-             new BusySlot("new-evt-2", DateTimeOffset.UtcNow.AddHours(3), DateTimeOffset.UtcNow.AddHours(4))]);
+        await store.SetSlotsAsync("ef-peer-replace", [
+            new BusySlot("new-evt-1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(2)),
+            new BusySlot("new-evt-2", DateTimeOffset.UtcNow.AddHours(3), DateTimeOffset.UtcNow.AddHours(4))
+        ]);
 
         var result = await store.GetSlotsAsync("ef-peer-replace");
 
         Assert.HasCount(2, result);
-        Assert.IsTrue(result.Any(s => s.SourceEventId == "new-evt-1"));
-        Assert.IsTrue(result.Any(s => s.SourceEventId == "new-evt-2"));
-        Assert.IsFalse(result.Any(s => s.SourceEventId == "old-evt"));
+        Assert.Contains(s => s.SourceEventId == "new-evt-1", result);
+        Assert.Contains(s => s.SourceEventId == "new-evt-2", result);
+        Assert.DoesNotContain(s => s.SourceEventId == "old-evt", result);
     }
 
     [TestMethod]
     public async Task GetSlotsAsync_ReturnsEmpty_WhenNothingStoredForPeer()
     {
         await using var db = CreateDbContext();
-        var store = new EfCoreShadowSlotStore(db);
+        var store = new EfCoreShadowSlotStore(db, Serilog.Core.Logger.None);
 
         var result = await store.GetSlotsAsync("ef-peer-unknown");
 
@@ -97,7 +98,7 @@ public class EfCoreShadowSlotStoreTests
     public async Task GetAllSlotsAsync_ReturnsSlotsAcrossAllPeers()
     {
         await using var db = CreateDbContext();
-        var store = new EfCoreShadowSlotStore(db);
+        var store = new EfCoreShadowSlotStore(db, Serilog.Core.Logger.None);
 
         await store.SetSlotsAsync("ef-get-all-a",
             [new BusySlot("ga-evt-1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
@@ -107,10 +108,7 @@ public class EfCoreShadowSlotStoreTests
         var allSlots = await store.GetAllSlotsAsync(
             DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
 
-        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "ga-evt-1"));
-        Assert.IsTrue(allSlots.Any(s => s.SourceEventId == "ga-evt-2"));
+        Assert.Contains(s => s.SourceEventId == "ga-evt-1", allSlots);
+        Assert.Contains(s => s.SourceEventId == "ga-evt-2", allSlots);
     }
 }
-
-
-

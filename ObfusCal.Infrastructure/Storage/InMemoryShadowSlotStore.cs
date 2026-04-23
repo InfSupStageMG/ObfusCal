@@ -5,9 +5,10 @@ using Serilog;
 
 namespace ObfusCal.Infrastructure.Storage;
 
-public sealed class InMemoryShadowSlotStore : IShadowSlotStore
+public sealed class InMemoryShadowSlotStore(ILogger logger) : IShadowSlotStore
 {
     private readonly ConcurrentDictionary<string, IReadOnlyList<BusySlot>> _slotsByPeer = new();
+    private readonly ILogger _logger = logger.ForContext<InMemoryShadowSlotStore>();
 
     public Task SetSlotsAsync(string peerId, IReadOnlyList<BusySlot> slots, CancellationToken ct = default)
     {
@@ -17,7 +18,7 @@ public sealed class InMemoryShadowSlotStore : IShadowSlotStore
 
         _slotsByPeer[peerId] = slots.ToArray();
 
-        Log.ForContext("PeerId", peerId)
+        _logger.ForContext("PeerId", peerId)
             .ForContext("BusySlotCount", slots.Count)
             .Information("Stored shadow slots for peer");
 
@@ -29,11 +30,9 @@ public sealed class InMemoryShadowSlotStore : IShadowSlotStore
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
         ct.ThrowIfCancellationRequested();
 
-        var result = _slotsByPeer.TryGetValue(peerId, out var slots)
-            ? slots.ToArray()
-            : [];
+        var result = _slotsByPeer.TryGetValue(peerId, out var slots) ? slots.ToArray() :[];
 
-        Log.ForContext("PeerId", peerId)
+        _logger.ForContext("PeerId", peerId)
             .ForContext("BusySlotCount", result.Length)
             .Debug("Read shadow slots for peer");
 
@@ -50,7 +49,7 @@ public sealed class InMemoryShadowSlotStore : IShadowSlotStore
             .Where(s => s.Start >= from && s.End <= to)
             .ToArray();
 
-        Log.ForContext("PeerCount", _slotsByPeer.Count)
+        _logger.ForContext("PeerCount", _slotsByPeer.Count)
             .ForContext("BusySlotCount", allSlots.Length)
             .Debug("Read all shadow slots from all peers");
 

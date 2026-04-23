@@ -1,7 +1,8 @@
 ﻿using System.Net;
 using System.Text.Json;
+using ObfusCal.Tests.Helpers;
 
-namespace ObfusCal.Tests;
+namespace ObfusCal.Tests.Integration.Infrastructure;
 
 [TestClass]
 public class SwaggerEndpointsTests
