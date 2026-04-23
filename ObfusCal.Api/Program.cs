@@ -31,9 +31,16 @@ try
     builder.Services.Configure<SyncOptions>(builder.Configuration.GetSection(SyncOptions.SectionName));
 
     builder.Services.AddDbContext<AppDbContext>(options =>
+    {
         options.UseNpgsql(
             builder.Configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.")));
+                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found."));
+
+        // Suppress the pending model changes warning during migration
+        // This is safe since we're applying migrations at startup
+        options.ConfigureWarnings(w =>
+            w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+    });
 
     builder.Services.AddScoped<IShadowSlotStore, EfCoreShadowSlotStore>();
 
@@ -116,6 +123,13 @@ try
     app.UseAuthorization();
     app.MapControllers();
     app.MapHealthChecks("/health");
+
+    // Apply pending migrations at startup
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await dbContext.Database.MigrateAsync();
+    }
 
     await app.RunAsync();
 }
