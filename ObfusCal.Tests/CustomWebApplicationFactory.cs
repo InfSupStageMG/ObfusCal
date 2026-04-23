@@ -17,8 +17,7 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
     {
         _environmentName = environmentName;
 
-        _postgres = new PostgreSqlBuilder()
-            .WithImage("postgres:17")
+        _postgres = new PostgreSqlBuilder("postgres:17")
             .Build();
 
         // Block here so the container is ready before ConfigureWebHost runs.
