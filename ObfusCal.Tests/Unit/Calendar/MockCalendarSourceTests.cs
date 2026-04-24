@@ -51,6 +51,31 @@ public class MockCalendarSourceTests
     }
 
     [TestMethod]
+    public async Task GetEventsAsync_ThrowsArgumentException_WhenFromIsAfterTo()
+    {
+        var source = new MockCalendarSource();
+        var from = DateTimeOffset.UtcNow.AddDays(1);
+        var to = DateTimeOffset.UtcNow;
+
+        await Assert.ThrowsExactlyAsync<ArgumentException>(() =>
+            source.GetEventsAsync(from, to, TestContext.CancellationToken));
+    }
+
+    [TestMethod]
+    public async Task GetEventsAsync_ThrowsOperationCanceledException_WhenCancelled()
+    {
+        var source = new MockCalendarSource();
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        var from = DateTimeOffset.UtcNow;
+        var to = from.AddDays(14);
+
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
+            source.GetEventsAsync(from, to, cts.Token));
+    }
+
+    [TestMethod]
     public async Task Application_ResolvesMockCalendarSource_AsActiveCalendarSource()
     {
         await using var factory = new CustomWebApplicationFactory("Development");

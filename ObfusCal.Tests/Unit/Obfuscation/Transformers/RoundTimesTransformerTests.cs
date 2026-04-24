@@ -154,4 +154,24 @@ public class RoundTimesTransformerTests
         CollectionAssert.AreEqual(evt.AttendeeEmails.ToList(), result.AttendeeEmails.ToList());
     }
 
+    [TestMethod]
+    public void RoundTimesTransformer_RoundsEndTimeCrossingMidnight_ToStartOfNextDay()
+    {
+        var transformer = new RoundTimesTransformer();
+        var evt = new CalendarEvent(
+            Id: "evt-midnight",
+            Title: "Late Meeting",
+            Description: null,
+            Start: new DateTimeOffset(2026, 6, 1, 23, 0, 0, TimeSpan.Zero),
+            End: new DateTimeOffset(2026, 6, 1, 23, 52, 0, TimeSpan.Zero), // rounds up past midnight
+            AttendeeEmails: [],
+            Location: null
+        );
+
+        var result = transformer.Transform(evt);
+
+        // 23:52 rounds up to 24:00 which is 00:00 on the next day
+        Assert.AreEqual(new DateTimeOffset(2026, 6, 2, 0, 0, 0, TimeSpan.Zero), result.End);
+    }
+
 }
