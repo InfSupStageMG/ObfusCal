@@ -1,6 +1,6 @@
-﻿using ObfusCal.Core.Models;
+﻿using ObfusCal.Domain.Models;
 
-namespace ObfusCal.Core.Interfaces;
+namespace ObfusCal.Domain.Obfuscation;
 
 /// <summary>
 /// Transforms a collection of busy slots. This allows post-processing operations

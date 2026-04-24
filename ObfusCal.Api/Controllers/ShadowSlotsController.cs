@@ -1,15 +1,15 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using MediatR;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using ObfusCal.Core.Configuration;
-using ObfusCal.Core.Interfaces;
-using ObfusCal.Core.Models;
+using ObfusCal.Application.Configuration;
+using ObfusCal.Application.UseCases.PushShadowSlots;
 using Serilog;
 
 namespace ObfusCal.Api.Controllers;
 
 [ApiController]
 [Route("api/shadow-slots")]
-public sealed class ShadowSlotsController(IShadowSlotStore shadowSlotStore, IOptions<SyncOptions> syncOptions) : ControllerBase
+public sealed class ShadowSlotsController(ISender sender, IOptions<SyncOptions> syncOptions) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType(typeof(void), StatusCodes.Status201Created)]
@@ -17,7 +17,7 @@ public sealed class ShadowSlotsController(IShadowSlotStore shadowSlotStore, IOpt
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> PushShadowSlots(
         [FromHeader(Name = "X-Peer-Id")] string? peerId,
-        [FromBody] IReadOnlyList<BusySlotPushRequest> slots,
+        [FromBody] IReadOnlyList<ShadowSlotInput> slots,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(peerId))
@@ -36,18 +36,8 @@ public sealed class ShadowSlotsController(IShadowSlotStore shadowSlotStore, IOpt
             return Unauthorized();
         }
 
-        var storedSlots = slots
-            .Select((slot, index) => new BusySlot($"{peerId}-{index}", slot.Start, slot.End))
-            .ToArray();
-
-        await shadowSlotStore.SetSlotsAsync(peerId, storedSlots, ct);
-
-        Log.ForContext("PeerId", peerId)
-            .ForContext("BusySlotCount", storedSlots.Length)
-            .Information("Stored pushed shadow slots");
+        await sender.Send(new PushShadowSlotsCommand(peerId, slots), ct);
 
         return Created($"/api/shadow-slots/{peerId}", null);
     }
-
-    public sealed record BusySlotPushRequest(DateTimeOffset Start, DateTimeOffset End);
 }

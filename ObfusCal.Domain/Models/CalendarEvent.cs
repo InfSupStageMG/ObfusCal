@@ -1,4 +1,4 @@
-﻿namespace ObfusCal.Core.Models;
+﻿namespace ObfusCal.Domain.Models;
 
 public record CalendarEvent(
     string Id,
@@ -9,3 +9,4 @@ public record CalendarEvent(
     IReadOnlyList<string> AttendeeEmails,
     string? Location
 );
+

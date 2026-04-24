@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using ObfusCal.Core.Interfaces;
+using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
 using Serilog;
-using CoreBusySlot = ObfusCal.Core.Models.BusySlot;
+using CoreBusySlot = ObfusCal.Domain.Models.BusySlot;
 using DbBusySlot = ObfusCal.Infrastructure.Persistence.BusySlot;
 
 namespace ObfusCal.Infrastructure.Storage;

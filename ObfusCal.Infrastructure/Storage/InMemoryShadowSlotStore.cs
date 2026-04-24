@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
-using ObfusCal.Core.Interfaces;
-using ObfusCal.Core.Models;
+using ObfusCal.Application.Interfaces;
+using ObfusCal.Domain.Models;
 using Serilog;
 
 namespace ObfusCal.Infrastructure.Storage;

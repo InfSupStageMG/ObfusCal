@@ -1,4 +1,4 @@
-﻿using ObfusCal.Core.Models;
+﻿using ObfusCal.Domain.Models;
 using ObfusCal.Infrastructure.Storage;
 
 namespace ObfusCal.Tests.Unit.Storage;

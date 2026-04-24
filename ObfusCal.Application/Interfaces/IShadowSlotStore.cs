@@ -1,6 +1,6 @@
-﻿using ObfusCal.Core.Models;
+﻿using ObfusCal.Domain.Models;
 
-namespace ObfusCal.Core.Interfaces;
+namespace ObfusCal.Application.Interfaces;
 
 public interface IShadowSlotStore
 {
@@ -9,3 +9,4 @@ public interface IShadowSlotStore
     Task<IReadOnlyList<BusySlot>> GetAllSlotsAsync(
         DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
 }
+

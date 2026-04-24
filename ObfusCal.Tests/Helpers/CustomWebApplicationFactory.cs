@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using ObfusCal.Core.Interfaces;
+using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Storage;
 using Testcontainers.PostgreSql;
 

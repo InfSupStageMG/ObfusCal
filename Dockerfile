@@ -2,10 +2,10 @@
 WORKDIR /src
 
 COPY ObfusCal.slnx .
-COPY ObfusCal.Api/ObfusCal.Api.csproj ObfusCal.Api/
-COPY ObfusCal.Core/ObfusCal.Core.csproj ObfusCal.Core/
+COPY ObfusCal.Domain/ObfusCal.Domain.csproj ObfusCal.Domain/
+COPY ObfusCal.Application/ObfusCal.Application.csproj ObfusCal.Application/
 COPY ObfusCal.Infrastructure/ObfusCal.Infrastructure.csproj ObfusCal.Infrastructure/
-COPY ObfusCal.Sync/ObfusCal.Sync.csproj ObfusCal.Sync/
+COPY ObfusCal.Api/ObfusCal.Api.csproj ObfusCal.Api/
 COPY ObfusCal.Tests/ObfusCal.Tests.csproj ObfusCal.Tests/
 
 RUN dotnet restore

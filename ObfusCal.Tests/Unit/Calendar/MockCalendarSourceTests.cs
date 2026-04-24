@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using ObfusCal.Core.Interfaces;
+using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Calendars;
 using ObfusCal.Tests.Helpers;
 

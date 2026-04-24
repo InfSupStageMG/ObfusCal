@@ -15,16 +15,14 @@
     <PackageReference Include="MSTest" Version="4.2.1" />
     <PackageReference Include="MSTest.TestAdapter" Version="4.2.1" />
     <PackageReference Include="MSTest.TestFramework" Version="4.2.1" />
+    <PackageReference Include="Serilog" Version="4.3.0" />
     <PackageReference Include="Testcontainers" Version="4.11.0" />
     <PackageReference Include="Testcontainers.PostgreSql" Version="4.11.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <Using Include="ObfusCal.Core" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\ObfusCal.Core\ObfusCal.Core.csproj" />
+    <ProjectReference Include="..\ObfusCal.Domain\ObfusCal.Domain.csproj" />
+    <ProjectReference Include="..\ObfusCal.Application\ObfusCal.Application.csproj" />
     <ProjectReference Include="..\ObfusCal.Api\ObfusCal.Api.csproj" />
     <ProjectReference Include="..\ObfusCal.Infrastructure\ObfusCal.Infrastructure.csproj" />
   </ItemGroup>

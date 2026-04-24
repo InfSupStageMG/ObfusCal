@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using ObfusCal.Core.Interfaces;
+using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Storage;
 
 namespace ObfusCal.Tests.Integration.Infrastructure;

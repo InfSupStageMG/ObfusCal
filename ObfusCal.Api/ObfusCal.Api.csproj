@@ -19,9 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ObfusCal.Core\ObfusCal.Core.csproj" />
+    <ProjectReference Include="..\ObfusCal.Application\ObfusCal.Application.csproj" />
     <ProjectReference Include="..\ObfusCal.Infrastructure\ObfusCal.Infrastructure.csproj" />
-    <ProjectReference Include="..\ObfusCal.Sync\ObfusCal.Sync.csproj" />
   </ItemGroup>
 
 </Project>

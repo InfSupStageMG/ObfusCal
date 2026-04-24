@@ -1,8 +1,9 @@
-﻿using ObfusCal.Core.Models;
+﻿using ObfusCal.Domain.Models;
 
-namespace ObfusCal.Core.Interfaces;
+namespace ObfusCal.Domain.Obfuscation;
 
 public interface IObfuscationTransformer
 {
     CalendarEvent Transform(CalendarEvent calendarEvent);
 }
+

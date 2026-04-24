@@ -2,7 +2,7 @@
 using ObfusCal.Infrastructure.Persistence;
 using ObfusCal.Infrastructure.Storage;
 using Testcontainers.PostgreSql;
-using BusySlot = ObfusCal.Core.Models.BusySlot;
+using BusySlot = ObfusCal.Domain.Models.BusySlot;
 
 namespace ObfusCal.Tests.Integration.Storage;
 

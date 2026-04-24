@@ -1,5 +1,5 @@
-﻿using ObfusCal.Core.Interfaces;
-using ObfusCal.Core.Models;
+﻿using ObfusCal.Application.Interfaces;
+using ObfusCal.Domain.Models;
 
 namespace ObfusCal.Infrastructure.Calendars;
 

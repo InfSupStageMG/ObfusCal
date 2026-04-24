@@ -1,8 +1,6 @@
-﻿using ObfusCal.Core.Interfaces;
-using ObfusCal.Core.Models;
-using Serilog;
+﻿using ObfusCal.Domain.Models;
 
-namespace ObfusCal.Core.Obfuscation.Transformers;
+namespace ObfusCal.Domain.Obfuscation.Transformers;
 
 /// <summary>
 /// Rounds event start times down and end times up to the nearest 15-minute boundary.
@@ -17,25 +15,13 @@ public sealed class RoundTimesTransformer : IObfuscationTransformer
         var roundedStart = RoundDown(calendarEvent.Start);
         var roundedEnd = RoundUp(calendarEvent.End);
 
-        var wasModified = roundedStart != calendarEvent.Start || roundedEnd != calendarEvent.End;
-        if (wasModified)
-        {
-            Log.ForContext<RoundTimesTransformer>()
-                .ForContext("EventId", calendarEvent.Id)
-                .ForContext("OriginalStart", calendarEvent.Start)
-                .ForContext("OriginalEnd", calendarEvent.End)
-                .ForContext("RoundedStart", roundedStart)
-                .ForContext("RoundedEnd", roundedEnd)
-                .Debug("Rounded event times to 15-minute boundary");
-        }
-
         return calendarEvent with
         {
             Start = roundedStart,
             End = roundedEnd
         };
     }
-    
+
     private static DateTimeOffset RoundDown(DateTimeOffset dateTime)
     {
         var totalMinutes = dateTime.TimeOfDay.TotalMinutes;
@@ -44,12 +30,12 @@ public sealed class RoundTimesTransformer : IObfuscationTransformer
         var roundedDateTime = dateTime.Date.Add(timeSpan);
         return new DateTimeOffset(roundedDateTime, dateTime.Offset);
     }
-    
+
     private static DateTimeOffset RoundUp(DateTimeOffset dateTime)
     {
         var totalMinutes = dateTime.TimeOfDay.TotalMinutes;
         var roundedMinutes = Math.Ceiling(totalMinutes / RoundingIntervalMinutes) * RoundingIntervalMinutes;
-        
+
         // Handle case where rounding up crosses midnight
         if (roundedMinutes >= 24 * 60)
         {
@@ -63,3 +49,4 @@ public sealed class RoundTimesTransformer : IObfuscationTransformer
         return new DateTimeOffset(roundedDateTime2, dateTime.Offset);
     }
 }
+

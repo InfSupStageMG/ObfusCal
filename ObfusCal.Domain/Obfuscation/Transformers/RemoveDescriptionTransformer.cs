@@ -1,7 +1,6 @@
-﻿using ObfusCal.Core.Interfaces;
-using ObfusCal.Core.Models;
+﻿using ObfusCal.Domain.Models;
 
-namespace ObfusCal.Core.Obfuscation.Transformers;
+namespace ObfusCal.Domain.Obfuscation.Transformers;
 
 public sealed class RemoveDescriptionTransformer : IObfuscationTransformer
 {
@@ -11,3 +10,4 @@ public sealed class RemoveDescriptionTransformer : IObfuscationTransformer
             Description = null
         };
 }
+

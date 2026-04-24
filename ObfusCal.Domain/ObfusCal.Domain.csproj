@@ -6,13 +6,5 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Serilog" Version="4.3.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="interfaces\" />
-    <Folder Include="models\" />
-  </ItemGroup>
-
 </Project>
+

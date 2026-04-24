@@ -1,4 +1,4 @@
-﻿namespace ObfusCal.Core.Configuration;
+﻿namespace ObfusCal.Application.Configuration;
 
 public sealed class SyncOptions
 {

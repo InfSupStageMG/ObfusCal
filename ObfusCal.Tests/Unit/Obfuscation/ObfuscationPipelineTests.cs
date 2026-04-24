@@ -1,6 +1,8 @@
-using ObfusCal.Core.Interfaces;
-using ObfusCal.Core.Models;
-using ObfusCal.Core.Obfuscation.Transformers;
+using Microsoft.Extensions.Logging.Abstractions;
+using ObfusCal.Application.Obfuscation;
+using ObfusCal.Domain.Models;
+using ObfusCal.Domain.Obfuscation;
+using ObfusCal.Domain.Obfuscation.Transformers;
 
 namespace ObfusCal.Tests.Unit.Obfuscation;
 
@@ -18,10 +20,10 @@ public class ObfuscationPipelineTests
     );
 
     private static ObfuscationPipeline BuildPipeline(IEnumerable<IObfuscationTransformer>? transformers = null, IEnumerable<IBusySlotTransformer>? slotTransformers = null) =>
-        new(transformers ??[], slotTransformers ??[], Serilog.Core.Logger.None);
+        new(transformers ?? [], slotTransformers ?? [], NullLogger<ObfuscationPipeline>.Instance);
 
     private static ObfuscationPipeline BuildPipeline(params IObfuscationTransformer[] transformers) =>
-        new(transformers,[], Serilog.Core.Logger.None);
+        new(transformers, [], NullLogger<ObfuscationPipeline>.Instance);
 
     // Pipeline Integration Tests
 
@@ -152,7 +154,7 @@ public class ObfuscationPipelineTests
     [TestMethod]
     public void Process_MergesOverlappingSlots()
     {
-        var pipeline = new ObfuscationPipeline([], [new MergeBlocksTransformer()], Serilog.Core.Logger.None);
+        var pipeline = new ObfuscationPipeline([], [new MergeBlocksTransformer()], NullLogger<ObfuscationPipeline>.Instance);
         var events = new[]
         {
             new CalendarEvent("evt-1", "Meeting 1", null,
@@ -173,7 +175,7 @@ public class ObfuscationPipelineTests
     [TestMethod]
     public void Process_MergesAdjacentSlots()
     {
-        var pipeline = new ObfuscationPipeline([], [new MergeBlocksTransformer()], Serilog.Core.Logger.None);
+        var pipeline = new ObfuscationPipeline([], [new MergeBlocksTransformer()], NullLogger<ObfuscationPipeline>.Instance);
         var events = new[]
         {
             new CalendarEvent("evt-1", "Meeting 1", null,
@@ -194,7 +196,7 @@ public class ObfuscationPipelineTests
     [TestMethod]
     public void Process_KeepsSeparateSlots()
     {
-        var pipeline = new ObfuscationPipeline([], [new MergeBlocksTransformer()], Serilog.Core.Logger.None);
+        var pipeline = new ObfuscationPipeline([], [new MergeBlocksTransformer()], NullLogger<ObfuscationPipeline>.Instance);
         var events = new[]
         {
             new CalendarEvent("evt-1", "Meeting 1", null,
@@ -213,7 +215,7 @@ public class ObfuscationPipelineTests
     }[TestMethod]
     public void Process_MergesMultipleOverlappingSlots()
     {
-        var pipeline = new ObfuscationPipeline([], [new MergeBlocksTransformer()], Serilog.Core.Logger.None);
+        var pipeline = new ObfuscationPipeline([], [new MergeBlocksTransformer()], NullLogger<ObfuscationPipeline>.Instance);
         var events = new[]
         {
             new CalendarEvent("evt-1", "Meeting 1", null,
@@ -240,7 +242,7 @@ public class ObfuscationPipelineTests
         var pipeline = new ObfuscationPipeline(
             [new RoundTimesTransformer()],
             [new MergeBlocksTransformer()],
-            Serilog.Core.Logger.None
+            NullLogger<ObfuscationPipeline>.Instance
         );
         var events = new[]
         {

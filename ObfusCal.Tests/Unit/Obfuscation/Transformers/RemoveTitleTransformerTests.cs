@@ -1,5 +1,5 @@
-﻿using ObfusCal.Core.Models;
-using ObfusCal.Core.Obfuscation.Transformers;
+﻿using ObfusCal.Domain.Models;
+using ObfusCal.Domain.Obfuscation.Transformers;
 
 namespace ObfusCal.Tests.Unit.Obfuscation.Transformers;
 

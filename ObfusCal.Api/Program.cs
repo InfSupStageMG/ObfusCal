@@ -1,14 +1,8 @@
-﻿using System.Runtime.Loader;
-using Microsoft.AspNetCore.Diagnostics;
+﻿using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using ObfusCal.Core;
-using ObfusCal.Core.Configuration;
-using ObfusCal.Core.Interfaces;
-using ObfusCal.Core.Obfuscation.Transformers;
-using ObfusCal.Infrastructure.Calendars;
-using ObfusCal.Infrastructure.Persistence;
-using ObfusCal.Infrastructure.Storage;
+using ObfusCal.Application;
+using ObfusCal.Application.Configuration;
+using ObfusCal.Infrastructure;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -24,65 +18,19 @@ try
         .ReadFrom.Services(services)
         .Enrich.FromLogContext());
 
-    builder.Services.AddControllers();
+    builder.Services
+        .Configure<SyncOptions>(builder.Configuration.GetSection(SyncOptions.SectionName))
+        .AddApplication()
+        .AddInfrastructure(builder.Configuration);
+
+    builder.Services
+        .AddControllers()
+        .AddJsonOptions(o =>
+            o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);
+
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
     builder.Services.AddHealthChecks();
-    builder.Services.Configure<SyncOptions>(builder.Configuration.GetSection(SyncOptions.SectionName));
-
-    builder.Services.AddDbContext<AppDbContext>(options =>
-    {
-        options.UseNpgsql(
-            builder.Configuration.GetConnectionString("DefaultConnection")
-                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found."));
-
-        // Suppress the pending model changes warning during migration
-        // This is safe since we're applying migrations at startup
-        options.ConfigureWarnings(w =>
-            w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
-    });
-
-    builder.Services.AddScoped<IShadowSlotStore, EfCoreShadowSlotStore>();
-
-    builder.Services.AddTransient<IObfuscationTransformer, RemoveTitleTransformer>();
-    builder.Services.AddTransient<IObfuscationTransformer, RemoveDescriptionTransformer>();
-    builder.Services.AddTransient<IObfuscationTransformer, RemoveLocationTransformer>();
-    builder.Services.AddTransient<IObfuscationTransformer, RemoveAttendeesTransformer>();
-    builder.Services.AddTransient<IObfuscationTransformer, RoundTimesTransformer>();
-    builder.Services.AddTransient<IBusySlotTransformer, MergeBlocksTransformer>();
-    builder.Services.AddTransient<ObfuscationPipeline>();
-
-    var pluginFolder = Path.Combine(AppContext.BaseDirectory, "plugins");
-
-    if (Directory.Exists(pluginFolder))
-    {
-        foreach (var dll in Directory.GetFiles(pluginFolder, "*.dll"))
-        {
-            try
-            {
-                var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dll);
-
-                var calendarSources = assembly.GetTypes()
-                    .Where(t => typeof(ICalendarSource).IsAssignableFrom(t)
-                                && t is { IsInterface: false, IsAbstract: false });
-
-                foreach (var type in calendarSources)
-                {
-                    builder.Services.AddScoped(typeof(ICalendarSource), type);
-                    Log.ForContext("CalendarSourceType", type.Name)
-                        .ForContext("PluginAssemblyPath", dll)
-                        .Information("Loaded calendar source plugin");
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.ForContext("PluginAssemblyPath", dll)
-                    .Error(ex, "Failed to load plugin assembly");
-            }
-        }
-    }
-
-    builder.Services.AddScoped<ICalendarSource, MockCalendarSource>();
 
     var app = builder.Build();
 
@@ -124,12 +72,7 @@ try
     app.MapControllers();
     app.MapHealthChecks("/health");
 
-    // Apply pending migrations at startup
-    using (var scope = app.Services.CreateScope())
-    {
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await dbContext.Database.MigrateAsync();
-    }
+    await app.Services.MigrateDatabaseAsync();
 
     await app.RunAsync();
 }
