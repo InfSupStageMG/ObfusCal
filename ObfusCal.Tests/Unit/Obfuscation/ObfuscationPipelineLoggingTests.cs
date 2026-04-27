@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using ObfusCal.Application.Obfuscation;
 using ObfusCal.Domain.Models;
+using ObfusCal.Domain.Obfuscation.Transformers;
 
 namespace ObfusCal.Tests.Unit.Obfuscation;
 
@@ -8,11 +9,14 @@ namespace ObfusCal.Tests.Unit.Obfuscation;
 public class ObfuscationPipelineLoggingTests
 {
     [TestMethod]
-    public void Process_EmitsInformationLog_WithStructuredEventCount_AndNoSensitiveFields()
+    public void Process_EmitsAuditLog_WithRequiredStructuredFields_AndNoSensitiveFields()
     {
         var capturingLogger = new CapturingLogger<ObfuscationPipeline>();
 
-        var pipeline = new ObfuscationPipeline([], [], capturingLogger);
+        var pipeline = new ObfuscationPipeline(
+            [new RemoveTitleTransformer(), new RemoveAttendeesTransformer()],
+            [new MergeBlocksTransformer()],
+            capturingLogger);
         var sensitiveEvent = new CalendarEvent(
             Id: "evt-1",
             Title: "Confidential title",
@@ -22,20 +26,75 @@ public class ObfuscationPipelineLoggingTests
             AttendeeEmails: ["alice@example.com"],
             Location: "Secret room");
 
-        _ = pipeline.Process([sensitiveEvent]);
+        _ = pipeline.Process([sensitiveEvent], "consultant-42", ObfuscationAuditContext.Client);
 
         var logEntry = capturingLogger.Entries.Single(e =>
             e.Level == LogLevel.Information
-            && e.Message.Contains("Processed", StringComparison.Ordinal)
-            && e.Message.Contains("events through obfuscation pipeline", StringComparison.Ordinal));
+            && e.Message.Contains("Obfuscation audit completed", StringComparison.Ordinal));
 
+        Assert.AreEqual("consultant-42", logEntry.State["ConsultantId"]);
+        Assert.AreEqual(nameof(ObfuscationAuditContext.Client), logEntry.State["Context"]?.ToString());
         Assert.IsTrue(logEntry.State.ContainsKey("EventCount"), "EventCount structured property should be present");
         Assert.AreEqual(1, logEntry.State["EventCount"], "EventCount should equal the number of processed events");
+        Assert.AreEqual(1, logEntry.State["FinalSlotCount"], "FinalSlotCount should equal the number of resulting busy slots");
+        Assert.AreEqual(1, logEntry.State["InitialBusySlotCount"], "InitialBusySlotCount should equal the pre-merge slot count");
+        Assert.IsTrue(logEntry.State.ContainsKey("Timestamp"), "Timestamp structured property should be present");
+
+        var transformerNames = ((IEnumerable<string>)logEntry.State["TransformersApplied"]!).ToArray();
+
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                nameof(RemoveTitleTransformer),
+                nameof(RemoveAttendeesTransformer),
+                nameof(MergeBlocksTransformer)
+            },
+            transformerNames);
 
         Assert.IsFalse(logEntry.Message.Contains("Confidential title", StringComparison.Ordinal),
             "Rendered message must not contain sensitive title");
+        Assert.IsFalse(logEntry.Message.Contains("Sensitive description", StringComparison.Ordinal),
+            "Rendered message must not contain sensitive description");
         Assert.IsFalse(logEntry.Message.Contains("alice@example.com", StringComparison.Ordinal),
             "Rendered message must not contain attendee email");
+        Assert.IsFalse(logEntry.Message.Contains("Secret room", StringComparison.Ordinal),
+            "Rendered message must not contain location");
+
+        var structuredPayload = string.Join(
+            " | ",
+            logEntry.State.Select(pair => pair.Value switch
+            {
+                IEnumerable<string> values => string.Join(",", values),
+                _ => pair.Value?.ToString() ?? string.Empty
+            }));
+
+        Assert.IsFalse(structuredPayload.Contains("Confidential title", StringComparison.Ordinal));
+        Assert.IsFalse(structuredPayload.Contains("Sensitive description", StringComparison.Ordinal));
+        Assert.IsFalse(structuredPayload.Contains("alice@example.com", StringComparison.Ordinal));
+        Assert.IsFalse(structuredPayload.Contains("Secret room", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void Process_WithEmptyEventList_StillEmitsAuditLog()
+    {
+        var capturingLogger = new CapturingLogger<ObfuscationPipeline>();
+        var pipeline = new ObfuscationPipeline([], [], capturingLogger);
+
+        var busySlots = pipeline.Process([], "consultant-empty", ObfuscationAuditContext.Internal);
+
+        Assert.IsEmpty(busySlots);
+
+        var logEntry = capturingLogger.Entries.Single(e =>
+            e.Level == LogLevel.Information
+            && e.Message.Contains("Obfuscation audit completed", StringComparison.Ordinal));
+
+        Assert.AreEqual(0, logEntry.State["EventCount"]);
+        Assert.AreEqual(0, logEntry.State["FinalSlotCount"]);
+        Assert.AreEqual("consultant-empty", logEntry.State["ConsultantId"]);
+        Assert.AreEqual(nameof(ObfuscationAuditContext.Internal), logEntry.State["Context"]?.ToString());
+
+        var transformerNames = ((IEnumerable<string>)logEntry.State["TransformersApplied"]!).ToArray();
+        Assert.AreEqual(0, transformerNames.Length);
     }
 
     // ---------------------------------------------------------------------------
@@ -44,6 +103,8 @@ public class ObfuscationPipelineLoggingTests
 
     private sealed class CapturingLogger<T> : ILogger<T>
     {
+        private readonly Stack<IReadOnlyDictionary<string, object?>> _scopes = [];
+
         public List<LogEntry> Entries { get; } = [];
 
         public void Log<TState>(
@@ -52,6 +113,10 @@ public class ObfuscationPipelineLoggingTests
         {
             var message = formatter(state, exception);
             var properties = new Dictionary<string, object?>();
+
+            foreach (var scope in _scopes.Reverse())
+                foreach (var pair in scope)
+                    properties[pair.Key] = pair.Value;
 
             if (state is IEnumerable<KeyValuePair<string, object?>> pairs)
                 foreach (var pair in pairs)
@@ -62,12 +127,23 @@ public class ObfuscationPipelineLoggingTests
         }
 
         public bool IsEnabled(LogLevel logLevel) => true;
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
-
-        private sealed class NullScope : IDisposable
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull
         {
-            public static readonly NullScope Instance = new();
-            public void Dispose() { }
+            var scopeState = state is IEnumerable<KeyValuePair<string, object?>> pairs
+                ? pairs.ToDictionary(pair => pair.Key, pair => pair.Value)
+                : new Dictionary<string, object?>();
+
+            _scopes.Push(scopeState);
+            return new Scope(_scopes);
+        }
+
+        private sealed class Scope(Stack<IReadOnlyDictionary<string, object?>> scopes) : IDisposable
+        {
+            public void Dispose()
+            {
+                if (scopes.Count > 0)
+                    scopes.Pop();
+            }
         }
     }
 
