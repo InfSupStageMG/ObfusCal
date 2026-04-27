@@ -27,6 +27,7 @@ public static class DependencyInjection
                 w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
 
+        services.AddScoped<ICalendarOwnerScopeResolver, EfCoreCalendarOwnerScopeResolver>();
         services.AddScoped<IShadowSlotStore, EfCoreShadowSlotStore>();
 
         // Load calendar source plugins from the plugins/ directory alongside the executable

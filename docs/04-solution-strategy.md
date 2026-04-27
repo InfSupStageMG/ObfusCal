@@ -17,9 +17,9 @@ Cross-domain exchange happens peer-to-peer through a documented REST API. Any or
 establishing a relationship with a central party.
 
 **Pluggable adapters, stable core.** Calendar sources, obfuscation transformers, and storage backends are all hidden
-behind interfaces in `ObfusCal.Core`. Concrete implementations live in `ObfusCal.Infrastructure` and are resolved via
-dependency injection. New adapters can be delivered as plugin DLLs scanned from a `plugins/` folder at startup, with no
-changes to the core codebase required.
+behind interfaces in `ObfusCal.Application` and `ObfusCal.Domain`. Concrete implementations live in
+`ObfusCal.Infrastructure` and are resolved via dependency injection. New adapters can be delivered as plugin DLLs
+scanned from a `plugins/` folder at startup, with no changes to the core codebase required.
 
 **Asymmetric Operation (Single-Player Value).** The system does not require other organizations to adopt ObfusCal to be
 useful. If a client organization cannot or will not run a peer instance, the system falls back to an asymmetric model:
@@ -44,10 +44,10 @@ This ensures the system provides immediate value to Info Support consultants reg
 
 ## Quality Goals Addressed by Architecture
 
-| Quality Goal     | Architectural Response                                                                                 |
-|------------------|--------------------------------------------------------------------------------------------------------|
-| Privacy          | Obfuscation is a gating condition for storage; raw events are never persisted                          |
-| Security         | Entra ID SSO for humans; API key authentication for peer instances; refresh tokens encrypted via DPAPI |
-| Maintainability  | Interface-based design; pluggable adapters; ADRs for all significant decisions                         |
-| Self-hostability | Single `docker compose up`; no external cloud runtime dependency                                       |
-| Resilience       | Failed peer syncs are logged and retried; one peer failure does not block others                       |
+| Quality Goal     | Architectural Response                                                                           |
+|------------------|--------------------------------------------------------------------------------------------------|
+| Privacy          | Obfuscation is a gating condition for storage; raw events are never persisted                    |
+| Security         | Entra ID SSO for humans; known-peer validation for machine pushes; strict per-owner data scoping |
+| Maintainability  | Interface-based design; pluggable adapters; ADRs for all significant decisions                   |
+| Self-hostability | Single `docker compose up`; no external cloud runtime dependency                                 |
+| Resilience       | Failed peer syncs are logged and retried; one peer failure does not block others                 |
