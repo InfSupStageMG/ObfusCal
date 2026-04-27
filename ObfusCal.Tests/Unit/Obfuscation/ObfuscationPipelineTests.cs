@@ -9,6 +9,8 @@ namespace ObfusCal.Tests.Unit.Obfuscation;
 [TestClass]
 public class ObfuscationPipelineTests
 {
+    private const string DefaultConsultantId = "consultant-1";
+
     private static CalendarEvent MakeSensitiveEvent(string id = "evt-1") => new(
         Id: id,
         Title: "Confidential: Q3 Strategy Review",
@@ -25,6 +27,9 @@ public class ObfuscationPipelineTests
     private static ObfuscationPipeline BuildPipeline(params IObfuscationTransformer[] transformers) =>
         new(transformers, [], NullLogger<ObfuscationPipeline>.Instance);
 
+    private static IReadOnlyList<BusySlot> Process(ObfuscationPipeline pipeline, IEnumerable<CalendarEvent> events) =>
+        pipeline.Process(events, DefaultConsultantId, ObfuscationAuditContext.Internal);
+
     // Pipeline Integration Tests
 
     [TestMethod]
@@ -33,11 +38,13 @@ public class ObfuscationPipelineTests
         var pipeline = BuildPipeline();
         var evt = MakeSensitiveEvent();
 
-        var slots = pipeline.Process([evt]);
+        var slots = Process(pipeline, [evt]);
 
         Assert.AreEqual(evt.Start, slots[0].Start);
         Assert.AreEqual(evt.End, slots[0].End);
-    }[TestMethod]
+    }
+
+    [TestMethod]
     public void Process_WithFullPipeline_ReturnsBusySlotsWithCorrectTimeWindow()
     {
         var pipeline = BuildPipeline(
@@ -48,7 +55,7 @@ public class ObfuscationPipelineTests
         );
         var evt = MakeSensitiveEvent();
 
-        var slots = pipeline.Process([evt]);
+        var slots = Process(pipeline, [evt]);
 
         Assert.HasCount(1, slots);
         Assert.AreEqual(evt.Start, slots[0].Start);
@@ -66,7 +73,7 @@ public class ObfuscationPipelineTests
         );
         var evt = MakeSensitiveEvent("unique-id-42");
 
-        var slots = pipeline.Process([evt]);
+        var slots = Process(pipeline, [evt]);
 
         Assert.AreEqual("unique-id-42", slots[0].SourceEventId);
     }
@@ -81,7 +88,7 @@ public class ObfuscationPipelineTests
             new RemoveAttendeesTransformer()
         );
 
-        var slots = pipeline.Process([MakeSensitiveEvent()]);
+        var slots = Process(pipeline, [MakeSensitiveEvent()]);
 
         var slotPropertyNames = slots[0].GetType().GetProperties().Select(p => p.Name).ToList();
         CollectionAssert.DoesNotContain(slotPropertyNames, "Title");
@@ -100,7 +107,7 @@ public class ObfuscationPipelineTests
             new RemoveAttendeesTransformer()
         );
 
-        var slots = pipeline.Process([]);
+        var slots = Process(pipeline, []);
 
         Assert.IsEmpty(slots);
     }
@@ -127,7 +134,7 @@ public class ObfuscationPipelineTests
             ))
             .ToList();
 
-        var slots = pipeline.Process(events);
+        var slots = Process(pipeline, events);
 
         Assert.HasCount(5, slots);
     }
@@ -145,7 +152,7 @@ public class ObfuscationPipelineTests
         var afterTitle = new RemoveTitleTransformer().Transform(evt);
         var afterBoth = new RemoveAttendeesTransformer().Transform(afterTitle);
 
-        var slots = pipeline.Process([evt]);
+        var slots = Process(pipeline, [evt]);
 
         Assert.AreEqual(afterBoth.Start, slots[0].Start);
         Assert.AreEqual(afterBoth.End, slots[0].End);
@@ -165,7 +172,7 @@ public class ObfuscationPipelineTests
                 new DateTimeOffset(2026, 6, 1, 11, 0, 0, TimeSpan.Zero),[], null)
         };
 
-        var slots = pipeline.Process(events);
+        var slots = Process(pipeline, events);
 
         Assert.HasCount(1, slots);
         Assert.AreEqual(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero), slots[0].Start);
@@ -186,7 +193,7 @@ public class ObfuscationPipelineTests
                 new DateTimeOffset(2026, 6, 1, 11, 0, 0, TimeSpan.Zero),[], null)
         };
 
-        var slots = pipeline.Process(events);
+        var slots = Process(pipeline, events);
 
         Assert.HasCount(1, slots);
         Assert.AreEqual(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero), slots[0].Start);
@@ -207,7 +214,7 @@ public class ObfuscationPipelineTests
                 new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero),[], null)
         };
 
-        var slots = pipeline.Process(events);
+        var slots = Process(pipeline, events);
 
         Assert.HasCount(2, slots);
         Assert.AreEqual(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero), slots[0].Start);
@@ -229,7 +236,7 @@ public class ObfuscationPipelineTests
                 new DateTimeOffset(2026, 6, 1, 10, 30, 0, TimeSpan.Zero),[], null)
         };
 
-        var slots = pipeline.Process(events);
+        var slots = Process(pipeline, events);
 
         Assert.HasCount(1, slots);
         Assert.AreEqual(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero), slots[0].Start);
@@ -254,7 +261,7 @@ public class ObfuscationPipelineTests
                 new DateTimeOffset(2026, 6, 1, 10, 22, 0, TimeSpan.Zero),[], null)
         };
 
-        var slots = pipeline.Process(events);
+        var slots = Process(pipeline, events);
 
         // After rounding: slot1 is 9:00-9:45, slot2 is 9:45-10:30
         // These should merge into one: 9:00-10:30
