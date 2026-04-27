@@ -9,15 +9,21 @@ public class CalendarOwnersControllerTests
 {
     public TestContext TestContext { get; set; } = null!;
 
+    private static Task<Guid> SeedAuthenticatedCalendarOwnerAsync(
+        CustomWebApplicationFactory factory,
+        string objectId = TestAuthHandler.DefaultObjectId) =>
+        factory.SeedCalendarOwnerAsync(objectId);
+
     [TestMethod]
     public async Task GetBusySlots_ReturnsOk_WithValidParameters()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
         using var client = factory.CreateAuthenticatedClient();
 
         var from = "2023-01-01T00:00:00Z";
         var to = "2023-01-02T00:00:00Z";
-        var response = await client.GetAsync($"/api/calendar-owners/1/busy-slots?from={from}&to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/{calendarOwnerId}/busy-slots?from={from}&to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
 
@@ -30,10 +36,11 @@ public class CalendarOwnersControllerTests
     public async Task GetBusySlots_ReturnsBadRequest_WhenFromIsMissing()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
         using var client = factory.CreateAuthenticatedClient();
 
         var to = "2023-01-02T00:00:00Z";
-        var response = await client.GetAsync($"/api/calendar-owners/1/busy-slots?to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/{calendarOwnerId}/busy-slots?to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -42,10 +49,11 @@ public class CalendarOwnersControllerTests
     public async Task GetBusySlots_ReturnsBadRequest_WhenToIsMissing()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
         using var client = factory.CreateAuthenticatedClient();
 
         var from = "2023-01-01T00:00:00Z";
-        var response = await client.GetAsync($"/api/calendar-owners/1/busy-slots?from={from}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/{calendarOwnerId}/busy-slots?from={from}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -54,11 +62,12 @@ public class CalendarOwnersControllerTests
     public async Task GetBusySlots_ReturnsBadRequest_WhenFromIsInvalid()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
         using var client = factory.CreateAuthenticatedClient();
 
         var from = "invalid-date";
         var to = "2023-01-02T00:00:00Z";
-        var response = await client.GetAsync($"/api/calendar-owners/1/busy-slots?from={from}&to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/{calendarOwnerId}/busy-slots?from={from}&to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -67,11 +76,12 @@ public class CalendarOwnersControllerTests
     public async Task GetBusySlots_ReturnsBadRequest_WhenToIsInvalid()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
         using var client = factory.CreateAuthenticatedClient();
 
         var from = "2023-01-01T00:00:00Z";
         var to = "invalid-date";
-        var response = await client.GetAsync($"/api/calendar-owners/1/busy-slots?from={from}&to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/{calendarOwnerId}/busy-slots?from={from}&to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -82,11 +92,12 @@ public class CalendarOwnersControllerTests
     public async Task GetMergedFreeBusy_ReturnsOk_WithValidParameters()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
         using var client = factory.CreateAuthenticatedClient();
 
         var from = "2023-01-01T00:00:00Z";
         var to = "2023-01-02T00:00:00Z";
-        var response = await client.GetAsync($"/api/calendar-owners/1/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/{calendarOwnerId}/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
 
@@ -99,10 +110,11 @@ public class CalendarOwnersControllerTests
     public async Task GetMergedFreeBusy_ReturnsBadRequest_WhenFromIsMissing()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
         using var client = factory.CreateAuthenticatedClient();
 
         var to = "2023-01-02T00:00:00Z";
-        var response = await client.GetAsync($"/api/calendar-owners/1/merged-freebusy?to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/{calendarOwnerId}/merged-freebusy?to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -111,10 +123,11 @@ public class CalendarOwnersControllerTests
     public async Task GetMergedFreeBusy_ReturnsBadRequest_WhenToIsMissing()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
         using var client = factory.CreateAuthenticatedClient();
 
         var from = "2023-01-01T00:00:00Z";
-        var response = await client.GetAsync($"/api/calendar-owners/1/merged-freebusy?from={from}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/{calendarOwnerId}/merged-freebusy?from={from}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -149,11 +162,12 @@ public class CalendarOwnersControllerTests
     public async Task GetMergedFreeBusy_ReturnsBadRequest_WhenFromIsInvalid()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
         using var client = factory.CreateAuthenticatedClient();
 
         var from = "invalid-date";
         var to = "2023-01-02T00:00:00Z";
-        var response = await client.GetAsync($"/api/calendar-owners/1/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/{calendarOwnerId}/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -162,11 +176,12 @@ public class CalendarOwnersControllerTests
     public async Task GetMergedFreeBusy_ReturnsBadRequest_WhenToIsInvalid()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
         using var client = factory.CreateAuthenticatedClient();
 
         var from = "2023-01-01T00:00:00Z";
         var to = "invalid-date";
-        var response = await client.GetAsync($"/api/calendar-owners/1/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/{calendarOwnerId}/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -175,11 +190,12 @@ public class CalendarOwnersControllerTests
     public async Task GetMergedFreeBusy_ReturnsJsonWithStartAndEndFields()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
         using var client = factory.CreateAuthenticatedClient();
 
         var from = "2023-01-01T00:00:00Z";
         var to = "2023-01-02T00:00:00Z";
-        var response = await client.GetAsync($"/api/calendar-owners/1/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
+        var response = await client.GetAsync($"/api/calendar-owners/{calendarOwnerId}/merged-freebusy?from={from}&to={to}", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
 
@@ -201,10 +217,11 @@ public class CalendarOwnersControllerTests
     public async Task GetBusySlots_ReturnsUnauthorized_WithoutToken()
     {
         await using var factory = new CustomWebApplicationFactory("Development");
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
-            "/api/calendar-owners/1/busy-slots?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
+            $"/api/calendar-owners/{calendarOwnerId}/busy-slots?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
             TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -214,10 +231,11 @@ public class CalendarOwnersControllerTests
     public async Task GetMergedFreeBusy_ReturnsUnauthorized_WithoutToken()
     {
         await using var factory = new CustomWebApplicationFactory("Development");
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync(
-            "/api/calendar-owners/1/merged-freebusy?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
+            $"/api/calendar-owners/{calendarOwnerId}/merged-freebusy?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
             TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -235,7 +253,61 @@ public class CalendarOwnersControllerTests
 
         var json = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
         using var document = JsonDocument.Parse(json);
-        Assert.AreEqual(TestAuthHandler.ObjectId, document.RootElement.GetProperty("objectId").GetString());
+        Assert.AreEqual(TestAuthHandler.DefaultObjectId, document.RootElement.GetProperty("objectId").GetString());
+    }
+
+    [TestMethod]
+    public async Task GetBusySlots_ReturnsForbidden_WhenAuthenticatedCalendarOwnerRequestsDifferentId()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        await SeedAuthenticatedCalendarOwnerAsync(factory);
+        using var client = factory.CreateAuthenticatedClient();
+
+        var response = await client.GetAsync(
+            $"/api/calendar-owners/{Guid.NewGuid()}/busy-slots?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task GetMergedFreeBusy_ReturnsForbidden_WhenAuthenticatedCalendarOwnerRequestsDifferentId()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        await SeedAuthenticatedCalendarOwnerAsync(factory);
+        using var client = factory.CreateAuthenticatedClient();
+
+        var response = await client.GetAsync(
+            $"/api/calendar-owners/{Guid.NewGuid()}/merged-freebusy?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task GetBusySlots_ReturnsNotFound_WhenAuthenticatedCalendarOwnerHasNoMatchingRecord()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        using var client = factory.CreateAuthenticatedClient(Guid.NewGuid().ToString());
+
+        var response = await client.GetAsync(
+            $"/api/calendar-owners/{Guid.NewGuid()}/busy-slots?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task GetMergedFreeBusy_ReturnsNotFound_WhenAuthenticatedCalendarOwnerHasNoMatchingRecord()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        using var client = factory.CreateAuthenticatedClient(Guid.NewGuid().ToString());
+
+        var response = await client.GetAsync(
+            $"/api/calendar-owners/{Guid.NewGuid()}/merged-freebusy?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
 }
 

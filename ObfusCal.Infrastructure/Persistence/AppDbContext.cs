@@ -15,6 +15,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             e.HasKey(c => c.Id);
             e.Property(c => c.Name).IsRequired();
+            e.Property(c => c.EntraObjectId)
+                .HasMaxLength(64);
+            e.HasIndex(c => c.EntraObjectId)
+                .IsUnique();
         });
 
         modelBuilder.Entity<PeerConnection>(e =>

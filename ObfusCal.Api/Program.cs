@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
 using Microsoft.OpenApi;
+using ObfusCal.Api.Authorization;
 using ObfusCal.Application;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Infrastructure;
@@ -39,6 +40,7 @@ try
         .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
     builder.Services.AddAuthorization();
+    builder.Services.AddScoped<CalendarOwnerAccessEvaluator>();
 
     builder.Services
         .AddControllers()

@@ -1,8 +1,8 @@
 ﻿# ObfusCal
 
 ObfusCal is an open-source calendar synchronisation tool that lets users stay in sync across multiple domains without
-exposing sensitive information. Events from external domains appear in your calendar as obfuscated busy blocks. Those
-contain only start and end times, with all titles, descriptions, attendees, and locations removed.
+exposing sensitive information. Events from external domains appear in your calendar as obfuscated busy blocks containing
+only start and end times, with all titles, descriptions, attendees, and locations removed.
 
 It is designed for consultants and professionals who maintain calendars in multiple organisations and need a
 privacy-preserving way to keep everyone in the loop.
@@ -12,9 +12,9 @@ privacy-preserving way to keep everyone in the loop.
 ## How it works
 
 Each organisation runs their own instance of ObfusCal within their own network. Instances exchange only obfuscated busy
-slots over a secured API. No raw event data ever crosses a domain boundary. The obfuscated slots are written directly
-into each connected calendar so that everyone's availability is visible from within their existing calendar client,
-without any additional subscriptions or tooling.
+slots over a secured API. No raw event data ever crosses a domain boundary. Consultants authenticate with their existing
+company credentials via Entra ID (Azure AD), and the system fetches their calendar automatically via the Microsoft Graph
+API on a configurable schedule.
 
 ---
 
@@ -22,75 +22,94 @@ without any additional subscriptions or tooling.
 
 ```
 ObfusCal/
-├── ObfusCal.Api/            # ASP.NET Core web API - entry point, controllers, DI wiring
-├── ObfusCal.Core/           # Domain models, interfaces, obfuscation pipeline
-├── ObfusCal.Infrastructure/ # Calendar adapters, storage implementations
-├── ObfusCal.Sync/           # Background sync service
+├── ObfusCal.Domain/         # Core business rules, domain models, obfuscation transformers
+├── ObfusCal.Application/    # Use cases (CQRS), interfaces, obfuscation pipeline
+├── ObfusCal.Infrastructure/ # Calendar adapters, EF Core persistence, storage implementations
+├── ObfusCal.Api/            # ASP.NET Core entry point, controllers, DI composition root
 ├── ObfusCal.Tests/          # Unit and integration tests
+├── docs/                    # arc42 architecture documentation (served via MkDocs)
 ├── docker-compose.yaml
 ├── Dockerfile
 ├── nginx.conf
 ├── certs/                   # Local TLS material (gitignored except README)
-├── .dockerignore
-├── .gitignore
-└── ObfusCal.sln
+└── ObfusCal.slnx
 ```
+
+### Layer dependencies
+
+```
+ObfusCal.Api
+├── ObfusCal.Application
+│   └── ObfusCal.Domain
+└── ObfusCal.Infrastructure
+    ├── ObfusCal.Application
+    └── ObfusCal.Domain
+```
+
+`ObfusCal.Domain` has zero external dependencies. The composition root in `Program.cs` is the only place where
+`ObfusCal.Api` and `ObfusCal.Infrastructure` meet.
 
 ---
 
 ## Requirements
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- [Docker](https://www.docker.com/products/docker-desktop) (optional, for containerised runs)
-- [OpenSSL](https://openssl-library.org/source/) (for local reverse-proxy certificate generation)
+- [Podman](https://podman.io/) or [Docker](https://www.docker.com/products/docker-desktop) for containerised runs
+- [OpenSSL](https://openssl-library.org/source/) for local certificate generation
 
 ---
 
 ## Running locally
 
-**With the .NET CLI:**
+**With the .NET CLI (no database):**
 
 ```powershell
 dotnet run --project ObfusCal.Api
 ```
 
-Then open `http://localhost:5000/swagger` in your browser.
+Then open `http://localhost:5001/swagger`.
 
-**With Docker Compose + reverse proxy (HTTPS):**
+**With Podman Compose (full stack with HTTPS and PostgreSQL):**
 
 1. Create local certificates (see `certs/README.md`):
 
 ```powershell
 New-Item -ItemType Directory -Force -Path certs\nginx | Out-Null
-New-Item -ItemType Directory -Force -Path certs\api | Out-Null
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout certs\nginx\tls.key -out certs\nginx\tls.crt -subj "/CN=obfuscal.local"
-dotnet dev-certs https -ep certs\api\api.pfx -p "change-me"
+New-Item -ItemType Directory -Force -Path certs\api  | Out-Null
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 `
+  -keyout certs\nginx\tls.key -out certs\nginx\tls.crt `
+  -subj "/CN=obfuscal.local"
+openssl pkcs12 -export `
+  -out certs\api\api.pfx `
+  -inkey certs\nginx\tls.key `
+  -in certs\nginx\tls.crt `
+  -passout pass:your_cert_password
 ```
 
-2. Create a local `.env` file from `.env.example` and set `API_CERT_PASSWORD`.
+2. Create a `.env` file from `.env.example` and fill in the values.
 
-3. Add a hosts entry for local internal-domain testing:
+3. Optionally add a hosts entry for `obfuscal.local`:
 
-```text
+```
 127.0.0.1 obfuscal.local
 ```
 
 4. Start the stack:
 
 ```powershell
-docker compose up --build
+podman compose up --build
 ```
 
-5. Verify endpoints:
-   - `https://obfuscal.local/health`
-   - `https://obfuscal.local/swagger` (Development mode)
-   - `http://obfuscal.local` redirects to HTTPS
+5. Verify:
+    - `https://obfuscal.local/health`
+    - `https://obfuscal.local/swagger` (Development mode only)
+    - `http://obfuscal.local` redirects to HTTPS
 
 ---
 
 ## Development
 
-Build the solution:
+Build:
 
 ```powershell
 dotnet build
@@ -101,6 +120,9 @@ Run all tests:
 ```powershell
 dotnet test
 ```
+
+> Integration tests require Docker or Podman to be running — they spin up an ephemeral PostgreSQL container via
+> Testcontainers.
 
 Run mutation tests with Stryker:
 
@@ -114,19 +136,31 @@ The configured mutation gate is 75% (`thresholds.low` and `thresholds.break` in 
 
 ---
 
+## Documentation
+
+Architecture documentation is written in arc42 format and served via MkDocs:
+
+```powershell
+pip install mkdocs-material
+mkdocs serve
+```
+
+Then open `http://localhost:8000`.
+
+---
+
 ## Roadmap
 
-Sprint 1 covers the foundational layer:
+**Sprint 1 (complete):** Project scaffolding, Docker/Podman setup, CI/CD pipeline, pluggable calendar adapter
+interface, core obfuscation pipeline (strip title, description, attendees, location, round times, merge blocks),
+in-memory busy slot storage, REST API with OpenAPI/Swagger, push/pull shadow slots endpoints, structured Serilog
+logging, nginx reverse proxy with HTTPS.
 
-- Project scaffolding and Docker setup
-- CI/CD pipeline via GitHub Actions
-- Pluggable calendar adapter interface
-- Core obfuscation pipeline
-- Busy slot storage
-- REST API with OpenAPI/Swagger
+**Sprint 2 (in progress):** Entra ID login, per-owner data scoping, API key authentication for peer instances,
+Microsoft Graph OAuth consent flow and calendar fetch, EF Core + PostgreSQL persistence, configurable periodic
+re-sync scheduler, iCal feed import, outbound/inbound peer sync transport, sync resilience.
 
-Later sprints will add Microsoft 365 integration via the Graph API, persistent storage, authentication via Entra ID, and
-the optional booking link feature.
+**Later sprints:** Sysadmin peer approval workflow, booking link feature, mTLS for inter-peer communication.
 
 ---
 
