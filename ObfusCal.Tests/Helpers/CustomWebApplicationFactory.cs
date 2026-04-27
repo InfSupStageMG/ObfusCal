@@ -2,9 +2,9 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.EntityFrameworkCore;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
 using ObfusCal.Infrastructure.Storage;
@@ -33,6 +33,9 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
                 ["AzureAd:TenantId"] = "11111111-1111-1111-1111-111111111111",
                 ["AzureAd:Domain"] = "infosupport.onmicrosoft.com",
                 ["AzureAd:ClientId"] = "22222222-2222-2222-2222-222222222222",
+                ["GraphConsent:Scope"] = "https://graph.microsoft.com/Calendars.Read offline_access",
+                ["GraphConsent:ClientId"] = "33333333-3333-3333-3333-333333333333",
+                ["GraphConsent:ClientSecret"] = "integration-test-secret",
                 ["Swagger:OAuth:ClientId"] = "22222222-2222-2222-2222-222222222222",
                 ["Swagger:OAuth:Scope"] = "api://22222222-2222-2222-2222-222222222222/access_as_user"
             }));
@@ -46,18 +49,23 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
 
             services.AddSingleton<IShadowSlotStore, InMemoryShadowSlotStore>();
 
-            if (useTestAuthentication)
-            {
-                services.AddAuthentication(options =>
-                    {
-                        options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
-                        options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
-                        options.DefaultScheme = TestAuthHandler.SchemeName;
-                    })
-                    .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
+            var graphTokenClientDescriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(IGraphOAuthTokenClient));
+            if (graphTokenClientDescriptor is not null)
+                services.Remove(graphTokenClientDescriptor);
 
-                services.AddAuthorization();
-            }
+            services.AddSingleton<IGraphOAuthTokenClient, FakeGraphOAuthTokenClient>();
+
+            if (!useTestAuthentication) return;
+            services.AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
+                    options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
+                    options.DefaultScheme = TestAuthHandler.SchemeName;
+                })
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
+
+            services.AddAuthorization();
         });
     }
 
@@ -102,5 +110,24 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
 
         await dbContext.SaveChangesAsync();
         return existingOwner.Id;
+    }
+
+    public async Task GrantGraphConsentAsync(
+        Guid calendarOwnerId,
+        string authorizationCode = FakeGraphOAuthTokenClient.ValidAuthorizationCode,
+        string redirectUri = "https://localhost/swagger/oauth2-redirect.html")
+    {
+        using var scope = Services.CreateScope();
+        var consentService = scope.ServiceProvider.GetRequiredService<ICalendarOwnerGraphConsentService>();
+        await consentService.CompleteConsentAsync(calendarOwnerId, authorizationCode, redirectUri);
+    }
+
+    public async Task<CalendarOwner?> GetCalendarOwnerAsync(Guid calendarOwnerId)
+    {
+        using var scope = Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        return await dbContext.CalendarOwners
+            .AsNoTracking()
+            .SingleOrDefaultAsync(owner => owner.Id == calendarOwnerId);
     }
 }

@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Calendars;
 using ObfusCal.Infrastructure.Persistence;
@@ -27,7 +28,12 @@ public static class DependencyInjection
                 w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });
 
+        services.Configure<GraphConsentOptions>(config.GetSection(GraphConsentOptions.SectionName));
+        services.AddDataProtection();
+        services.AddHttpClient<IGraphOAuthTokenClient, GraphOAuthTokenClient>();
+
         services.AddScoped<ICalendarOwnerScopeResolver, EfCoreCalendarOwnerScopeResolver>();
+        services.AddScoped<ICalendarOwnerGraphConsentService, CalendarOwnerGraphConsentService>();
         services.AddScoped<IShadowSlotStore, EfCoreShadowSlotStore>();
 
         // Load calendar source plugins from the plugins/ directory alongside the executable

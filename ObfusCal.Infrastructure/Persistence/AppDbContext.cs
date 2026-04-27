@@ -17,6 +17,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(c => c.Name).IsRequired();
             e.Property(c => c.EntraObjectId)
                 .HasMaxLength(64);
+            e.Property(c => c.GraphAccessTokenProtected)
+                .HasMaxLength(8192);
+            e.Property(c => c.GraphRefreshTokenProtected)
+                .HasMaxLength(8192);
             e.HasIndex(c => c.EntraObjectId)
                 .IsUnique();
         });
