@@ -36,6 +36,30 @@ public class SwaggerEndpointsTests
     }
 
     [TestMethod]
+    public async Task Development_OpenApiJson_ContainsOAuthSecurityDefinition()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development");
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/swagger/v1/swagger.json", TestContext.CancellationToken);
+        var json = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+
+        using var document = JsonDocument.Parse(json);
+        var securitySchemes = document.RootElement
+            .GetProperty("components")
+            .GetProperty("securitySchemes")
+            .GetProperty("OAuth2");
+
+        Assert.AreEqual("oauth2", securitySchemes.GetProperty("type").GetString());
+        Assert.IsTrue(
+            securitySchemes.GetProperty("flows").GetProperty("authorizationCode").TryGetProperty("authorizationUrl", out _));
+        Assert.IsTrue(
+            securitySchemes.GetProperty("flows").GetProperty("authorizationCode").TryGetProperty("tokenUrl", out _));
+    }
+
+    [TestMethod]
     public async Task Production_SwaggerEndpoints_AreNotAccessible()
     {
         await using var factory = new CustomWebApplicationFactory("Production");
