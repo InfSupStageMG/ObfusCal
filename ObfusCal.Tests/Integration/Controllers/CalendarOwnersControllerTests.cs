@@ -1,5 +1,7 @@
 ﻿using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
+using ObfusCal.Api.Controllers;
 using ObfusCal.Tests.Helpers;
 
 namespace ObfusCal.Tests.Integration.Controllers;
@@ -14,11 +16,20 @@ public class CalendarOwnersControllerTests
         string objectId = TestAuthHandler.DefaultObjectId) =>
         factory.SeedCalendarOwnerAsync(objectId);
 
+    private static async Task<Guid> SeedConsentedCalendarOwnerAsync(
+        CustomWebApplicationFactory factory,
+        string objectId = TestAuthHandler.DefaultObjectId)
+    {
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(objectId);
+        await factory.GrantGraphConsentAsync(calendarOwnerId);
+        return calendarOwnerId;
+    }
+
     [TestMethod]
     public async Task GetBusySlots_ReturnsOk_WithValidParameters()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
-        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
+        var calendarOwnerId = await SeedConsentedCalendarOwnerAsync(factory);
         using var client = factory.CreateAuthenticatedClient();
 
         var from = "2023-01-01T00:00:00Z";
@@ -254,6 +265,117 @@ public class CalendarOwnersControllerTests
         var json = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
         using var document = JsonDocument.Parse(json);
         Assert.AreEqual(TestAuthHandler.DefaultObjectId, document.RootElement.GetProperty("objectId").GetString());
+    }
+
+    [TestMethod]
+    public async Task GetBusySlots_ReturnsConflict_WhenCalendarOwnerHasNotGrantedGraphConsent()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.GetAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/busy-slots?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Conflict, response.StatusCode);
+
+        var json = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using var document = JsonDocument.Parse(json);
+        Assert.AreEqual("Microsoft Graph consent required.", document.RootElement.GetProperty("title").GetString());
+    }
+
+    [TestMethod]
+    public async Task GetCalendarConsentStatus_ReturnsFalseBeforeConsent_AndTrueAfterCompletion()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var beforeResponse = await client.GetAsync($"/api/calendar-owners/{calendarOwnerId}/calendar/status", TestContext.CancellationToken);
+        Assert.AreEqual(HttpStatusCode.OK, beforeResponse.StatusCode);
+
+        var beforeJson = await beforeResponse.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using (var beforeDocument = JsonDocument.Parse(beforeJson))
+        {
+            Assert.IsFalse(beforeDocument.RootElement.GetProperty("hasGraphConsent").GetBoolean());
+            Assert.AreEqual(JsonValueKind.Null, beforeDocument.RootElement.GetProperty("consentGrantedAtUtc").ValueKind);
+        }
+
+        var completeResponse = await client.PostAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/calendar/consent",
+            new CalendarOwnersController.CompleteCalendarConsentRequest(
+                FakeGraphOAuthTokenClient.ValidAuthorizationCode,
+                "https://localhost/swagger/oauth2-redirect.html"),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.NoContent, completeResponse.StatusCode);
+
+        var afterResponse = await client.GetAsync($"/api/calendar-owners/{calendarOwnerId}/calendar/status", TestContext.CancellationToken);
+        Assert.AreEqual(HttpStatusCode.OK, afterResponse.StatusCode);
+
+        var afterJson = await afterResponse.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using var afterDocument = JsonDocument.Parse(afterJson);
+        Assert.IsTrue(afterDocument.RootElement.GetProperty("hasGraphConsent").GetBoolean());
+        Assert.AreEqual(JsonValueKind.String, afterDocument.RootElement.GetProperty("consentGrantedAtUtc").ValueKind);
+        Assert.AreEqual(JsonValueKind.String, afterDocument.RootElement.GetProperty("tokenLastRefreshedAtUtc").ValueKind);
+        Assert.AreEqual(JsonValueKind.String, afterDocument.RootElement.GetProperty("tokenExpiresAtUtc").ValueKind);
+
+        var owner = await factory.GetCalendarOwnerAsync(calendarOwnerId);
+        Assert.IsNotNull(owner);
+        Assert.AreNotEqual(FakeGraphOAuthTokenClient.AccessToken, owner.GraphAccessTokenProtected);
+        Assert.AreNotEqual(FakeGraphOAuthTokenClient.RefreshToken, owner.GraphRefreshTokenProtected);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(owner.GraphAccessTokenProtected));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(owner.GraphRefreshTokenProtected));
+    }
+
+    [TestMethod]
+    public async Task GetCalendarConsentUrl_ReturnsAuthorizationUrl_ForAuthenticatedCalendarOwner()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        const string redirectUri = "https://localhost/swagger/oauth2-redirect.html";
+        var response = await client.GetAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/calendar/consent-url?redirectUri={Uri.EscapeDataString(redirectUri)}",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+
+        var json = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using var document = JsonDocument.Parse(json);
+        var authorizationUrl = document.RootElement.GetProperty("authorizationUrl").GetString();
+
+        Assert.IsNotNull(authorizationUrl);
+        StringAssert.Contains(authorizationUrl, "login.microsoftonline.com");
+        StringAssert.Contains(authorizationUrl, "Calendars.Read");
+        StringAssert.Contains(authorizationUrl, Uri.EscapeDataString(redirectUri));
+    }
+
+    [TestMethod]
+    public async Task CompleteCalendarConsent_ReturnsBadRequest_WhenAuthorizationCodeIsInvalid()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/calendar/consent",
+            new CalendarOwnersController.CompleteCalendarConsentRequest(
+                "expired-code",
+                "https://localhost/swagger/oauth2-redirect.html"),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var json = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using var document = JsonDocument.Parse(json);
+        Assert.AreEqual("Unable to complete Microsoft Graph consent.", document.RootElement.GetProperty("title").GetString());
     }
 
     [TestMethod]
