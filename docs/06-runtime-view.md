@@ -10,33 +10,31 @@ This is the primary runtime scenario. The `SyncService` runs on a configurable i
 
 1. The background scheduler wakes up and iterates over all active peer connections.
 2. For each connection, it fetches the user's raw events from the calendar source (MS Graph, iCal, etc.).
-3. The raw `CalendarEvent` objects are passed to `ObfuscationPipeline.Process()`, which applies the user's active
-   `ObfuscationProfile` and returns a list of `BusySlot` objects.
+3. The raw `CalendarEvent` objects are passed to `ObfuscationPipeline.Process()`, which applies configured
+   transformers and returns a list of `BusySlot` objects.
 4. The raw events immediately fall out of scope and are garbage collected. They are never written to disk.
 5. The obfuscated `BusySlot` list is POSTed to the peer instance's `/api/shadow-slots` endpoint (push).
-6. The system GETs the peer instance's `/api/busy-slots` endpoint to retrieve the remote slots (pull).
-7. The received shadow slots are saved to the local `IShadowSlotStore`.
-8. If a peer is unreachable, the failure is logged and that peer is skipped. Other peers are unaffected.
+6. External obfuscated slots are ingested via `POST /api/shadow-slots` (from trusted peer IDs) and saved in
+   `IShadowSlotStore`.
+7. If a peer is unreachable, the failure is logged and that peer is skipped. Other peers are unaffected.
 
-## Scenario 2: Peer Instance Pulls Busy Slots
+## Scenario 2: Calendar Owner Requests Busy Slots
 
-An external peer instance requests the obfuscated slots for a specific user.
+An authenticated calendar owner requests their own obfuscated availability window.
 
-1. Peer sends `GET /api/users/{id}/busy-slots?from=...&to=...` with a valid API key in the `Authorization` header.
-2. The API validates the API key against the configured peer connections.
-3. The calendar source is queried for events in the requested window.
-4. Events are passed through the obfuscation pipeline.
-5. The resulting `BusySlot` list (containing only `start` and `end`) is returned as JSON.
-6. No raw event data is included in the response at any point.
+1. Client sends `GET /api/calendar-owners/{id}/busy-slots?from=...&to=...` with a valid Entra bearer token.
+2. The API resolves the Entra `oid` to a local `CalendarOwner` record.
+3. If no owner record is found, the API returns `404 Not Found`.
+4. If `{id}` does not match the authenticated owner, the API returns `403 Forbidden`.
+5. For authorized requests, the calendar source is queried and obfuscated slots are returned (`start` and `end` only).
 
 ## Scenario 3: User Authenticates and Views Availability
 
-1. User navigates to the ObfusCal web UI.
+1. User opens Swagger UI or another API client.
 2. The application redirects to Info Support's Entra ID login page via OpenID Connect.
 3. After successful authentication (including MFA), Entra ID returns a JWT token.
 4. The application extracts the user's Object ID from the token and scopes all subsequent data access to that ID.
-5. The user can view their merged free/busy view, which combines their own obfuscated slots with any shadow slots
-   received from peer instances.
+5. The user can call `GET /api/calendar-owners/{id}/merged-freebusy` to view their own merged availability.
 
 ## Scenario 4: Asymmetric Sync (No Peer Instance)
 

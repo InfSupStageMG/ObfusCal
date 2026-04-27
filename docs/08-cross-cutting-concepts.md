@@ -19,9 +19,8 @@ output (`BusySlot`) is persisted.
 **Human authentication:** All user-facing access is secured via Single Sign-On through Info Support's Entra ID (Azure
 AD) using OpenID Connect. This automatically inherits existing conditional access policies including MFA.
 
-**Machine-to-machine authentication:** Peer-to-peer API calls are secured with API keys. When a sysadmin approves a peer
-connection, a cryptographically secure key is generated. All inbound requests to sync endpoints are validated against
-the key before any data is accepted or returned.
+**Machine-to-machine authentication:** Inbound peer pushes are accepted on `POST /api/shadow-slots` only when the
+`X-Peer-Id` header matches a configured known peer ID. Unknown peers are rejected with `401 Unauthorized`.
 
 **Credential storage:** Microsoft Graph OAuth refresh tokens are encrypted at rest using the .NET Data Protection API (
 DPAPI) before being written to the database. A database breach yields only ciphertext.
@@ -59,6 +58,5 @@ Sensitive data (event titles, attendee emails, tokens) must never appear in any 
 ## Extensibility (Plugin System)
 
 At startup, the API scans a `plugins/` directory and uses `AssemblyLoadContext` to load any DLLs containing classes that
-implement `ICalendarSource` or `IEventTransformer`. These are registered into the ASP.NET Core DI container
-automatically. This allows new calendar adapters or custom obfuscation rules to be delivered without modifying or
-recompiling the core application.
+implement `ICalendarSource`. These are registered into the ASP.NET Core DI container automatically. This allows new
+calendar adapters to be delivered without modifying or recompiling the core application.

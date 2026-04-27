@@ -13,7 +13,7 @@ subgraph CN["Company Network"]
     subgraph DH1["Docker Host"]
         NGINX1["nginx reverse-proxy\n:80 (→ HTTPS) / :443"]
         API1["obfuscal-api (.NET 10)\n:8443 (internal)"]
-        DB["PostgreSQL\n(later sprint)"]
+        DB["PostgreSQL"]
         NGINX1 --> API1
         API1 --> DB
     end
@@ -29,7 +29,7 @@ subgraph CL["Client Network (e.g. Client A)"]
 end
 
 %% Connection
-NGINX1 -- "HTTPS (API Key auth)" --> NGINX2
+NGINX1 -- "HTTPS (peer ID validated via X-Peer-Id)" --> NGINX2
 ```
 
 ## Deployment Steps
@@ -52,7 +52,7 @@ The `docker-compose.yaml` at the repository root configures the required environ
 | `ASPNETCORE_Kestrel__Certificates__Default__Password` | Password for the PFX certificate (sourced from `.env`)                 |
 | `API_CERT_PASSWORD`                                   | Passed to `docker compose` via `.env`; sets the Kestrel cert password  |
 | `Sync__KnownPeerIds__0`, `__1`, …                     | Comma-indexed list of peer IDs accepted by `ShadowSlotsController`     |
-| `ConnectionStrings__Default`                          | PostgreSQL connection string (later sprint)                            |
+| `ConnectionStrings__DefaultConnection`                | PostgreSQL connection string                                            |
 | `Sync__IntervalSeconds`                               | How often the background sync runs (default: `900` = 15 minutes)       |
 
 ## CI/CD
@@ -74,7 +74,7 @@ docker compose up -d
 
 | Concern | PoC                                       | Production                                  |
 |---------|-------------------------------------------|---------------------------------------------|
-| Storage | In-memory                                 | PostgreSQL via EF Core                      |
+| Storage | In-memory shadow-slot store               | PostgreSQL via EF Core                      |
 | TLS     | Terminated at nginx sidecar (self-signed) | Terminated at reverse proxy with valid cert |
-| Auth    | API key header (peer-to-peer)             | API key + Entra ID OIDC (human users)       |
+| Auth    | Known-peer ID header + Entra ID OIDC      | Strong peer auth (planned) + Entra ID OIDC  |
 | Secrets | Environment variables / `.env` file       | Secrets manager or Docker secrets           |

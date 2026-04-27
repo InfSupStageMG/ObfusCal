@@ -14,8 +14,7 @@ public sealed class TestAuthHandler(
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     public const string SchemeName = "Test";
-    public const string ValidToken = "integration-test-token";
-    public const string ObjectId = "00000000-0000-0000-0000-000000000025";
+    public const string DefaultObjectId = "00000000-0000-0000-0000-000000000025";
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -23,16 +22,18 @@ public sealed class TestAuthHandler(
             return Task.FromResult(AuthenticateResult.NoResult());
 
         if (!string.Equals(headerValue.Scheme, SchemeName, StringComparison.Ordinal)
-            || !string.Equals(headerValue.Parameter, ValidToken, StringComparison.Ordinal))
+            || string.IsNullOrWhiteSpace(headerValue.Parameter))
         {
             return Task.FromResult(AuthenticateResult.Fail("Invalid test authorization header."));
         }
 
+        var objectId = headerValue.Parameter;
+
         var claims = new[]
         {
-            new Claim("oid", ObjectId),
-            new Claim("http://schemas.microsoft.com/identity/claims/objectidentifier", ObjectId),
-            new Claim(ClaimTypes.NameIdentifier, ObjectId),
+            new Claim("oid", objectId),
+            new Claim("http://schemas.microsoft.com/identity/claims/objectidentifier", objectId),
+            new Claim(ClaimTypes.NameIdentifier, objectId),
             new Claim(ClaimTypes.Name, "Integration Test Calendar Owner")
         };
 

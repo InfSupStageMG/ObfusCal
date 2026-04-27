@@ -48,10 +48,8 @@ tests/
 └── ObfusCal.Integration.Tests/
 ```
 
-Current repository projects are `ObfusCal.Core`, `ObfusCal.Infrastructure`, `ObfusCal.Api`, `ObfusCal.Sync`, and `ObfusCal.Tests`. During migration, map:
-
-- `ObfusCal.Core` -> split into `ObfusCal.Domain` + `ObfusCal.Application`
-- `ObfusCal.Tests` -> split by layer over time
+Current repository projects are `ObfusCal.Domain`, `ObfusCal.Application`, `ObfusCal.Infrastructure`, `ObfusCal.Api`, and
+`ObfusCal.Tests`.
 
 ---
 
