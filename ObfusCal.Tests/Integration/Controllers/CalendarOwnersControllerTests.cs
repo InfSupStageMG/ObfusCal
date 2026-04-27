@@ -133,6 +133,32 @@ public class CalendarOwnersControllerTests
     }
 
     [TestMethod]
+    public async Task GetBusySlots_BadRequest_ContainsMeaningfulMessage()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        using var client = factory.CreateAuthenticatedClient();
+
+        var response = await client.GetAsync("/api/calendar-owners/1/busy-slots", TestContext.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.IsTrue(body.Length > 0, "BadRequest response body must not be empty");
+    }
+
+    [TestMethod]
+    public async Task GetMergedFreeBusy_BadRequest_ContainsMeaningfulMessage()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        using var client = factory.CreateAuthenticatedClient();
+
+        var response = await client.GetAsync("/api/calendar-owners/1/merged-freebusy", TestContext.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.IsTrue(body.Length > 0, "BadRequest response body must not be empty");
+    }
+
+    [TestMethod]
     public async Task GetMergedFreeBusy_ReturnsBadRequest_WhenFromIsInvalid()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);

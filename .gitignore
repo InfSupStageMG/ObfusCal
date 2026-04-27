@@ -18,3 +18,7 @@ Thumbs.db
 certs/**
 !certs/
 !certs/README.md
+
+# Mutation testing output
+StrykerOutput/
+

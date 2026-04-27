@@ -1,0 +1,28 @@
+{
+  "stryker-config": {
+    "solution": "ObfusCal.slnx",
+    "test-projects": [
+      "ObfusCal.Tests/ObfusCal.Tests.csproj"
+    ],
+    "mutate": [
+      "**/*.cs",
+      "!**/*Tests*.cs",
+      "!**/Migrations/**/*.cs",
+      "!**/obj/**",
+      "!**/bin/**",
+      "!ObfusCal.Infrastructure/Calendars/MockCalendarSource.cs",
+      "!ObfusCal.Api/Program.cs"
+    ],
+    "reporters": [
+      "Progress",
+      "Html",
+      "Json"
+    ],
+    "thresholds": {
+      "high": 80,
+      "low": 75,
+      "break": 0
+    },
+    "report-file-name": "mutation-report"
+  }
+}

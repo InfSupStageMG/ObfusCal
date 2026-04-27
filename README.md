@@ -124,6 +124,16 @@ dotnet test
 > Integration tests require Docker or Podman to be running — they spin up an ephemeral PostgreSQL container via
 > Testcontainers.
 
+Run mutation tests with Stryker:
+
+```powershell
+dotnet tool restore
+dotnet stryker --config-file stryker-config.json
+```
+
+Mutation reports are generated under `StrykerOutput/` (HTML and JSON).
+The configured mutation gate is 75% (`thresholds.low` and `thresholds.break` in `stryker-config.json`).
+
 ---
 
 ## Documentation
