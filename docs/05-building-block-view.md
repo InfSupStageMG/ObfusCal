@@ -2,60 +2,111 @@
 
 ## Level 1: Solution Projects
 
-The solution is structured as four .NET projects with a strict dependency hierarchy.
+The solution follows Clean Architecture. Dependencies point strictly inward.
 
 ```
-ObfusCal.Api
-├── ObfusCal.Core        (domain models, interfaces, pipeline)
-├── ObfusCal.Infrastructure  (calendar adapters, storage, peer client)
-└── ObfusCal.Sync        (background sync service)
-     └── ObfusCal.Core
+ObfusCal.Api  ──────────────────►  ObfusCal.Application  ──►  ObfusCal.Domain
+                                            ▲
+ObfusCal.Infrastructure  ─────────────────►┘
+                         also references ──────────────────►  ObfusCal.Domain
 ```
 
-`ObfusCal.Core` has no outward dependencies. `ObfusCal.Infrastructure` and `ObfusCal.Sync` depend only on
-`ObfusCal.Core`. `ObfusCal.Api` wires everything together via dependency injection.
+`ObfusCal.Domain` has zero external NuGet dependencies. `ObfusCal.Infrastructure` implements interfaces defined in
+`ObfusCal.Application`. `ObfusCal.Api` and `ObfusCal.Infrastructure` are wired together exclusively in `Program.cs`.
 
 ## Level 2: Key Components
 
-### ObfusCal.Core
+### ObfusCal.Domain
 
-| Component             | Responsibility                                                           |
-|-----------------------|--------------------------------------------------------------------------|
-| `ICalendarSource`     | Contract that all calendar adapters must implement                       |
-| `IEventTransformer`   | Contract for a single obfuscation step in the pipeline                   |
-| `ObfuscationPipeline` | Chains transformers in sequence; converts `CalendarEvent` → `BusySlot`   |
-| `IShadowSlotStore`    | Contract for storing busy slots received from peer instances             |
-| `CalendarEvent`       | In-memory domain model for a raw calendar event (never persisted)        |
-| `BusySlot`            | Persisted domain model representing an obfuscated time block             |
-| `PeerConnection`      | Represents a trusted relationship with an external domain instance       |
-| `ObfuscationProfile`  | Holds a user's obfuscation rule settings per context (internal / client) |
+| Component                      | Responsibility                                                                 |
+|--------------------------------|--------------------------------------------------------------------------------|
+| `CalendarEvent`                | In-memory record for a raw event fetched from a calendar source. Never stored. |
+| `BusySlot`                     | Obfuscated record with start and end only. The only calendar data ever stored. |
+| `IObfuscationTransformer`      | Contract for a single event-level obfuscation step in the pipeline.            |
+| `IBusySlotTransformer`         | Contract for a slot-level post-processing step (e.g. merging).                 |
+| `RemoveTitleTransformer`       | Clears the event title.                                                        |
+| `RemoveDescriptionTransformer` | Clears the event description.                                                  |
+| `RemoveLocationTransformer`    | Clears the event location.                                                     |
+| `RemoveAttendeesTransformer`   | Removes all attendee email addresses.                                          |
+| `RoundTimesTransformer`        | Rounds start down and end up to the nearest 15 minutes.                        |
+| `MergeBlocksTransformer`       | Collapses overlapping or adjacent slots into single continuous blocks.         |
+
+### ObfusCal.Application
+
+| Component                       | Responsibility                                                                                            |
+|---------------------------------|-----------------------------------------------------------------------------------------------------------|
+| `ICalendarSource`               | Contract all calendar adapters must implement.                                                            |
+| `IShadowSlotStore`              | Contract for storing busy slots received from peer instances.                                             |
+| `ICalendarOwnerScopeResolver`   | Looks up a `CalendarOwner` record by Entra ID Object ID.                                                  |
+| `ObfuscationPipeline`           | Chains transformers; converts `CalendarEvent` list → `BusySlot` list. Emits structured audit log per run. |
+| `ObfuscationAuditContext`       | Enum: `Internal` (own view) vs `Client` (peer-facing view).                                               |
+| `GetBusySlotsQueryHandler`      | Fetches and obfuscates events for a calendar owner (Client context).                                      |
+| `GetMergedFreeBusyQueryHandler` | Merges own obfuscated slots with received shadow slots (Internal context).                                |
+| `PushShadowSlotsCommandHandler` | Stores inbound obfuscated slots from a peer in the shadow slot store.                                     |
+| `SyncOptions`                   | Configuration model for peer IDs and sync interval.                                                       |
 
 ### ObfusCal.Infrastructure
 
-| Component                 | Responsibility                                                                 |
-|---------------------------|--------------------------------------------------------------------------------|
-| `MockCalendarSource`      | Development adapter returning hardcoded events                                 |
-| `GraphCalendarSource`     | Production adapter fetching events from Microsoft 365 via MS Graph             |
-| `ICalFeedCalendarSource`  | Fallback adapter parsing a read-only `.ics` URL                                |
-| `HttpPeerClient`          | Sends and receives obfuscated slots to/from peer instances over HTTPS          |
-| `InMemoryShadowSlotStore` | Thread-safe in-memory store for received peer slots (PoC phase)                |
-| `EfCoreShadowSlotStore`   | Persistent store backed by PostgreSQL via Entity Framework Core (later sprint) |
-
-### ObfusCal.Sync
-
-| Component     | Responsibility                                                                               |
-|---------------|----------------------------------------------------------------------------------------------|
-| `SyncService` | `BackgroundService` that runs the calendar fetch → obfuscate → push/pull cycle on a schedule |
+| Component                          | Responsibility                                                                                    |
+|------------------------------------|---------------------------------------------------------------------------------------------------|
+| `MockCalendarSource`               | Development adapter returning hardcoded events anchored to today.                                 |
+| `GraphCalendarSource`              | Production adapter fetching events via Microsoft Graph (loaded as plugin).                        |
+| `ICalFeedCalendarSource`           | Fallback adapter parsing a read-only `.ics` URL (loaded as plugin).                               |
+| `InMemoryShadowSlotStore`          | Thread-safe in-memory store; used in tests and as the fallback if the DB is unavailable.          |
+| `EfCoreShadowSlotStore`            | PostgreSQL-backed store via EF Core; production implementation.                                   |
+| `AppDbContext`                     | EF Core context; holds `CalendarOwner`, `PeerConnection`, `CalendarOwnerPeerMapping`, `BusySlot`. |
+| `EfCoreCalendarOwnerScopeResolver` | Looks up `CalendarOwner` by `EntraObjectId`.                                                      |
+| `DependencyInjection`              | Extension method wiring all infrastructure registrations, DB migration, and plugin loading.       |
 
 ### ObfusCal.Api
 
-| Component               | Responsibility                                                                                                         |
-|-------------------------|------------------------------------------------------------------------------------------------------------------------|
-| `ConsultantsController` | Exposes `GET /api/consultants/{id}/busy-slots` — runs the obfuscation pipeline and returns busy slots for a consultant |
-| `ShadowSlotsController` | Exposes `POST /api/shadow-slots` — accepts inbound obfuscated slots pushed by a known peer instance                    |
-| `FreeBusyController`    | Exposes `GET /api/users/{id}/free-busy` returning the merged availability view                                         |
-| `PluginLoader`          | Scans `plugins/` at startup and registers discovered `ICalendarSource` / `IObfuscationTransformer` implementations     |
+| Component                      | Responsibility                                                                                                                                                                  |
+|--------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `CalendarOwnersController`     | `GET /api/calendar-owners/{id}/busy-slots` and `GET /api/calendar-owners/{id}/merged-freebusy` and `GET /api/calendar-owners/me`. Enforces Entra ID auth and per-owner scoping. |
+| `ShadowSlotsController`        | `POST /api/shadow-slots` — accepts inbound obfuscated slots from known peers.                                                                                                   |
+| `CalendarOwnerAccessEvaluator` | Resolves the authenticated user's identity to a `CalendarOwner` record and enforces access.                                                                                     |
+| `Program.cs`                   | Composition root. Wires Application and Infrastructure; configures Entra ID OIDC, Swagger with OAuth2, Serilog.                                                                 |
 
 ## Domain Model
 
-![Domain Model](img/domain-model.png)
+```mermaid
+classDiagram
+    class CalendarOwner {
+        +Guid Id
+        +string Name
+        +string? EntraObjectId
+    }
+    class PeerConnection {
+        +Guid Id
+        +string InstanceId
+        +string BaseAddress
+    }
+    class CalendarOwnerPeerMapping {
+        +Guid Id
+        +Guid CalendarOwnerId
+        +Guid PeerConnectionId
+        +Guid CalendarOwnerRef
+    }
+    class BusySlot {
+        +Guid Id
+        +string PeerId
+        +string SourceEventId
+        +DateTimeOffset Start
+        +DateTimeOffset End
+    }
+    class CalendarEvent {
+        <<in-memory only, never persisted>>
+        +string Id
+        +string Title
+        +string? Description
+        +DateTimeOffset Start
+        +DateTimeOffset End
+        +List~string~ AttendeeEmails
+        +string? Location
+    }
+
+    CalendarOwner "1" --> "many" CalendarOwnerPeerMapping
+    PeerConnection "1" --> "many" CalendarOwnerPeerMapping
+    CalendarEvent --> ObfuscationPipeline : input
+    ObfuscationPipeline --> BusySlot : output
+```

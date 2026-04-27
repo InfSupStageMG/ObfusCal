@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using ObfusCal.Application.Interfaces;
+using ObfusCal.Infrastructure.Persistence;
 using ObfusCal.Infrastructure.Storage;
 using Testcontainers.PostgreSql;
 
@@ -59,11 +61,46 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
         });
     }
 
-    public HttpClient CreateAuthenticatedClient()
+    public HttpClient CreateAuthenticatedClient(string objectId = TestAuthHandler.DefaultObjectId)
     {
         var client = CreateClient();
         client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue(TestAuthHandler.SchemeName, TestAuthHandler.ValidToken);
+            new AuthenticationHeaderValue(TestAuthHandler.SchemeName, objectId);
         return client;
+    }
+
+    public async Task<Guid> SeedCalendarOwnerAsync(
+        string entraObjectId,
+        Guid? calendarOwnerId = null,
+        string? name = null)
+    {
+        var requestedId = calendarOwnerId ?? Guid.NewGuid();
+
+        using var scope = Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var existingOwner = await dbContext.CalendarOwners
+            .SingleOrDefaultAsync(o => o.Id == requestedId || o.EntraObjectId == entraObjectId);
+
+        if (existingOwner is null)
+        {
+            var owner = new CalendarOwner
+            {
+                Id = requestedId,
+                Name = name ?? "Integration Test Calendar Owner",
+                EntraObjectId = entraObjectId
+            };
+
+            dbContext.CalendarOwners.Add(owner);
+            await dbContext.SaveChangesAsync();
+
+            return owner.Id;
+        }
+
+        existingOwner.Name = name ?? existingOwner.Name;
+        existingOwner.EntraObjectId = entraObjectId;
+
+        await dbContext.SaveChangesAsync();
+        return existingOwner.Id;
     }
 }

@@ -3,7 +3,7 @@
 namespace ObfusCal.Application.UseCases.GetBusySlots;
 
 public record GetBusySlotsQuery(
-    string CalendarOwnerId,
+    Guid CalendarOwnerId,
     DateTimeOffset From,
     DateTimeOffset To) : IRequest<IReadOnlyList<BusySlotResponse>>;
 

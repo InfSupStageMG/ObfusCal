@@ -5,9 +5,7 @@
       "applicationUrl": "http://localhost:5001",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "Sync__InstanceId": "A",
-        "Sync__Peers__0__Id": "B",
-        "Sync__Peers__0__BaseUrl": "http://localhost:5002"
+        "Sync__InstanceId": "A"
       }
     },
     "InstanceB": {
@@ -15,9 +13,7 @@
       "applicationUrl": "http://localhost:5002",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "Sync__InstanceId": "B",
-        "Sync__Peers__0__Id": "A",
-        "Sync__Peers__0__BaseUrl": "http://localhost:5001"
+        "Sync__InstanceId": "B"
       }
     }
   }
