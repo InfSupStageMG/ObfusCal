@@ -116,6 +116,72 @@ public class InMemoryShadowSlotStoreTests
     }
 
     [TestMethod]
+    public async Task GetAllSlotsAsync_ExcludesSlotStartingBeforeFrom()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        // Slot ends inside the window but starts before `from`
+        await store.SetSlotsAsync("peer-a", [
+            new BusySlot("outside-start", from.AddMinutes(-1), from.AddHours(1))
+        ]);
+
+        var result = await store.GetAllSlotsAsync(from, to);
+
+        Assert.HasCount(0, result, "Slot whose Start < from must be excluded");
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_ExcludesSlotEndingAfterTo()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        // Slot starts inside the window but ends after `to`
+        await store.SetSlotsAsync("peer-a", [
+            new BusySlot("outside-end", to.AddHours(-1), to.AddMinutes(1))
+        ]);
+
+        var result = await store.GetAllSlotsAsync(from, to);
+
+        Assert.HasCount(0, result, "Slot whose End > to must be excluded");
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_IncludesSlotExactlyAtFromBoundary()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        await store.SetSlotsAsync("peer-a", [
+            new BusySlot("at-from", from, from.AddHours(1))
+        ]);
+
+        var result = await store.GetAllSlotsAsync(from, to);
+
+        Assert.HasCount(1, result, "Slot whose Start == from must be included");
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_IncludesSlotExactlyAtToBoundary()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        await store.SetSlotsAsync("peer-a", [
+            new BusySlot("at-to", to.AddHours(-1), to)
+        ]);
+
+        var result = await store.GetAllSlotsAsync(from, to);
+
+        Assert.HasCount(1, result, "Slot whose End == to must be included");
+    }
+
+    [TestMethod]
     public async Task GetAllSlotsAsync_ReturnsSlotsAfterReplacingPeerSlots()
     {
         var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);

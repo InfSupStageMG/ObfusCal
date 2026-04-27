@@ -95,6 +95,10 @@ public class ObfuscationPipelineLoggingTests
 
         var transformerNames = ((IEnumerable<string>)logEntry.State["TransformersApplied"]!).ToArray();
         Assert.AreEqual(0, transformerNames.Length);
+
+        Assert.IsTrue(
+            logEntry.Message.Contains("no transformers configured", StringComparison.Ordinal),
+            "When pipeline has no transformers, message must say 'no transformers configured'");
     }
 
     // ---------------------------------------------------------------------------

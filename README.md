@@ -102,6 +102,16 @@ Run all tests:
 dotnet test
 ```
 
+Run mutation tests with Stryker:
+
+```powershell
+dotnet tool restore
+dotnet stryker --config-file stryker-config.json
+```
+
+Mutation reports are generated under `StrykerOutput/` (HTML and JSON).
+The configured mutation gate is 75% (`thresholds.low` and `thresholds.break` in `stryker-config.json`).
+
 ---
 
 ## Roadmap
