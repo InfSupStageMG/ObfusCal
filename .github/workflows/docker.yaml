@@ -26,7 +26,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
 
       - name: Restore .NET tools
         run: dotnet tool restore
@@ -35,7 +35,14 @@ jobs:
         run: dotnet restore
 
       - name: Run Stryker
-        run: dotnet stryker
+        run: dotnet stryker --config-file stryker-config.json --log-to-file
+
+      - name: Upload Stryker artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stryker-output
+          path: StrykerOutput
 
   test:
     runs-on: ubuntu-latest
@@ -47,7 +54,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          global-json-file: global.json
 
       - name: Restore dependencies
         run: dotnet restore

@@ -10,8 +10,8 @@
       "!**/Migrations/**/*.cs",
       "!**/obj/**",
       "!**/bin/**",
-      "!ObfusCal.Infrastructure/Calendars/MockCalendarSource.cs",
-      "!ObfusCal.Api/Program.cs"
+      "!**/ObfusCal.Infrastructure/Calendars/MockCalendarSource.cs",
+      "!**/ObfusCal.Api/Program.cs"
     ],
     "reporters": [
       "Progress",
