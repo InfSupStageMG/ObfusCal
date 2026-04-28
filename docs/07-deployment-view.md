@@ -34,13 +34,24 @@ NGINX1 -- "HTTPS (peer ID validated via X-Peer-Id)" --> NGINX2
 
 ## Deployment Steps
 
-A new instance is brought up with:
+Before starting the containers:
+
+1. Ensure certificates exist under `certs/nginx` and `certs/api` (see `certs/README.md`).
+2. Create a `.env` file from `.env.example` with PostgreSQL and API certificate values.
+
+Bring up a full instance (reverse proxy + API + PostgreSQL):
 
 ```bash
-docker compose up -d
+# Docker
+docker compose up -d --build
+
+# Podman
+podman compose up -d --build
 ```
 
-The `docker-compose.yaml` at the repository root configures the required environment variables and port mapping.
+The `docker-compose.yaml` at the repository root wires the API to PostgreSQL and waits for a healthy DB before starting the API container.
+
+For local API-only debugging, start PostgreSQL first and then run `dotnet run --project ObfusCal.Api` outside containers.
 
 ## Environment Variables
 
@@ -67,7 +78,7 @@ Deploying an update on a running server:
 
 ```bash
 docker pull ghcr.io/infsupstagemg/obfuscal-api:latest
-docker compose up -d
+docker compose up -d --build
 ```
 
 ## PoC vs Production Differences
