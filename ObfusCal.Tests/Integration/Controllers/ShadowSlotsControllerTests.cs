@@ -40,6 +40,36 @@ public class ShadowSlotsControllerTests
     }
 
     [TestMethod]
+    public async Task PushShadowSlots_WithOwnerScopedPayload_StoresSlotsAndReturnsCreated()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development");
+        using var client = factory.CreateClient();
+        await factory.SeedPeerConnectionAsync();
+
+        var payload = new
+        {
+            calendarOwnerRef = Guid.NewGuid(),
+            slots = new[]
+            {
+                new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(30) },
+                new { start = DateTimeOffset.UtcNow.AddHours(1), end = DateTimeOffset.UtcNow.AddHours(2) }
+            }
+        };
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "ApiKey",
+            CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<IShadowSlotStore>();
+        var savedSlots = await store.GetSlotsAsync(CustomWebApplicationFactory.IntegrationTestPeerInstanceId);
+        Assert.HasCount(2, savedSlots);
+    }
+
+    [TestMethod]
     public async Task PushShadowSlots_WithInvalidApiKey_ReturnsUnauthorizedAndStoresNothing()
     {
         await using var factory = new CustomWebApplicationFactory("Development");

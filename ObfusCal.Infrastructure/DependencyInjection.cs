@@ -7,6 +7,7 @@ using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Calendars;
 using ObfusCal.Infrastructure.Persistence;
 using ObfusCal.Infrastructure.Storage;
+using ObfusCal.Infrastructure.Sync;
 using Serilog;
 
 namespace ObfusCal.Infrastructure;
@@ -29,16 +30,20 @@ public static class DependencyInjection
         });
 
         services.Configure<GraphConsentOptions>(config.GetSection(GraphConsentOptions.SectionName));
+        services.Configure<SyncOptions>(config.GetSection(SyncOptions.SectionName));
         services.AddDataProtection();
         services.AddHttpClient<IGraphOAuthTokenClient, GraphOAuthTokenClient>();
         services.AddHttpClient<IcalFeedCalendarSource>();
+        services.AddHttpClient(nameof(OutboundPeerSyncService));
 
         services.AddScoped<ICalendarOwnerScopeResolver, EfCoreCalendarOwnerScopeResolver>();
         services.AddScoped<ICalendarOwnerGraphConsentService, CalendarOwnerGraphConsentService>();
         services.AddScoped<ICalendarOwnerIcalFeedService, CalendarOwnerIcalFeedService>();
+        services.AddScoped<IOutboundPeerSyncService, OutboundPeerSyncService>();
         services.AddScoped<IShadowSlotStore, EfCoreShadowSlotStore>();
         services.AddScoped<MockCalendarSource>();
         services.AddScoped<ICalendarSource, IcalFeedCalendarSource>();
+        services.AddHostedService<PeerSyncBackgroundService>();
 
         // Load calendar source plugins from the plugins/ directory alongside the executable.
         // Plugin registrations come after defaults so custom providers can override defaults.

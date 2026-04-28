@@ -19,8 +19,10 @@ output (`BusySlot`) is persisted.
 **Human authentication:** All user-facing access is secured via Single Sign-On through Info Support's Entra ID (Azure
 AD) using OpenID Connect. This automatically inherits existing conditional access policies including MFA.
 
-**Machine-to-machine authentication:** Inbound peer pushes are accepted on `POST /api/shadow-slots` only when the
-`X-Peer-Id` header matches a configured known peer ID. Unknown peers are rejected with `401 Unauthorized`.
+**Machine-to-machine authentication:** Peer sync endpoints require `Authorization: ApiKey ...`. Incoming credentials
+are verified against hashed `PeerConnection.ApiKeyHash` values, and outbound pushes include both `Authorization`
+and `X-Peer-Id` headers so the receiving instance can authenticate and correlate the sender without trusting the
+peer ID header by itself.
 
 **Credential storage:** Microsoft Graph OAuth refresh tokens are encrypted at rest using the .NET Data Protection API (
 DPAPI) before being written to the database. A database breach yields only ciphertext.
@@ -46,6 +48,7 @@ core code.
 ## Error Handling & Resilience
 
 - A failed sync with one peer instance is logged and skipped; other peers continue unaffected.
+- A failed sync for one calendar owner does not stop the scheduler from processing remaining owners.
 - A temporarily unreachable calendar source causes that user's sync to be skipped and retried on the next cycle.
 - All sync failures are written to structured logs with enough context (user ID, peer ID, error type) to diagnose
   without re-running the operation.
