@@ -15,7 +15,8 @@ namespace ObfusCal.Api.Controllers;
 public sealed class CalendarOwnersController(
     ISender sender,
     CalendarOwnerAccessEvaluator accessEvaluator,
-    ICalendarOwnerGraphConsentService graphConsentService) : ControllerBase
+    ICalendarOwnerGraphConsentService graphConsentService,
+    ICalendarOwnerIcalFeedService calendarOwnerIcalFeedService) : ControllerBase
 {
     [HttpGet("me")]
     [ProducesResponseType(typeof(CurrentCalendarOwnerResponse), StatusCodes.Status200OK)]
@@ -154,6 +155,84 @@ public sealed class CalendarOwnersController(
         return Ok(result);
     }
 
+    [HttpPost("{id}/ical-feeds")]
+    [ProducesResponseType(typeof(AddIcalFeedResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> AddIcalFeed(Guid id, [FromBody] AddIcalFeedRequest request, CancellationToken ct)
+    {
+        var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
+        if (accessResult is not null)
+            return accessResult;
+
+        if (string.IsNullOrWhiteSpace(request.FeedUrl))
+            return BadRequest("'feedUrl' is required.");
+
+        if (!Uri.TryCreate(request.FeedUrl, UriKind.Absolute, out var feedUri))
+            return BadRequest("'feedUrl' must be a valid absolute URI.");
+
+        if (!string.Equals(feedUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(feedUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest("'feedUrl' must use the http or https scheme.");
+        }
+
+        var result = await calendarOwnerIcalFeedService.AddFeedAsync(id, feedUri.AbsoluteUri, ct);
+        return result.Outcome switch
+        {
+            AddCalendarOwnerIcalFeedOutcome.Added => Created(
+                $"/api/calendar-owners/{id}/ical-feeds/{result.FeedId}",
+                new AddIcalFeedResponse(result.FeedId!.Value, result.FeedUrl!)),
+            AddCalendarOwnerIcalFeedOutcome.Duplicate => Conflict(new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "iCal feed already exists for this calendar owner.",
+                Detail = "The provided feed URL is already configured for this calendar owner."
+            }),
+            AddCalendarOwnerIcalFeedOutcome.CalendarOwnerNotFound => NotFound(),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
+
+    [HttpGet("{id}/ical-feeds")]
+    [ProducesResponseType(typeof(IReadOnlyList<CalendarOwnerIcalFeedResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListIcalFeeds(Guid id, CancellationToken ct)
+    {
+        var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
+        if (accessResult is not null)
+            return accessResult;
+
+        var feeds = await calendarOwnerIcalFeedService.ListFeedsAsync(id, ct);
+        return Ok(feeds.Select(feed => new CalendarOwnerIcalFeedResponse(feed.Id, feed.FeedUrl)).ToList());
+    }
+
+    [HttpDelete("{id}/ical-feeds/{feedId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteIcalFeed(Guid id, Guid feedId, CancellationToken ct)
+    {
+        var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
+        if (accessResult is not null)
+            return accessResult;
+
+        var result = await calendarOwnerIcalFeedService.DeleteFeedAsync(id, feedId, ct);
+        return result.Outcome switch
+        {
+            DeleteCalendarOwnerIcalFeedOutcome.Deleted => NoContent(),
+            DeleteCalendarOwnerIcalFeedOutcome.FeedNotFound => NotFound(),
+            DeleteCalendarOwnerIcalFeedOutcome.CalendarOwnerNotFound => NotFound(),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
+
     private async Task<IActionResult?> EnsureCalendarOwnerAccessAsync(Guid requestedCalendarOwnerId, CancellationToken ct)
     {
         var accessResult = await accessEvaluator.EvaluateAsync(User, requestedCalendarOwnerId, ct);
@@ -175,6 +254,12 @@ public sealed class CalendarOwnersController(
         DateTimeOffset? TokenExpiresAtUtc);
 
     private sealed record CalendarConsentUrlResponse(string AuthorizationUrl);
+
+    public sealed record AddIcalFeedRequest(string FeedUrl);
+
+    private sealed record AddIcalFeedResponse(Guid Id, string FeedUrl);
+
+    private sealed record CalendarOwnerIcalFeedResponse(Guid Id, string FeedUrl);
 
     public sealed record CompleteCalendarConsentRequest(string AuthorizationCode, string RedirectUri);
 }
