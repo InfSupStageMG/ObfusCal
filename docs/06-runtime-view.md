@@ -8,15 +8,18 @@ This is the primary runtime scenario. The `SyncService` runs on a configurable i
 
 **Narrative:**
 
-1. The background scheduler wakes up and iterates over all active peer connections.
-2. For each connection, it fetches the user's raw events from the calendar source (MS Graph, iCal, etc.).
+1. The background scheduler wakes up on the configured interval and iterates over all calendar owners.
+2. For each owner, it resolves any configured `CalendarOwnerPeerMapping` entries and fetches raw events from the current
+   calendar source.
 3. The raw `CalendarEvent` objects are passed to `ObfuscationPipeline.Process()`, which applies configured
    transformers and returns a list of `BusySlot` objects.
 4. The raw events immediately fall out of scope and are garbage collected. They are never written to disk.
-5. The obfuscated `BusySlot` list is POSTed to the peer instance's `/api/shadow-slots` endpoint (push).
-6. External obfuscated slots are ingested via `POST /api/shadow-slots` (from trusted peer IDs) and saved in
-   `IShadowSlotStore`.
-7. If a peer is unreachable, the failure is logged and that peer is skipped. Other peers are unaffected.
+5. For each mapped peer, the obfuscated slot list is POSTed to the peer instance's `/api/shadow-slots` endpoint together
+   with the opaque `calendarOwnerRef`.
+6. The outbound request includes `Authorization: ApiKey ...` and `X-Peer-Id` headers so the peer can authenticate the
+   caller and identify the sending instance.
+7. If a peer returns a non-success response or is unreachable, the failure is logged and that peer is skipped. Other
+   peers and owners are unaffected.
 
 ## Scenario 2: Calendar Owner Requests Busy Slots
 
@@ -41,9 +44,11 @@ An authenticated calendar owner requests their own obfuscated availability windo
 This scenario occurs when a client organization does not run an ObfusCal peer instance.
 
 1. The consultant provides a read-only .ics sharing link from their client-side calendar (e.g., Outlook Web).
-2. During the background sync cycle, the ICalFeedCalendarSource fetches and parses this feed into raw CalendarEvent objects.
+2. During the background sync cycle, the ICalFeedCalendarSource fetches and parses this feed into raw CalendarEvent
+   objects.
 3. The events are passed through the obfuscation pipeline, producing obfuscated BusySlot data.
 4. The resulting slots are stored locally as ShadowSlots in the IShadowSlotStore.
 5. Since no peer instance is available, the system does not attempt to push BusySlots via a REST API.
 6. Client contacts access availability through the consultant’s booking link or a generated .ics subscription.
-7. When accessed, the system queries local data, merges internal commitments with stored shadow slots, and renders a unified free/busy view.
+7. When accessed, the system queries local data, merges internal commitments with stored shadow slots, and renders a
+   unified free/busy view.

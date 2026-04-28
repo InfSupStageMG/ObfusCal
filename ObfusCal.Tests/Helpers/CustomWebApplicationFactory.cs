@@ -41,7 +41,11 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
                 ["GraphConsent:ClientId"] = "33333333-3333-3333-3333-333333333333",
                 ["GraphConsent:ClientSecret"] = "integration-test-secret",
                 ["Swagger:OAuth:ClientId"] = "22222222-2222-2222-2222-222222222222",
-                ["Swagger:OAuth:Scope"] = "api://22222222-2222-2222-2222-222222222222/access_as_user"
+                ["Swagger:OAuth:Scope"] = "api://22222222-2222-2222-2222-222222222222/access_as_user",
+                ["Sync:InstanceId"] = "integration-test-local-instance",
+                ["Sync:ApiKey"] = "integration-test-outbound-api-key",
+                ["Sync:SyncIntervalSeconds"] = "3600",
+                ["Sync:LookAheadDays"] = "14"
             }));
 
         builder.ConfigureServices(services =>
