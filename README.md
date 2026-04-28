@@ -61,15 +61,7 @@ ObfusCal.Api
 
 ## Running locally
 
-**With the .NET CLI (no database):**
-
-```powershell
-dotnet run --project ObfusCal.Api
-```
-
-Then open `http://localhost:5001/swagger`.
-
-**With Podman Compose (full stack with HTTPS and PostgreSQL):**
+### Option 1 (recommended): Compose stack (API + PostgreSQL + reverse proxy)
 
 1. Create local certificates (see `certs/README.md`):
 
@@ -97,13 +89,39 @@ openssl pkcs12 -export `
 4. Start the stack:
 
 ```powershell
-podman compose up --build
+# Podman
+podman compose up -d --build
+
+# Docker
+docker compose up -d --build
 ```
 
 5. Verify:
-    - `https://obfuscal.local/health`
-    - `https://obfuscal.local/swagger` (Development mode only)
-    - `http://obfuscal.local` redirects to HTTPS
+   - `https://obfuscal.local/health`
+   - `https://obfuscal.local/swagger` (Development mode only)
+   - `http://obfuscal.local` redirects to HTTPS
+
+### Option 2: Run API with .NET CLI (requires PostgreSQL first)
+
+`ObfusCal.Api` applies EF Core migrations on startup, so `dotnet run` needs a reachable PostgreSQL instance.
+
+1. Start only the database service:
+
+```powershell
+# Podman
+podman compose up -d db
+
+# Docker
+docker compose up -d db
+```
+
+2. Run the API:
+
+```powershell
+dotnet run --project ObfusCal.Api
+```
+
+3. Open `http://localhost:5001/swagger`.
 
 ---
 
