@@ -62,7 +62,7 @@ For local API-only debugging, start PostgreSQL first and then run `dotnet run --
 | `ASPNETCORE_Kestrel__Certificates__Default__Path`     | Path to the PFX certificate file mounted into the container            |
 | `ASPNETCORE_Kestrel__Certificates__Default__Password` | Password for the PFX certificate (sourced from `.env`)                 |
 | `API_CERT_PASSWORD`                                   | Passed to `docker compose` via `.env`; sets the Kestrel cert password  |
-| `Sync__KnownPeerIds__0`, `__1`, …                     | Comma-indexed list of peer IDs accepted by `ShadowSlotsController`     |
+| `PeerConnections.ApiKeyHash` (database)               | Hashed peer API keys used by peer authentication (`Authorization: ApiKey <key>`) |
 | `ConnectionStrings__DefaultConnection`                | PostgreSQL connection string                                            |
 | `Sync__IntervalSeconds`                               | How often the background sync runs (default: `900` = 15 minutes)       |
 

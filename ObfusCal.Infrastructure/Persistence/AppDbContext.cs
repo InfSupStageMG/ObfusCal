@@ -30,6 +30,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(p => p.Id);
             e.Property(p => p.InstanceId).IsRequired();
             e.Property(p => p.BaseAddress).IsRequired();
+            e.Property(p => p.ApiKeyHash)
+                .IsRequired()
+                .HasMaxLength(512);
         });
 
         modelBuilder.Entity<CalendarOwnerPeerMapping>(e =>

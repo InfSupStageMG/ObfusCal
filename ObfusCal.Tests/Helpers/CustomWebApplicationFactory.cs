@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +15,9 @@ namespace ObfusCal.Tests.Helpers;
 
 public sealed class CustomWebApplicationFactory(string environmentName, bool useTestAuthentication = false) : WebApplicationFactory<Program>
 {
+    public const string IntegrationTestPeerInstanceId = "peer-a";
+    public const string IntegrationTestPeerApiKey = "integration-test-peer-api-key";
+
     private static readonly PostgreSqlContainer Postgres = new PostgreSqlBuilder("postgres:17").Build();
 
     static CustomWebApplicationFactory()
@@ -129,5 +133,71 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
         return await dbContext.CalendarOwners
             .AsNoTracking()
             .SingleOrDefaultAsync(owner => owner.Id == calendarOwnerId);
+    }
+
+    public async Task<Guid> SeedPeerConnectionAsync(
+        string instanceId = IntegrationTestPeerInstanceId,
+        string rawApiKey = IntegrationTestPeerApiKey,
+        string baseAddress = "https://peer-a.local")
+    {
+        using var scope = Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var existingPeer = await dbContext.PeerConnections
+            .SingleOrDefaultAsync(peer => peer.InstanceId == instanceId);
+
+        var hasher = new PasswordHasher<PeerConnection>();
+
+        if (existingPeer is null)
+        {
+            var peer = new PeerConnection
+            {
+                Id = Guid.NewGuid(),
+                InstanceId = instanceId,
+                BaseAddress = baseAddress,
+                ApiKeyHash = string.Empty
+            };
+
+            peer.ApiKeyHash = hasher.HashPassword(peer, rawApiKey);
+            dbContext.PeerConnections.Add(peer);
+            await dbContext.SaveChangesAsync();
+            return peer.Id;
+        }
+
+        existingPeer.BaseAddress = baseAddress;
+        existingPeer.ApiKeyHash = hasher.HashPassword(existingPeer, rawApiKey);
+        await dbContext.SaveChangesAsync();
+        return existingPeer.Id;
+    }
+
+    public async Task SeedCalendarOwnerPeerMappingAsync(
+        Guid calendarOwnerId,
+        Guid calendarOwnerRef,
+        string instanceId = IntegrationTestPeerInstanceId,
+        string rawApiKey = IntegrationTestPeerApiKey)
+    {
+        var peerConnectionId = await SeedPeerConnectionAsync(instanceId, rawApiKey);
+
+        using var scope = Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var existingMapping = await dbContext.CalendarOwnerPeerMappings
+            .SingleOrDefaultAsync(mapping =>
+                mapping.CalendarOwnerId == calendarOwnerId &&
+                mapping.PeerConnectionId == peerConnectionId &&
+                mapping.CalendarOwnerRef == calendarOwnerRef);
+
+        if (existingMapping is null)
+        {
+            dbContext.CalendarOwnerPeerMappings.Add(new CalendarOwnerPeerMapping
+            {
+                Id = Guid.NewGuid(),
+                CalendarOwnerId = calendarOwnerId,
+                PeerConnectionId = peerConnectionId,
+                CalendarOwnerRef = calendarOwnerRef
+            });
+
+            await dbContext.SaveChangesAsync();
+        }
     }
 }

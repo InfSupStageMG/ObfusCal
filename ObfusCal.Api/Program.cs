@@ -1,11 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
 using Microsoft.OpenApi;
+using ObfusCal.Api.Authentication;
 using ObfusCal.Api.Authorization;
 using ObfusCal.Application;
-using ObfusCal.Application.Configuration;
 using ObfusCal.Infrastructure;
 using Serilog;
 
@@ -31,12 +32,14 @@ try
         .Enrich.FromLogContext());
 
     builder.Services
-        .Configure<SyncOptions>(builder.Configuration.GetSection(SyncOptions.SectionName))
         .AddApplication()
         .AddInfrastructure(builder.Configuration);
 
     builder.Services
         .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddScheme<AuthenticationSchemeOptions, PeerApiKeyAuthenticationHandler>(
+            PeerApiKeyAuthenticationDefaults.SchemeName,
+            _ => { })
         .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
     builder.Services.AddAuthorization();
