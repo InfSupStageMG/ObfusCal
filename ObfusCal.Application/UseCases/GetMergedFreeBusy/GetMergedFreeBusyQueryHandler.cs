@@ -15,7 +15,10 @@ internal sealed class GetMergedFreeBusyQueryHandler(
     public async Task<IReadOnlyList<MergedFreeBusyResponse>> Handle(GetMergedFreeBusyQuery query, CancellationToken cancellationToken)
     {
         // Get own obfuscated busy slots
-        var events = await calendarSource.GetEventsAsync(query.From, query.To, cancellationToken);
+        var events = await calendarSource.GetEventsAsync(
+            query.From,
+            query.To,
+            query.CalendarOwnerId, cancellationToken);
         var ownBusySlots = obfuscationPipeline.Process(events, query.CalendarOwnerId.ToString(), ObfuscationAuditContext.Internal);
 
         // Get shadow slots from all peers

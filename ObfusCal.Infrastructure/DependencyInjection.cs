@@ -31,12 +31,17 @@ public static class DependencyInjection
         services.Configure<GraphConsentOptions>(config.GetSection(GraphConsentOptions.SectionName));
         services.AddDataProtection();
         services.AddHttpClient<IGraphOAuthTokenClient, GraphOAuthTokenClient>();
+        services.AddHttpClient<IcalFeedCalendarSource>();
 
         services.AddScoped<ICalendarOwnerScopeResolver, EfCoreCalendarOwnerScopeResolver>();
         services.AddScoped<ICalendarOwnerGraphConsentService, CalendarOwnerGraphConsentService>();
+        services.AddScoped<ICalendarOwnerIcalFeedService, CalendarOwnerIcalFeedService>();
         services.AddScoped<IShadowSlotStore, EfCoreShadowSlotStore>();
+        services.AddScoped<MockCalendarSource>();
+        services.AddScoped<ICalendarSource, IcalFeedCalendarSource>();
 
-        // Load calendar source plugins from the plugins/ directory alongside the executable
+        // Load calendar source plugins from the plugins/ directory alongside the executable.
+        // Plugin registrations come after defaults so custom providers can override defaults.
         var pluginFolder = Path.Combine(AppContext.BaseDirectory, "plugins");
 
         if (Directory.Exists(pluginFolder))
@@ -67,8 +72,6 @@ public static class DependencyInjection
             }
         }
 
-        // MockCalendarSource is the default; real providers loaded via plugins supersede it
-        services.AddScoped<ICalendarSource, MockCalendarSource>();
 
         return services;
     }
