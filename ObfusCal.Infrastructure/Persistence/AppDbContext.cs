@@ -7,6 +7,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CalendarOwner> CalendarOwners => Set<CalendarOwner>();
     public DbSet<PeerConnection> PeerConnections => Set<PeerConnection>();
     public DbSet<CalendarOwnerPeerMapping> CalendarOwnerPeerMappings => Set<CalendarOwnerPeerMapping>();
+    public DbSet<CalendarOwnerICalFeed> CalendarOwnerICalFeeds => Set<CalendarOwnerICalFeed>();
     public DbSet<BusySlot> BusySlots => Set<BusySlot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -23,6 +24,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasMaxLength(8192);
             e.HasIndex(c => c.EntraObjectId)
                 .IsUnique();
+        });
+
+        modelBuilder.Entity<CalendarOwnerICalFeed>(e =>
+        {
+            e.HasKey(f => f.Id);
+            e.Property(f => f.FeedUrl).IsRequired().HasMaxLength(2048);
+            e.HasOne(f => f.CalendarOwner)
+                .WithMany(c => c.ICalFeeds)
+                .HasForeignKey(f => f.CalendarOwnerId);
+            e.HasIndex(f => f.CalendarOwnerId);
         });
 
         modelBuilder.Entity<PeerConnection>(e =>

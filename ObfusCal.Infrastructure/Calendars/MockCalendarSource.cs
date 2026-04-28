@@ -5,9 +5,9 @@ namespace ObfusCal.Infrastructure.Calendars;
 
 public sealed class MockCalendarSource : ICalendarSource
 {
-    public Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(
-        DateTimeOffset from,
+    public Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(DateTimeOffset from,
         DateTimeOffset to,
+        Guid? calendarOwnerId = null,
         CancellationToken ct = default)
     {
         if (from > to)
