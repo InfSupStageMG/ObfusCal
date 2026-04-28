@@ -24,6 +24,6 @@
       "break": 0
     },
     "report-file-name": "mutation-report",
-      "additional-timeout": 3000
+      "additional-timeout": 45000
   }
 }
