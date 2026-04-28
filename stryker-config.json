@@ -23,6 +23,7 @@
       "low": 75,
       "break": 0
     },
-    "report-file-name": "mutation-report"
+    "report-file-name": "mutation-report",
+      "additional-timeout": 3000
   }
 }
