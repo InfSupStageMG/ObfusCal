@@ -13,7 +13,10 @@ internal sealed class GetBusySlotsQueryHandler(
 {
     public async Task<IReadOnlyList<BusySlotResponse>> Handle(GetBusySlotsQuery query, CancellationToken cancellationToken)
     {
-        var events = await calendarSource.GetEventsAsync(query.From, query.To, cancellationToken);
+        var events = await calendarSource.GetEventsAsync(
+            query.From,
+            query.To,
+            query.CalendarOwnerId, cancellationToken);
         var busySlots = obfuscationPipeline.Process(events, query.CalendarOwnerId.ToString(), ObfuscationAuditContext.Client);
 
         logger.LogInformation(

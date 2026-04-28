@@ -267,6 +267,7 @@ public class CalendarOwnersControllerTests
         Assert.AreEqual(TestAuthHandler.DefaultObjectId, document.RootElement.GetProperty("objectId").GetString());
     }
 
+
     [TestMethod]
     public async Task GetBusySlots_ReturnsConflict_WhenCalendarOwnerHasNotGrantedGraphConsent()
     {
@@ -432,6 +433,3 @@ public class CalendarOwnersControllerTests
         Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
 }
-
-
-

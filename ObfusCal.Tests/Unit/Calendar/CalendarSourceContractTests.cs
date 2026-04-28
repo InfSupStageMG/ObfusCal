@@ -36,8 +36,8 @@ file class StubCalendarSource : ICalendarSource
             [], null),
     ];
 
-    public Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(
-        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+    public Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(DateTimeOffset from, DateTimeOffset to,
+        Guid? calendarOwnerId = null, CancellationToken ct = default)
         => Task.FromResult<IReadOnlyList<CalendarEvent>>(
             Events.Where(e => e.Start >= from && e.End <= to).ToList());
 }

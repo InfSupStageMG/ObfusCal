@@ -17,7 +17,7 @@ public class MockCalendarSourceTests
         var from = DateTimeOffset.UtcNow;
         var to = from.AddDays(14);
 
-        var events = await source.GetEventsAsync(from, to, TestContext.CancellationToken);
+        var events = await source.GetEventsAsync(from, to, ct: TestContext.CancellationToken);
 
         Assert.IsTrue(events.Count >= 3);
     }
@@ -29,7 +29,7 @@ public class MockCalendarSourceTests
         var from = DateTimeOffset.UtcNow;
         var to = from.AddDays(14);
 
-        var events = await source.GetEventsAsync(from, to, TestContext.CancellationToken);
+        var events = await source.GetEventsAsync(from, to, ct: TestContext.CancellationToken);
 
         Assert.IsTrue(events.All(calendarEvent => calendarEvent.Start >= from && calendarEvent.End <= to));
     }
@@ -41,7 +41,7 @@ public class MockCalendarSourceTests
         var from = DateTimeOffset.UtcNow;
         var to = from.AddDays(14);
 
-        var events = await source.GetEventsAsync(from, to, TestContext.CancellationToken);
+        var events = await source.GetEventsAsync(from, to, ct: TestContext.CancellationToken);
 
         Assert.IsTrue(events.Any(calendarEvent =>
             !string.IsNullOrWhiteSpace(calendarEvent.Title)
@@ -58,7 +58,7 @@ public class MockCalendarSourceTests
         var to = DateTimeOffset.UtcNow;
 
         await Assert.ThrowsExactlyAsync<ArgumentException>(() =>
-            source.GetEventsAsync(from, to, TestContext.CancellationToken));
+            source.GetEventsAsync(from, to, ct: TestContext.CancellationToken));
     }
 
     [TestMethod]
@@ -72,17 +72,17 @@ public class MockCalendarSourceTests
         var to = from.AddDays(14);
 
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() =>
-            source.GetEventsAsync(from, to, cts.Token));
+            source.GetEventsAsync(from, to, ct: cts.Token));
     }
 
     [TestMethod]
-    public async Task Application_ResolvesMockCalendarSource_AsActiveCalendarSource()
+    public async Task Application_ResolvesIcalFeedCalendarSource_AsActiveCalendarSource()
     {
         await using var factory = new CustomWebApplicationFactory("Development");
         using var scope = factory.Services.CreateScope();
 
         var source = scope.ServiceProvider.GetRequiredService<ICalendarSource>();
 
-        Assert.IsInstanceOfType<MockCalendarSource>(source);
+        Assert.IsInstanceOfType<IcalFeedCalendarSource>(source);
     }
 }
