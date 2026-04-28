@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ObfusCal.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using ObfusCal.Infrastructure.Persistence;
 namespace ObfusCal.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260428121621_AddPeerApiKeyHash")]
+    partial class AddPeerApiKeyHash
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -88,27 +91,6 @@ namespace ObfusCal.Infrastructure.Migrations
                     b.ToTable("CalendarOwners");
                 });
 
-            modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.CalendarOwnerICalFeed", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CalendarOwnerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("FeedUrl")
-                        .IsRequired()
-                        .HasMaxLength(2048)
-                        .HasColumnType("character varying(2048)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CalendarOwnerId");
-
-                    b.ToTable("CalendarOwnerICalFeeds");
-                });
-
             modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.CalendarOwnerPeerMapping", b =>
                 {
                     b.Property<Guid>("Id")
@@ -157,17 +139,6 @@ namespace ObfusCal.Infrastructure.Migrations
                     b.ToTable("PeerConnections");
                 });
 
-            modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.CalendarOwnerICalFeed", b =>
-                {
-                    b.HasOne("ObfusCal.Infrastructure.Persistence.CalendarOwner", "CalendarOwner")
-                        .WithMany("ICalFeeds")
-                        .HasForeignKey("CalendarOwnerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CalendarOwner");
-                });
-
             modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.CalendarOwnerPeerMapping", b =>
                 {
                     b.HasOne("ObfusCal.Infrastructure.Persistence.CalendarOwner", "CalendarOwner")
@@ -189,8 +160,6 @@ namespace ObfusCal.Infrastructure.Migrations
 
             modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.CalendarOwner", b =>
                 {
-                    b.Navigation("ICalFeeds");
-
                     b.Navigation("PeerMappings");
                 });
 
