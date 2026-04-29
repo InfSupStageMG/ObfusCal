@@ -1,5 +1,4 @@
 ﻿using MediatR;
-using ObfusCal.Domain.Models;
 
 namespace ObfusCal.Application.UseCases.PushShadowSlots;
 
@@ -13,5 +12,6 @@ public record ShadowSlotInput(
 
 public record PushShadowSlotsCommand(
     string PeerId,
+    IReadOnlyList<Guid> CalendarOwnerIds,
     IReadOnlyList<ShadowSlotInput> Slots) : IRequest;
 

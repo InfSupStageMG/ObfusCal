@@ -31,7 +31,11 @@ internal sealed class GetMergedFreeBusyQueryHandler(
             profile);
 
         // Get shadow slots from all peers
-        var shadowSlots = await shadowSlotStore.GetAllSlotsAsync(query.From, query.To, cancellationToken);
+        var shadowSlots = await shadowSlotStore.GetAllSlotsAsync(
+            query.CalendarOwnerId,
+            query.From,
+            query.To,
+            cancellationToken);
 
         // Combine into a single sorted list
         var mergedSlots = ownBusySlots

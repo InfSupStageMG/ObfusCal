@@ -111,4 +111,48 @@ public class EfCoreShadowSlotStoreTests
         Assert.Contains(s => s.SourceEventId == "ga-evt-1", allSlots);
         Assert.Contains(s => s.SourceEventId == "ga-evt-2", allSlots);
     }
+
+    [TestMethod]
+    public async Task SetSlotsAsync_WithOwnerScope_ReplacesOnlyThatOwnerScope()
+    {
+        await using var db = CreateDbContext();
+        var store = new EfCoreShadowSlotStore(db, Serilog.Core.Logger.None);
+        var ownerA = Guid.NewGuid();
+        var ownerB = Guid.NewGuid();
+
+        await store.SetSlotsAsync("ef-peer-owner", ownerA,
+            [new BusySlot("old", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+        await store.SetSlotsAsync("ef-peer-owner", ownerB,
+            [new BusySlot("other", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+
+        await store.SetSlotsAsync("ef-peer-owner", ownerA,
+            [new BusySlot("new", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(2))]);
+
+        var ownerASlots = await store.GetSlotsAsync("ef-peer-owner", ownerA);
+        var ownerBSlots = await store.GetSlotsAsync("ef-peer-owner", ownerB);
+
+        Assert.HasCount(1, ownerASlots);
+        Assert.AreEqual("new", ownerASlots[0].SourceEventId);
+        Assert.HasCount(1, ownerBSlots);
+        Assert.AreEqual("other", ownerBSlots[0].SourceEventId);
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_WithOwnerScope_ReturnsOnlyMatchingOwner()
+    {
+        await using var db = CreateDbContext();
+        var store = new EfCoreShadowSlotStore(db, Serilog.Core.Logger.None);
+        var ownerA = Guid.NewGuid();
+        var ownerB = Guid.NewGuid();
+
+        await store.SetSlotsAsync("ef-peer-a", ownerA,
+            [new BusySlot("a-scope", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+        await store.SetSlotsAsync("ef-peer-b", ownerB,
+            [new BusySlot("b-scope", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+
+        var result = await store.GetAllSlotsAsync(ownerA, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+
+        Assert.HasCount(1, result);
+        Assert.AreEqual("a-scope", result[0].SourceEventId);
+    }
 }

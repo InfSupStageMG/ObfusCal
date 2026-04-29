@@ -35,12 +35,14 @@ public static class DependencyInjection
         services.AddHttpClient<IGraphOAuthTokenClient, GraphOAuthTokenClient>();
         services.AddHttpClient<IcalFeedCalendarSource>();
         services.AddHttpClient(nameof(OutboundPeerSyncService));
+        services.AddHttpClient(nameof(InboundPeerPullSyncService));
 
         services.AddScoped<ICalendarOwnerScopeResolver, EfCoreCalendarOwnerScopeResolver>();
         services.AddScoped<ICalendarOwnerGraphConsentService, CalendarOwnerGraphConsentService>();
         services.AddScoped<ICalendarOwnerIcalFeedService, CalendarOwnerIcalFeedService>();
         services.AddScoped<ICalendarOwnerObfuscationProfileService, CalendarOwnerObfuscationProfileService>();
         services.AddScoped<IOutboundPeerSyncService, OutboundPeerSyncService>();
+        services.AddScoped<IInboundPeerPullSyncService, InboundPeerPullSyncService>();
         services.AddScoped<IShadowSlotStore, EfCoreShadowSlotStore>();
         services.AddScoped<MockCalendarSource>();
         services.AddScoped<ICalendarSource, IcalFeedCalendarSource>();

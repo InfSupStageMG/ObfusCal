@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ObfusCal.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using ObfusCal.Infrastructure.Persistence;
 namespace ObfusCal.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260429063622_AddOwnerScopeToBusySlots")]
+    partial class AddOwnerScopeToBusySlots
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -28,20 +31,11 @@ namespace ObfusCal.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.PrimitiveCollection<string[]>("AttendeeEmails")
-                        .HasColumnType("text[]");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("text");
-
                     b.Property<Guid?>("CalendarOwnerId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("End")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Location")
-                        .HasColumnType("text");
 
                     b.Property<string>("PeerId")
                         .IsRequired()
@@ -53,9 +47,6 @@ namespace ObfusCal.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset>("Start")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Title")
-                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -152,47 +143,6 @@ namespace ObfusCal.Infrastructure.Migrations
                     b.ToTable("CalendarOwnerPeerMappings");
                 });
 
-            modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.ObfuscationProfile", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CalendarOwnerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Context")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("MergeBlocks")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("RemoveAttendees")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("RemoveDescription")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("RemoveLocation")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("RemoveTitle")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("RoundTimes")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("RoundingIntervalMinutes")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CalendarOwnerId", "Context")
-                        .IsUnique();
-
-                    b.ToTable("ObfuscationProfiles");
-                });
-
             modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.PeerConnection", b =>
                 {
                     b.Property<Guid>("Id")
@@ -247,22 +197,9 @@ namespace ObfusCal.Infrastructure.Migrations
                     b.Navigation("PeerConnection");
                 });
 
-            modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.ObfuscationProfile", b =>
-                {
-                    b.HasOne("ObfusCal.Infrastructure.Persistence.CalendarOwner", "CalendarOwner")
-                        .WithMany("ObfuscationProfiles")
-                        .HasForeignKey("CalendarOwnerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CalendarOwner");
-                });
-
             modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.CalendarOwner", b =>
                 {
                     b.Navigation("ICalFeeds");
-
-                    b.Navigation("ObfuscationProfiles");
 
                     b.Navigation("PeerMappings");
                 });

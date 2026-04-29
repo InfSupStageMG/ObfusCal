@@ -18,7 +18,8 @@ public class ShadowSlotsControllerTests
     {
         await using var factory = new CustomWebApplicationFactory("Development");
         using var client = factory.CreateClient();
-        await factory.SeedPeerConnectionAsync();
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, Guid.NewGuid());
 
         var payload = new[]
         {
@@ -35,7 +36,7 @@ public class ShadowSlotsControllerTests
 
         using var scope = factory.Services.CreateScope();
         var store = scope.ServiceProvider.GetRequiredService<IShadowSlotStore>();
-        var savedSlots = await store.GetSlotsAsync(CustomWebApplicationFactory.IntegrationTestPeerInstanceId);
+        var savedSlots = await store.GetSlotsAsync(CustomWebApplicationFactory.IntegrationTestPeerInstanceId, calendarOwnerId);
         Assert.HasCount(2, savedSlots);
     }
 
@@ -44,11 +45,13 @@ public class ShadowSlotsControllerTests
     {
         await using var factory = new CustomWebApplicationFactory("Development");
         using var client = factory.CreateClient();
-        await factory.SeedPeerConnectionAsync();
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        var calendarOwnerRef = Guid.NewGuid();
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, calendarOwnerRef);
 
         var payload = new
         {
-            calendarOwnerRef = Guid.NewGuid(),
+            calendarOwnerRef,
             slots = new[]
             {
                 new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(30) },
@@ -65,7 +68,7 @@ public class ShadowSlotsControllerTests
 
         using var scope = factory.Services.CreateScope();
         var store = scope.ServiceProvider.GetRequiredService<IShadowSlotStore>();
-        var savedSlots = await store.GetSlotsAsync(CustomWebApplicationFactory.IntegrationTestPeerInstanceId);
+        var savedSlots = await store.GetSlotsAsync(CustomWebApplicationFactory.IntegrationTestPeerInstanceId, calendarOwnerId);
         Assert.HasCount(2, savedSlots);
     }
 
@@ -107,6 +110,29 @@ public class ShadowSlotsControllerTests
         var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task PushShadowSlots_WithValidApiKeyButNoOwnerMappings_ReturnsForbidden()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development");
+        using var client = factory.CreateClient();
+        var instanceId = $"peer-no-mapping-{Guid.NewGuid():N}";
+        var apiKey = $"test-key-{Guid.NewGuid():N}";
+        await factory.SeedPeerConnectionAsync(instanceId, apiKey);
+
+        var payload = new[]
+        {
+            new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(30) }
+        };
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "ApiKey",
+            apiKey);
+
+        var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [TestMethod]

@@ -20,8 +20,11 @@ public sealed class PeerSyncBackgroundService(
             try
             {
                 using var scope = scopeFactory.CreateScope();
-                var syncService = scope.ServiceProvider.GetRequiredService<IOutboundPeerSyncService>();
-                await syncService.RunSyncCycleAsync(stoppingToken);
+                var outboundSyncService = scope.ServiceProvider.GetRequiredService<IOutboundPeerSyncService>();
+                var inboundSyncService = scope.ServiceProvider.GetRequiredService<IInboundPeerPullSyncService>();
+
+                await outboundSyncService.RunSyncCycleAsync(stoppingToken);
+                await inboundSyncService.RunSyncCycleAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -29,7 +32,7 @@ public sealed class PeerSyncBackgroundService(
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Scheduled outbound peer sync cycle failed; continuing with next interval.");
+                logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
             }
 
             var intervalSeconds = Math.Max(1, syncOptions.Value.SyncIntervalSeconds);

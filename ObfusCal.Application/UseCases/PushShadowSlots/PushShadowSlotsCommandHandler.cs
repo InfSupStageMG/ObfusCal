@@ -10,7 +10,7 @@ internal sealed class PushShadowSlotsCommandHandler(
     ILogger<PushShadowSlotsCommandHandler> logger)
     : IRequestHandler<PushShadowSlotsCommand>
 {
-    public async Task Handle(PushShadowSlotsCommand command, CancellationToken ct)
+    public async Task Handle(PushShadowSlotsCommand command, CancellationToken cancellationToken)
     {
         var slots = command.Slots
             .Select((slot, index) => new BusySlot(
@@ -23,12 +23,14 @@ internal sealed class PushShadowSlotsCommandHandler(
                 slot.Location))
             .ToArray();
 
-        await shadowSlotStore.SetSlotsAsync(command.PeerId, slots, ct);
+        foreach (var calendarOwnerId in command.CalendarOwnerIds.Distinct())
+            await shadowSlotStore.SetSlotsAsync(command.PeerId, calendarOwnerId, slots, cancellationToken);
 
         logger.LogInformation(
-            "Stored {BusySlotCount} pushed shadow slots for peer {PeerId}",
+            "Stored {BusySlotCount} pushed shadow slots for peer {PeerId} across {CalendarOwnerCount} owner scope(s)",
             slots.Length,
-            command.PeerId);
+            command.PeerId,
+            command.CalendarOwnerIds.Count);
     }
 }
 

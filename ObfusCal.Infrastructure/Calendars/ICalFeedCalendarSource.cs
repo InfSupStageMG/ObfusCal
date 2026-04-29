@@ -55,7 +55,7 @@ public sealed class IcalFeedCalendarSource(
         }
 
         return allEvents
-            .Where(e => e.Start >= from && e.End <= to)
+            .Where(e => e.Start < to && e.End > from)
             .OrderBy(e => e.Start)
             .ToList();
     }

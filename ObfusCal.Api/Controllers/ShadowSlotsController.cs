@@ -7,13 +7,12 @@ using ObfusCal.Api.Authentication;
 using ObfusCal.Application.UseCases.GetBusySlots;
 using ObfusCal.Application.UseCases.PushShadowSlots;
 using ObfusCal.Infrastructure.Persistence;
-using Serilog;
 
 namespace ObfusCal.Api.Controllers;
 
 [ApiController]
 [Route("api/shadow-slots")]
-public sealed class ShadowSlotsController(ISender sender, AppDbContext dbContext) : ControllerBase
+public sealed class ShadowSlotsController(ISender sender, AppDbContext dbContext, ILogger<ShadowSlotsController> logger) : ControllerBase
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -29,14 +28,31 @@ public sealed class ShadowSlotsController(ISender sender, AppDbContext dbContext
         var peerId = User.FindFirst(PeerApiKeyClaimTypes.PeerInstanceId)?.Value;
         if (string.IsNullOrWhiteSpace(peerId))
         {
-            Log.Warning("Rejected shadow-slot push because peer authentication context is missing");
+            logger.LogWarning("Rejected shadow-slot push because peer authentication context is missing");
             return Unauthorized();
         }
 
-        if (!TryParseSlots(payload, out var slots))
+        if (!TryParseSlots(payload, out var parsedPayload))
             return BadRequest("Request body must be a slot array or an object containing a 'slots' array.");
 
-        await sender.Send(new PushShadowSlotsCommand(peerId, slots), ct);
+        var calendarOwnerIds = parsedPayload.CalendarOwnerRef is { } calendarOwnerRef
+            ? await dbContext.CalendarOwnerPeerMappings
+                .AsNoTracking()
+                .Where(mapping => mapping.PeerConnection.InstanceId == peerId)
+                .Where(mapping => mapping.CalendarOwnerRef == calendarOwnerRef)
+                .Select(mapping => mapping.CalendarOwnerId)
+                .ToListAsync(ct)
+            : await dbContext.CalendarOwnerPeerMappings
+                .AsNoTracking()
+                .Where(mapping => mapping.PeerConnection.InstanceId == peerId)
+                .Select(mapping => mapping.CalendarOwnerId)
+                .Distinct()
+                .ToListAsync(ct);
+
+        if (calendarOwnerIds.Count == 0)
+            return Forbid();
+
+        await sender.Send(new PushShadowSlotsCommand(peerId, calendarOwnerIds, parsedPayload.Slots), ct);
 
         return Created($"/api/shadow-slots/{peerId}", null);
     }
@@ -73,9 +89,9 @@ public sealed class ShadowSlotsController(ISender sender, AppDbContext dbContext
         return Ok(slots);
     }
 
-    private static bool TryParseSlots(JsonElement payload, out IReadOnlyList<ShadowSlotInput> slots)
+    private static bool TryParseSlots(JsonElement payload, out ParsedShadowSlotsPayload parsedPayload)
     {
-        slots = [];
+        parsedPayload = new ParsedShadowSlotsPayload(null, []);
 
         if (payload.ValueKind == JsonValueKind.Array)
         {
@@ -83,7 +99,7 @@ public sealed class ShadowSlotsController(ISender sender, AppDbContext dbContext
             if (parsedSlots is null)
                 return false;
 
-            slots = parsedSlots;
+            parsedPayload = new ParsedShadowSlotsPayload(null, parsedSlots);
             return true;
         }
 
@@ -94,9 +110,11 @@ public sealed class ShadowSlotsController(ISender sender, AppDbContext dbContext
         if (envelope?.Slots is null)
             return false;
 
-        slots = envelope.Slots;
+        parsedPayload = new ParsedShadowSlotsPayload(envelope.CalendarOwnerRef, envelope.Slots);
         return true;
     }
+
+    private sealed record ParsedShadowSlotsPayload(Guid? CalendarOwnerRef, IReadOnlyList<ShadowSlotInput> Slots);
 
     private sealed record PushShadowSlotsRequest(Guid CalendarOwnerRef, IReadOnlyList<ShadowSlotInput> Slots);
 }

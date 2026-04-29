@@ -11,11 +11,13 @@ namespace ObfusCal.Tests.Unit.Sync;
 public class PeerSyncBackgroundServiceTests
 {
     [TestMethod]
-    public async Task StartAsync_InvokesOutboundSyncService()
+    public async Task StartAsync_InvokesOutboundAndInboundSyncServices()
     {
         var countingService = new CountingOutboundPeerSyncService();
+        var countingInboundService = new CountingInboundPeerPullSyncService();
         await using var provider = new ServiceCollection()
             .AddSingleton<IOutboundPeerSyncService>(countingService)
+            .AddSingleton<IInboundPeerPullSyncService>(countingInboundService)
             .BuildServiceProvider();
 
         using var backgroundService = new PeerSyncBackgroundService(
@@ -28,10 +30,24 @@ public class PeerSyncBackgroundServiceTests
         var completedTask = await Task.WhenAny(countingService.InvocationObserved.Task, Task.Delay(TimeSpan.FromSeconds(2)));
         Assert.AreSame(countingService.InvocationObserved.Task, completedTask);
 
+        var inboundCompletedTask = await Task.WhenAny(countingInboundService.InvocationObserved.Task, Task.Delay(TimeSpan.FromSeconds(2)));
+        Assert.AreSame(countingInboundService.InvocationObserved.Task, inboundCompletedTask);
+
         await backgroundService.StopAsync(CancellationToken.None);
     }
 
     private sealed class CountingOutboundPeerSyncService : IOutboundPeerSyncService
+    {
+        public TaskCompletionSource InvocationObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task RunSyncCycleAsync(CancellationToken ct = default)
+        {
+            InvocationObserved.TrySetResult();
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class CountingInboundPeerPullSyncService : IInboundPeerPullSyncService
     {
         public TaskCompletionSource InvocationObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
