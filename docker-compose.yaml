@@ -43,6 +43,11 @@ services:
       - ASPNETCORE_Kestrel__Certificates__Default__Password=${API_CERT_PASSWORD}
     volumes:
       - ./certs/api:/https:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fk", "https://localhost:8443/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     networks:
       - internal
     depends_on:

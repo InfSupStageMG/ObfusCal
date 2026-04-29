@@ -1,0 +1,32 @@
+﻿html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: var(--body-font), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--neutral-layer-1);
+    color: var(--neutral-foreground-rest);
+}
+
+.card {
+    background: var(--neutral-layer-card-container);
+    border: 1px solid var(--neutral-stroke-layer-rest);
+    border-radius: 8px;
+    padding: 1.25rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Prevent data grid columns from truncating text */
+fluent-data-grid-cell {
+    overflow: visible;
+    text-overflow: unset;
+    white-space: normal;
+}
+
+
+
+
+
+
+

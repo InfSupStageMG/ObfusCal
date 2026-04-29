@@ -2,10 +2,12 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.FluentUI.AspNetCore.Components;
 using Microsoft.Identity.Web;
 using Microsoft.OpenApi;
 using ObfusCal.Api.Authentication;
 using ObfusCal.Api.Authorization;
+using ObfusCal.Api.Components;
 using ObfusCal.Application;
 using ObfusCal.Infrastructure;
 using Serilog;
@@ -82,9 +84,14 @@ try
     });
     builder.Services.AddHealthChecks();
 
+    builder.Services.AddRazorComponents()
+        .AddInteractiveServerComponents();
+    builder.Services.AddFluentUIComponents();
+
     var app = builder.Build();
 
     app.UseSerilogRequestLogging();
+    app.UseStaticFiles();
 
     app.UseExceptionHandler(exceptionApp =>
     {
@@ -125,8 +132,12 @@ try
 
     app.UseAuthentication();
     app.UseAuthorization();
+    app.UseAntiforgery();
     app.MapControllers();
     app.MapHealthChecks("/health");
+    app.MapStaticAssets();
+    app.MapRazorComponents<App>()
+        .AddInteractiveServerRenderMode();
 
     await app.Services.MigrateDatabaseAsync();
 

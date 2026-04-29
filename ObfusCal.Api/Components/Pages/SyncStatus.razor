@@ -1,0 +1,78 @@
+﻿@page "/sync-status"
+@using ObfusCal.Infrastructure.Persistence
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext DbContext
+
+<PageTitle>Sync Status - ObfusCal</PageTitle>
+
+<h1>Sync Status</h1>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+    <section class="card">
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
+            <FluentButton Appearance="Appearance.Accent" OnClick="RefreshAsync">
+                Refresh
+            </FluentButton>
+        </FluentStack>
+    </section>
+
+    @if (_loading)
+    {
+        <FluentProgress />
+    }
+    else if (_peers is not null)
+    {
+        <section class="card">
+            <FluentDataGrid Items="_peers.AsQueryable()" TGridItem="PeerRow">
+                <PropertyColumn Property="@(p => p.InstanceId)" Title="Peer Instance" Sortable="true" />
+                <PropertyColumn Property="@(p => p.BaseAddress)" Title="Base Address" />
+                <TemplateColumn Title="Status">
+                    @if (context.LastSyncSucceeded == true)
+                    {
+                        <FluentBadge Appearance="Appearance.Accent" Color="Color.Success">Healthy</FluentBadge>
+                    }
+                    else if (context.LastSyncSucceeded == false)
+                    {
+                        <FluentBadge Appearance="Appearance.Accent" Color="Color.Error">Failed</FluentBadge>
+                    }
+                    else
+                    {
+                        <FluentBadge Appearance="Appearance.Neutral">Never synced</FluentBadge>
+                    }
+                </TemplateColumn>
+                <PropertyColumn Property="@(p => p.LastSyncedAt)" Title="Last Synced" Format="yyyy-MM-dd HH:mm:ss" />
+            </FluentDataGrid>
+        </section>
+    }
+</FluentStack>
+
+@code {
+    private List<PeerRow>? _peers;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _loading = true;
+
+        _peers = await DbContext.PeerConnections
+            .AsNoTracking()
+            .OrderBy(p => p.InstanceId)
+            .Select(p => new PeerRow(
+                p.InstanceId,
+                p.BaseAddress,
+                p.LastSyncedAt,
+                p.LastSyncSucceeded))
+            .ToListAsync();
+
+        _loading = false;
+    }
+
+    private sealed record PeerRow(string InstanceId, string BaseAddress, DateTimeOffset? LastSyncedAt, bool? LastSyncSucceeded);
+}
+
+
