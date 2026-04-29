@@ -38,9 +38,11 @@ public static class DependencyInjection
         services.AddHttpClient(nameof(InboundPeerPullSyncService));
 
         services.AddScoped<ICalendarOwnerScopeResolver, EfCoreCalendarOwnerScopeResolver>();
+        services.AddScoped<ICalendarOwnerService, CalendarOwnerService>();
         services.AddScoped<ICalendarOwnerGraphConsentService, CalendarOwnerGraphConsentService>();
         services.AddScoped<ICalendarOwnerIcalFeedService, CalendarOwnerIcalFeedService>();
         services.AddScoped<ICalendarOwnerObfuscationProfileService, CalendarOwnerObfuscationProfileService>();
+        services.AddScoped<IPeerConnectionService, PeerConnectionService>();
         services.AddScoped<IOutboundPeerSyncService, OutboundPeerSyncService>();
         services.AddScoped<IInboundPeerPullSyncService, InboundPeerPullSyncService>();
         services.AddScoped<IShadowSlotStore, EfCoreShadowSlotStore>();

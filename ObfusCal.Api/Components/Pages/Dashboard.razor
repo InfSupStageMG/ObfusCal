@@ -1,0 +1,104 @@
+﻿@page "/"
+@using MediatR
+@using ObfusCal.Application.Interfaces
+@using ObfusCal.Application.UseCases.GetMergedFreeBusy
+@inject ISender Sender
+@inject ICalendarOwnerService CalendarOwnerService
+
+<PageTitle>Dashboard - ObfusCal</PageTitle>
+
+<h1>Dashboard</h1>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+    <section class="card">
+        <h3>Combined Calendar</h3>
+
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Bottom">
+            <div>
+                <FluentLabel>Calendar Owner</FluentLabel>
+                <FluentSelect TOption="CalendarOwnerOption"
+                              Items="_calendarOwners"
+                              OptionValue="@(o => o.Id.ToString())"
+                              OptionText="@(o => o.Name)"
+                              @bind-SelectedOption="_selectedOwner" />
+            </div>
+            <div>
+                <FluentLabel>From</FluentLabel>
+                <FluentDatePicker @bind-Value="_fromDate" />
+            </div>
+            <div>
+                <FluentLabel>To</FluentLabel>
+                <FluentDatePicker @bind-Value="_toDate" />
+            </div>
+            <FluentButton Appearance="Appearance.Accent" OnClick="LoadFreeBusyAsync" Disabled="_selectedOwner is null">
+                Load
+            </FluentButton>
+        </FluentStack>
+    </section>
+
+    @if (_loading)
+    {
+        <FluentProgress />
+    }
+    else if (_slots is { Count: > 0 })
+    {
+        <section class="card">
+            <FluentDataGrid Items="_slots.AsQueryable()" TGridItem="MergedFreeBusyResponse">
+                <PropertyColumn Property="@(s => s.Start.LocalDateTime)" Title="Start" Format="ddd dd MMM HH:mm" />
+                <PropertyColumn Property="@(s => s.End.LocalDateTime)" Title="End" Format="HH:mm" />
+                <PropertyColumn Property="@(s => s.Title ?? "Busy")" Title="Title" />
+                <PropertyColumn Property="@(s => s.Location ?? "—")" Title="Location" />
+            </FluentDataGrid>
+        </section>
+    }
+    else if (_loaded)
+    {
+        <FluentMessageBar Intent="MessageIntent.Info" Title="No slots">
+            No busy slots found for the selected period.
+        </FluentMessageBar>
+    }
+</FluentStack>
+
+@code {
+    private List<CalendarOwnerOption>? _calendarOwners;
+    private CalendarOwnerOption? _selectedOwner;
+    private DateTime? _fromDate = DateTime.Today;
+    private DateTime? _toDate = DateTime.Today.AddDays(7);
+    private List<MergedFreeBusyResponse>? _slots;
+    private bool _loading;
+    private bool _loaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var owners = await CalendarOwnerService.ListAsync();
+        _calendarOwners = owners.Select(o => new CalendarOwnerOption(o.Id, o.Name)).ToList();
+
+        if (_calendarOwners.Count > 0)
+            _selectedOwner = _calendarOwners[0];
+    }
+
+    private async Task LoadFreeBusyAsync()
+    {
+        if (_selectedOwner is null || _fromDate is null || _toDate is null)
+            return;
+
+        _loading = true;
+        _loaded = false;
+        _slots = null;
+
+        try
+        {
+            var from = new DateTimeOffset(_fromDate.Value, TimeSpan.Zero);
+            var to = new DateTimeOffset(_toDate.Value, TimeSpan.Zero);
+            var result = await Sender.Send(new GetMergedFreeBusyQuery(_selectedOwner.Id, from, to));
+            _slots = result.ToList();
+        }
+        finally
+        {
+            _loading = false;
+            _loaded = true;
+        }
+    }
+
+    private sealed record CalendarOwnerOption(Guid Id, string Name);
+}

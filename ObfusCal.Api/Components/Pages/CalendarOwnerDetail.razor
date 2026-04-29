@@ -1,0 +1,237 @@
+﻿@page "/calendar-owners/{Id:guid}"
+@using ObfusCal.Application.Interfaces
+@using ObfusCal.Application.Obfuscation
+@inject ICalendarOwnerService CalendarOwnerService
+@inject ICalendarOwnerIcalFeedService IcalFeedService
+@inject ICalendarOwnerObfuscationProfileService ObfuscationProfileService
+@inject NavigationManager Navigation
+
+<PageTitle>Calendar Owner - ObfusCal</PageTitle>
+
+<FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center">
+    <FluentButton Appearance="Appearance.Lightweight" OnClick="@(() => Navigation.NavigateTo("/calendar-owners"))">
+        ← Back
+    </FluentButton>
+    <h1>@(_owner?.Name ?? "Calendar Owner")</h1>
+</FluentStack>
+
+@if (_owner is null)
+{
+    <FluentProgress />
+}
+else
+{
+    <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
+
+        @* ─── iCal Feeds ─── *@
+        <section class="card">
+            <h3>iCal Feeds</h3>
+
+            @if (_feeds is { Count: > 0 })
+            {
+                <FluentDataGrid Items="_feeds.AsQueryable()" TGridItem="CalendarOwnerIcalFeedItem">
+                    <PropertyColumn Property="@(f => f.FeedUrl)" Title="Feed URL" />
+                    <TemplateColumn Title="Actions">
+                        <FluentButton Appearance="Appearance.Outline" OnClick="@(() => DeleteFeedAsync(context.Id))">
+                            Delete
+                        </FluentButton>
+                    </TemplateColumn>
+                </FluentDataGrid>
+            }
+            else
+            {
+                <p>No iCal feeds configured.</p>
+            }
+
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" Style="margin-top: 1rem;">
+                <FluentTextField @bind-Value="_newFeedUrl" Immediate="true" Placeholder="https://calendar.example.com/feed.ics" Style="flex: 1;" />
+                <FluentButton Appearance="Appearance.Accent" OnClick="AddFeedAsync" Disabled="@string.IsNullOrWhiteSpace(_newFeedUrl)">
+                    Add Feed
+                </FluentButton>
+            </FluentStack>
+
+            @if (_feedMessage is not null)
+            {
+                <FluentMessageBar Intent="@_feedMessageIntent" Style="margin-top: 0.5rem;">
+                    @_feedMessage
+                </FluentMessageBar>
+            }
+        </section>
+
+        @* ─── Obfuscation Profiles ─── *@
+        <section class="card">
+            <h3>Obfuscation Profiles</h3>
+
+            @foreach (var profile in _profiles)
+            {
+                <section class="card" style="margin-bottom: 1rem;">
+                    <h4>@profile.Context</h4>
+                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+                        <FluentCheckbox @bind-Value="profile.RemoveTitle" Label="Remove title" />
+                        <FluentCheckbox @bind-Value="profile.RemoveDescription" Label="Remove description" />
+                        <FluentCheckbox @bind-Value="profile.RemoveLocation" Label="Remove location" />
+                        <FluentCheckbox @bind-Value="profile.RemoveAttendees" Label="Remove attendees" />
+                        <FluentCheckbox @bind-Value="profile.RoundTimes" Label="Round times" />
+                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center">
+                            <FluentLabel>Rounding interval (minutes)</FluentLabel>
+                            <FluentNumberField @bind-Value="profile.RoundingIntervalMinutes" Min="1" Max="60" Style="width: 100px;" />
+                        </FluentStack>
+                        <FluentCheckbox @bind-Value="profile.MergeBlocks" Label="Merge adjacent blocks" />
+                        <FluentButton Appearance="Appearance.Accent" OnClick="@(() => SaveProfileAsync(profile))">
+                            Save
+                        </FluentButton>
+                    </FluentStack>
+                </section>
+            }
+
+            @if (_profileMessage is not null)
+            {
+                <FluentMessageBar Intent="MessageIntent.Success" Style="margin-top: 0.5rem;">
+                    @_profileMessage
+                </FluentMessageBar>
+            }
+        </section>
+    </FluentStack>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private CalendarOwnerInfo? _owner;
+    private List<CalendarOwnerIcalFeedItem>? _feeds;
+    private List<ProfileViewModel> _profiles = [];
+    private string? _newFeedUrl;
+    private string? _feedMessage;
+    private MessageIntent _feedMessageIntent = MessageIntent.Info;
+    private string? _profileMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _owner = await CalendarOwnerService.GetByIdAsync(Id);
+
+        if (_owner is null) return;
+
+        await LoadFeedsAsync();
+        await LoadProfilesAsync();
+    }
+
+    private async Task LoadFeedsAsync()
+    {
+        var items = await IcalFeedService.ListFeedsAsync(Id);
+        _feeds = items.ToList();
+    }
+
+    private async Task LoadProfilesAsync()
+    {
+        var profiles = await ObfuscationProfileService.GetProfilesAsync(Id);
+        _profiles = profiles.Select(p => new ProfileViewModel
+        {
+            Context = p.Context,
+            RemoveTitle = p.RemoveTitle,
+            RemoveDescription = p.RemoveDescription,
+            RemoveLocation = p.RemoveLocation,
+            RemoveAttendees = p.RemoveAttendees,
+            RoundTimes = p.RoundTimes,
+            RoundingIntervalMinutes = p.RoundingIntervalMinutes,
+            MergeBlocks = p.MergeBlocks
+        }).ToList();
+
+        // Ensure both contexts are shown
+        foreach (var ctx in Enum.GetValues<ObfuscationAuditContext>())
+        {
+            if (_profiles.All(p => p.Context != ctx))
+            {
+                var def = ObfuscationProfileSettings.CreateDefault(ctx);
+                _profiles.Add(new ProfileViewModel
+                {
+                    Context = ctx,
+                    RemoveTitle = def.RemoveTitle,
+                    RemoveDescription = def.RemoveDescription,
+                    RemoveLocation = def.RemoveLocation,
+                    RemoveAttendees = def.RemoveAttendees,
+                    RoundTimes = def.RoundTimes,
+                    RoundingIntervalMinutes = def.RoundingIntervalMinutes,
+                    MergeBlocks = def.MergeBlocks
+                });
+            }
+        }
+    }
+
+    private async Task AddFeedAsync()
+    {
+        _feedMessage = null;
+        if (string.IsNullOrWhiteSpace(_newFeedUrl)) return;
+
+        var result = await IcalFeedService.AddFeedAsync(Id, _newFeedUrl);
+        switch (result.Outcome)
+        {
+            case AddCalendarOwnerIcalFeedOutcome.Added:
+                _feedMessage = $"Feed added successfully.";
+                _feedMessageIntent = MessageIntent.Success;
+                _newFeedUrl = null;
+                await LoadFeedsAsync();
+                break;
+            case AddCalendarOwnerIcalFeedOutcome.Duplicate:
+                _feedMessage = "This feed URL already exists.";
+                _feedMessageIntent = MessageIntent.Warning;
+                break;
+            default:
+                _feedMessage = "Failed to add feed.";
+                _feedMessageIntent = MessageIntent.Error;
+                break;
+        }
+    }
+
+    private async Task DeleteFeedAsync(Guid feedId)
+    {
+        _feedMessage = null;
+        var result = await IcalFeedService.DeleteFeedAsync(Id, feedId);
+        if (result.Outcome == DeleteCalendarOwnerIcalFeedOutcome.Deleted)
+        {
+            await LoadFeedsAsync();
+            _feedMessage = "Feed deleted.";
+            _feedMessageIntent = MessageIntent.Success;
+        }
+        else
+        {
+            _feedMessage = "Failed to delete feed.";
+            _feedMessageIntent = MessageIntent.Error;
+        }
+    }
+
+    private async Task SaveProfileAsync(ProfileViewModel profile)
+    {
+        _profileMessage = null;
+        var settings = new ObfuscationProfileSettings(
+            profile.Context,
+            profile.RemoveTitle,
+            profile.RemoveDescription,
+            profile.RemoveLocation,
+            profile.RemoveAttendees,
+            profile.RoundTimes,
+            profile.RoundingIntervalMinutes,
+            profile.MergeBlocks);
+
+        await ObfuscationProfileService.SetProfileAsync(Id, settings);
+        _profileMessage = $"{profile.Context} profile saved.";
+    }
+
+    private sealed class ProfileViewModel
+    {
+        public ObfuscationAuditContext Context { get; set; }
+        public bool RemoveTitle { get; set; }
+        public bool RemoveDescription { get; set; }
+        public bool RemoveLocation { get; set; }
+        public bool RemoveAttendees { get; set; }
+        public bool RoundTimes { get; set; }
+        public int RoundingIntervalMinutes { get; set; }
+        public bool MergeBlocks { get; set; }
+    }
+}
+
+
+
+
+
+
+
