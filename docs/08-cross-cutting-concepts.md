@@ -50,8 +50,8 @@ Obfuscation behavior is configured per calendar owner through `ObfuscationProfil
 - one profile for `Client` context (peer-facing `busy-slots` and outbound sync)
 - one profile for `Internal` context (`merged-freebusy`)
 
-Profiles are resolved at runtime by `ICalendarOwnerObfuscationProfileService`. Missing profiles are auto-provisioned with
-secure defaults (all sensitive fields removed, rounding enabled with 15 minutes, block merging enabled).
+Profiles are resolved at runtime by `ICalendarOwnerObfuscationProfileService`. Missing profiles are auto-provisioned
+with secure defaults (all sensitive fields removed, rounding enabled with 15 minutes, block merging enabled).
 
 The resulting `BusySlot` contract always contains `start`/`end` and can optionally carry `title`, `description`,
 `attendeeEmails`, and `location` when those fields are not removed by the active profile.
