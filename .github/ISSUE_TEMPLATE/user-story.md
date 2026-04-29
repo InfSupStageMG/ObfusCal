@@ -1,7 +1,10 @@
 ---
 name: User Story / Feature
 about: Refinement-ready issue template for calendar sync PoC
-labels: refinement-needed
+title: ''
+labels: ''
+assignees: ''
+
 ---
 
 ## Description
