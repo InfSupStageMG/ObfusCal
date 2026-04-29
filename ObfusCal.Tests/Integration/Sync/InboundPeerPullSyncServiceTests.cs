@@ -1,7 +1,7 @@
 ﻿using System.Net;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Infrastructure.Persistence;
@@ -86,6 +86,88 @@ public class InboundPeerPullSyncServiceTests
         Assert.AreEqual("existing", storedSlots[0].SourceEventId);
     }
 
+    [TestMethod]
+    public async Task RunSyncCycleAsync_OnSuccess_RecordsLastSyncedAtAndSucceededOnPeerConnection()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        var calendarOwnerRef = Guid.NewGuid();
+        var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
+
+        var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("[]")
+            }))));
+
+        var service = CreateService(dbContext, store, httpClientFactory);
+        var beforeSync = DateTimeOffset.UtcNow;
+
+        await service.RunSyncCycleAsync();
+
+        var peer = await dbContext.PeerConnections.FindAsync([peerConnectionId]);
+        Assert.IsNotNull(peer);
+        Assert.IsTrue(peer.LastSyncSucceeded);
+        Assert.IsNotNull(peer.LastSyncedAt);
+        Assert.IsTrue(peer.LastSyncedAt >= beforeSync);
+    }
+
+    [TestMethod]
+    public async Task RunSyncCycleAsync_OnHttpFailure_RecordsLastSyncedAtAndNotSucceededOnPeerConnection()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        var calendarOwnerRef = Guid.NewGuid();
+        var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
+
+        var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)))));
+
+        var service = CreateService(dbContext, store, httpClientFactory);
+        var beforeSync = DateTimeOffset.UtcNow;
+
+        await service.RunSyncCycleAsync();
+
+        var peer = await dbContext.PeerConnections.FindAsync([peerConnectionId]);
+        Assert.IsNotNull(peer);
+        Assert.IsFalse(peer.LastSyncSucceeded);
+        Assert.IsNotNull(peer.LastSyncedAt);
+        Assert.IsTrue(peer.LastSyncedAt >= beforeSync);
+    }
+
+    [TestMethod]
+    public async Task RunSyncCycleAsync_WhenPeerAFails_StillPullsFromPeerBAndLogsWarning()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var ownerAId = Guid.NewGuid();
+        var ownerBId = Guid.NewGuid();
+        SeedOwnerAndPeerMapping(dbContext, ownerAId, Guid.NewGuid(), "peer-a", "https://peer-a.local/");
+        SeedOwnerAndPeerMapping(dbContext, ownerBId, Guid.NewGuid(), "peer-b", "https://peer-b.local/");
+
+        var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
+        var logger = new CapturingLogger<InboundPeerPullSyncService>();
+
+        var attemptedHosts = new List<string>();
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(request =>
+        {
+            attemptedHosts.Add(request.RequestUri!.Host);
+            return Task.FromResult(request.RequestUri!.Host == "peer-a.local"
+                ? new HttpResponseMessage(HttpStatusCode.InternalServerError)
+                : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") });
+        })));
+
+        var service = CreateService(dbContext, store, httpClientFactory, logger);
+
+        await service.RunSyncCycleAsync();
+
+        CollectionAssert.AreEquivalent(new[] { "peer-a.local", "peer-b.local" }, attemptedHosts);
+        Assert.Contains(entry => entry.LogLevel == LogLevel.Warning, logger.Entries);
+        Assert.Contains(entry => entry.LogLevel == LogLevel.Information && entry.Message.Contains("Successfully pulled"), logger.Entries);
+    }
+
     private static InboundPeerPullSyncService CreateService(
         AppDbContext dbContext,
         EfCoreShadowSlotStore store,
@@ -103,62 +185,18 @@ public class InboundPeerPullSyncServiceTests
                 LookAheadDays = 14,
                 SyncIntervalSeconds = 900
             }),
-            logger ?? new NullLogger<InboundPeerPullSyncService>());
+            logger ?? NullLogger<InboundPeerPullSyncService>.Instance);
     }
 
-    private static AppDbContext CreateDbContext()
-    {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
-            .Options;
+    private static AppDbContext CreateDbContext() => SyncIntegrationTestHelpers.CreateDbContext();
 
-        return new AppDbContext(options);
-    }
-
-    private static void SeedOwnerAndPeerMapping(
+    private static Guid SeedOwnerAndPeerMapping(
         AppDbContext dbContext,
         Guid calendarOwnerId,
         Guid calendarOwnerRef,
         string peerInstanceId,
         string baseAddress)
-    {
-        dbContext.CalendarOwners.Add(new CalendarOwner
-        {
-            Id = calendarOwnerId,
-            Name = "Owner"
-        });
-
-        var peerConnectionId = Guid.NewGuid();
-        dbContext.PeerConnections.Add(new PeerConnection
-        {
-            Id = peerConnectionId,
-            InstanceId = peerInstanceId,
-            BaseAddress = baseAddress,
-            ApiKeyHash = "hashed-not-used-here"
-        });
-
-        dbContext.CalendarOwnerPeerMappings.Add(new CalendarOwnerPeerMapping
-        {
-            Id = Guid.NewGuid(),
-            CalendarOwnerId = calendarOwnerId,
-            PeerConnectionId = peerConnectionId,
-            CalendarOwnerRef = calendarOwnerRef
-        });
-
-        dbContext.SaveChanges();
-    }
-
-    private sealed class StubHttpClientFactory(HttpClient client) : IHttpClientFactory
-    {
-        public HttpClient CreateClient(string name) => client;
-    }
-
-    private sealed class DelegatingHttpMessageHandler(
-        Func<HttpRequestMessage, Task<HttpResponseMessage>> handler) : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            => handler(request);
-    }
+        => SyncIntegrationTestHelpers.SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, peerInstanceId, baseAddress);
 
     private sealed record CapturedRequest(
         HttpMethod Method,
@@ -181,15 +219,4 @@ public class InboundPeerPullSyncServiceTests
                 peerIdHeader));
         }
     }
-
-    private sealed class NullLogger<T> : ILogger<T>
-    {
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-        public bool IsEnabled(LogLevel logLevel) => false;
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
-            Func<TState, Exception?, string> formatter)
-        {
-        }
-    }
 }
-
