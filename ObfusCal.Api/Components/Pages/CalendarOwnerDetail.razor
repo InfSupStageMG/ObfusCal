@@ -1,9 +1,7 @@
 ﻿@page "/calendar-owners/{Id:guid}"
 @using ObfusCal.Application.Interfaces
 @using ObfusCal.Application.Obfuscation
-@using ObfusCal.Infrastructure.Persistence
-@using Microsoft.EntityFrameworkCore
-@inject AppDbContext DbContext
+@inject ICalendarOwnerService CalendarOwnerService
 @inject ICalendarOwnerIcalFeedService IcalFeedService
 @inject ICalendarOwnerObfuscationProfileService ObfuscationProfileService
 @inject NavigationManager Navigation
@@ -99,7 +97,7 @@ else
 @code {
     [Parameter] public Guid Id { get; set; }
 
-    private CalendarOwner? _owner;
+    private CalendarOwnerInfo? _owner;
     private List<CalendarOwnerIcalFeedItem>? _feeds;
     private List<ProfileViewModel> _profiles = [];
     private string? _newFeedUrl;
@@ -109,9 +107,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _owner = await DbContext.CalendarOwners
-            .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == Id);
+        _owner = await CalendarOwnerService.GetByIdAsync(Id);
 
         if (_owner is null) return;
 

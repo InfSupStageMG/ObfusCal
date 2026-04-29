@@ -1,8 +1,6 @@
 ﻿@page "/calendar-owners"
-@using ObfusCal.Infrastructure.Persistence
-@using Microsoft.EntityFrameworkCore
-@inject AppDbContext DbContext
-@inject NavigationManager Navigation
+@using ObfusCal.Application.Interfaces
+@inject ICalendarOwnerService CalendarOwnerService
 
 <PageTitle>Calendar Owners - ObfusCal</PageTitle>
 
@@ -36,7 +34,7 @@
     else if (_owners is not null)
     {
         <section class="card">
-            <FluentDataGrid Items="_owners.AsQueryable()" TGridItem="CalendarOwnerRow">
+            <FluentDataGrid Items="_owners.AsQueryable()" TGridItem="CalendarOwnerSummary">
                 <TemplateColumn Title="Name" Sortable="true">
                     <FluentAnchor Href="@($"/calendar-owners/{context.Id}")" Appearance="Appearance.Hypertext">
                         @context.Name
@@ -60,7 +58,7 @@
 </FluentStack>
 
 @code {
-    private List<CalendarOwnerRow>? _owners;
+    private List<CalendarOwnerSummary>? _owners;
     private bool _loading = true;
     private string? _newOwnerName;
     private string? _newOwnerEntraId;
@@ -74,17 +72,7 @@
 
     private async Task LoadOwnersAsync()
     {
-        _owners = await DbContext.CalendarOwners
-            .AsNoTracking()
-            .OrderBy(o => o.Name)
-            .Select(o => new CalendarOwnerRow(
-                o.Id,
-                o.Name,
-                o.GraphConsentGrantedAtUtc != null,
-                o.ICalFeeds.Count,
-                o.PeerMappings.Count))
-            .ToListAsync();
-
+        _owners = (await CalendarOwnerService.ListAsync()).ToList();
         _loading = false;
     }
 
@@ -93,26 +81,13 @@
         _createMessage = null;
         if (string.IsNullOrWhiteSpace(_newOwnerName)) return;
 
-        var owner = new CalendarOwner
-        {
-            Id = Guid.NewGuid(),
-            Name = _newOwnerName.Trim(),
-            EntraObjectId = string.IsNullOrWhiteSpace(_newOwnerEntraId) ? null : _newOwnerEntraId.Trim()
-        };
+        var created = await CalendarOwnerService.CreateAsync(_newOwnerName, _newOwnerEntraId);
 
-        DbContext.CalendarOwners.Add(owner);
-        await DbContext.SaveChangesAsync();
-
-        _createMessage = $"Created '{owner.Name}'.";
+        _createMessage = $"Created '{created.Name}'.";
         _createMessageIntent = MessageIntent.Success;
         _newOwnerName = null;
         _newOwnerEntraId = null;
 
         await LoadOwnersAsync();
     }
-
-    private sealed record CalendarOwnerRow(Guid Id, string Name, bool HasGraphConsent, int FeedCount, int PeerMappingCount);
 }
-
-
-

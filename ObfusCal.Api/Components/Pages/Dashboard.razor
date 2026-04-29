@@ -1,10 +1,9 @@
 ﻿@page "/"
 @using MediatR
+@using ObfusCal.Application.Interfaces
 @using ObfusCal.Application.UseCases.GetMergedFreeBusy
-@using ObfusCal.Infrastructure.Persistence
-@using Microsoft.EntityFrameworkCore
 @inject ISender Sender
-@inject AppDbContext DbContext
+@inject ICalendarOwnerService CalendarOwnerService
 
 <PageTitle>Dashboard - ObfusCal</PageTitle>
 
@@ -71,11 +70,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _calendarOwners = await DbContext.CalendarOwners
-            .AsNoTracking()
-            .OrderBy(o => o.Name)
-            .Select(o => new CalendarOwnerOption(o.Id, o.Name))
-            .ToListAsync();
+        var owners = await CalendarOwnerService.ListAsync();
+        _calendarOwners = owners.Select(o => new CalendarOwnerOption(o.Id, o.Name)).ToList();
 
         if (_calendarOwners.Count > 0)
             _selectedOwner = _calendarOwners[0];

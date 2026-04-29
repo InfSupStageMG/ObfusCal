@@ -14,7 +14,6 @@
     padding: 1.25rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
     width: 100%;
-    box-sizing: border-box;
 }
 
 /* Prevent data grid columns from truncating text */
@@ -22,6 +21,15 @@ fluent-data-grid-cell {
     overflow: visible;
     text-overflow: unset;
     white-space: normal;
+}
+
+/* Give data grid rows enough height for buttons and badges */
+fluent-data-grid-row {
+    min-height: 44px;
+}
+
+fluent-data-grid-row > fluent-data-grid-cell {
+    padding-block: 8px;
 }
 
 
