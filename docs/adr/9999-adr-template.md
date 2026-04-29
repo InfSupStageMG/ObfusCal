@@ -1,11 +1,8 @@
 ﻿# [Short title of solved problem and solution]
 
-*
-
-Status: [proposed | rejected | accepted | deprecated | … | superseded by [ADR0053](0053-example.md)]
-
-* Deciders: [list everyone involved in the decision]
-* Date: [YYYY-MM-DD when the decision was last updated]
+* **Status:** [proposed | rejected | accepted | deprecated | ... | superseded by [ADR0053](0053-example.md)]
+* **Deciders:** [list everyone involved in the decision]
+* **Date:** [YYYY-MM-DD when the decision was last updated]
 
 ## Context and problem statement
 
@@ -26,7 +23,7 @@ Status: [proposed | rejected | accepted | deprecated | … | superseded by [ADR0
 
 [ Describe the rationale of the decision: why did we choose this option above other considered options ].
 
-### Consequences <!-- optional -->
+## Consequences <!-- optional -->
 
 ## Pros and cons of the options <!-- optional -->
 

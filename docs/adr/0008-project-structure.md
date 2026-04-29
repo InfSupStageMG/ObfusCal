@@ -1,8 +1,8 @@
-﻿# ADR 0008: Project Code Architecture/Structure: Clean Architecture
+﻿# ADR 0008: Project code architecture/structure: Clean Architecture
 
-* Status: accepted
-* Deciders: Matthias Hendrickx, Gijs Pennings, Coach
-* Date: 23/04/2026
+* **Status:** Accepted
+* **Deciders:** Matthias Hendrickx, Gijs Pennings, Coach
+* **Date:** 2026-04-23
 
 ## Context and problem statement
 

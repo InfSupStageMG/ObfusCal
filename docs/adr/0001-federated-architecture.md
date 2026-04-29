@@ -1,4 +1,4 @@
-﻿# Federated Server Architecture
+﻿# ADR 0001: Federated server architecture
 
 * **Status:** Accepted
 * **Deciders:** Matthias Hendrickx, Gijs Pennings, Coach
@@ -12,11 +12,11 @@ mean we must use local desktop apps, or can we deploy domain-specific servers?
 ## Considered options
 
 * Option 1: Local desktop app per consultant laptop (`.msi` / `.pkg`)
-* Option 2: Federated model (Single Dockerized server per company domain)
+* Option 2: Federated model (single Dockerized server per company domain)
 
 ## Decision outcome
 
-We chose **Option 2 (Federated model)**: one Dockerized server instance per company domain, hosted within that company's
+We chose **Option 2 (federated model)**: one Dockerized server instance per company domain, hosted within that company's
 own network.
 
 ## Decision rationale
@@ -25,7 +25,7 @@ A per-laptop deployment fails when the consultant's laptop is offline (holidays,
 continuously and handles sync regardless of individual device state. A domain-specific server does not violate the "no
 central global server" constraint.
 
-### Consequences
+## Consequences
 
 * **Positive:** Sync continues when consultant laptops are offline.
 * **Positive:** Updates are deployed once per server, avoiding per-device rollout.
