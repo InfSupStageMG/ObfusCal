@@ -37,6 +37,8 @@ nav:
           - "0006: Plugin Architecture": adr/0006-plugin-architecture.md
           - "0007: Testing Framework": adr/0007-testing-framework.md
           - "0008: Project Structure": adr/0008-project-structure.md
+          - "0009: Blazor Server GUI": adr/0009-blazor-server-gui.md
+          - "0010: Fluent UI Component Library": adr/0010-fluentui-blazor-component-library.md
 
       - "10. Quality Requirements": 10-quality-requirements.md
       - "11. Risks & Technical Debt": 11-risks-technical-debt.md
