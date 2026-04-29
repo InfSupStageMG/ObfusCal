@@ -9,6 +9,7 @@ internal sealed class GetMergedFreeBusyQueryHandler(
     ICalendarSource calendarSource,
     ObfuscationPipeline obfuscationPipeline,
     IShadowSlotStore shadowSlotStore,
+    ICalendarOwnerObfuscationProfileService obfuscationProfileService,
     ILogger<GetMergedFreeBusyQueryHandler> logger)
     : IRequestHandler<GetMergedFreeBusyQuery, IReadOnlyList<MergedFreeBusyResponse>>
 {
@@ -19,7 +20,15 @@ internal sealed class GetMergedFreeBusyQueryHandler(
             query.From,
             query.To,
             query.CalendarOwnerId, cancellationToken);
-        var ownBusySlots = obfuscationPipeline.Process(events, query.CalendarOwnerId.ToString(), ObfuscationAuditContext.Internal);
+        var profile = await obfuscationProfileService.GetProfileAsync(
+            query.CalendarOwnerId,
+            ObfuscationAuditContext.Internal,
+            cancellationToken);
+        var ownBusySlots = obfuscationPipeline.Process(
+            events,
+            query.CalendarOwnerId.ToString(),
+            ObfuscationAuditContext.Internal,
+            profile);
 
         // Get shadow slots from all peers
         var shadowSlots = await shadowSlotStore.GetAllSlotsAsync(query.From, query.To, cancellationToken);

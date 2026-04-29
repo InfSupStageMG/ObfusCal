@@ -71,6 +71,58 @@ public class OutboundPeerSyncServiceTests
     }
 
     [TestMethod]
+    public async Task RunSyncCycleAsync_UsesOwnerClientObfuscationProfile()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        var calendarOwnerRef = Guid.NewGuid();
+        SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
+
+        CapturedRequest? capturedRequest = null;
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(async request =>
+        {
+            capturedRequest = await CapturedRequest.FromAsync(request);
+            return new HttpResponseMessage(HttpStatusCode.Accepted);
+        })));
+
+        var profileService = new StubCalendarOwnerObfuscationProfileService();
+        await profileService.SetProfileAsync(
+            calendarOwnerId,
+            new ObfuscationProfileSettings(
+                ObfuscationAuditContext.Client,
+                RemoveTitle: true,
+                RemoveDescription: true,
+                RemoveLocation: true,
+                RemoveAttendees: true,
+                RoundTimes: false,
+                RoundingIntervalMinutes: 15,
+                MergeBlocks: true));
+
+        var service = CreateService(
+            dbContext,
+            httpClientFactory,
+            new StubCalendarSource([
+                new CalendarEvent(
+                    "event-1",
+                    "Sensitive title",
+                    "Sensitive description",
+                    new DateTimeOffset(2026, 4, 29, 9, 7, 0, TimeSpan.Zero),
+                    new DateTimeOffset(2026, 4, 29, 9, 37, 0, TimeSpan.Zero),
+                    ["secret@example.test"],
+                    "Sensitive location")
+            ]),
+            profileService: profileService);
+
+        await service.RunSyncCycleAsync();
+
+        Assert.IsNotNull(capturedRequest);
+        using var document = JsonDocument.Parse(capturedRequest.Body);
+        var slot = document.RootElement.GetProperty("slots")[0];
+        Assert.AreEqual("2026-04-29T09:07:00+00:00", slot.GetProperty("start").GetString());
+        Assert.AreEqual("2026-04-29T09:37:00+00:00", slot.GetProperty("end").GetString());
+    }
+
+    [TestMethod]
     public async Task RunSyncCycleAsync_WhenOnePeerFails_ContinuesWithRemainingPeersAndLogsWarning()
     {
         await using var dbContext = CreateDbContext();
@@ -101,7 +153,7 @@ public class OutboundPeerSyncServiceTests
                     [],
                     null)
             ]),
-            logger);
+            logger: logger);
 
         await service.RunSyncCycleAsync();
 
@@ -114,6 +166,7 @@ public class OutboundPeerSyncServiceTests
         AppDbContext dbContext,
         IHttpClientFactory httpClientFactory,
         ICalendarSource calendarSource,
+        ICalendarOwnerObfuscationProfileService? profileService = null,
         ILogger<OutboundPeerSyncService>? logger = null)
     {
         var pipeline = new ObfuscationPipeline([], [], new NullLogger<ObfuscationPipeline>());
@@ -122,6 +175,7 @@ public class OutboundPeerSyncServiceTests
             dbContext,
             calendarSource,
             pipeline,
+            profileService ?? new StubCalendarOwnerObfuscationProfileService(),
             httpClientFactory,
             Options.Create(new SyncOptions
             {
@@ -256,6 +310,34 @@ public class OutboundPeerSyncServiceTests
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
             Func<TState, Exception?, string> formatter)
         {
+        }
+    }
+
+    private sealed class StubCalendarOwnerObfuscationProfileService : ICalendarOwnerObfuscationProfileService
+    {
+        private readonly Dictionary<(Guid OwnerId, ObfuscationAuditContext Context), ObfuscationProfileSettings> _profiles = new();
+
+        public Task<IReadOnlyList<ObfuscationProfileSettings>> GetProfilesAsync(Guid calendarOwnerId, CancellationToken ct = default)
+        {
+            var result = Enum.GetValues<ObfuscationAuditContext>()
+                .Select(context => _profiles.TryGetValue((calendarOwnerId, context), out var profile)
+                    ? profile
+                    : ObfuscationProfileSettings.CreateDefault(context))
+                .ToList();
+            return Task.FromResult<IReadOnlyList<ObfuscationProfileSettings>>(result);
+        }
+
+        public Task<ObfuscationProfileSettings> GetProfileAsync(Guid calendarOwnerId, ObfuscationAuditContext context, CancellationToken ct = default)
+        {
+            return Task.FromResult(_profiles.TryGetValue((calendarOwnerId, context), out var profile)
+                ? profile
+                : ObfuscationProfileSettings.CreateDefault(context));
+        }
+
+        public Task<ObfuscationProfileSettings> SetProfileAsync(Guid calendarOwnerId, ObfuscationProfileSettings profile, CancellationToken ct = default)
+        {
+            _profiles[(calendarOwnerId, profile.Context)] = profile;
+            return Task.FromResult(profile);
         }
     }
 }

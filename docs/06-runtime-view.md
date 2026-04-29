@@ -11,8 +11,8 @@ This is the primary runtime scenario. The `SyncService` runs on a configurable i
 1. The background scheduler wakes up on the configured interval and iterates over all calendar owners.
 2. For each owner, it resolves any configured `CalendarOwnerPeerMapping` entries and fetches raw events from the current
    calendar source.
-3. The raw `CalendarEvent` objects are passed to `ObfuscationPipeline.Process()`, which applies configured
-   transformers and returns a list of `BusySlot` objects.
+3. The owner's `Client` obfuscation profile is resolved and passed to `ObfuscationPipeline.Process()`, which applies the
+   profile-derived transformer chain and returns a list of `BusySlot` objects.
 4. The raw events immediately fall out of scope and are garbage collected. They are never written to disk.
 5. For each mapped peer, the obfuscated slot list is POSTed to the peer instance's `/api/shadow-slots` endpoint together
    with the opaque `calendarOwnerRef`.
@@ -29,7 +29,8 @@ An authenticated calendar owner requests their own obfuscated availability windo
 2. The API resolves the Entra `oid` to a local `CalendarOwner` record.
 3. If no owner record is found, the API returns `404 Not Found`.
 4. If `{id}` does not match the authenticated owner, the API returns `403 Forbidden`.
-5. For authorized requests, the calendar source is queried and obfuscated slots are returned (`start` and `end` only).
+5. For authorized requests, the calendar source is queried, the owner's `Client` profile is applied, and obfuscated
+   slots are returned (`start` and `end` only).
 
 ## Scenario 3: User Authenticates and Views Availability
 
@@ -37,7 +38,8 @@ An authenticated calendar owner requests their own obfuscated availability windo
 2. The application redirects to Info Support's Entra ID login page via OpenID Connect.
 3. After successful authentication (including MFA), Entra ID returns a JWT token.
 4. The application extracts the user's Object ID from the token and scopes all subsequent data access to that ID.
-5. The user can call `GET /api/calendar-owners/{id}/merged-freebusy` to view their own merged availability.
+5. The user can call `GET /api/calendar-owners/{id}/merged-freebusy` to view their own merged availability; this flow
+   applies the owner's `Internal` obfuscation profile.
 
 ## Scenario 4: Asymmetric Sync (No Peer Instance)
 

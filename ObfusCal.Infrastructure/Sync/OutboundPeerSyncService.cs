@@ -14,6 +14,7 @@ public sealed class OutboundPeerSyncService(
     AppDbContext dbContext,
     ICalendarSource calendarSource,
     ObfuscationPipeline obfuscationPipeline,
+    ICalendarOwnerObfuscationProfileService obfuscationProfileService,
     IHttpClientFactory httpClientFactory,
     IOptions<SyncOptions> syncOptions,
     ILogger<OutboundPeerSyncService> logger)
@@ -81,7 +82,15 @@ public sealed class OutboundPeerSyncService(
             return;
 
         var events = await calendarSource.GetEventsAsync(from, to, calendarOwnerId, ct);
-        var busySlots = obfuscationPipeline.Process(events, calendarOwnerId.ToString(), ObfuscationAuditContext.Client);
+        var profile = await obfuscationProfileService.GetProfileAsync(
+            calendarOwnerId,
+            ObfuscationAuditContext.Client,
+            ct);
+        var busySlots = obfuscationPipeline.Process(
+            events,
+            calendarOwnerId.ToString(),
+            ObfuscationAuditContext.Client,
+            profile);
 
         foreach (var mapping in mappings)
             await PushToPeerAsync(mapping, busySlots, options, ct);

@@ -5,6 +5,7 @@ namespace ObfusCal.Infrastructure.Persistence;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<CalendarOwner> CalendarOwners => Set<CalendarOwner>();
+    public DbSet<ObfuscationProfile> ObfuscationProfiles => Set<ObfuscationProfile>();
     public DbSet<PeerConnection> PeerConnections => Set<PeerConnection>();
     public DbSet<CalendarOwnerPeerMapping> CalendarOwnerPeerMappings => Set<CalendarOwnerPeerMapping>();
     public DbSet<CalendarOwnerICalFeed> CalendarOwnerICalFeeds => Set<CalendarOwnerICalFeed>();
@@ -23,6 +24,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(c => c.GraphRefreshTokenProtected)
                 .HasMaxLength(8192);
             e.HasIndex(c => c.EntraObjectId)
+                .IsUnique();
+
+            e.HasMany(c => c.ObfuscationProfiles)
+                .WithOne(profile => profile.CalendarOwner)
+                .HasForeignKey(profile => profile.CalendarOwnerId);
+        });
+
+        modelBuilder.Entity<ObfuscationProfile>(e =>
+        {
+            e.HasKey(profile => profile.Id);
+            e.Property(profile => profile.Context).IsRequired();
+            e.Property(profile => profile.RoundingIntervalMinutes).IsRequired();
+            e.HasIndex(profile => new { profile.CalendarOwnerId, profile.Context })
                 .IsUnique();
         });
 
