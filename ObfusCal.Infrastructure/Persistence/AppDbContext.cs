@@ -79,6 +79,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(b => b.AttendeeEmails)
                 .HasColumnType("text[]");
             e.HasIndex(b => b.PeerId);
+            e.HasIndex(b => b.CalendarOwnerId);
+            e.HasIndex(b => new { b.PeerId, b.CalendarOwnerId });
         });
     }
 }

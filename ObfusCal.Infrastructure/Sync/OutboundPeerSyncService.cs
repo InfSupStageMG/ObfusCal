@@ -177,5 +177,3 @@ public sealed class OutboundPeerSyncService(
         IReadOnlyList<string>? AttendeeEmails,
         string? Location);
 }
-
-

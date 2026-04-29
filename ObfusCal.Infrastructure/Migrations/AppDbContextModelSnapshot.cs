@@ -34,6 +34,9 @@ namespace ObfusCal.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("CalendarOwnerId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset>("End")
                         .HasColumnType("timestamp with time zone");
 
@@ -56,7 +59,11 @@ namespace ObfusCal.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CalendarOwnerId");
+
                     b.HasIndex("PeerId");
+
+                    b.HasIndex("PeerId", "CalendarOwnerId");
 
                     b.ToTable("BusySlots");
                 });
