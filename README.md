@@ -1,8 +1,8 @@
 ﻿# ObfusCal
 
 ObfusCal is an open-source calendar synchronisation tool that lets users stay in sync across multiple domains without
-exposing sensitive information. Events from external domains appear in your calendar as obfuscated busy blocks containing
-only start and end times, with all titles, descriptions, attendees, and locations removed.
+exposing sensitive information. Events from external domains appear in your calendar as obfuscated busy blocks where
+metadata is filtered by per-owner, per-context obfuscation settings.
 
 It is designed for consultants and professionals who maintain calendars in multiple organisations and need a
 privacy-preserving way to keep everyone in the loop.

@@ -220,7 +220,11 @@ public class CalendarOwnersControllerTests
             var firstElement = root[0];
             Assert.IsTrue(firstElement.TryGetProperty("start", out _), "Response should contain 'start' field");
             Assert.IsTrue(firstElement.TryGetProperty("end", out _), "Response should contain 'end' field");
-            Assert.AreEqual(2, firstElement.GetPropertyCount(), "Response should only contain 'start' and 'end' fields");
+            Assert.IsTrue(firstElement.TryGetProperty("title", out _), "Response should contain 'title' field");
+            Assert.IsTrue(firstElement.TryGetProperty("description", out _), "Response should contain 'description' field");
+            Assert.IsTrue(firstElement.TryGetProperty("attendeeEmails", out _), "Response should contain 'attendeeEmails' field");
+            Assert.IsTrue(firstElement.TryGetProperty("location", out _), "Response should contain 'location' field");
+            Assert.AreEqual(6, firstElement.GetPropertyCount(), "Response should contain start/end plus optional metadata fields");
         }
     }
 
@@ -431,5 +435,97 @@ public class CalendarOwnersControllerTests
             TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task ListObfuscationProfiles_ReturnsDefaultProfiles_ForAuthenticatedCalendarOwner()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.GetAsync($"/api/calendar-owners/{calendarOwnerId}/obfuscation-profiles", TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+
+        var json = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        Assert.AreEqual(JsonValueKind.Array, root.ValueKind);
+        Assert.AreEqual(2, root.GetArrayLength());
+
+        var contexts = root.EnumerateArray()
+            .Select(item => item.GetProperty("context").GetString())
+            .Where(context => context is not null)
+            .Cast<string>()
+            .ToList();
+
+        CollectionAssert.AreEquivalent(new[] { "Internal", "Client" }, contexts);
+    }
+
+    [TestMethod]
+    public async Task SetObfuscationProfile_UpdatesClientProfile_ForAuthenticatedCalendarOwner()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var updatePayload = new
+        {
+            removeTitle = true,
+            removeDescription = false,
+            removeLocation = true,
+            removeAttendees = true,
+            roundTimes = false,
+            roundingIntervalMinutes = 30,
+            mergeBlocks = false
+        };
+
+        var updateResponse = await client.PutAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/obfuscation-profiles/client",
+            updatePayload,
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.OK, updateResponse.StatusCode);
+
+        var listResponse = await client.GetAsync($"/api/calendar-owners/{calendarOwnerId}/obfuscation-profiles", TestContext.CancellationToken);
+        Assert.AreEqual(HttpStatusCode.OK, listResponse.StatusCode);
+
+        var json = await listResponse.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using var document = JsonDocument.Parse(json);
+        var clientProfile = document.RootElement.EnumerateArray()
+            .Single(item => string.Equals(item.GetProperty("context").GetString(), "Client", StringComparison.Ordinal));
+
+        Assert.IsFalse(clientProfile.GetProperty("removeDescription").GetBoolean());
+        Assert.IsFalse(clientProfile.GetProperty("roundTimes").GetBoolean());
+        Assert.AreEqual(30, clientProfile.GetProperty("roundingIntervalMinutes").GetInt32());
+        Assert.IsFalse(clientProfile.GetProperty("mergeBlocks").GetBoolean());
+    }
+
+    [TestMethod]
+    public async Task SetObfuscationProfile_ReturnsBadRequest_ForUnknownContext()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/obfuscation-profiles/public",
+            new
+            {
+                removeTitle = true,
+                removeDescription = true,
+                removeLocation = true,
+                removeAttendees = true,
+                roundTimes = true,
+                roundingIntervalMinutes = 15,
+                mergeBlocks = true
+            },
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
 }

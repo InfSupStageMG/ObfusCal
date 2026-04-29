@@ -8,7 +8,15 @@ namespace ObfusCal.Domain.Obfuscation.Transformers;
 /// </summary>
 public sealed class RoundTimesTransformer : IObfuscationTransformer
 {
-    private const int RoundingIntervalMinutes = 15;
+    public RoundTimesTransformer(int roundingIntervalMinutes = 15)
+    {
+        if (roundingIntervalMinutes <= 0)
+            throw new ArgumentOutOfRangeException(nameof(roundingIntervalMinutes), "Rounding interval must be greater than zero.");
+
+        RoundingIntervalMinutes = roundingIntervalMinutes;
+    }
+
+    private int RoundingIntervalMinutes { get; }
 
     public CalendarEvent Transform(CalendarEvent calendarEvent)
     {
@@ -22,7 +30,7 @@ public sealed class RoundTimesTransformer : IObfuscationTransformer
         };
     }
 
-    private static DateTimeOffset RoundDown(DateTimeOffset dateTime)
+    private DateTimeOffset RoundDown(DateTimeOffset dateTime)
     {
         var totalMinutes = dateTime.TimeOfDay.TotalMinutes;
         var roundedMinutes = Math.Floor(totalMinutes / RoundingIntervalMinutes) * RoundingIntervalMinutes;
@@ -31,7 +39,7 @@ public sealed class RoundTimesTransformer : IObfuscationTransformer
         return new DateTimeOffset(roundedDateTime, dateTime.Offset);
     }
 
-    private static DateTimeOffset RoundUp(DateTimeOffset dateTime)
+    private DateTimeOffset RoundUp(DateTimeOffset dateTime)
     {
         var totalMinutes = dateTime.TimeOfDay.TotalMinutes;
         var roundedMinutes = Math.Ceiling(totalMinutes / RoundingIntervalMinutes) * RoundingIntervalMinutes;

@@ -8,6 +8,7 @@ namespace ObfusCal.Application.UseCases.GetBusySlots;
 internal sealed class GetBusySlotsQueryHandler(
     ICalendarSource calendarSource,
     ObfuscationPipeline obfuscationPipeline,
+    ICalendarOwnerObfuscationProfileService obfuscationProfileService,
     ILogger<GetBusySlotsQueryHandler> logger)
     : IRequestHandler<GetBusySlotsQuery, IReadOnlyList<BusySlotResponse>>
 {
@@ -17,7 +18,15 @@ internal sealed class GetBusySlotsQueryHandler(
             query.From,
             query.To,
             query.CalendarOwnerId, cancellationToken);
-        var busySlots = obfuscationPipeline.Process(events, query.CalendarOwnerId.ToString(), ObfuscationAuditContext.Client);
+        var profile = await obfuscationProfileService.GetProfileAsync(
+            query.CalendarOwnerId,
+            ObfuscationAuditContext.Client,
+            cancellationToken);
+        var busySlots = obfuscationPipeline.Process(
+            events,
+            query.CalendarOwnerId.ToString(),
+            ObfuscationAuditContext.Client,
+            profile);
 
         logger.LogInformation(
             "Returning {BusySlotCount} obfuscated busy slots for calendar owner {CalendarOwnerId}",
@@ -25,7 +34,13 @@ internal sealed class GetBusySlotsQueryHandler(
             query.CalendarOwnerId);
 
         return busySlots
-            .Select(s => new BusySlotResponse(s.Start, s.End))
+            .Select(s => new BusySlotResponse(
+                s.Start,
+                s.End,
+                s.Title,
+                s.Description,
+                s.AttendeeEmails,
+                s.Location))
             .ToList();
     }
 }

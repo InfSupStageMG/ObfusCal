@@ -25,7 +25,11 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
             PeerId = peerId,
             SourceEventId = s.SourceEventId,
             Start = s.Start,
-            End = s.End
+            End = s.End,
+            Title = s.Title,
+            Description = s.Description,
+            AttendeeEmails = s.AttendeeEmails?.ToArray(),
+            Location = s.Location
         }).ToList();
 
         await dbContext.BusySlots.AddRangeAsync(entities, ct);
@@ -41,7 +45,14 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
 
         var entities = await dbContext.BusySlots.Where(b => b.PeerId == peerId).ToListAsync(ct);
-        var result = entities.Select(e => new CoreBusySlot(e.SourceEventId, e.Start, e.End)).ToArray();
+        var result = entities.Select(e => new CoreBusySlot(
+            e.SourceEventId,
+            e.Start,
+            e.End,
+            e.Title,
+            e.Description,
+            e.AttendeeEmails,
+            e.Location)).ToArray();
 
         _logger.ForContext("PeerId", peerId)
             .ForContext("BusySlotCount", result.Length)
@@ -53,7 +64,14 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
     public async Task<IReadOnlyList<CoreBusySlot>> GetAllSlotsAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
     {
         var entities = await dbContext.BusySlots.Where(b => b.Start >= from && b.End <= to).ToListAsync(ct);
-        var result = entities.Select(e => new CoreBusySlot(e.SourceEventId, e.Start, e.End)).ToArray();
+        var result = entities.Select(e => new CoreBusySlot(
+            e.SourceEventId,
+            e.Start,
+            e.End,
+            e.Title,
+            e.Description,
+            e.AttendeeEmails,
+            e.Location)).ToArray();
 
         _logger.ForContext("BusySlotCount", result.Length)
             .Debug("Read all shadow slots from all peers");

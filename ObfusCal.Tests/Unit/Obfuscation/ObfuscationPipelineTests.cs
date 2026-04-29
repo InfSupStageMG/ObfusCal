@@ -90,11 +90,11 @@ public class ObfuscationPipelineTests
 
         var slots = Process(pipeline, [MakeSensitiveEvent()]);
 
-        var slotPropertyNames = slots[0].GetType().GetProperties().Select(p => p.Name).ToList();
-        CollectionAssert.DoesNotContain(slotPropertyNames, "Title");
-        CollectionAssert.DoesNotContain(slotPropertyNames, "Description");
-        CollectionAssert.DoesNotContain(slotPropertyNames, "AttendeeEmails");
-        CollectionAssert.DoesNotContain(slotPropertyNames, "Location");
+        Assert.AreEqual(string.Empty, slots[0].Title);
+        Assert.IsNull(slots[0].Description);
+        Assert.IsNotNull(slots[0].AttendeeEmails);
+        Assert.AreEqual(0, slots[0].AttendeeEmails?.Count ?? 0);
+        Assert.IsNull(slots[0].Location);
     }
 
     [TestMethod]
@@ -268,5 +268,69 @@ public class ObfuscationPipelineTests
         Assert.HasCount(1, slots);
         Assert.AreEqual(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero), slots[0].Start);
         Assert.AreEqual(new DateTimeOffset(2026, 6, 1, 10, 30, 0, TimeSpan.Zero), slots[0].End);
+    }
+
+    [TestMethod]
+    public void Process_WithProfileDisablingRoundTimes_KeepsOriginalTimes()
+    {
+        var pipeline = new ObfuscationPipeline(
+            [new RoundTimesTransformer()],
+            [],
+            NullLogger<ObfuscationPipeline>.Instance);
+        var evt = new CalendarEvent(
+            "evt-1",
+            "Meeting",
+            null,
+            new DateTimeOffset(2026, 6, 1, 9, 7, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 6, 1, 9, 37, 0, TimeSpan.Zero),
+            [],
+            null);
+
+        var profile = new ObfuscationProfileSettings(
+            ObfuscationAuditContext.Client,
+            RemoveTitle: true,
+            RemoveDescription: true,
+            RemoveLocation: true,
+            RemoveAttendees: true,
+            RoundTimes: false,
+            RoundingIntervalMinutes: 15,
+            MergeBlocks: true);
+
+        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+
+        Assert.AreEqual(evt.Start, slots[0].Start);
+        Assert.AreEqual(evt.End, slots[0].End);
+    }
+
+    [TestMethod]
+    public void Process_WithProfileDisablingMergeBlocks_KeepsSeparateSlots()
+    {
+        var pipeline = new ObfuscationPipeline(
+            [new RoundTimesTransformer()],
+            [new MergeBlocksTransformer()],
+            NullLogger<ObfuscationPipeline>.Instance);
+        var events = new[]
+        {
+            new CalendarEvent("evt-1", "Meeting 1", null,
+                new DateTimeOffset(2026, 6, 1, 9, 7, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 6, 1, 9, 37, 0, TimeSpan.Zero),[], null),
+            new CalendarEvent("evt-2", "Meeting 2", null,
+                new DateTimeOffset(2026, 6, 1, 9, 45, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 6, 1, 10, 22, 0, TimeSpan.Zero),[], null)
+        };
+
+        var profile = new ObfuscationProfileSettings(
+            ObfuscationAuditContext.Client,
+            RemoveTitle: true,
+            RemoveDescription: true,
+            RemoveLocation: true,
+            RemoveAttendees: true,
+            RoundTimes: true,
+            RoundingIntervalMinutes: 15,
+            MergeBlocks: false);
+
+        var slots = pipeline.Process(events, DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+
+        Assert.HasCount(2, slots);
     }
 }

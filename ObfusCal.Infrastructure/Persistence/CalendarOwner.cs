@@ -12,6 +12,7 @@ public class CalendarOwner
     public DateTimeOffset? GraphConsentGrantedAtUtc { get; set; }
 
     public ICollection<CalendarOwnerPeerMapping> PeerMappings { get; set; } = [];
+    public ICollection<ObfuscationProfile> ObfuscationProfiles { get; set; } = [];
 
     /// <summary>
     /// External iCal feed sources configured for this owner.

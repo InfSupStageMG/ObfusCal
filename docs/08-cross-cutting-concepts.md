@@ -39,11 +39,22 @@ The pipeline uses a chain-of-responsibility pattern. A raw `CalendarEvent` is pa
 - `RemoveDescriptionTransformer`: clears the event description
 - `RemoveLocationTransformer`: clears the event location
 - `RemoveAttendeesTransformer`: removes all attendee names and email addresses
-- `RoundTimesTransformer`: rounds start times down and end times up to the nearest 15 minutes
+- `RoundTimesTransformer`: rounds start times down and end times up to the nearest configured interval
 - `MergeBlocksTransformer`: collapses overlapping or adjacent slots into a single block
 
 Transformers are registered in the DI container. Additional transformers can be injected as plugins without modifying
 core code.
+
+Obfuscation behavior is configured per calendar owner through `ObfuscationProfile` rows:
+
+- one profile for `Client` context (peer-facing `busy-slots` and outbound sync)
+- one profile for `Internal` context (`merged-freebusy`)
+
+Profiles are resolved at runtime by `ICalendarOwnerObfuscationProfileService`. Missing profiles are auto-provisioned
+with secure defaults (all sensitive fields removed, rounding enabled with 15 minutes, block merging enabled).
+
+The resulting `BusySlot` contract always contains `start`/`end` and can optionally carry `title`, `description`,
+`attendeeEmails`, and `location` when those fields are not removed by the active profile.
 
 ## Error Handling & Resilience
 

@@ -14,6 +14,7 @@ public sealed class OutboundPeerSyncService(
     AppDbContext dbContext,
     ICalendarSource calendarSource,
     ObfuscationPipeline obfuscationPipeline,
+    ICalendarOwnerObfuscationProfileService obfuscationProfileService,
     IHttpClientFactory httpClientFactory,
     IOptions<SyncOptions> syncOptions,
     ILogger<OutboundPeerSyncService> logger)
@@ -81,7 +82,15 @@ public sealed class OutboundPeerSyncService(
             return;
 
         var events = await calendarSource.GetEventsAsync(from, to, calendarOwnerId, ct);
-        var busySlots = obfuscationPipeline.Process(events, calendarOwnerId.ToString(), ObfuscationAuditContext.Client);
+        var profile = await obfuscationProfileService.GetProfileAsync(
+            calendarOwnerId,
+            ObfuscationAuditContext.Client,
+            ct);
+        var busySlots = obfuscationPipeline.Process(
+            events,
+            calendarOwnerId.ToString(),
+            ObfuscationAuditContext.Client,
+            profile);
 
         foreach (var mapping in mappings)
             await PushToPeerAsync(mapping, busySlots, options, ct);
@@ -110,7 +119,13 @@ public sealed class OutboundPeerSyncService(
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         request.Content = JsonContent.Create(new PeerShadowSlotsPushRequest(
             mapping.CalendarOwnerRef,
-            busySlots.Select(slot => new PeerShadowSlot(slot.Start, slot.End)).ToArray()));
+            busySlots.Select(slot => new PeerShadowSlot(
+                slot.Start,
+                slot.End,
+                slot.Title,
+                slot.Description,
+                slot.AttendeeEmails,
+                slot.Location)).ToArray()));
 
         request.Headers.Authorization = new AuthenticationHeaderValue(PeerApiKeyScheme, options.ApiKey);
         request.Headers.Add(PeerIdHeaderName, options.InstanceId);
@@ -154,7 +169,13 @@ public sealed class OutboundPeerSyncService(
 
     private sealed record PeerShadowSlotsPushRequest(Guid CalendarOwnerRef, IReadOnlyList<PeerShadowSlot> Slots);
 
-    private sealed record PeerShadowSlot(DateTimeOffset Start, DateTimeOffset End);
+    private sealed record PeerShadowSlot(
+        DateTimeOffset Start,
+        DateTimeOffset End,
+        string? Title,
+        string? Description,
+        IReadOnlyList<string>? AttendeeEmails,
+        string? Location);
 }
 
 

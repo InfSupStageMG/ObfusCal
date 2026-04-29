@@ -39,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<ICalendarOwnerScopeResolver, EfCoreCalendarOwnerScopeResolver>();
         services.AddScoped<ICalendarOwnerGraphConsentService, CalendarOwnerGraphConsentService>();
         services.AddScoped<ICalendarOwnerIcalFeedService, CalendarOwnerIcalFeedService>();
+        services.AddScoped<ICalendarOwnerObfuscationProfileService, CalendarOwnerObfuscationProfileService>();
         services.AddScoped<IOutboundPeerSyncService, OutboundPeerSyncService>();
         services.AddScoped<IShadowSlotStore, EfCoreShadowSlotStore>();
         services.AddScoped<MockCalendarSource>();
