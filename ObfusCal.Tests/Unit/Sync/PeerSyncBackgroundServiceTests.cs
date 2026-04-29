@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
@@ -23,7 +23,7 @@ public class PeerSyncBackgroundServiceTests
         using var backgroundService = new PeerSyncBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(new SyncOptions { SyncIntervalSeconds = 60 }),
-            new NullLogger<PeerSyncBackgroundService>());
+            NullLogger<PeerSyncBackgroundService>.Instance);
 
         await backgroundService.StartAsync(CancellationToken.None);
 
@@ -57,15 +57,4 @@ public class PeerSyncBackgroundServiceTests
             return Task.CompletedTask;
         }
     }
-
-    private sealed class NullLogger<T> : ILogger<T>
-    {
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-        public bool IsEnabled(LogLevel logLevel) => false;
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
-            Func<TState, Exception?, string> formatter)
-        {
-        }
-    }
 }
-

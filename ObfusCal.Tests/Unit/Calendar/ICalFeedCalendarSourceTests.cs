@@ -1,8 +1,8 @@
 ﻿using System.Net;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using ObfusCal.Infrastructure.Calendars;
 using ObfusCal.Infrastructure.Persistence;
+using ObfusCal.Tests.Helpers;
 
 namespace ObfusCal.Tests.Unit.Calendar;
 
@@ -157,14 +157,7 @@ public class IcalFeedCalendarSourceTests
         return owner.Id;
     }
 
-    private static AppDbContext CreateDbContext()
-    {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
-            .Options;
-
-        return new AppDbContext(options);
-    }
+    private static AppDbContext CreateDbContext() => TestDbContextFactory.CreateInMemory();
 
     private static HttpClient CreateHttpClient(HttpStatusCode statusCode, string content)
         => CreateDynamicHttpClient(_ => (statusCode, content));

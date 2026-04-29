@@ -38,6 +38,7 @@ public sealed class InboundPeerPullSyncService(
         var mappings = await dbContext.CalendarOwnerPeerMappings
             .AsNoTracking()
             .Select(mapping => new PeerPullTarget(
+                mapping.PeerConnectionId,
                 mapping.CalendarOwnerId,
                 mapping.CalendarOwnerRef,
                 mapping.PeerConnection.InstanceId,
@@ -61,6 +62,7 @@ public sealed class InboundPeerPullSyncService(
                     "Inbound peer pull failed for peer {PeerId} and calendar owner {CalendarOwnerId}; continuing sync cycle.",
                     mapping.PeerInstanceId,
                     mapping.CalendarOwnerId);
+                await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
             }
         }
     }
@@ -77,6 +79,7 @@ public sealed class InboundPeerPullSyncService(
             logger.LogWarning(
                 "Skipping inbound peer pull for peer {PeerId} because BaseAddress is invalid.",
                 mapping.PeerInstanceId);
+            await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
             return;
         }
 
@@ -97,6 +100,7 @@ public sealed class InboundPeerPullSyncService(
                     mapping.PeerInstanceId,
                     mapping.CalendarOwnerId,
                     (int)response.StatusCode);
+                await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
                 return;
             }
 
@@ -115,6 +119,7 @@ public sealed class InboundPeerPullSyncService(
                 pulledSlots.Length,
                 mapping.PeerInstanceId,
                 mapping.CalendarOwnerId);
+            await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: true);
         }
         catch (OperationCanceledException)
         {
@@ -127,6 +132,28 @@ public sealed class InboundPeerPullSyncService(
                 "Peer pull failed for peer {PeerId} and calendar owner {CalendarOwnerId}; keeping previous slots.",
                 mapping.PeerInstanceId,
                 mapping.CalendarOwnerId);
+            await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
+        }
+    }
+
+    private async Task RecordSyncResultAsync(Guid peerConnectionId, bool succeeded)
+    {
+        try
+        {
+            var peer = await dbContext.PeerConnections.FindAsync([peerConnectionId]);
+            if (peer is not null)
+            {
+                peer.LastSyncedAt = DateTimeOffset.UtcNow;
+                peer.LastSyncSucceeded = succeeded;
+                await dbContext.SaveChangesAsync(CancellationToken.None);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Failed to persist sync metadata for peer connection {PeerConnectionId}.",
+                peerConnectionId);
         }
     }
 
@@ -139,6 +166,7 @@ public sealed class InboundPeerPullSyncService(
     }
 
     private sealed record PeerPullTarget(
+        Guid PeerConnectionId,
         Guid CalendarOwnerId,
         Guid CalendarOwnerRef,
         string PeerInstanceId,

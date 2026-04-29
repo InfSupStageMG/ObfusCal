@@ -73,6 +73,7 @@ public sealed class OutboundPeerSyncService(
             .AsNoTracking()
             .Where(mapping => mapping.CalendarOwnerId == calendarOwnerId)
             .Select(mapping => new PeerMappingTarget(
+                mapping.PeerConnectionId,
                 mapping.CalendarOwnerRef,
                 mapping.PeerConnection.InstanceId,
                 mapping.PeerConnection.BaseAddress))
@@ -112,6 +113,7 @@ public sealed class OutboundPeerSyncService(
             logger.LogWarning(
                 "Skipping outbound peer sync for peer {PeerId} because BaseAddress is invalid.",
                 mapping.PeerInstanceId);
+            await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
             return;
         }
 
@@ -142,6 +144,7 @@ public sealed class OutboundPeerSyncService(
                     busySlots.Count,
                     mapping.PeerInstanceId,
                     mapping.CalendarOwnerRef);
+                await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: true);
                 return;
             }
 
@@ -150,6 +153,7 @@ public sealed class OutboundPeerSyncService(
                 mapping.PeerInstanceId,
                 mapping.CalendarOwnerRef,
                 (int)response.StatusCode);
+            await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
         }
         catch (OperationCanceledException)
         {
@@ -162,10 +166,32 @@ public sealed class OutboundPeerSyncService(
                 "Peer push failed for peer {PeerId} and calendar owner ref {CalendarOwnerRef}; continuing sync cycle.",
                 mapping.PeerInstanceId,
                 mapping.CalendarOwnerRef);
+            await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
         }
     }
 
-    private sealed record PeerMappingTarget(Guid CalendarOwnerRef, string PeerInstanceId, string BaseAddress);
+    private async Task RecordSyncResultAsync(Guid peerConnectionId, bool succeeded)
+    {
+        try
+        {
+            var peer = await dbContext.PeerConnections.FindAsync([peerConnectionId]);
+            if (peer is not null)
+            {
+                peer.LastSyncedAt = DateTimeOffset.UtcNow;
+                peer.LastSyncSucceeded = succeeded;
+                await dbContext.SaveChangesAsync(CancellationToken.None);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Failed to persist sync metadata for peer connection {PeerConnectionId}.",
+                peerConnectionId);
+        }
+    }
+
+    private sealed record PeerMappingTarget(Guid PeerConnectionId, Guid CalendarOwnerRef, string PeerInstanceId, string BaseAddress);
 
     private sealed record PeerShadowSlotsPushRequest(Guid CalendarOwnerRef, IReadOnlyList<PeerShadowSlot> Slots);
 
