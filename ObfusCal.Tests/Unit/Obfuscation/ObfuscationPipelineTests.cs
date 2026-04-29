@@ -90,11 +90,11 @@ public class ObfuscationPipelineTests
 
         var slots = Process(pipeline, [MakeSensitiveEvent()]);
 
-        var slotPropertyNames = slots[0].GetType().GetProperties().Select(p => p.Name).ToList();
-        CollectionAssert.DoesNotContain(slotPropertyNames, "Title");
-        CollectionAssert.DoesNotContain(slotPropertyNames, "Description");
-        CollectionAssert.DoesNotContain(slotPropertyNames, "AttendeeEmails");
-        CollectionAssert.DoesNotContain(slotPropertyNames, "Location");
+        Assert.AreEqual(string.Empty, slots[0].Title);
+        Assert.IsNull(slots[0].Description);
+        Assert.IsNotNull(slots[0].AttendeeEmails);
+        Assert.AreEqual(0, slots[0].AttendeeEmails?.Count ?? 0);
+        Assert.IsNull(slots[0].Location);
     }
 
     [TestMethod]

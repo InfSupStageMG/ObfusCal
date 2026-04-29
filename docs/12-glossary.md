@@ -2,7 +2,7 @@
 
 | Term                        | Definition                                                                                                                                                                        |
 |-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **BusySlot**                | The obfuscated output of the pipeline. It is the only calendar-derived object ever stored, transmitted, or returned by the API.                                                   |
+| **BusySlot**                | The obfuscated output of the pipeline. It always contains start/end and may include optional metadata fields (title/description/attendees/location) when allowed by profile.      |
 | **CalendarEvent**           | An in-memory object representing a raw event fetched from a calendar source. It is never stored and is discarded immediately after obfuscation.                                   |
 | **Calendar Owner**          | The authenticated user identity in ObfusCal. Data access is scoped to the owner mapped from the Entra ID object ID (`oid`).                                                       |
 | **Free/Busy View**          | The combined view of a calendar owner's own obfuscated busy slots and shadow slots received from peers. It shows availability without exposing meeting details.                   |

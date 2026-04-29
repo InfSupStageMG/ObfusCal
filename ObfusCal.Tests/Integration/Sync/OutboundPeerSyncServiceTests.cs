@@ -61,13 +61,13 @@ public class OutboundPeerSyncServiceTests
         var slots = root.GetProperty("slots");
         Assert.AreEqual(JsonValueKind.Array, slots.ValueKind);
         Assert.AreEqual(1, slots.GetArrayLength());
-        Assert.AreEqual(2, slots[0].GetPropertyCount());
+        Assert.AreEqual(6, slots[0].GetPropertyCount());
         Assert.IsTrue(slots[0].TryGetProperty("start", out _));
         Assert.IsTrue(slots[0].TryGetProperty("end", out _));
-        Assert.IsFalse(slots[0].TryGetProperty("title", out _));
-        Assert.IsFalse(slots[0].TryGetProperty("description", out _));
-        Assert.IsFalse(slots[0].TryGetProperty("attendeeEmails", out _));
-        Assert.IsFalse(slots[0].TryGetProperty("location", out _));
+        Assert.IsTrue(slots[0].TryGetProperty("title", out _));
+        Assert.IsTrue(slots[0].TryGetProperty("description", out _));
+        Assert.IsTrue(slots[0].TryGetProperty("attendeeEmails", out _));
+        Assert.IsTrue(slots[0].TryGetProperty("location", out _));
     }
 
     [TestMethod]

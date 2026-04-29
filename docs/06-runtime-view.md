@@ -30,7 +30,7 @@ An authenticated calendar owner requests their own obfuscated availability windo
 3. If no owner record is found, the API returns `404 Not Found`.
 4. If `{id}` does not match the authenticated owner, the API returns `403 Forbidden`.
 5. For authorized requests, the calendar source is queried, the owner's `Client` profile is applied, and obfuscated
-   slots are returned (`start` and `end` only).
+   slots are returned (always `start`/`end`, plus optional metadata fields depending on the profile).
 
 ## Scenario 3: User Authenticates and Views Availability
 

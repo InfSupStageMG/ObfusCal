@@ -76,6 +76,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(b => b.Id);
             e.Property(b => b.PeerId).IsRequired();
             e.Property(b => b.SourceEventId).IsRequired();
+            e.Property(b => b.AttendeeEmails)
+                .HasColumnType("text[]");
             e.HasIndex(b => b.PeerId);
         });
     }

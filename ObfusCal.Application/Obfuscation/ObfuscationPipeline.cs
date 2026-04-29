@@ -39,7 +39,14 @@ public sealed class ObfuscationPipeline(
 
         var slots = inputEvents
             .Select(calendarEvent => activeEventTransformers.Aggregate(calendarEvent, (current, transformer) => transformer.Transform(current)))
-            .Select(calendarEvent => new BusySlot(calendarEvent.Id, calendarEvent.Start, calendarEvent.End))
+            .Select(calendarEvent => new BusySlot(
+                calendarEvent.Id,
+                calendarEvent.Start,
+                calendarEvent.End,
+                calendarEvent.Title,
+                calendarEvent.Description,
+                calendarEvent.AttendeeEmails,
+                calendarEvent.Location))
             .ToList();
 
         // Apply slot transformers (e.g., merging)

@@ -220,7 +220,11 @@ public class CalendarOwnersControllerTests
             var firstElement = root[0];
             Assert.IsTrue(firstElement.TryGetProperty("start", out _), "Response should contain 'start' field");
             Assert.IsTrue(firstElement.TryGetProperty("end", out _), "Response should contain 'end' field");
-            Assert.AreEqual(2, firstElement.GetPropertyCount(), "Response should only contain 'start' and 'end' fields");
+            Assert.IsTrue(firstElement.TryGetProperty("title", out _), "Response should contain 'title' field");
+            Assert.IsTrue(firstElement.TryGetProperty("description", out _), "Response should contain 'description' field");
+            Assert.IsTrue(firstElement.TryGetProperty("attendeeEmails", out _), "Response should contain 'attendeeEmails' field");
+            Assert.IsTrue(firstElement.TryGetProperty("location", out _), "Response should contain 'location' field");
+            Assert.AreEqual(6, firstElement.GetPropertyCount(), "Response should contain start/end plus optional metadata fields");
         }
     }
 

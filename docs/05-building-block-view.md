@@ -21,7 +21,7 @@ ObfusCal.Infrastructure  ─────────────────►�
 | Component                      | Responsibility                                                                 |
 |--------------------------------|--------------------------------------------------------------------------------|
 | `CalendarEvent`                | In-memory record for a raw event fetched from a calendar source. Never stored. |
-| `BusySlot`                     | Obfuscated record with start and end only. The only calendar data ever stored. |
+| `BusySlot`                     | Obfuscated record with required timing and optional metadata fields retained per profile. |
 | `IObfuscationTransformer`      | Contract for a single event-level obfuscation step in the pipeline.            |
 | `IBusySlotTransformer`         | Contract for a slot-level post-processing step (e.g. merging).                 |
 | `RemoveTitleTransformer`       | Clears the event title.                                                        |
@@ -111,6 +111,10 @@ classDiagram
         +string SourceEventId
         +DateTimeOffset Start
         +DateTimeOffset End
+        +string? Title
+        +string? Description
+        +List~string~? AttendeeEmails
+        +string? Location
     }
     class CalendarEvent {
         <<in-memory only, never persisted>>

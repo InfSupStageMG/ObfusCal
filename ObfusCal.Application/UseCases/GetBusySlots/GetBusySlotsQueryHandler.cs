@@ -34,7 +34,13 @@ internal sealed class GetBusySlotsQueryHandler(
             query.CalendarOwnerId);
 
         return busySlots
-            .Select(s => new BusySlotResponse(s.Start, s.End))
+            .Select(s => new BusySlotResponse(
+                s.Start,
+                s.End,
+                s.Title,
+                s.Description,
+                s.AttendeeEmails,
+                s.Location))
             .ToList();
     }
 }

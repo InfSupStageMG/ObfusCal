@@ -13,7 +13,14 @@ internal sealed class PushShadowSlotsCommandHandler(
     public async Task Handle(PushShadowSlotsCommand command, CancellationToken ct)
     {
         var slots = command.Slots
-            .Select((slot, index) => new BusySlot($"{command.PeerId}-{index}", slot.Start, slot.End))
+            .Select((slot, index) => new BusySlot(
+                $"{command.PeerId}-{index}",
+                slot.Start,
+                slot.End,
+                slot.Title,
+                slot.Description,
+                slot.AttendeeEmails,
+                slot.Location))
             .ToArray();
 
         await shadowSlotStore.SetSlotsAsync(command.PeerId, slots, ct);

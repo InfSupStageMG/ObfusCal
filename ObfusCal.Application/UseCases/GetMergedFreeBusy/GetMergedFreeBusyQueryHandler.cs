@@ -37,7 +37,13 @@ internal sealed class GetMergedFreeBusyQueryHandler(
         var mergedSlots = ownBusySlots
             .Concat(shadowSlots)
             .OrderBy(s => s.Start)
-            .Select(s => new MergedFreeBusyResponse(s.Start, s.End))
+            .Select(s => new MergedFreeBusyResponse(
+                s.Start,
+                s.End,
+                s.Title,
+                s.Description,
+                s.AttendeeEmails,
+                s.Location))
             .ToList();
 
         logger.LogInformation(
