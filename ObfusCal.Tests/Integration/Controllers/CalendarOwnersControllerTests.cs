@@ -528,4 +528,166 @@ public class CalendarOwnersControllerTests
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }
+
+    [TestMethod]
+    public async Task SetObfuscationProfile_ReturnsBadRequest_ForZeroRoundingInterval()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/obfuscation-profiles/client",
+            new
+            {
+                removeTitle = true,
+                removeDescription = true,
+                removeLocation = true,
+                removeAttendees = true,
+                roundTimes = true,
+                roundingIntervalMinutes = 0,
+                mergeBlocks = true
+            },
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task SetObfuscationProfile_ResponseContainsAllFields()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/obfuscation-profiles/client",
+            new
+            {
+                removeTitle = false,
+                removeDescription = false,
+                removeLocation = false,
+                removeAttendees = false,
+                roundTimes = false,
+                roundingIntervalMinutes = 60,
+                mergeBlocks = false
+            },
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+
+        var json = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+
+        Assert.AreEqual("Client", root.GetProperty("context").GetString());
+        Assert.IsFalse(root.GetProperty("removeTitle").GetBoolean());
+        Assert.IsFalse(root.GetProperty("removeDescription").GetBoolean());
+        Assert.IsFalse(root.GetProperty("removeLocation").GetBoolean());
+        Assert.IsFalse(root.GetProperty("removeAttendees").GetBoolean());
+        Assert.IsFalse(root.GetProperty("roundTimes").GetBoolean());
+        Assert.AreEqual(60, root.GetProperty("roundingIntervalMinutes").GetInt32());
+        Assert.IsFalse(root.GetProperty("mergeBlocks").GetBoolean());
+    }
+
+    [TestMethod]
+    public async Task GetCalendarConsentUrl_ReturnsBadRequest_WhenRedirectUriMissing()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.GetAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/calendar/consent-url",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task GetCalendarConsentUrl_ReturnsBadRequest_WhenRedirectUriIsRelative()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.GetAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/calendar/consent-url?redirectUri=/relative",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task CompleteCalendarConsent_ReturnsBadRequest_WhenAuthorizationCodeMissing()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/calendar/consent",
+            new CalendarOwnersController.CompleteCalendarConsentRequest(
+                "",
+                "https://localhost/callback"),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task CompleteCalendarConsent_ReturnsBadRequest_WhenRedirectUriInvalid()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/calendar/consent",
+            new CalendarOwnersController.CompleteCalendarConsentRequest(
+                "some-code",
+                "not_a_uri"),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task ListObfuscationProfiles_ReturnsForbidden_ForDifferentOwner()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        await SeedAuthenticatedCalendarOwnerAsync(factory);
+        using var client = factory.CreateAuthenticatedClient();
+
+        var response = await client.GetAsync(
+            $"/api/calendar-owners/{Guid.NewGuid()}/obfuscation-profiles",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task SetObfuscationProfile_ReturnsForbidden_ForDifferentOwner()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        await SeedAuthenticatedCalendarOwnerAsync(factory);
+        using var client = factory.CreateAuthenticatedClient();
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/calendar-owners/{Guid.NewGuid()}/obfuscation-profiles/client",
+            new
+            {
+                removeTitle = true, removeDescription = true, removeLocation = true,
+                removeAttendees = true, roundTimes = true, roundingIntervalMinutes = 15, mergeBlocks = true
+            },
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
 }

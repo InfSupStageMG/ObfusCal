@@ -38,7 +38,6 @@ public class MergeBlocksTransformerTests
     public void Transform_WithContainedSlot_PreservesOuterEnd()
     {
         // slot-outer (9–11) fully contains slot-inner (9:30–10:00)
-        // Max(11:00, 10:00) must return 11:00 — kills the (false?a:b) mutant
         var transformer = new MergeBlocksTransformer();
         var outer = Slot("outer", 0, 2);   // 9:00–11:00
         var inner = Slot("inner", 1, 1);   // Use same absolute time hack: use minutes instead
@@ -83,5 +82,74 @@ public class MergeBlocksTransformerTests
         Assert.AreEqual(earlier.Start, result[0].Start, "Earlier slot should appear first after sorting");
         Assert.AreEqual(later.Start,   result[1].Start);
     }
-}
 
+    [TestMethod]
+    public void Transform_WithOverlapping_WhereSecondEndsEarlier_KeepsFirstEnd()
+    {
+        // Here, inner ends BEFORE outer, so Max must return outer.End
+        var transformer = new MergeBlocksTransformer();
+        var outer = new BusySlot("outer", Base, Base.AddHours(3));           // 9:00–12:00
+        var inner = new BusySlot("inner", Base.AddHours(1), Base.AddHours(2)); // 10:00–11:00
+
+        var result = transformer.Transform([outer, inner]);
+
+        Assert.HasCount(1, result);
+        Assert.AreEqual(Base.AddHours(3), result[0].End, "Max should return 12:00 (outer), not 11:00 (inner)");
+    }
+
+    [TestMethod]
+    public void Transform_WithOverlapping_WhereSecondEndsLater_TakesSecondEnd()
+    {
+        var transformer = new MergeBlocksTransformer();
+        var first = new BusySlot("first", Base, Base.AddHours(2));             // 9:00–11:00
+        var second = new BusySlot("second", Base.AddHours(1), Base.AddHours(3)); // 10:00–12:00
+
+        var result = transformer.Transform([first, second]);
+
+        Assert.HasCount(1, result);
+        Assert.AreEqual(Base.AddHours(3), result[0].End, "Max should return 12:00 (second), not 11:00 (first)");
+    }
+
+    [TestMethod]
+    public void Transform_WithIdenticalEndTimes_MergesCorrectly()
+    {
+        var transformer = new MergeBlocksTransformer();
+        var first = new BusySlot("first", Base, Base.AddHours(2));
+        var second = new BusySlot("second", Base.AddHours(1), Base.AddHours(2)); // same end
+
+        var result = transformer.Transform([first, second]);
+
+        Assert.HasCount(1, result);
+        Assert.AreEqual(Base.AddHours(2), result[0].End);
+    }
+
+    [TestMethod]
+    public void Transform_WithAdjacentSlots_MergesIntoOne()
+    {
+        var transformer = new MergeBlocksTransformer();
+        var first = new BusySlot("first", Base, Base.AddHours(1));              // 9:00–10:00
+        var second = new BusySlot("second", Base.AddHours(1), Base.AddHours(2)); // 10:00–11:00
+
+        var result = transformer.Transform([first, second]);
+
+        Assert.HasCount(1, result);
+        Assert.AreEqual(Base, result[0].Start);
+        Assert.AreEqual(Base.AddHours(2), result[0].End);
+    }
+
+    [TestMethod]
+    public void Transform_ThreeSlots_FirstTwoMerge_ThirdSeparate()
+    {
+        var transformer = new MergeBlocksTransformer();
+        var a = new BusySlot("a", Base, Base.AddHours(2));             // 9:00–11:00
+        var b = new BusySlot("b", Base.AddHours(1), Base.AddHours(3)); // 10:00–12:00 (overlaps a)
+        var c = new BusySlot("c", Base.AddHours(5), Base.AddHours(6)); // 14:00–15:00 (separate)
+
+        var result = transformer.Transform([a, b, c]);
+
+        Assert.HasCount(2, result);
+        Assert.AreEqual(Base, result[0].Start);
+        Assert.AreEqual(Base.AddHours(3), result[0].End);
+        Assert.AreEqual(Base.AddHours(5), result[1].Start);
+    }
+}

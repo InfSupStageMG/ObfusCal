@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="ObfusCal.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\ObfusCal.Domain\ObfusCal.Domain.csproj" />
   </ItemGroup>
 
@@ -17,4 +21,3 @@
   </ItemGroup>
 
 </Project>
-

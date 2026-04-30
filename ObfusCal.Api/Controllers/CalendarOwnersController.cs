@@ -95,11 +95,23 @@ public sealed class CalendarOwnersController(
         if (accessResult is not null)
             return accessResult;
 
-        if (string.IsNullOrWhiteSpace(redirectUri) || !Uri.TryCreate(redirectUri, UriKind.Absolute, out _))
+        if (string.IsNullOrWhiteSpace(redirectUri))
             return BadRequest("A valid absolute 'redirectUri' query parameter is required.");
 
-        var authorizationUrl = graphConsentService.BuildAuthorizationUrl(redirectUri);
-        return Ok(new CalendarConsentUrlResponse(authorizationUrl));
+        try
+        {
+            var authorizationUrl = graphConsentService.BuildAuthorizationUrl(redirectUri);
+            return Ok(new CalendarConsentUrlResponse(authorizationUrl));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Invalid redirect URI.",
+                Detail = ex.Message
+            });
+        }
     }
 
     [HttpPost("{id}/calendar/consent")]

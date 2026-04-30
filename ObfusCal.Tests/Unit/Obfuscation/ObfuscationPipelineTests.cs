@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging.Abstractions;
 using ObfusCal.Application.Obfuscation;
 using ObfusCal.Domain.Models;
 using ObfusCal.Domain.Obfuscation;
@@ -14,7 +14,7 @@ public class ObfuscationPipelineTests
     private static CalendarEvent MakeSensitiveEvent(string id = "evt-1") => new(
         Id: id,
         Title: "Confidential: Q3 Strategy Review",
-        Description: "Board-level discussion — do not share.",
+        Description: "Board-level discussion â€” do not share.",
         Start: new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero),
         End: new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero),
         AttendeeEmails:["alice@example.com", "bob@client.com"],
@@ -29,6 +29,209 @@ public class ObfuscationPipelineTests
 
     private static IReadOnlyList<BusySlot> Process(ObfuscationPipeline pipeline, IEnumerable<CalendarEvent> events) =>
         pipeline.Process(events, DefaultConsultantId, ObfuscationAuditContext.Internal);
+
+
+    [TestMethod]
+    public void Process_WithNullConsultantId_ThrowsArgumentException()
+    {
+        var pipeline = BuildPipeline();
+        Assert.ThrowsExactly<ArgumentNullException>(() =>
+            pipeline.Process([], null!, ObfuscationAuditContext.Internal));
+    }
+
+    [TestMethod]
+    public void Process_WithEmptyConsultantId_ThrowsArgumentException()
+    {
+        var pipeline = BuildPipeline();
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            pipeline.Process([], "", ObfuscationAuditContext.Internal));
+    }
+
+    [TestMethod]
+    public void Process_WithWhitespaceConsultantId_ThrowsArgumentException()
+    {
+        var pipeline = BuildPipeline();
+        Assert.ThrowsExactly<ArgumentException>(() =>
+            pipeline.Process([], "   ", ObfuscationAuditContext.Internal));
+    }
+
+
+    [TestMethod]
+    public void Process_WithNullProfile_UsesDefaultProfile()
+    {
+        // Default profile has RemoveTitle=true, so if transformer is present, title should be removed
+        var pipeline = BuildPipeline(new RemoveTitleTransformer());
+        var evt = MakeSensitiveEvent();
+
+        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, null);
+
+        Assert.AreEqual(string.Empty, slots[0].Title, "Default profile should enable title removal");
+    }
+
+    [TestMethod]
+    public void Process_WithExplicitProfile_UsesProvidedProfile()
+    {
+        var pipeline = BuildPipeline(new RemoveTitleTransformer());
+        var evt = MakeSensitiveEvent();
+
+        var profile = new ObfuscationProfileSettings(
+            ObfuscationAuditContext.Client,
+            RemoveTitle: false, // disable title removal
+            RemoveDescription: true,
+            RemoveLocation: true,
+            RemoveAttendees: true,
+            RoundTimes: false,
+            RoundingIntervalMinutes: 15,
+            MergeBlocks: false);
+
+        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+
+        Assert.AreEqual(evt.Title, slots[0].Title, "Explicit profile with RemoveTitle=false should keep title");
+    }
+
+
+    [TestMethod]
+    public void Process_WithIEnumerableEvents_StillWorks()
+    {
+        var pipeline = BuildPipeline();
+        // Pass as a lazy IEnumerable (not a list/array)
+        IEnumerable<CalendarEvent> lazyEvents = Enumerable.Range(0, 3)
+            .Select(i => new CalendarEvent($"evt-{i}", "Meeting", null,
+                new DateTimeOffset(2026, 6, 1, 9 + i, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 6, 1, 10 + i, 0, 0, TimeSpan.Zero), [], null));
+
+        var slots = Process(pipeline, lazyEvents);
+
+        Assert.HasCount(3, slots);
+    }
+
+
+    [TestMethod]
+    public void Process_WithProfileDisablingTitle_KeepsTitle()
+    {
+        var pipeline = new ObfuscationPipeline(
+            [new RemoveTitleTransformer(), new RemoveDescriptionTransformer()],
+            [],
+            NullLogger<ObfuscationPipeline>.Instance);
+        var evt = MakeSensitiveEvent();
+
+        var profile = new ObfuscationProfileSettings(
+            ObfuscationAuditContext.Client,
+            RemoveTitle: false,
+            RemoveDescription: true,
+            RemoveLocation: true,
+            RemoveAttendees: true,
+            RoundTimes: false,
+            RoundingIntervalMinutes: 15,
+            MergeBlocks: false);
+
+        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+
+        Assert.AreEqual(evt.Title, slots[0].Title, "Title should be preserved when RemoveTitle=false");
+        Assert.IsNull(slots[0].Description, "Description should still be removed");
+    }
+
+    [TestMethod]
+    public void Process_WithProfileDisablingDescription_KeepsDescription()
+    {
+        var pipeline = new ObfuscationPipeline(
+            [new RemoveDescriptionTransformer()],
+            [],
+            NullLogger<ObfuscationPipeline>.Instance);
+        var evt = MakeSensitiveEvent();
+
+        var profile = new ObfuscationProfileSettings(
+            ObfuscationAuditContext.Client,
+            RemoveTitle: true,
+            RemoveDescription: false,
+            RemoveLocation: true,
+            RemoveAttendees: true,
+            RoundTimes: false,
+            RoundingIntervalMinutes: 15,
+            MergeBlocks: false);
+
+        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+
+        Assert.AreEqual(evt.Description, slots[0].Description, "Description should be preserved when RemoveDescription=false");
+    }
+
+    [TestMethod]
+    public void Process_WithProfileDisablingLocation_KeepsLocation()
+    {
+        var pipeline = new ObfuscationPipeline(
+            [new RemoveLocationTransformer()],
+            [],
+            NullLogger<ObfuscationPipeline>.Instance);
+        var evt = MakeSensitiveEvent();
+
+        var profile = new ObfuscationProfileSettings(
+            ObfuscationAuditContext.Client,
+            RemoveTitle: true,
+            RemoveDescription: true,
+            RemoveLocation: false,
+            RemoveAttendees: true,
+            RoundTimes: false,
+            RoundingIntervalMinutes: 15,
+            MergeBlocks: false);
+
+        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+
+        Assert.AreEqual(evt.Location, slots[0].Location, "Location should be preserved when RemoveLocation=false");
+    }
+
+    [TestMethod]
+    public void Process_WithProfileDisablingAttendees_KeepsAttendees()
+    {
+        var pipeline = new ObfuscationPipeline(
+            [new RemoveAttendeesTransformer()],
+            [],
+            NullLogger<ObfuscationPipeline>.Instance);
+        var evt = MakeSensitiveEvent();
+
+        var profile = new ObfuscationProfileSettings(
+            ObfuscationAuditContext.Client,
+            RemoveTitle: true,
+            RemoveDescription: true,
+            RemoveLocation: true,
+            RemoveAttendees: false,
+            RoundTimes: false,
+            RoundingIntervalMinutes: 15,
+            MergeBlocks: false);
+
+        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+
+        Assert.IsNotNull(slots[0].AttendeeEmails);
+        Assert.AreEqual(2, slots[0].AttendeeEmails!.Count, "Attendees should be preserved when RemoveAttendees=false");
+    }
+
+    [TestMethod]
+    public void Process_WithCustomRoundingInterval_UsesProfileInterval()
+    {
+        var pipeline = new ObfuscationPipeline(
+            [new RoundTimesTransformer()],
+            [],
+            NullLogger<ObfuscationPipeline>.Instance);
+        var evt = new CalendarEvent("evt-1", "Meeting", null,
+            new DateTimeOffset(2026, 6, 1, 9, 10, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 6, 1, 9, 50, 0, TimeSpan.Zero), [], null);
+
+        var profile = new ObfuscationProfileSettings(
+            ObfuscationAuditContext.Client,
+            RemoveTitle: true,
+            RemoveDescription: true,
+            RemoveLocation: true,
+            RemoveAttendees: true,
+            RoundTimes: true,
+            RoundingIntervalMinutes: 30, // 30-minute rounding
+            MergeBlocks: false);
+
+        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+
+        // 9:10 rounded down to 30-min boundary = 9:00
+        Assert.AreEqual(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero), slots[0].Start);
+        // 9:50 rounded up to 30-min boundary = 10:00
+        Assert.AreEqual(new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero), slots[0].End);
+    }
 
     // Pipeline Integration Tests
 
