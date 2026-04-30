@@ -78,6 +78,7 @@ public static class DependencyInjection
         services.AddScoped<ICalendarOwnerObfuscationProfileService, CalendarOwnerObfuscationProfileService>();
         services.AddScoped<ICalendarOwnerAvailabilitySyncService, CalendarOwnerAvailabilitySyncService>();
         services.AddScoped<IPeerConnectionService, PeerConnectionService>();
+        services.AddScoped<IStatusService, StatusService>();
         services.AddScoped<IOutboundPeerSyncService, OutboundPeerSyncService>();
         services.AddScoped<IInboundPeerPullSyncService, InboundPeerPullSyncService>();
         services.AddScoped<IShadowSlotStore, EfCoreShadowSlotStore>();
