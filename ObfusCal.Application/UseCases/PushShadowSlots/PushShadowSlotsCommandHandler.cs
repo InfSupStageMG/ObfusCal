@@ -4,12 +4,12 @@ using ObfusCal.Domain.Models;
 
 namespace ObfusCal.Application.UseCases.PushShadowSlots;
 
-public class PushShadowSlotsUseCase(
+public sealed class PushShadowSlotsUseCase(
     IShadowSlotStore shadowSlotStore,
     ILogger<PushShadowSlotsUseCase> logger)
     : IPushShadowSlotsUseCase
 {
-    public virtual async Task ExecuteAsync(PushShadowSlotsCommand command, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(PushShadowSlotsCommand command, CancellationToken cancellationToken)
     {
         var slots = command.Slots
             .Select((slot, index) => new BusySlot(
@@ -33,13 +33,4 @@ public class PushShadowSlotsUseCase(
     }
 }
 
-[Obsolete("Use PushShadowSlotsUseCase or IPushShadowSlotsUseCase instead.")]
-public sealed class PushShadowSlotsCommandHandler(
-    IShadowSlotStore shadowSlotStore,
-    ILogger<PushShadowSlotsUseCase> logger)
-    : PushShadowSlotsUseCase(shadowSlotStore, logger)
-{
-    public Task Handle(PushShadowSlotsCommand command, CancellationToken cancellationToken) =>
-        ExecuteAsync(command, cancellationToken);
-}
 

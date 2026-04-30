@@ -4,7 +4,7 @@ using ObfusCal.Application.Obfuscation;
 
 namespace ObfusCal.Application.UseCases.GetMergedFreeBusy;
 
-public class GetMergedFreeBusyUseCase(
+public sealed class GetMergedFreeBusyUseCase(
     ICalendarSource calendarSource,
     ObfuscationPipeline obfuscationPipeline,
     IShadowSlotStore shadowSlotStore,
@@ -12,7 +12,7 @@ public class GetMergedFreeBusyUseCase(
     ILogger<GetMergedFreeBusyUseCase> logger)
     : IGetMergedFreeBusyUseCase
 {
-    public virtual async Task<IReadOnlyList<MergedFreeBusyResponse>> ExecuteAsync(GetMergedFreeBusyQuery query, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<MergedFreeBusyResponse>> ExecuteAsync(GetMergedFreeBusyQuery query, CancellationToken cancellationToken)
     {
         // Get own obfuscated busy slots
         var events = await calendarSource.GetEventsAsync(
@@ -61,21 +61,4 @@ public class GetMergedFreeBusyUseCase(
     }
 }
 
-[Obsolete("Use GetMergedFreeBusyUseCase or IGetMergedFreeBusyUseCase instead.")]
-public sealed class GetMergedFreeBusyQueryHandler(
-    ICalendarSource calendarSource,
-    ObfuscationPipeline obfuscationPipeline,
-    IShadowSlotStore shadowSlotStore,
-    ICalendarOwnerObfuscationProfileService obfuscationProfileService,
-    ILogger<GetMergedFreeBusyUseCase> logger)
-    : GetMergedFreeBusyUseCase(
-        calendarSource,
-        obfuscationPipeline,
-        shadowSlotStore,
-        obfuscationProfileService,
-        logger)
-{
-    public Task<IReadOnlyList<MergedFreeBusyResponse>> Handle(GetMergedFreeBusyQuery query, CancellationToken cancellationToken) =>
-        ExecuteAsync(query, cancellationToken);
-}
 
