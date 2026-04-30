@@ -86,6 +86,16 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
         return client;
     }
 
+    public HttpClient CreateAuthenticatedClientWithRoles(
+        string objectId = TestAuthHandler.DefaultObjectId,
+        params string[] roles)
+    {
+        var client = CreateAuthenticatedClient(objectId);
+        if (roles.Length > 0)
+            client.DefaultRequestHeaders.Add("X-Test-Roles", string.Join(",", roles));
+        return client;
+    }
+
     public async Task<Guid> SeedCalendarOwnerAsync(
         string entraObjectId,
         Guid? calendarOwnerId = null,

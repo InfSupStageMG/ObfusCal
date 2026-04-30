@@ -40,6 +40,12 @@ public class CalendarOwnerAvailabilityBackgroundServiceTests
             InvocationObserved.TrySetResult();
             return Task.CompletedTask;
         }
+
+        public Task RunSyncForOwnerAsync(Guid calendarOwnerId, CancellationToken ct = default)
+        {
+            InvocationObserved.TrySetResult();
+            return Task.CompletedTask;
+        }
     }
 }
 
