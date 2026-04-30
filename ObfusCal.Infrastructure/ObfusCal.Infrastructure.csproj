@@ -1,6 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <InternalsVisibleTo Include="ObfusCal.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\ObfusCal.Domain\ObfusCal.Domain.csproj" />
     <ProjectReference Include="..\ObfusCal.Application\ObfusCal.Application.csproj" />
   </ItemGroup>

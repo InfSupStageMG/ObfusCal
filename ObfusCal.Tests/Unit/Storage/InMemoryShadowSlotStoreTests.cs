@@ -122,7 +122,7 @@ public class InMemoryShadowSlotStoreTests
         var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
         var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
 
-        // Slot ends inside the window but starts before `from` — overlaps, so should be included
+        // Slot ends inside the window but starts before `from` ï¿½ overlaps, so should be included
         await store.SetSlotsAsync("peer-a", [
             new BusySlot("outside-start", from.AddMinutes(-1), from.AddHours(1))
         ]);
@@ -139,7 +139,7 @@ public class InMemoryShadowSlotStoreTests
         var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
         var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
 
-        // Slot starts inside the window but ends after `to` — overlaps, so should be included
+        // Slot starts inside the window but ends after `to` ï¿½ overlaps, so should be included
         await store.SetSlotsAsync("peer-a", [
             new BusySlot("outside-end", to.AddHours(-1), to.AddMinutes(1))
         ]);
@@ -246,5 +246,381 @@ public class InMemoryShadowSlotStoreTests
 
         Assert.HasCount(1, slots);
         Assert.AreEqual("a1", slots[0].SourceEventId);
+    }
+
+
+    [TestMethod]
+    public async Task SetSlotsAsync_WithNullPeerId_Throws()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        await Assert.ThrowsExactlyAsync<ArgumentNullException>(() => store.SetSlotsAsync(null!, []));
+    }
+
+    [TestMethod]
+    public async Task SetSlotsAsync_WithEmptyPeerId_Throws()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        await Assert.ThrowsExactlyAsync<ArgumentException>(() => store.SetSlotsAsync("", []));
+    }
+
+    [TestMethod]
+    public async Task SetSlotsAsync_WithWhitespacePeerId_Throws()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        await Assert.ThrowsExactlyAsync<ArgumentException>(() => store.SetSlotsAsync("   ", []));
+    }
+
+    [TestMethod]
+    public async Task SetSlotsAsync_WithNullSlots_Throws()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        await Assert.ThrowsExactlyAsync<ArgumentNullException>(() => store.SetSlotsAsync("peer-a", null!));
+    }
+
+    [TestMethod]
+    public async Task SetSlotsAsync_WithCancelledToken_Throws()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(() => store.SetSlotsAsync("peer-a", [], cts.Token));
+    }
+
+    [TestMethod]
+    public async Task SetSlotsAsync_OwnerScoped_WithNullPeerId_Throws()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        await Assert.ThrowsExactlyAsync<ArgumentNullException>(() => store.SetSlotsAsync(null!, Guid.NewGuid(), []));
+    }
+
+    [TestMethod]
+    public async Task SetSlotsAsync_OwnerScoped_WithNullSlots_Throws()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        await Assert.ThrowsExactlyAsync<ArgumentNullException>(() => store.SetSlotsAsync("peer-a", Guid.NewGuid(), null!));
+    }
+
+    [TestMethod]
+    public async Task SetSlotsAsync_OwnerScoped_WithCancelledToken_Throws()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(() => store.SetSlotsAsync("peer-a", Guid.NewGuid(), [], cts.Token));
+    }
+
+    [TestMethod]
+    public async Task GetSlotsAsync_WithNullPeerId_Throws()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        await Assert.ThrowsExactlyAsync<ArgumentNullException>(() => store.GetSlotsAsync(null!));
+    }
+
+    [TestMethod]
+    public async Task GetSlotsAsync_WithCancelledToken_Throws()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(() => store.GetSlotsAsync("peer-a", cts.Token));
+    }
+
+    [TestMethod]
+    public async Task GetSlotsAsync_OwnerScoped_WithNullPeerId_Throws()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        await Assert.ThrowsExactlyAsync<ArgumentNullException>(() => store.GetSlotsAsync(null!, Guid.NewGuid()));
+    }
+
+    [TestMethod]
+    public async Task GetSlotsAsync_OwnerScoped_WithCancelledToken_Throws()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(() => store.GetSlotsAsync("peer-a", Guid.NewGuid(), cts.Token));
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_WithCancelledToken_Throws()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(() => store.GetAllSlotsAsync(DateTimeOffset.MinValue, DateTimeOffset.MaxValue, cts.Token));
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_OwnerScoped_WithCancelledToken_Throws()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+        await Assert.ThrowsExactlyAsync<OperationCanceledException>(() => store.GetAllSlotsAsync(Guid.NewGuid(), DateTimeOffset.MinValue, DateTimeOffset.MaxValue, cts.Token));
+    }
+
+    [TestMethod]
+    public async Task GetSlotsAsync_UnknownPeer_ReturnsEmptyList()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+
+        var result = await store.GetSlotsAsync("unknown-peer");
+
+        Assert.IsEmpty(result);
+    }
+
+    [TestMethod]
+    public async Task GetSlotsAsync_OwnerScoped_UnknownPeerOwner_ReturnsEmptyList()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+
+        var result = await store.GetSlotsAsync("unknown-peer", Guid.NewGuid());
+
+        Assert.IsEmpty(result);
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_ExcludesSlotEntirelyBeforeWindow()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        await store.SetSlotsAsync("peer-a", [
+            new BusySlot("before", from.AddHours(-3), from.AddHours(-1))
+        ]);
+
+        var result = await store.GetAllSlotsAsync(from, to);
+
+        Assert.IsEmpty(result, "Slot entirely before window should be excluded");
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_ExcludesSlotEntirelyAfterWindow()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        await store.SetSlotsAsync("peer-a", [
+            new BusySlot("after", to.AddHours(1), to.AddHours(3))
+        ]);
+
+        var result = await store.GetAllSlotsAsync(from, to);
+
+        Assert.IsEmpty(result, "Slot entirely after window should be excluded");
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_ExcludesSlotEndingExactlyAtFrom()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        // Slot ends exactly at 'from' ï¿½ End <= from ? no overlap
+        await store.SetSlotsAsync("peer-a", [
+            new BusySlot("just-before", from.AddHours(-1), from)
+        ]);
+
+        var result = await store.GetAllSlotsAsync(from, to);
+
+        // The filter is s.End > from, so a slot ending exactly at from should be excluded
+        Assert.IsEmpty(result, "Slot ending exactly at 'from' should be excluded (no overlap)");
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_ExcludesSlotStartingExactlyAtTo()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        // Slot starts exactly at 'to' ï¿½ Start >= to ? no overlap
+        await store.SetSlotsAsync("peer-a", [
+            new BusySlot("just-after", to, to.AddHours(1))
+        ]);
+
+        var result = await store.GetAllSlotsAsync(from, to);
+
+        // The filter is s.Start < to, so a slot starting exactly at to should be excluded
+        Assert.IsEmpty(result, "Slot starting exactly at 'to' should be excluded (no overlap)");
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_OwnerScoped_ExcludesSlotEntirelyOutsideWindow()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var ownerId = Guid.NewGuid();
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        await store.SetSlotsAsync("peer-a", ownerId, [
+            new BusySlot("before", from.AddHours(-3), from.AddHours(-1)),
+            new BusySlot("inside", from.AddHours(1), from.AddHours(2))
+        ]);
+
+        var result = await store.GetAllSlotsAsync(ownerId, from, to);
+
+        Assert.HasCount(1, result);
+        Assert.AreEqual("inside", result[0].SourceEventId);
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_OwnerScoped_FiltersToCorrectOwner()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var ownerA = Guid.NewGuid();
+        var ownerB = Guid.NewGuid();
+        var from = DateTimeOffset.MinValue;
+        var to = DateTimeOffset.MaxValue;
+
+        await store.SetSlotsAsync("peer-a", ownerA,
+            [new BusySlot("a1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+        await store.SetSlotsAsync("peer-a", ownerB,
+            [new BusySlot("b1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+
+        var resultA = await store.GetAllSlotsAsync(ownerA, from, to);
+        var resultB = await store.GetAllSlotsAsync(ownerB, from, to);
+
+        Assert.HasCount(1, resultA);
+        Assert.AreEqual("a1", resultA[0].SourceEventId);
+        Assert.HasCount(1, resultB);
+        Assert.AreEqual("b1", resultB[0].SourceEventId);
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_OwnerScoped_ExcludesSlotEndingExactlyAtFrom()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var ownerId = Guid.NewGuid();
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        await store.SetSlotsAsync("peer-a", ownerId, [
+            new BusySlot("boundary", from.AddHours(-1), from) // End == from
+        ]);
+
+        var result = await store.GetAllSlotsAsync(ownerId, from, to);
+
+        Assert.IsEmpty(result, "Owner-scoped: Slot ending exactly at 'from' should be excluded");
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_OwnerScoped_ExcludesSlotStartingExactlyAtTo()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var ownerId = Guid.NewGuid();
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        await store.SetSlotsAsync("peer-a", ownerId, [
+            new BusySlot("boundary", to, to.AddHours(1)) // Start == to
+        ]);
+
+        var result = await store.GetAllSlotsAsync(ownerId, from, to);
+
+        Assert.IsEmpty(result, "Owner-scoped: Slot starting exactly at 'to' should be excluded");
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_OwnerScoped_IncludesSlotOverlappingStart()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var ownerId = Guid.NewGuid();
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        await store.SetSlotsAsync("peer-a", ownerId, [
+            new BusySlot("overlap", from.AddMinutes(-30), from.AddMinutes(30))
+        ]);
+
+        var result = await store.GetAllSlotsAsync(ownerId, from, to);
+
+        Assert.HasCount(1, result, "Owner-scoped: Slot overlapping window start should be included");
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_OwnerScoped_IncludesSlotOverlappingEnd()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var ownerId = Guid.NewGuid();
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        await store.SetSlotsAsync("peer-a", ownerId, [
+            new BusySlot("overlap-end", to.AddHours(-1), to.AddMinutes(30))
+        ]);
+
+        var result = await store.GetAllSlotsAsync(ownerId, from, to);
+
+        Assert.HasCount(1, result, "Owner-scoped: Slot overlapping window end should be included");
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_OwnerScoped_ExcludesSlotEntirelyAfterWindow()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var ownerId = Guid.NewGuid();
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        await store.SetSlotsAsync("peer-a", ownerId, [
+            new BusySlot("after", to.AddHours(1), to.AddHours(3))
+        ]);
+
+        var result = await store.GetAllSlotsAsync(ownerId, from, to);
+
+        Assert.IsEmpty(result, "Owner-scoped: Slot entirely after window should be excluded");
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_OwnerScoped_IncludesSlotSpanningEntireWindow()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var ownerId = Guid.NewGuid();
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        await store.SetSlotsAsync("peer-a", ownerId, [
+            new BusySlot("spanning", from.AddHours(-1), to.AddHours(1))
+        ]);
+
+        var result = await store.GetAllSlotsAsync(ownerId, from, to);
+
+        Assert.HasCount(1, result, "Owner-scoped: Slot spanning entire window should be included");
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_OwnerScoped_IncludesSlotFullyInsideWindow()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var ownerId = Guid.NewGuid();
+        var from = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var to   = new DateTimeOffset(2026, 6, 1, 18, 0, 0, TimeSpan.Zero);
+
+        await store.SetSlotsAsync("peer-a", ownerId, [
+            new BusySlot("inside", from.AddHours(2), from.AddHours(4))
+        ]);
+
+        var result = await store.GetAllSlotsAsync(ownerId, from, to);
+
+        Assert.HasCount(1, result, "Owner-scoped: Slot fully inside window should be included");
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_OwnerScoped_AggregatesFromMultiplePeers()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var ownerId = Guid.NewGuid();
+
+        await store.SetSlotsAsync("peer-a", ownerId,
+            [new BusySlot("a1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+        await store.SetSlotsAsync("peer-b", ownerId,
+            [new BusySlot("b1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+
+        var result = await store.GetAllSlotsAsync(ownerId, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+
+        Assert.HasCount(2, result);
     }
 }
