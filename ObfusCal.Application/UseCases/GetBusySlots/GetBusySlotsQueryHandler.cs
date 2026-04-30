@@ -4,14 +4,14 @@ using ObfusCal.Application.Obfuscation;
 
 namespace ObfusCal.Application.UseCases.GetBusySlots;
 
-public sealed class GetBusySlotsUseCase(
+public class GetBusySlotsUseCase(
     ICalendarSource calendarSource,
     ObfuscationPipeline obfuscationPipeline,
     ICalendarOwnerObfuscationProfileService obfuscationProfileService,
     ILogger<GetBusySlotsUseCase> logger)
     : IGetBusySlotsUseCase
 {
-    public async Task<IReadOnlyList<BusySlotResponse>> ExecuteAsync(GetBusySlotsQuery query, CancellationToken cancellationToken)
+    public virtual async Task<IReadOnlyList<BusySlotResponse>> ExecuteAsync(GetBusySlotsQuery query, CancellationToken cancellationToken)
     {
         var events = await calendarSource.GetEventsAsync(
             query.From,
@@ -42,5 +42,17 @@ public sealed class GetBusySlotsUseCase(
                 s.Location))
             .ToList();
     }
+}
+
+[Obsolete("Use GetBusySlotsUseCase or IGetBusySlotsUseCase instead.")]
+public sealed class GetBusySlotsQueryHandler(
+    ICalendarSource calendarSource,
+    ObfuscationPipeline obfuscationPipeline,
+    ICalendarOwnerObfuscationProfileService obfuscationProfileService,
+    ILogger<GetBusySlotsUseCase> logger)
+    : GetBusySlotsUseCase(calendarSource, obfuscationPipeline, obfuscationProfileService, logger)
+{
+    public Task<IReadOnlyList<BusySlotResponse>> Handle(GetBusySlotsQuery query, CancellationToken cancellationToken) =>
+        ExecuteAsync(query, cancellationToken);
 }
 
