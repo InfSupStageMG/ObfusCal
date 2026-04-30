@@ -24,7 +24,5 @@ WORKDIR /app
 COPY --from=build /app/publish .
 EXPOSE 8443
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD curl -fk https://localhost:8443/health || exit 1
 
 ENTRYPOINT ["dotnet", "ObfusCal.Api.dll"]

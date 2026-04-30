@@ -25,10 +25,11 @@ public sealed class FakeGraphOAuthTokenClient : IGraphOAuthTokenClient
             DateTimeOffset.UtcNow.AddHours(1)));
     }
 
-    public Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(
-        string refreshToken,
-        CancellationToken ct = default)
+    public Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(string refreshToken, CancellationToken ct = default)
     {
+        if (!string.Equals(refreshToken, RefreshToken, StringComparison.Ordinal))
+            throw new InvalidOperationException("The refresh token is invalid or expired.");
+
         return Task.FromResult(new GraphOAuthTokenResponse(
             AccessToken,
             RefreshToken,
