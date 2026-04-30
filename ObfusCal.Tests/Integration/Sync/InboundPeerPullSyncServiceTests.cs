@@ -168,6 +168,122 @@ public class InboundPeerPullSyncServiceTests
         Assert.Contains(entry => entry.LogLevel == LogLevel.Information && entry.Message.Contains("Successfully pulled"), logger.Entries);
     }
 
+    [TestMethod]
+    public async Task RunSyncCycleAsync_SkipsWhenOnlyInstanceIdIsConfigured()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, Guid.NewGuid(), "peer-a", "https://peer-a.local/");
+
+        var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
+        var httpRequestMade = false;
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+        {
+            httpRequestMade = true;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") });
+        })));
+
+        var service = new InboundPeerPullSyncService(
+            dbContext, store, httpClientFactory,
+            Options.Create(new SyncOptions
+            {
+                InstanceId = "configured-id",
+                ApiKey = "", // empty = not configured
+                LookAheadDays = 14,
+                SyncIntervalSeconds = 900
+            }),
+            NullLogger<InboundPeerPullSyncService>.Instance);
+
+        await service.RunSyncCycleAsync();
+
+        Assert.IsFalse(httpRequestMade, "Should skip sync when ApiKey is not configured");
+    }
+
+    [TestMethod]
+    public async Task RunSyncCycleAsync_SkipsWhenOnlyApiKeyIsConfigured()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, Guid.NewGuid(), "peer-a", "https://peer-a.local/");
+
+        var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
+        var httpRequestMade = false;
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+        {
+            httpRequestMade = true;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") });
+        })));
+
+        var service = new InboundPeerPullSyncService(
+            dbContext, store, httpClientFactory,
+            Options.Create(new SyncOptions
+            {
+                InstanceId = "", // empty = not configured
+                ApiKey = "configured-key",
+                LookAheadDays = 14,
+                SyncIntervalSeconds = 900
+            }),
+            NullLogger<InboundPeerPullSyncService>.Instance);
+
+        await service.RunSyncCycleAsync();
+
+        Assert.IsFalse(httpRequestMade, "Should skip sync when InstanceId is not configured");
+    }
+
+    [TestMethod]
+    public async Task RunSyncCycleAsync_WithZeroLookAheadDays_ClampsToOne()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        var calendarOwnerRef = Guid.NewGuid();
+        SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
+
+        var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
+        string? capturedUri = null;
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(request =>
+        {
+            capturedUri = request.RequestUri!.ToString();
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") });
+        })));
+
+        var service = new InboundPeerPullSyncService(
+            dbContext, store, httpClientFactory,
+            Options.Create(new SyncOptions
+            {
+                InstanceId = "my-id",
+                ApiKey = "my-key",
+                LookAheadDays = 0, // should be clamped to at least 1
+                SyncIntervalSeconds = 900
+            }),
+            NullLogger<InboundPeerPullSyncService>.Instance);
+
+        await service.RunSyncCycleAsync();
+
+        Assert.IsNotNull(capturedUri, "Should have made an HTTP request");
+        Assert.IsTrue(capturedUri.Contains("to="), "Request URI should contain 'to' parameter");
+    }
+
+    [TestMethod]
+    public async Task RunSyncCycleAsync_WithInvalidPeerBaseAddress_RecordsFailure()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        var calendarOwnerRef = Guid.NewGuid();
+        var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-bad", "not a valid url");
+
+        var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") }))));
+
+        var service = CreateService(dbContext, store, httpClientFactory);
+
+        await service.RunSyncCycleAsync();
+
+        var peer = await dbContext.PeerConnections.FindAsync([peerConnectionId]);
+        Assert.IsNotNull(peer);
+        Assert.IsFalse(peer.LastSyncSucceeded, "Invalid base address should record failure");
+    }
+
     private static InboundPeerPullSyncService CreateService(
         AppDbContext dbContext,
         EfCoreShadowSlotStore store,

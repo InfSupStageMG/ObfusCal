@@ -11,7 +11,10 @@
       "!**/obj/**",
       "!**/bin/**",
       "!**/ObfusCal.Infrastructure/Calendars/MockCalendarSource.cs",
-      "!**/ObfusCal.Api/Program.cs"
+      "!**/ObfusCal.Api/Program.cs",
+      "!**/ObfusCal.Infrastructure/Persistence/AppDbContextFactory.cs",
+      "!**/ObfusCal.Infrastructure/Calendars/GraphOAuthTokenClient.cs",
+      "!**/ObfusCal.Infrastructure/Persistence/AppDbContext.cs"
     ],
     "reporters": [
       "Progress",

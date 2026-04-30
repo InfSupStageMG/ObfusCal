@@ -213,7 +213,8 @@ public class OutboundPeerSyncServiceTests
         IHttpClientFactory httpClientFactory,
         ICalendarSource calendarSource,
         ICalendarOwnerObfuscationProfileService? profileService = null,
-        ILogger<OutboundPeerSyncService>? logger = null)
+        ILogger<OutboundPeerSyncService>? logger = null,
+        SyncOptions? options = null)
     {
         var pipeline = new ObfuscationPipeline([], [], NullLogger<ObfuscationPipeline>.Instance);
 
@@ -223,7 +224,7 @@ public class OutboundPeerSyncServiceTests
             pipeline,
             profileService ?? new StubCalendarOwnerObfuscationProfileService(),
             httpClientFactory,
-            Options.Create(new SyncOptions
+            Options.Create(options ?? new SyncOptions
             {
                 InstanceId = "local-instance-id",
                 ApiKey = "local-instance",
@@ -231,6 +232,118 @@ public class OutboundPeerSyncServiceTests
                 SyncIntervalSeconds = 900
             }),
             logger ?? NullLogger<OutboundPeerSyncService>.Instance);
+    }
+
+    [TestMethod]
+    public async Task RunSyncCycleAsync_SkipsWhenOnlyInstanceIdIsConfigured()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, Guid.NewGuid(), "peer-a", "https://peer-a.local/");
+
+        var httpRequestMade = false;
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+        {
+            httpRequestMade = true;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        })));
+
+        var service = CreateService(
+            dbContext, httpClientFactory, new StubCalendarSource([]),
+            options: new SyncOptions { InstanceId = "my-id", ApiKey = "", LookAheadDays = 14, SyncIntervalSeconds = 900 });
+
+        await service.RunSyncCycleAsync();
+
+        Assert.IsFalse(httpRequestMade, "Should skip sync when ApiKey is not configured");
+    }
+
+    [TestMethod]
+    public async Task RunSyncCycleAsync_SkipsWhenOnlyApiKeyIsConfigured()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, Guid.NewGuid(), "peer-a", "https://peer-a.local/");
+
+        var httpRequestMade = false;
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+        {
+            httpRequestMade = true;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        })));
+
+        var service = CreateService(
+            dbContext, httpClientFactory, new StubCalendarSource([]),
+            options: new SyncOptions { InstanceId = "", ApiKey = "my-key", LookAheadDays = 14, SyncIntervalSeconds = 900 });
+
+        await service.RunSyncCycleAsync();
+
+        Assert.IsFalse(httpRequestMade, "Should skip sync when InstanceId is not configured");
+    }
+
+    [TestMethod]
+    public async Task RunSyncCycleAsync_WithZeroLookAheadDays_StillMakesRequest()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, Guid.NewGuid(), "peer-a", "https://peer-a.local/");
+
+        var httpRequestMade = false;
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+        {
+            httpRequestMade = true;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        })));
+
+        var service = CreateService(
+            dbContext, httpClientFactory, new StubCalendarSource([
+                new CalendarEvent("e1", "Test", null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1), [], null)
+            ]),
+            options: new SyncOptions { InstanceId = "id", ApiKey = "key", LookAheadDays = 0, SyncIntervalSeconds = 900 });
+
+        await service.RunSyncCycleAsync();
+
+        Assert.IsTrue(httpRequestMade, "Should still sync with LookAheadDays=0 (clamped to 1)");
+    }
+
+    [TestMethod]
+    public async Task RunSyncCycleAsync_WithNoMappings_DoesNotMakeHttpRequest()
+    {
+        await using var dbContext = CreateDbContext();
+        // Add a calendar owner but NO peer mappings
+        dbContext.CalendarOwners.Add(new CalendarOwner { Id = Guid.NewGuid(), Name = "Orphan" });
+        dbContext.SaveChanges();
+
+        var httpRequestMade = false;
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+        {
+            httpRequestMade = true;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        })));
+
+        var service = CreateService(dbContext, httpClientFactory, new StubCalendarSource([]));
+
+        await service.RunSyncCycleAsync();
+
+        Assert.IsFalse(httpRequestMade, "No mappings = no HTTP requests");
+    }
+
+    [TestMethod]
+    public async Task RunSyncCycleAsync_WithInvalidBaseAddress_RecordsFailureAndContinues()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, Guid.NewGuid(), "peer-bad", "not-a-url");
+
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)))));
+
+        var service = CreateService(dbContext, httpClientFactory, new StubCalendarSource([]));
+
+        await service.RunSyncCycleAsync();
+
+        var peer = await dbContext.PeerConnections.FindAsync([peerConnectionId]);
+        Assert.IsNotNull(peer);
+        Assert.IsFalse(peer.LastSyncSucceeded, "Invalid base address should record failure");
     }
 
     private static AppDbContext CreateDbContext() => SyncIntegrationTestHelpers.CreateDbContext();
