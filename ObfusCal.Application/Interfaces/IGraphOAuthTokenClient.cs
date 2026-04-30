@@ -6,6 +6,10 @@ public interface IGraphOAuthTokenClient
         string authorizationCode,
         string redirectUri,
         CancellationToken ct = default);
+
+    Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(
+        string refreshToken,
+        CancellationToken ct = default);
 }
 
 public sealed record GraphOAuthTokenResponse(

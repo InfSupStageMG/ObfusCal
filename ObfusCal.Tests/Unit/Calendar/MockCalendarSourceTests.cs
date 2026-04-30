@@ -76,13 +76,13 @@ public class MockCalendarSourceTests
     }
 
     [TestMethod]
-    public async Task Application_ResolvesIcalFeedCalendarSource_AsActiveCalendarSource()
+    public async Task Application_ResolvesMockCalendarSource_AsActiveCalendarSource_InDevelopment()
     {
         await using var factory = new CustomWebApplicationFactory("Development");
         using var scope = factory.Services.CreateScope();
 
         var source = scope.ServiceProvider.GetRequiredService<ICalendarSource>();
 
-        Assert.IsInstanceOfType<IcalFeedCalendarSource>(source);
+        Assert.IsInstanceOfType<MockCalendarSource>(source);
     }
 }
