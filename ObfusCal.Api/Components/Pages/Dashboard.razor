@@ -1,8 +1,7 @@
 ﻿@page "/"
-@using MediatR
 @using ObfusCal.Application.Interfaces
 @using ObfusCal.Application.UseCases.GetMergedFreeBusy
-@inject ISender Sender
+@inject IGetMergedFreeBusyUseCase GetMergedFreeBusyUseCase
 @inject ICalendarOwnerService CalendarOwnerService
 
 <PageTitle>Dashboard - ObfusCal</PageTitle>
@@ -90,7 +89,7 @@
         {
             var from = new DateTimeOffset(_fromDate.Value, TimeSpan.Zero);
             var to = new DateTimeOffset(_toDate.Value, TimeSpan.Zero);
-            var result = await Sender.Send(new GetMergedFreeBusyQuery(_selectedOwner.Id, from, to));
+            var result = await GetMergedFreeBusyUseCase.ExecuteAsync(new GetMergedFreeBusyQuery(_selectedOwner.Id, from, to), CancellationToken.None);
             _slots = result.ToList();
         }
         finally

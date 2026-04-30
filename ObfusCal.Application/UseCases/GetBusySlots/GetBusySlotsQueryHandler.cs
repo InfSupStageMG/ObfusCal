@@ -1,18 +1,17 @@
-﻿using MediatR;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Application.Obfuscation;
 
 namespace ObfusCal.Application.UseCases.GetBusySlots;
 
-internal sealed class GetBusySlotsQueryHandler(
+public sealed class GetBusySlotsUseCase(
     ICalendarSource calendarSource,
     ObfuscationPipeline obfuscationPipeline,
     ICalendarOwnerObfuscationProfileService obfuscationProfileService,
-    ILogger<GetBusySlotsQueryHandler> logger)
-    : IRequestHandler<GetBusySlotsQuery, IReadOnlyList<BusySlotResponse>>
+    ILogger<GetBusySlotsUseCase> logger)
+    : IGetBusySlotsUseCase
 {
-    public async Task<IReadOnlyList<BusySlotResponse>> Handle(GetBusySlotsQuery query, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<BusySlotResponse>> ExecuteAsync(GetBusySlotsQuery query, CancellationToken cancellationToken)
     {
         var events = await calendarSource.GetEventsAsync(
             query.From,

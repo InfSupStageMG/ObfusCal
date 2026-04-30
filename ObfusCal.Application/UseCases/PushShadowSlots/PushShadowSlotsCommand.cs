@@ -1,6 +1,4 @@
-﻿using MediatR;
-
-namespace ObfusCal.Application.UseCases.PushShadowSlots;
+﻿namespace ObfusCal.Application.UseCases.PushShadowSlots;
 
 public record ShadowSlotInput(
     DateTimeOffset Start,
@@ -13,5 +11,5 @@ public record ShadowSlotInput(
 public record PushShadowSlotsCommand(
     string PeerId,
     IReadOnlyList<Guid> CalendarOwnerIds,
-    IReadOnlyList<ShadowSlotInput> Slots) : IRequest;
+    IReadOnlyList<ShadowSlotInput> Slots);
 

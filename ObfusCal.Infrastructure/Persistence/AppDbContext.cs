@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CalendarOwnerPeerMapping> CalendarOwnerPeerMappings => Set<CalendarOwnerPeerMapping>();
     public DbSet<CalendarOwnerICalFeed> CalendarOwnerICalFeeds => Set<CalendarOwnerICalFeed>();
     public DbSet<BusySlot> BusySlots => Set<BusySlot>();
+    public DbSet<CalendarOwnerAvailabilitySlot> CalendarOwnerAvailabilitySlots => Set<CalendarOwnerAvailabilitySlot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -81,6 +82,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(b => b.PeerId);
             e.HasIndex(b => b.CalendarOwnerId);
             e.HasIndex(b => new { b.PeerId, b.CalendarOwnerId });
+        });
+
+        modelBuilder.Entity<CalendarOwnerAvailabilitySlot>(e =>
+        {
+            e.HasKey(slot => slot.Id);
+            e.Property(slot => slot.SourceEventId).IsRequired();
+            e.Property(slot => slot.AttendeeEmails)
+                .HasColumnType("text[]");
+            e.HasIndex(slot => slot.CalendarOwnerId);
+            e.HasIndex(slot => new { slot.CalendarOwnerId, slot.Start, slot.End });
         });
     }
 }
