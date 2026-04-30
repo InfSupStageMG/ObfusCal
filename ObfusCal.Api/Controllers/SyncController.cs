@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Identity.Web;
 using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Controllers;
@@ -7,7 +8,10 @@ namespace ObfusCal.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/sync")]
-public sealed class SyncController(IPeerConnectionService peerConnectionService) : ControllerBase
+public sealed class SyncController(
+    IPeerConnectionService peerConnectionService,
+    IServiceScopeFactory scopeFactory,
+    ILogger<SyncController> logger) : ControllerBase
 {
     [HttpGet("peers")]
     [ProducesResponseType(typeof(IReadOnlyList<PeerSyncStatus>), StatusCodes.Status200OK)]
@@ -17,5 +21,67 @@ public sealed class SyncController(IPeerConnectionService peerConnectionService)
         var peers = await peerConnectionService.ListSyncStatusAsync(ct);
         return Ok(peers);
     }
-}
 
+    [HttpPost("trigger")]
+    [Authorize(Roles = "Sysadmin")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public IActionResult TriggerSync([FromBody] TriggerSyncRequest? request)
+    {
+        var callerIdentity = User.GetObjectId() ?? "unknown";
+
+        if (request?.CalendarOwnerId is not null)
+        {
+            var targetOwnerId = request.CalendarOwnerId.Value;
+            logger.LogInformation(
+                "Manual sync triggered by {CallerIdentity} for calendar owner {CalendarOwnerId}.",
+                callerIdentity,
+                targetOwnerId);
+
+            _ = Task.Run(async () =>
+            {
+                using var scope = scopeFactory.CreateScope();
+                var syncService = scope.ServiceProvider.GetRequiredService<ICalendarOwnerAvailabilitySyncService>();
+                try
+                {
+                    await syncService.RunSyncForOwnerAsync(targetOwnerId);
+                }
+                catch (Exception ex)
+                {
+                    var scopedLogger = scope.ServiceProvider.GetRequiredService<ILogger<SyncController>>();
+                    scopedLogger.LogWarning(ex,
+                        "Background sync triggered by {CallerIdentity} failed for calendar owner {CalendarOwnerId}.",
+                        callerIdentity, targetOwnerId);
+                }
+            });
+        }
+        else
+        {
+            logger.LogInformation(
+                "Manual sync triggered by {CallerIdentity} for all calendar owners.",
+                callerIdentity);
+
+            _ = Task.Run(async () =>
+            {
+                using var scope = scopeFactory.CreateScope();
+                var syncService = scope.ServiceProvider.GetRequiredService<ICalendarOwnerAvailabilitySyncService>();
+                try
+                {
+                    await syncService.RunSyncCycleAsync();
+                }
+                catch (Exception ex)
+                {
+                    var scopedLogger = scope.ServiceProvider.GetRequiredService<ILogger<SyncController>>();
+                    scopedLogger.LogWarning(ex,
+                        "Background sync triggered by {CallerIdentity} failed for all calendar owners.",
+                        callerIdentity);
+                }
+            });
+        }
+
+        return Accepted();
+    }
+
+    public sealed record TriggerSyncRequest(Guid? CalendarOwnerId = null);
+}

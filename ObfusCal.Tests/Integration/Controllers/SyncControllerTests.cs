@@ -32,6 +32,52 @@ public class SyncControllerTests
     }
 
     [TestMethod]
+    public async Task TriggerSync_ReturnsAccepted_WhenCallerHasSysadminRole()
+    {
+        var client = Factory.CreateAuthenticatedClientWithRoles(
+            TestAuthHandler.DefaultObjectId, "Sysadmin");
+        await Factory.SeedCalendarOwnerAsync(TestAuthHandler.DefaultObjectId);
+
+        var response = await client.PostAsync("/api/sync/trigger", null);
+
+        Assert.AreEqual(HttpStatusCode.Accepted, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task TriggerSync_ReturnsAccepted_WhenTargetingSpecificOwner()
+    {
+        var client = Factory.CreateAuthenticatedClientWithRoles(
+            TestAuthHandler.DefaultObjectId, "Sysadmin");
+        var ownerId = await Factory.SeedCalendarOwnerAsync(TestAuthHandler.DefaultObjectId);
+
+        var payload = new { calendarOwnerId = ownerId };
+        var response = await client.PostAsJsonAsync("/api/sync/trigger", payload);
+
+        Assert.AreEqual(HttpStatusCode.Accepted, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task TriggerSync_ReturnsForbidden_WhenCallerLacksSysadminRole()
+    {
+        var client = Factory.CreateAuthenticatedClient();
+        await Factory.SeedCalendarOwnerAsync(TestAuthHandler.DefaultObjectId);
+
+        var response = await client.PostAsync("/api/sync/trigger", null);
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task TriggerSync_ReturnsUnauthorized_WhenNotAuthenticated()
+    {
+        var client = Factory.CreateClient();
+
+        var response = await client.PostAsync("/api/sync/trigger", null);
+
+        Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [TestMethod]
     public async Task PushShadowSlots_CreatedResponse_ContainsLocationHeader()
     {
         await using var factory = new CustomWebApplicationFactory("Development");
