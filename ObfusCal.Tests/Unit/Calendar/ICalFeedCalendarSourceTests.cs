@@ -703,7 +703,7 @@ public class IcalFeedCalendarSourceTests
     }
 
     // Helper for parsing-through-DB tests
-    private async Task<IReadOnlyList<ObfusCal.Domain.Models.CalendarEvent>> GetParsedEventsAsync(
+    private async Task<IReadOnlyList<Domain.Models.CalendarEvent>> GetParsedEventsAsync(
         string icsContent, DateTimeOffset from, DateTimeOffset to)
     {
         await using var dbContext = CreateDbContext();
