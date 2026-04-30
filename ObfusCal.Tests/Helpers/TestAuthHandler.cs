@@ -29,13 +29,21 @@ public sealed class TestAuthHandler(
 
         var objectId = headerValue.Parameter;
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim("oid", objectId),
-            new Claim("http://schemas.microsoft.com/identity/claims/objectidentifier", objectId),
-            new Claim(ClaimTypes.NameIdentifier, objectId),
-            new Claim(ClaimTypes.Name, "Integration Test Calendar Owner")
+            new("oid", objectId),
+            new("http://schemas.microsoft.com/identity/claims/objectidentifier", objectId),
+            new(ClaimTypes.NameIdentifier, objectId),
+            new(ClaimTypes.Name, "Integration Test Calendar Owner")
         };
+
+        if (Request.Headers.TryGetValue("X-Test-Roles", out var rolesHeader))
+        {
+            foreach (var role in rolesHeader.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+        }
 
         var identity = new ClaimsIdentity(claims, SchemeName);
         var principal = new ClaimsPrincipal(identity);

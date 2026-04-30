@@ -56,6 +56,34 @@ public sealed class CalendarOwnerAvailabilitySyncService(
         }
     }
 
+    public async Task RunSyncForOwnerAsync(Guid calendarOwnerId, CancellationToken ct = default)
+    {
+        var options = syncOptions.Value;
+        var syncWindowStart = DateTimeOffset.UtcNow;
+        var syncWindowEnd = syncWindowStart.AddDays(Math.Max(1, options.LookAheadDays));
+
+        try
+        {
+            var busySlots = await SyncCalendarOwnerAsync(calendarOwnerId, syncWindowStart, syncWindowEnd, ct);
+            logger.LogInformation(
+                "Availability sync succeeded for calendar owner {CalendarOwnerId} with {BusySlotCount} busy slot(s).",
+                calendarOwnerId,
+                busySlots.Count);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Availability sync failed for calendar owner {CalendarOwnerId}.",
+                calendarOwnerId);
+            await RecordSyncResultAsync(calendarOwnerId, succeeded: false);
+        }
+    }
+
     private async Task<IReadOnlyList<BusySlot>> SyncCalendarOwnerAsync(
         Guid calendarOwnerId,
         DateTimeOffset from,

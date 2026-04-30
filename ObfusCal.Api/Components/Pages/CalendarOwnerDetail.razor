@@ -4,6 +4,7 @@
 @inject ICalendarOwnerService CalendarOwnerService
 @inject ICalendarOwnerIcalFeedService IcalFeedService
 @inject ICalendarOwnerObfuscationProfileService ObfuscationProfileService
+@inject ICalendarOwnerAvailabilitySyncService AvailabilitySyncService
 @inject NavigationManager Navigation
 
 <PageTitle>Calendar Owner - ObfusCal</PageTitle>
@@ -22,6 +23,22 @@
 else
 {
     <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
+
+        @* ─── Availability Sync ─── *@
+        <section class="card">
+            <h3>Availability Sync</h3>
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center">
+                <FluentButton Appearance="Appearance.Outline" OnClick="TriggerOwnerSyncAsync" Disabled="_triggeringSyncForOwner">
+                    @(_triggeringSyncForOwner ? "Syncing…" : "Trigger Sync Now")
+                </FluentButton>
+            </FluentStack>
+            @if (_ownerSyncMessage is not null)
+            {
+                <FluentMessageBar Intent="@_ownerSyncMessageIntent" Style="margin-top: 0.5rem;">
+                    @_ownerSyncMessage
+                </FluentMessageBar>
+            }
+        </section>
 
         @* ─── iCal Feeds ─── *@
         <section class="card">
@@ -104,6 +121,9 @@ else
     private string? _feedMessage;
     private MessageIntent _feedMessageIntent = MessageIntent.Info;
     private string? _profileMessage;
+    private bool _triggeringSyncForOwner;
+    private string? _ownerSyncMessage;
+    private MessageIntent _ownerSyncMessageIntent = MessageIntent.Info;
 
     protected override async Task OnInitializedAsync()
     {
@@ -214,6 +234,29 @@ else
 
         await ObfuscationProfileService.SetProfileAsync(Id, settings);
         _profileMessage = $"{profile.Context} profile saved.";
+    }
+
+    private async Task TriggerOwnerSyncAsync()
+    {
+        _triggeringSyncForOwner = true;
+        _ownerSyncMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            await AvailabilitySyncService.RunSyncForOwnerAsync(Id);
+            _ownerSyncMessage = $"Sync completed at {DateTimeOffset.UtcNow:HH:mm:ss} UTC.";
+            _ownerSyncMessageIntent = MessageIntent.Success;
+        }
+        catch (Exception ex)
+        {
+            _ownerSyncMessage = $"Sync failed: {ex.Message}";
+            _ownerSyncMessageIntent = MessageIntent.Error;
+        }
+        finally
+        {
+            _triggeringSyncForOwner = false;
+        }
     }
 
     private sealed class ProfileViewModel

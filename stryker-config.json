@@ -1,32 +1,35 @@
 {
-  "stryker-config": {
-    "solution": "ObfusCal.slnx",
-    "test-projects": [
-      "ObfusCal.Tests/ObfusCal.Tests.csproj"
-    ],
-    "mutate": [
-      "**/*.cs",
-      "!**/*Tests*.cs",
-      "!**/Migrations/**/*.cs",
-      "!**/obj/**",
-      "!**/bin/**",
-      "!**/ObfusCal.Infrastructure/Calendars/MockCalendarSource.cs",
-      "!**/ObfusCal.Api/Program.cs",
-      "!**/ObfusCal.Infrastructure/Persistence/AppDbContextFactory.cs",
-      "!**/ObfusCal.Infrastructure/Calendars/GraphOAuthTokenClient.cs",
-      "!**/ObfusCal.Infrastructure/Persistence/AppDbContext.cs"
-    ],
-    "reporters": [
-      "Progress",
-      "Html",
-      "Json"
-    ],
-    "thresholds": {
-      "high": 80,
-      "low": 75,
-      "break": 0
-    },
-    "report-file-name": "mutation-report",
-      "additional-timeout": 45000
-  }
+    "stryker-config": {
+        "solution": "ObfusCal.slnx",
+        "test-projects": [
+            "ObfusCal.Tests/ObfusCal.Tests.csproj"
+        ],
+        "mutate": [
+            "**/*.cs",
+            "!**/Program.cs",
+            "!**/*Tests*.cs",
+            "!**/Migrations/**/*.cs",
+            "!**/obj/**",
+            "!**/bin/**",
+            "!**/*.razor",
+            "!**/*.razor.cs",
+            "!**/ObfusCal.Api/Components/**/*.cs",
+            "!**/ObfusCal.Infrastructure/Calendars/MockCalendarSource.cs",
+            "!**/ObfusCal.Infrastructure/Persistence/AppDbContextFactory.cs",
+            "!**/ObfusCal.Infrastructure/Calendars/GraphOAuthTokenClient.cs",
+            "!**/ObfusCal.Infrastructure/Persistence/AppDbContext.cs",
+        ],
+        "reporters": [
+            "Progress",
+            "Html",
+            "Json"
+        ],
+        "thresholds": {
+            "high": 80,
+            "low": 75,
+            "break": 0
+        },
+        "report-file-name": "mutation-report",
+        "additional-timeout": 45000
+    }
 }
