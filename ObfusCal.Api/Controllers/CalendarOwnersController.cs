@@ -16,6 +16,7 @@ public sealed class CalendarOwnersController(
     IGetBusySlotsUseCase getBusySlotsUseCase,
     IGetMergedFreeBusyUseCase getMergedFreeBusyUseCase,
     CalendarOwnerAccessEvaluator accessEvaluator,
+    ICalendarOwnerCalendarSourceService calendarSourceService,
     ICalendarOwnerGraphConsentService graphConsentService,
     ICalendarOwnerIcalFeedService calendarOwnerIcalFeedService,
     ICalendarOwnerObfuscationProfileService obfuscationProfileService) : ControllerBase
@@ -46,19 +47,81 @@ public sealed class CalendarOwnersController(
         if (from is null || to is null)
             return BadRequest("Query parameters 'from' and 'to' are required.");
 
-        var hasConsent = await graphConsentService.HasConsentAsync(id, ct);
-        if (!hasConsent)
+        var selection = await calendarSourceService.GetSelectionAsync(id, ct);
+        if (selection is { IsReady: false })
         {
             return Conflict(new ProblemDetails
             {
                 Status = StatusCodes.Status409Conflict,
-                Title = "Microsoft Graph consent required.",
-                Detail = "This calendar owner has not granted Microsoft Graph calendar consent yet. Complete consent before requesting busy slots."
+                Title = selection.Title,
+                Detail = selection.Detail
             });
         }
 
         var result = await getBusySlotsUseCase.ExecuteAsync(new GetBusySlotsQuery(id, from.Value, to.Value), ct);
         return Ok(result);
+    }
+
+    [HttpGet("{id}/calendar/providers")]
+    [ProducesResponseType(typeof(IReadOnlyList<CalendarSourceProviderResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListCalendarProviders(Guid id, CancellationToken ct)
+    {
+        var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
+        if (accessResult is not null)
+            return accessResult;
+
+        var providers = await calendarSourceService.ListProvidersAsync(id, ct);
+        return Ok(providers.Select(provider => new CalendarSourceProviderResponse(
+            provider.Id,
+            provider.DisplayName,
+            provider.IsSelected,
+            provider.IsReady,
+            provider.Title,
+            provider.Detail,
+            provider.IsExternalPlugin)).ToList());
+    }
+
+    [HttpPut("{id}/calendar/provider")]
+    [ProducesResponseType(typeof(CalendarSourceSelectionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetCalendarProvider(Guid id, [FromBody] SetCalendarProviderRequest request, CancellationToken ct)
+    {
+        var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
+        if (accessResult is not null)
+            return accessResult;
+
+        if (string.IsNullOrWhiteSpace(request.ProviderId))
+            return BadRequest("'providerId' is required.");
+
+        try
+        {
+            var selection = await calendarSourceService.SetSelectionAsync(id, request.ProviderId, ct);
+            if (selection is null)
+                return NotFound();
+
+            return Ok(new CalendarSourceSelectionResponse(
+                selection.Id,
+                selection.DisplayName,
+                selection.IsReady,
+                selection.Title,
+                selection.Detail,
+                selection.IsExternalPlugin));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Unknown calendar provider.",
+                Detail = ex.Message
+            });
+        }
     }
 
     [HttpGet("{id}/calendar/status")]
@@ -335,7 +398,26 @@ public sealed class CalendarOwnersController(
 
     public sealed record AddIcalFeedRequest(string FeedUrl);
 
+    public sealed record SetCalendarProviderRequest(string ProviderId);
+
     private sealed record AddIcalFeedResponse(Guid Id, string FeedUrl);
+
+    private sealed record CalendarSourceProviderResponse(
+        string Id,
+        string DisplayName,
+        bool IsSelected,
+        bool IsReady,
+        string Title,
+        string? Detail,
+        bool IsExternalPlugin);
+
+    private sealed record CalendarSourceSelectionResponse(
+        string Id,
+        string DisplayName,
+        bool IsReady,
+        string Title,
+        string? Detail,
+        bool IsExternalPlugin);
 
     private sealed record CalendarOwnerIcalFeedResponse(Guid Id, string FeedUrl);
 

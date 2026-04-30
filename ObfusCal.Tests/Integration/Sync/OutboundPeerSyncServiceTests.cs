@@ -220,7 +220,7 @@ public class OutboundPeerSyncServiceTests
 
         return new OutboundPeerSyncService(
             dbContext,
-            calendarSource,
+            new FixedCalendarSourceResolver(calendarSource),
             pipeline,
             profileService ?? new StubCalendarOwnerObfuscationProfileService(),
             httpClientFactory,
@@ -311,7 +311,7 @@ public class OutboundPeerSyncServiceTests
         await using var dbContext = CreateDbContext();
         // Add a calendar owner but NO peer mappings
         dbContext.CalendarOwners.Add(new CalendarOwner { Id = Guid.NewGuid(), Name = "Orphan" });
-        dbContext.SaveChanges();
+        await dbContext.SaveChangesAsync();
 
         var httpRequestMade = false;
         var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
@@ -364,6 +364,12 @@ public class OutboundPeerSyncServiceTests
             Guid? calendarOwnerId = null,
             CancellationToken ct = default)
             => Task.FromResult(events);
+    }
+
+    private sealed class FixedCalendarSourceResolver(ICalendarSource source) : ICalendarSourceResolver
+    {
+        public Task<ICalendarSource> ResolveAsync(Guid? calendarOwnerId = null, CancellationToken ct = default) =>
+            Task.FromResult(source);
     }
 
     private sealed record CapturedRequest(

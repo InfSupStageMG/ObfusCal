@@ -5,7 +5,7 @@ using ObfusCal.Application.Obfuscation;
 namespace ObfusCal.Application.UseCases.GetBusySlots;
 
 public sealed class GetBusySlotsUseCase(
-    ICalendarSource calendarSource,
+    ICalendarSourceResolver calendarSourceResolver,
     ObfuscationPipeline obfuscationPipeline,
     ICalendarOwnerObfuscationProfileService obfuscationProfileService,
     ILogger<GetBusySlotsUseCase> logger)
@@ -13,6 +13,7 @@ public sealed class GetBusySlotsUseCase(
 {
     public async Task<IReadOnlyList<BusySlotResponse>> ExecuteAsync(GetBusySlotsQuery query, CancellationToken cancellationToken)
     {
+        var calendarSource = await calendarSourceResolver.ResolveAsync(query.CalendarOwnerId, cancellationToken);
         var events = await calendarSource.GetEventsAsync(
             query.From,
             query.To,

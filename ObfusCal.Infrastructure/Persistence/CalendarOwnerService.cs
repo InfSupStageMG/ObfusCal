@@ -1,9 +1,13 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Infrastructure.Persistence;
 
-internal sealed class CalendarOwnerService(AppDbContext dbContext) : ICalendarOwnerService
+internal sealed class CalendarOwnerService(
+    AppDbContext dbContext,
+    IOptions<CalendarSourceOptions> calendarSourceOptions) : ICalendarOwnerService
 {
     public async Task<IReadOnlyList<CalendarOwnerSummary>> ListAsync(CancellationToken ct = default)
     {
@@ -37,7 +41,10 @@ internal sealed class CalendarOwnerService(AppDbContext dbContext) : ICalendarOw
         {
             Id = Guid.NewGuid(),
             Name = name.Trim(),
-            EntraObjectId = string.IsNullOrWhiteSpace(entraObjectId) ? null : entraObjectId.Trim()
+            EntraObjectId = string.IsNullOrWhiteSpace(entraObjectId) ? null : entraObjectId.Trim(),
+            CalendarSourcePluginId = string.IsNullOrWhiteSpace(calendarSourceOptions.Value.Provider)
+                ? null
+                : calendarSourceOptions.Value.Provider.Trim().ToLowerInvariant()
         };
 
         dbContext.CalendarOwners.Add(owner);

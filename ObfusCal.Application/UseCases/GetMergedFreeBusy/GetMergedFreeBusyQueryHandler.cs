@@ -5,7 +5,7 @@ using ObfusCal.Application.Obfuscation;
 namespace ObfusCal.Application.UseCases.GetMergedFreeBusy;
 
 public sealed class GetMergedFreeBusyUseCase(
-    ICalendarSource calendarSource,
+    ICalendarSourceResolver calendarSourceResolver,
     ObfuscationPipeline obfuscationPipeline,
     IShadowSlotStore shadowSlotStore,
     ICalendarOwnerObfuscationProfileService obfuscationProfileService,
@@ -15,6 +15,7 @@ public sealed class GetMergedFreeBusyUseCase(
     public async Task<IReadOnlyList<MergedFreeBusyResponse>> ExecuteAsync(GetMergedFreeBusyQuery query, CancellationToken cancellationToken)
     {
         // Get own obfuscated busy slots
+        var calendarSource = await calendarSourceResolver.ResolveAsync(query.CalendarOwnerId, cancellationToken);
         var events = await calendarSource.GetEventsAsync(
             query.From,
             query.To,

@@ -12,7 +12,7 @@ namespace ObfusCal.Infrastructure.Sync;
 
 public sealed class OutboundPeerSyncService(
     AppDbContext dbContext,
-    ICalendarSource calendarSource,
+    ICalendarSourceResolver calendarSourceResolver,
     ObfuscationPipeline obfuscationPipeline,
     ICalendarOwnerObfuscationProfileService obfuscationProfileService,
     IHttpClientFactory httpClientFactory,
@@ -82,6 +82,7 @@ public sealed class OutboundPeerSyncService(
         if (mappings.Count == 0)
             return;
 
+        var calendarSource = await calendarSourceResolver.ResolveAsync(calendarOwnerId, ct);
         var events = await calendarSource.GetEventsAsync(from, to, calendarOwnerId, ct);
         var profile = await obfuscationProfileService.GetProfileAsync(
             calendarOwnerId,

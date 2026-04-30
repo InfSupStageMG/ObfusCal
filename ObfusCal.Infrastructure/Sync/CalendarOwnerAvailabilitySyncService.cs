@@ -12,7 +12,7 @@ namespace ObfusCal.Infrastructure.Sync;
 
 public sealed class CalendarOwnerAvailabilitySyncService(
     AppDbContext dbContext,
-    ICalendarSource calendarSource,
+    ICalendarSourceResolver calendarSourceResolver,
     ObfuscationPipeline obfuscationPipeline,
     ICalendarOwnerObfuscationProfileService obfuscationProfileService,
     IOptions<SyncOptions> syncOptions,
@@ -62,6 +62,7 @@ public sealed class CalendarOwnerAvailabilitySyncService(
         DateTimeOffset to,
         CancellationToken ct)
     {
+        var calendarSource = await calendarSourceResolver.ResolveAsync(calendarOwnerId, ct);
         var events = await calendarSource.GetEventsAsync(from, to, calendarOwnerId, ct);
         var profile = await obfuscationProfileService.GetProfileAsync(
             calendarOwnerId,

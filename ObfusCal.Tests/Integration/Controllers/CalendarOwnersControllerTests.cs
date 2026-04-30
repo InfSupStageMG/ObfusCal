@@ -280,6 +280,12 @@ public class CalendarOwnersControllerTests
         var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
         using var client = factory.CreateAuthenticatedClient(objectId);
 
+        var setProviderResponse = await client.PutAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/calendar/provider",
+            new CalendarOwnersController.SetCalendarProviderRequest("graph"),
+            TestContext.CancellationToken);
+        Assert.AreEqual(HttpStatusCode.OK, setProviderResponse.StatusCode);
+
         var response = await client.GetAsync(
             $"/api/calendar-owners/{calendarOwnerId}/busy-slots?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
             TestContext.CancellationToken);

@@ -76,5 +76,41 @@ public class InfrastructureDependencyInjectionTests
         var svc = scope.ServiceProvider.GetService<ICalendarSource>();
         Assert.IsNotNull(svc);
     }
+
+    [TestMethod]
+    public void CalendarSourceCatalog_IsRegistered()
+    {
+        using var scope = Factory.Services.CreateScope();
+        var svc = scope.ServiceProvider.GetService<ICalendarSourceCatalog>();
+        Assert.IsNotNull(svc);
+    }
+
+    [TestMethod]
+    public void CalendarSourceCatalog_ContainsAllThreeBuiltInPlugins()
+    {
+        using var scope = Factory.Services.CreateScope();
+        var catalog = scope.ServiceProvider.GetRequiredService<ICalendarSourceCatalog>();
+        var ids = catalog.GetPlugins().Select(p => p.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        Assert.IsTrue(ids.Contains("graph"), "Catalog must include 'graph'");
+        Assert.IsTrue(ids.Contains("ical"),  "Catalog must include 'ical'");
+        Assert.IsTrue(ids.Contains("mock"),  "Catalog must include 'mock'");
+    }
+
+    [TestMethod]
+    public void CalendarSourceResolver_IsRegistered()
+    {
+        using var scope = Factory.Services.CreateScope();
+        var svc = scope.ServiceProvider.GetService<ICalendarSourceResolver>();
+        Assert.IsNotNull(svc);
+    }
+
+    [TestMethod]
+    public void CalendarOwnerCalendarSourceService_IsRegistered()
+    {
+        using var scope = Factory.Services.CreateScope();
+        var svc = scope.ServiceProvider.GetService<ICalendarOwnerCalendarSourceService>();
+        Assert.IsNotNull(svc);
+    }
 }
 
