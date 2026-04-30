@@ -13,6 +13,7 @@ using ObfusCal.Infrastructure.Persistence;
 
 namespace ObfusCal.Infrastructure.Calendars;
 
+[CalendarSourcePlugin("graph", "Microsoft Graph")]
 public sealed class GraphCalendarSource(
     HttpClient httpClient,
     AppDbContext dbContext,
@@ -20,7 +21,7 @@ public sealed class GraphCalendarSource(
     IGraphOAuthTokenClient tokenClient,
     MockCalendarSource fallbackSource,
     IHostEnvironment hostEnvironment,
-    ILogger<GraphCalendarSource> logger) : ICalendarSource
+    ILogger<GraphCalendarSource> logger) : ICalendarSource, ICalendarSourceReadinessEvaluator
 {
     private const string GraphCalendarViewPath = "v1.0/me/calendarView";
 
@@ -88,6 +89,25 @@ public sealed class GraphCalendarSource(
             .Where(e => e.Start < to && e.End > from)
             .OrderBy(e => e.Start)
             .ToList();
+    }
+
+    public async Task<CalendarSourceReadiness> GetReadinessAsync(Guid calendarOwnerId, CancellationToken ct = default)
+    {
+        var owner = await dbContext.CalendarOwners
+            .AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == calendarOwnerId, ct);
+
+        if (owner is null)
+            return CalendarSourceReadiness.NotReady("Calendar owner not found.");
+
+        var hasConsent = !string.IsNullOrWhiteSpace(owner.GraphAccessTokenProtected)
+            || !string.IsNullOrWhiteSpace(owner.GraphRefreshTokenProtected);
+
+        return hasConsent
+            ? CalendarSourceReadiness.Ready("Microsoft Graph calendar is configured.")
+            : CalendarSourceReadiness.NotReady(
+                "Microsoft Graph consent required.",
+                "This calendar owner has not granted Microsoft Graph calendar consent yet. Complete consent before requesting busy slots.");
     }
 
     private async Task<IReadOnlyList<CalendarEvent>> ResolveFallbackAsync(

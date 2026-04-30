@@ -128,7 +128,7 @@ public class CalendarOwnerAvailabilitySyncServiceTests
 
         return new CalendarOwnerAvailabilitySyncService(
             dbContext,
-            calendarSource,
+            new FixedCalendarSourceResolver(calendarSource),
             applicationServices.GetRequiredService<ObfuscationPipeline>(),
             new StubCalendarOwnerObfuscationProfileService(),
             Options.Create(new SyncOptions
@@ -150,6 +150,12 @@ public class CalendarOwnerAvailabilitySyncServiceTests
             => Task.FromResult(calendarOwnerId is { } ownerId && eventsByOwner.TryGetValue(ownerId, out var events)
                 ? events
                 : []);
+    }
+
+    private sealed class FixedCalendarSourceResolver(ICalendarSource source) : ICalendarSourceResolver
+    {
+        public Task<ICalendarSource> ResolveAsync(Guid? calendarOwnerId = null, CancellationToken ct = default) =>
+            Task.FromResult(source);
     }
 
     private sealed class ThrowingStubCalendarSource(Guid failingOwnerId, IReadOnlyList<CalendarEvent> healthyEvents) : ICalendarSource

@@ -10,8 +10,12 @@ public sealed class ObfuscationPipeline(
     IEnumerable<IBusySlotTransformer> slotTransformers,
     ILogger<ObfuscationPipeline> logger)
 {
-    private readonly IObfuscationTransformer[] _transformers = transformers.ToArray();
-    private readonly IBusySlotTransformer[] _slotTransformers = slotTransformers.ToArray();
+    private readonly IObfuscationTransformer[] _transformers = transformers
+        .OrderBy(GetEventTransformerOrder)
+        .ToArray();
+    private readonly IBusySlotTransformer[] _slotTransformers = slotTransformers
+        .OrderBy(GetSlotTransformerOrder)
+        .ToArray();
 
     public IReadOnlyList<BusySlot> Process(
         IEnumerable<CalendarEvent> events,
@@ -28,10 +32,10 @@ public sealed class ObfuscationPipeline(
         var activeSlotTransformers = ResolveSlotTransformers(profile);
 
         var eventTransformerNames = activeEventTransformers
-            .Select(transformer => transformer.GetType().Name)
+            .Select(GetEventTransformerName)
             .ToArray();
         var slotTransformerNames = activeSlotTransformers
-            .Select(transformer => transformer.GetType().Name)
+            .Select(GetSlotTransformerName)
             .ToArray();
         var transformersApplied = eventTransformerNames
             .Concat(slotTransformerNames)
@@ -105,5 +109,17 @@ public sealed class ObfuscationPipeline(
         _slotTransformers
             .Where(transformer => transformer is not MergeBlocksTransformer || profile.MergeBlocks)
             .ToArray();
+
+    private static int GetEventTransformerOrder(IObfuscationTransformer transformer) =>
+        transformer is IObfuscationTransformerPlugin plugin ? plugin.Order : int.MaxValue;
+
+    private static int GetSlotTransformerOrder(IBusySlotTransformer transformer) =>
+        transformer is IBusySlotTransformerPlugin plugin ? plugin.Order : int.MaxValue;
+
+    private static string GetEventTransformerName(IObfuscationTransformer transformer) =>
+        transformer is IObfuscationTransformerPlugin plugin ? plugin.Id : transformer.GetType().Name;
+
+    private static string GetSlotTransformerName(IBusySlotTransformer transformer) =>
+        transformer is IBusySlotTransformerPlugin plugin ? plugin.Id : transformer.GetType().Name;
 }
 

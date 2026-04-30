@@ -6,8 +6,11 @@ namespace ObfusCal.Domain.Obfuscation.Transformers;
 /// Rounds event start times down and end times up to the nearest 15-minute boundary.
 /// This prevents fingerprinting of meetings based on exact start/end times and durations.
 /// </summary>
-public sealed class RoundTimesTransformer : IObfuscationTransformer
+public sealed class RoundTimesTransformer : IObfuscationTransformerPlugin
 {
+    public string Id => "round-times";
+    public int Order => 500;
+
     public RoundTimesTransformer(int roundingIntervalMinutes = 15)
     {
         if (roundingIntervalMinutes <= 0)

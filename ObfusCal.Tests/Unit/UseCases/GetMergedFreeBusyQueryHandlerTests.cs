@@ -26,12 +26,12 @@ public class GetMergedFreeBusyQueryHandlerTests
         var profileService = new FakeObfuscationProfileService();
 
         var pipeline = new ObfuscationPipeline(
-            Array.Empty<IObfuscationTransformer>(),
-            Array.Empty<IBusySlotTransformer>(),
+            [],
+            [],
             NullLogger<ObfuscationPipeline>.Instance);
 
         var handler = new GetMergedFreeBusyUseCase(
-            calendarSource, pipeline, shadowStore, profileService,
+            new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
         var query = new GetMergedFreeBusyQuery(OwnerId, From, To);
@@ -56,7 +56,7 @@ public class GetMergedFreeBusyQueryHandlerTests
             NullLogger<ObfuscationPipeline>.Instance);
 
         var handler = new GetMergedFreeBusyUseCase(
-            calendarSource, pipeline, shadowStore, profileService,
+            new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
         var result = await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
@@ -80,7 +80,7 @@ public class GetMergedFreeBusyQueryHandlerTests
             NullLogger<ObfuscationPipeline>.Instance);
 
         var handler = new GetMergedFreeBusyUseCase(
-            calendarSource, pipeline, shadowStore, profileService,
+            new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
         var result = await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
@@ -105,7 +105,7 @@ public class GetMergedFreeBusyQueryHandlerTests
             NullLogger<ObfuscationPipeline>.Instance);
 
         var handler = new GetMergedFreeBusyUseCase(
-            calendarSource, pipeline, shadowStore, profileService,
+            new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
         var result = await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
@@ -133,7 +133,7 @@ public class GetMergedFreeBusyQueryHandlerTests
             NullLogger<ObfuscationPipeline>.Instance);
 
         var handler = new GetMergedFreeBusyUseCase(
-            calendarSource, pipeline, shadowStore, profileService,
+            new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
         await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
@@ -160,7 +160,7 @@ public class GetMergedFreeBusyQueryHandlerTests
             NullLogger<ObfuscationPipeline>.Instance);
 
         var handler = new GetMergedFreeBusyUseCase(
-            calendarSource, pipeline, shadowStore, profileService,
+            new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
         var result = await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
@@ -176,6 +176,12 @@ public class GetMergedFreeBusyQueryHandlerTests
         public Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(
             DateTimeOffset from, DateTimeOffset to, Guid? calendarOwnerId = null, CancellationToken ct = default)
             => Task.FromResult(events);
+    }
+
+    private sealed class FixedCalendarSourceResolver(ICalendarSource source) : ICalendarSourceResolver
+    {
+        public Task<ICalendarSource> ResolveAsync(Guid? calendarOwnerId = null, CancellationToken ct = default) =>
+            Task.FromResult(source);
     }
 
     private sealed class FakeShadowSlotStore(IReadOnlyList<BusySlot> allSlots) : IShadowSlotStore

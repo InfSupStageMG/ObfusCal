@@ -2,8 +2,11 @@
 
 namespace ObfusCal.Domain.Obfuscation.Transformers;
 
-public sealed class RemoveTitleTransformer : IObfuscationTransformer
+public sealed class RemoveTitleTransformer : IObfuscationTransformerPlugin
 {
+    public string Id => "remove-title";
+    public int Order => 100;
+
     public CalendarEvent Transform(CalendarEvent calendarEvent) =>
         calendarEvent with
         {

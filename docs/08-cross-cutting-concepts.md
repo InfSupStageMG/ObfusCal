@@ -71,6 +71,25 @@ Sensitive data (event titles, attendee emails, tokens) must never appear in any 
 
 ## Extensibility (Plugin System)
 
-At startup, the API scans a `plugins/` directory and uses `AssemblyLoadContext` to load any DLLs containing classes that
-implement `ICalendarSource`. These are registered into the ASP.NET Core DI container automatically. This allows new
-calendar adapters to be delivered without modifying or recompiling the core application.
+At startup the API:
+
+1. Loads any DLL in the `plugins/` directory alongside the executable using `AssemblyLoadContext`.
+   A failed load is logged and skipped; other assemblies continue to load normally.
+2. Scans all loaded assemblies (built-in and external) for classes that:
+   - Implement `ICalendarSource` **and** carry `[CalendarSourcePlugin("id", "Display Name")]`
+   - Implement `IObfuscationTransformerPlugin` or `IBusySlotTransformerPlugin`
+3. Registers discovered types into the ASP.NET Core DI container and builds the
+   `ICalendarSourceCatalog` — a queryable index keyed on stable lowercase plugin IDs.
+
+**Calendar-source plugin identity** is driven by the `[CalendarSourcePlugin]` attribute rather than a
+hardcoded provider switch. At runtime, `ICalendarSourceResolver` resolves the active adapter for a calendar
+owner using this priority order: owner's saved selection → application config → first registered plugin.
+
+**Obfuscation transformer plugins** implement `IObfuscationTransformerPlugin` (event-level) or
+`IBusySlotTransformerPlugin` (slot-level). Plugins expose a stable `Id` (used in audit logs) and an `Order`
+used to sort the execution pipeline. All built-in transformers follow the same contract.
+
+All three built-in calendar adapters (`graph`, `ical`, `mock`) ship with the main solution and follow exactly
+the same rules as external third-party plugins. Per-owner provider selection is persisted in the database as a
+plugin ID string, so changing the selection never requires a code change. See `plugins/README.md` for the full
+extension contract.

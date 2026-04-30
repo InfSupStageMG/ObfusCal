@@ -45,9 +45,9 @@ public class ObfuscationPipelineLoggingTests
         CollectionAssert.AreEqual(
             new[]
             {
-                nameof(RemoveTitleTransformer),
-                nameof(RemoveAttendeesTransformer),
-                nameof(MergeBlocksTransformer)
+                "remove-title",
+                "remove-attendees",
+                "merge-blocks"
             },
             transformerNames);
 

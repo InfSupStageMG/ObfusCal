@@ -5,6 +5,7 @@ public class CalendarOwner
     public Guid Id { get; set; }
     public required string Name { get; set; }
     public string? EntraObjectId { get; set; }
+    public string? CalendarSourcePluginId { get; set; }
     public string? GraphAccessTokenProtected { get; set; }
     public string? GraphRefreshTokenProtected { get; set; }
     public DateTimeOffset? GraphTokenExpiresAtUtc { get; set; }

@@ -34,8 +34,8 @@ try
         .Enrich.FromLogContext());
 
     builder.Services
-        .AddApplication()
-        .AddInfrastructure(builder.Configuration);
+        .AddInfrastructure(builder.Configuration)
+        .AddApplication();
 
     builder.Services
         .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

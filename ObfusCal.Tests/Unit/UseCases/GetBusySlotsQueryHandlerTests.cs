@@ -98,8 +98,14 @@ public class GetBusySlotsQueryHandlerTests
             NullLogger<ObfuscationPipeline>.Instance);
 
         return new GetBusySlotsUseCase(
-            calendarSource, pipeline, profileService,
+            new FixedCalendarSourceResolver(calendarSource), pipeline, profileService,
             NullLogger<GetBusySlotsUseCase>.Instance);
+    }
+
+    private sealed class FixedCalendarSourceResolver(ICalendarSource source) : ICalendarSourceResolver
+    {
+        public Task<ICalendarSource> ResolveAsync(Guid? calendarOwnerId = null, CancellationToken ct = default) =>
+            Task.FromResult(source);
     }
 
     private sealed class FakeCalendarSource(IReadOnlyList<CalendarEvent> events) : ICalendarSource

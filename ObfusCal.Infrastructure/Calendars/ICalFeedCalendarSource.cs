@@ -12,11 +12,13 @@ namespace ObfusCal.Infrastructure.Calendars;
 /// Each feed is fetched independently; failure on one feed does not prevent others from loading.
 /// Falls back to <see cref="MockCalendarSource"/> when the owner has no feeds configured.
 /// </summary>
+
+[CalendarSourcePlugin("ical", "iCal feed")]
 public sealed class IcalFeedCalendarSource(
     HttpClient httpClient,
     AppDbContext dbContext,
     MockCalendarSource fallbackSource,
-    ILogger<IcalFeedCalendarSource> logger) : ICalendarSource
+    ILogger<IcalFeedCalendarSource> logger) : ICalendarSource, ICalendarSourceReadinessEvaluator
 {
     public async Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(DateTimeOffset from,
         DateTimeOffset to,
@@ -58,6 +60,26 @@ public sealed class IcalFeedCalendarSource(
             .Where(e => e.Start < to && e.End > from)
             .OrderBy(e => e.Start)
             .ToList();
+    }
+
+    public async Task<CalendarSourceReadiness> GetReadinessAsync(Guid calendarOwnerId, CancellationToken ct = default)
+    {
+        var ownerExists = await dbContext.CalendarOwners
+            .AsNoTracking()
+            .AnyAsync(x => x.Id == calendarOwnerId, ct);
+
+        if (!ownerExists)
+            return CalendarSourceReadiness.NotReady("Calendar owner not found.");
+
+        var feedCount = await dbContext.CalendarOwnerICalFeeds
+            .AsNoTracking()
+            .CountAsync(feed => feed.CalendarOwnerId == calendarOwnerId, ct);
+
+        return feedCount > 0
+            ? CalendarSourceReadiness.Ready("At least one iCal feed is configured.")
+            : CalendarSourceReadiness.NotReady(
+                "iCal feed required.",
+                "Add at least one iCal feed before requesting busy slots from the iCal provider.");
     }
 
     private async Task<IReadOnlyList<CalendarEvent>> FetchFeedEventsAsync(

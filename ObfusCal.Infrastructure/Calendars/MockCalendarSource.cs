@@ -3,7 +3,8 @@ using ObfusCal.Domain.Models;
 
 namespace ObfusCal.Infrastructure.Calendars;
 
-public sealed class MockCalendarSource : ICalendarSource
+[CalendarSourcePlugin("mock", "Mock calendar")]
+public sealed class MockCalendarSource : ICalendarSource, ICalendarSourceReadinessEvaluator
 {
     public Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(DateTimeOffset from,
         DateTimeOffset to,
@@ -26,6 +27,9 @@ public sealed class MockCalendarSource : ICalendarSource
 
         return Task.FromResult<IReadOnlyList<CalendarEvent>>(events);
     }
+
+    public Task<CalendarSourceReadiness> GetReadinessAsync(Guid calendarOwnerId, CancellationToken ct = default) =>
+        Task.FromResult(CalendarSourceReadiness.Ready("Mock calendar provider is always available in development."));
 
     private static IReadOnlyList<CalendarEvent> CreateSeedEvents(DateTimeOffset anchor) =>
     [

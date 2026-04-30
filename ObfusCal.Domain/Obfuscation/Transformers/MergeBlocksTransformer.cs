@@ -7,8 +7,11 @@ namespace ObfusCal.Domain.Obfuscation.Transformers;
 /// This prevents fingerprinting of schedules based on the frequency and boundaries
 /// of individual busy blocks.
 /// </summary>
-public sealed class MergeBlocksTransformer : IBusySlotTransformer
+public sealed class MergeBlocksTransformer : IBusySlotTransformerPlugin
 {
+    public string Id => "merge-blocks";
+    public int Order => 100;
+
     public IReadOnlyList<BusySlot> Transform(IReadOnlyList<BusySlot> slots)
     {
         if (slots.Count == 0)

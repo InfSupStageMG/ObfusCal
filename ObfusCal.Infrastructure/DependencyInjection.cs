@@ -20,11 +20,13 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration config)
     {
+        LoadPluginAssemblies();
+
         RegisterCoreInfrastructure(services, config);
         RegisterHttpClients(services);
         RegisterDomainServices(services);
-        RegisterCalendarSourceResolver(services);
         RegisterCalendarSourcePlugins(services);
+        RegisterCalendarSourceServices(services);
 
         return services;
     }
@@ -71,6 +73,7 @@ public static class DependencyInjection
         services.AddScoped<ICalendarOwnerScopeResolver, EfCoreCalendarOwnerScopeResolver>();
         services.AddScoped<ICalendarOwnerService, CalendarOwnerService>();
         services.AddScoped<ICalendarOwnerGraphConsentService, CalendarOwnerGraphConsentService>();
+        services.AddScoped<ICalendarOwnerCalendarSourceService, CalendarOwnerCalendarSourceService>();
         services.AddScoped<ICalendarOwnerIcalFeedService, CalendarOwnerIcalFeedService>();
         services.AddScoped<ICalendarOwnerObfuscationProfileService, CalendarOwnerObfuscationProfileService>();
         services.AddScoped<ICalendarOwnerAvailabilitySyncService, CalendarOwnerAvailabilitySyncService>();
@@ -84,68 +87,78 @@ public static class DependencyInjection
         services.AddHostedService<PeerSyncBackgroundService>();
     }
 
-    private static void RegisterCalendarSourceResolver(IServiceCollection services)
+    private static void RegisterCalendarSourcePlugins(IServiceCollection services)
     {
-        services.AddScoped(provider =>
+        var catalog = new CalendarSourcePluginCatalog(CalendarSourcePluginCatalog.Discover(includeExternalPlugins: true));
+        services.AddSingleton<ICalendarSourceCatalog>(catalog);
+
+        foreach (var plugin in catalog.GetPlugins())
+        {
+            if (services.Any(descriptor => descriptor.ServiceType == plugin.ImplementationType))
+                continue;
+
+            services.AddScoped(plugin.ImplementationType);
+
+            Log.ForContext("CalendarSourceType", plugin.ImplementationType.Name)
+                .ForContext("CalendarSourceId", plugin.Id)
+                .ForContext("PluginAssemblyPath", plugin.IsExternalPlugin ? plugin.ImplementationType.Assembly.Location : "built-in")
+                .Information("Registered calendar source plugin");
+        }
+    }
+
+    private static void RegisterCalendarSourceServices(IServiceCollection services)
+    {
+        services.AddScoped<ICalendarSourceResolver, CalendarSourceResolver>();
+        services.AddScoped<ICalendarSource>(provider =>
         {
             var options = provider.GetRequiredService<IOptions<CalendarSourceOptions>>().Value;
             var environment = provider.GetRequiredService<IHostEnvironment>();
-            var configuredProvider = ResolveConfiguredCalendarProvider(options.Provider, environment);
+            var catalog = provider.GetRequiredService<ICalendarSourceCatalog>();
+            var configuredProviderId = ResolveConfiguredCalendarProvider(options.Provider, environment);
+            var plugin = catalog.GetPlugin(configuredProviderId);
 
-            return configuredProvider switch
-            {
-                "mock" => (ICalendarSource)provider.GetRequiredService<MockCalendarSource>(),
-                "ical" => provider.GetRequiredService<IcalFeedCalendarSource>(),
-                _ => provider.GetRequiredService<GraphCalendarSource>()
-            };
+            plugin ??= catalog.GetPlugins().FirstOrDefault()
+                ?? throw new InvalidOperationException("No calendar source plugins are registered.");
+
+            return (ICalendarSource)provider.GetRequiredService(plugin.ImplementationType);
         });
     }
 
-    private static string ResolveConfiguredCalendarProvider(string? configuredProvider, IHostEnvironment environment)
+    private static void LoadPluginAssemblies()
     {
-        if (string.IsNullOrWhiteSpace(configuredProvider))
-            configuredProvider = environment.IsDevelopment() ? "Mock" : "Graph";
-
-        return configuredProvider.Trim().ToLowerInvariant();
-    }
-
-    private static void RegisterCalendarSourcePlugins(IServiceCollection services)
-    {
-        // Load calendar source plugins from the plugins/ directory alongside the executable.
-        // Plugin registrations come after defaults so custom providers can override defaults.
+        // Load plugin assemblies from the plugins/ directory alongside the executable.
         var pluginFolder = Path.Combine(AppContext.BaseDirectory, "plugins");
         if (!Directory.Exists(pluginFolder))
             return;
 
         foreach (var dll in Directory.GetFiles(pluginFolder, "*.dll"))
         {
-            RegisterCalendarSourcePluginAssembly(services, dll);
+            LoadPluginAssembly(dll);
         }
     }
 
-    private static void RegisterCalendarSourcePluginAssembly(IServiceCollection services, string dll)
+    private static void LoadPluginAssembly(string dll)
     {
         try
         {
-            var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dll);
+            AssemblyLoadContext.Default.LoadFromAssemblyPath(dll);
 
-            var calendarSources = assembly.GetTypes()
-                .Where(t => typeof(ICalendarSource).IsAssignableFrom(t)
-                            && t is { IsInterface: false, IsAbstract: false });
-
-            foreach (var type in calendarSources)
-            {
-                services.AddScoped(typeof(ICalendarSource), type);
-                Log.ForContext("CalendarSourceType", type.Name)
-                    .ForContext("PluginAssemblyPath", dll)
-                    .Information("Loaded calendar source plugin");
-            }
+            Log.ForContext("PluginAssemblyPath", dll)
+                .Information("Loaded plugin assembly");
         }
         catch (Exception ex)
         {
             Log.ForContext("PluginAssemblyPath", dll)
                 .Error(ex, "Failed to load plugin assembly");
         }
+    }
+
+    private static string ResolveConfiguredCalendarProvider(string? configuredProvider, IHostEnvironment environment)
+    {
+        if (string.IsNullOrWhiteSpace(configuredProvider))
+            configuredProvider = environment.IsDevelopment() ? "mock" : "graph";
+
+        return configuredProvider.Trim().ToLowerInvariant();
     }
 
     /// <summary>

@@ -78,6 +78,10 @@ namespace ObfusCal.Infrastructure.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("CalendarSourcePluginId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.Property<string>("GraphAccessTokenProtected")
                         .HasMaxLength(8192)
                         .HasColumnType("character varying(8192)");

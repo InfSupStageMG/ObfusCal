@@ -20,5 +20,5 @@
 | QS-04 | Security         | The database is breached and OAuth refresh tokens are extracted           | The extracted values are encrypted ciphertext; they cannot be used without the server's encryption key  |
 | QS-05 | Resilience       | A peer instance is offline during a scheduled sync cycle                  | The failure is logged; sync continues for all other peers; the failed peer is retried on the next cycle |
 | QS-06 | Resilience       | A user's calendar source is temporarily unreachable                       | That user's sync is skipped and retried next cycle; other users are unaffected                          |
-| QS-07 | Maintainability  | A developer adds a Google Workspace calendar adapter                      | A new DLL implementing `ICalendarSource` is placed in `plugins/`; no existing code changes required     |
+| QS-07 | Maintainability  | A developer adds a Google Workspace calendar adapter                      | A new DLL implementing `ICalendarSource` and annotated with `[CalendarSourcePlugin("google", "Google Workspace")]` is placed in `plugins/`; no existing code changes required |
 | QS-08 | Self-hostability | A client IT department deploys a new instance                             | Running `docker compose up` with a populated config file produces a working instance                    |
