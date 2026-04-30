@@ -1,0 +1,181 @@
+﻿@page "/peers"
+@using ObfusCal.Application.Interfaces
+@inject ICalendarOwnerService CalendarOwnerService
+@inject IPeerConnectionService PeerConnectionService
+
+<PageTitle>Peer Connections - ObfusCal</PageTitle>
+
+<h1>Peer Connections</h1>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+
+    @* ─── Add peer ─── *@
+    <section class="card">
+        <h3>Add Peer Connection</h3>
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Bottom" Wrap="true">
+            <FluentTextField @bind-Value="_newInstanceId" Immediate="true" Placeholder="Instance ID (e.g. obfuscal-partner)" Style="width: 250px;" />
+            <FluentTextField @bind-Value="_newBaseAddress" Immediate="true" Placeholder="https://partner.example.com" Style="width: 300px;" />
+            <FluentTextField @bind-Value="_newApiKey" Immediate="true" Placeholder="API Key" Style="width: 250px;" />
+            <FluentButton Appearance="Appearance.Accent" OnClick="AddPeerAsync"
+                          Disabled="@(string.IsNullOrWhiteSpace(_newInstanceId) || string.IsNullOrWhiteSpace(_newBaseAddress) || string.IsNullOrWhiteSpace(_newApiKey))">
+                Add Peer
+            </FluentButton>
+        </FluentStack>
+        @if (_message is not null)
+        {
+            <FluentMessageBar Intent="@_messageIntent" Style="margin-top: 0.5rem;">
+                @_message
+            </FluentMessageBar>
+        }
+    </section>
+
+    @* ─── Peer list ─── *@
+    @if (_loading)
+    {
+        <FluentProgress />
+    }
+    else if (_peers is not null)
+    {
+        <section class="card">
+            <h3>Configured Peers</h3>
+            @if (_peers.Count == 0)
+            {
+                <p>No peer connections configured. Add one above to enable cross-domain sync.</p>
+            }
+            else
+            {
+                <FluentDataGrid Items="_peers.AsQueryable()" TGridItem="PeerConnectionSummary">
+                    <PropertyColumn Property="@(p => p.InstanceId)" Title="Instance ID" Sortable="true" />
+                    <PropertyColumn Property="@(p => p.BaseAddress)" Title="Base Address" />
+                    <PropertyColumn Property="@(p => p.MappingCount)" Title="Owner Mappings" />
+                    <TemplateColumn Title="Actions">
+                        <FluentButton Appearance="Appearance.Outline" OnClick="@(() => DeletePeerAsync(context.Id))">
+                            Delete
+                        </FluentButton>
+                    </TemplateColumn>
+                </FluentDataGrid>
+            }
+        </section>
+
+        @* ─── Peer-Owner Mappings ─── *@
+        <section class="card">
+            <h3>Link Owner to Peer</h3>
+            <p>Map a calendar owner to a peer so their busy slots are synced to that peer.</p>
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Bottom" Wrap="true">
+                <div>
+                    <FluentLabel>Calendar Owner</FluentLabel>
+                    <FluentSelect TOption="OwnerOption"
+                                  Items="_owners"
+                                  OptionValue="@(o => o.Id.ToString())"
+                                  OptionText="@(o => o.Name)"
+                                  @bind-SelectedOption="_selectedOwner" />
+                </div>
+                <div>
+                    <FluentLabel>Peer</FluentLabel>
+                    <FluentSelect TOption="PeerOption"
+                                  Items="_peerOptions"
+                                  OptionValue="@(p => p.Id.ToString())"
+                                  OptionText="@(p => p.InstanceId)"
+                                  @bind-SelectedOption="_selectedPeer" />
+                </div>
+                <FluentButton Appearance="Appearance.Accent" OnClick="LinkOwnerToPeerAsync"
+                              Disabled="@(_selectedOwner is null || _selectedPeer is null)">
+                    Link
+                </FluentButton>
+            </FluentStack>
+            @if (_linkMessage is not null)
+            {
+                <FluentMessageBar Intent="@_linkMessageIntent" Style="margin-top: 0.5rem;">
+                    @_linkMessage
+                </FluentMessageBar>
+            }
+        </section>
+    }
+</FluentStack>
+
+@code {
+    private List<PeerConnectionSummary>? _peers;
+    private List<OwnerOption>? _owners;
+    private List<PeerOption>? _peerOptions;
+    private bool _loading = true;
+
+    private string? _newInstanceId;
+    private string? _newBaseAddress;
+    private string? _newApiKey;
+    private string? _message;
+    private MessageIntent _messageIntent = MessageIntent.Info;
+
+    private OwnerOption? _selectedOwner;
+    private PeerOption? _selectedPeer;
+    private string? _linkMessage;
+    private MessageIntent _linkMessageIntent = MessageIntent.Info;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _peers = (await PeerConnectionService.ListAsync()).ToList();
+
+        var ownerSummaries = await CalendarOwnerService.ListAsync();
+        _owners = ownerSummaries.Select(o => new OwnerOption(o.Id, o.Name)).ToList();
+        _peerOptions = _peers.Select(p => new PeerOption(p.Id, p.InstanceId)).ToList();
+
+        _loading = false;
+    }
+
+    private async Task AddPeerAsync()
+    {
+        _message = null;
+        if (string.IsNullOrWhiteSpace(_newInstanceId) || string.IsNullOrWhiteSpace(_newBaseAddress) || string.IsNullOrWhiteSpace(_newApiKey))
+            return;
+
+        await PeerConnectionService.CreateAsync(_newInstanceId, _newBaseAddress, _newApiKey);
+
+        _message = $"Peer '{_newInstanceId.Trim()}' added.";
+        _messageIntent = MessageIntent.Success;
+        _newInstanceId = null;
+        _newBaseAddress = null;
+        _newApiKey = null;
+
+        await LoadDataAsync();
+    }
+
+    private async Task DeletePeerAsync(Guid peerId)
+    {
+        _message = null;
+        var deleted = await PeerConnectionService.DeleteAsync(peerId);
+        _message = deleted ? "Peer removed." : "Peer not found.";
+        _messageIntent = deleted ? MessageIntent.Success : MessageIntent.Error;
+        await LoadDataAsync();
+    }
+
+    private async Task LinkOwnerToPeerAsync()
+    {
+        _linkMessage = null;
+        if (_selectedOwner is null || _selectedPeer is null) return;
+
+        var result = await PeerConnectionService.LinkOwnerToPeerAsync(_selectedOwner.Id, _selectedPeer.Id);
+        switch (result.Outcome)
+        {
+            case LinkOwnerToPeerOutcome.Linked:
+                _linkMessage = $"Linked '{_selectedOwner.Name}' to '{_selectedPeer.InstanceId}' (ref: {result.CalendarOwnerRef}).";
+                _linkMessageIntent = MessageIntent.Success;
+                await LoadDataAsync();
+                break;
+            case LinkOwnerToPeerOutcome.AlreadyLinked:
+                _linkMessage = "This owner is already linked to this peer.";
+                _linkMessageIntent = MessageIntent.Warning;
+                break;
+            default:
+                _linkMessage = "Failed to link.";
+                _linkMessageIntent = MessageIntent.Error;
+                break;
+        }
+    }
+
+    private sealed record OwnerOption(Guid Id, string Name);
+    private sealed record PeerOption(Guid Id, string InstanceId);
+}

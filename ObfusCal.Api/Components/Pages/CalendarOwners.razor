@@ -1,0 +1,93 @@
+﻿@page "/calendar-owners"
+@using ObfusCal.Application.Interfaces
+@inject ICalendarOwnerService CalendarOwnerService
+
+<PageTitle>Calendar Owners - ObfusCal</PageTitle>
+
+<h1>Calendar Owners</h1>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+
+    @* ─── Create new owner ─── *@
+    <section class="card">
+        <h3>Add Calendar Owner</h3>
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Bottom">
+            <FluentTextField @bind-Value="_newOwnerName" Immediate="true" Placeholder="Display name" Style="width: 300px;" />
+            <FluentTextField @bind-Value="_newOwnerEntraId" Immediate="true" Placeholder="Entra Object ID (optional)" Style="width: 320px;" />
+            <FluentButton Appearance="Appearance.Accent" OnClick="CreateOwnerAsync" Disabled="@string.IsNullOrWhiteSpace(_newOwnerName)">
+                Create
+            </FluentButton>
+        </FluentStack>
+        @if (_createMessage is not null)
+        {
+            <FluentMessageBar Intent="@_createMessageIntent" Style="margin-top: 0.5rem;">
+                @_createMessage
+            </FluentMessageBar>
+        }
+    </section>
+
+    @* ─── List ─── *@
+    @if (_loading)
+    {
+        <FluentProgress />
+    }
+    else if (_owners is not null)
+    {
+        <section class="card">
+            <FluentDataGrid Items="_owners.AsQueryable()" TGridItem="CalendarOwnerSummary">
+                <TemplateColumn Title="Name" Sortable="true">
+                    <FluentAnchor Href="@($"/calendar-owners/{context.Id}")" Appearance="Appearance.Hypertext">
+                        @context.Name
+                    </FluentAnchor>
+                </TemplateColumn>
+                <TemplateColumn Title="Graph Consent">
+                    @if (context.HasGraphConsent)
+                    {
+                        <FluentBadge Appearance="Appearance.Accent" Color="Color.Success">Yes</FluentBadge>
+                    }
+                    else
+                    {
+                        <FluentBadge Appearance="Appearance.Neutral">No</FluentBadge>
+                    }
+                </TemplateColumn>
+                <PropertyColumn Property="@(o => o.FeedCount)" Title="iCal Feeds" />
+                <PropertyColumn Property="@(o => o.PeerMappingCount)" Title="Peer Mappings" />
+            </FluentDataGrid>
+        </section>
+    }
+</FluentStack>
+
+@code {
+    private List<CalendarOwnerSummary>? _owners;
+    private bool _loading = true;
+    private string? _newOwnerName;
+    private string? _newOwnerEntraId;
+    private string? _createMessage;
+    private MessageIntent _createMessageIntent = MessageIntent.Info;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOwnersAsync();
+    }
+
+    private async Task LoadOwnersAsync()
+    {
+        _owners = (await CalendarOwnerService.ListAsync()).ToList();
+        _loading = false;
+    }
+
+    private async Task CreateOwnerAsync()
+    {
+        _createMessage = null;
+        if (string.IsNullOrWhiteSpace(_newOwnerName)) return;
+
+        var created = await CalendarOwnerService.CreateAsync(_newOwnerName, _newOwnerEntraId);
+
+        _createMessage = $"Created '{created.Name}'.";
+        _createMessageIntent = MessageIntent.Success;
+        _newOwnerName = null;
+        _newOwnerEntraId = null;
+
+        await LoadOwnersAsync();
+    }
+}
