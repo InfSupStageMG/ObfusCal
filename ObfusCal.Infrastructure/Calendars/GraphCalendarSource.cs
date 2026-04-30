@@ -67,16 +67,7 @@ public sealed class GraphCalendarSource(
         if (string.IsNullOrWhiteSpace(accessToken))
             return [];
 
-        var response = await GetCalendarViewAsync(accessToken, from, to, ct);
-
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
-        {
-            accessToken = await ForceRefreshAsync(owner, ct);
-            if (string.IsNullOrWhiteSpace(accessToken))
-                return [];
-
-            response = await GetCalendarViewAsync(accessToken, from, to, ct);
-        }
+        using var response = await GetCalendarViewWithRetryAsync(owner, accessToken, from, to, ct);
 
         if (!response.IsSuccessStatusCode)
         {
@@ -173,11 +164,31 @@ public sealed class GraphCalendarSource(
     {
         var requestUri =
             $"{GraphCalendarViewPath}?startDateTime={Uri.EscapeDataString(from.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))}&endDateTime={Uri.EscapeDataString(to.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))}";
-        var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Accept.ParseAdd("application/json");
 
         return await httpClient.SendAsync(request, ct);
+    }
+
+    private async Task<HttpResponseMessage> GetCalendarViewWithRetryAsync(
+        CalendarOwner owner,
+        string accessToken,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken ct)
+    {
+        var response = await GetCalendarViewAsync(accessToken, from, to, ct);
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+            return response;
+
+        response.Dispose();
+
+        var refreshedAccessToken = await ForceRefreshAsync(owner, ct);
+        if (string.IsNullOrWhiteSpace(refreshedAccessToken))
+            return new HttpResponseMessage(HttpStatusCode.Unauthorized);
+
+        return await GetCalendarViewAsync(refreshedAccessToken, from, to, ct);
     }
 
     private CalendarEvent? MapEvent(GraphEvent source)

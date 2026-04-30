@@ -179,6 +179,65 @@ public class GraphCalendarSourceTests
             && entry.Message.Contains("Graph access token refresh failed", StringComparison.Ordinal)));
     }
 
+    [TestMethod]
+    public async Task GetEventsAsync_RetriesGraphRequest_WhenInitialResponseIsUnauthorized()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var protector = dataProtectionProvider.CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Owner",
+            GraphAccessTokenProtected = protector.Protect("expired-access-token"),
+            GraphRefreshTokenProtected = protector.Protect("refresh-token"),
+            GraphTokenExpiresAtUtc = DateTimeOffset.UtcNow.AddHours(1)
+        });
+        await dbContext.SaveChangesAsync();
+
+        var tokenClient = new StubGraphOAuthTokenClient
+        {
+            RefreshedToken = new GraphOAuthTokenResponse("fresh-access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))
+        };
+
+        var callCount = 0;
+        var handler = new DelegatingHttpMessageHandler(async request =>
+        {
+            callCount++;
+
+            if (callCount == 1)
+            {
+                Assert.AreEqual("expired-access-token", request.Headers.Authorization?.Parameter);
+                return await Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized));
+            }
+
+            Assert.AreEqual("fresh-access-token", request.Headers.Authorization?.Parameter);
+            const string json = "{ \"value\": [] }";
+            return await Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json")
+            });
+        });
+
+        var source = CreateSource(
+            dbContext,
+            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            tokenClient,
+            new CapturingLogger<GraphCalendarSource>(),
+            dataProtectionProvider);
+
+        var from = new DateTimeOffset(2026, 5, 1, 0, 0, 0, TimeSpan.Zero);
+        var to = from.AddDays(1);
+
+        var events = await source.GetEventsAsync(from, to, ownerId);
+
+        Assert.IsEmpty(events);
+        Assert.AreEqual(2, callCount);
+        Assert.AreEqual(1, tokenClient.RefreshCallCount);
+    }
+
     private static GraphCalendarSource CreateSource(
         AppDbContext dbContext,
         HttpClient httpClient,
