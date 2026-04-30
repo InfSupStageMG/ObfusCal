@@ -43,8 +43,18 @@ internal sealed class CalendarOwnerGraphConsentService(
 
     public string BuildAuthorizationUrl(string redirectUri)
     {
-        if (!Uri.TryCreate(redirectUri, UriKind.Absolute, out _))
-            throw new InvalidOperationException("Redirect URI must be an absolute URI.");
+        // Validate that redirectUri is an absolute URI
+        try
+        {
+            var uri = new Uri(redirectUri, UriKind.Absolute);
+            // Ensure it's using http or https scheme
+            if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+                throw new InvalidOperationException("Redirect URI must use http or https scheme.");
+        }
+        catch (UriFormatException ex)
+        {
+            throw new InvalidOperationException("Redirect URI must be an absolute URI.", ex);
+        }
 
         var azureAdSection = configuration.GetSection("AzureAd");
         var instance = (azureAdSection["Instance"] ?? "https://login.microsoftonline.com/").TrimEnd('/');
