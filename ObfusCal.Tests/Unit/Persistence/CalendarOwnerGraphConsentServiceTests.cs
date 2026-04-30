@@ -371,6 +371,10 @@ public class CalendarOwnerGraphConsentServiceTests
                 null, // no refresh token
                 DateTimeOffset.UtcNow.AddHours(1)));
         }
+
+        public Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(
+            string refreshToken, CancellationToken ct = default)
+            => throw new NotImplementedException();
     }
 
     private sealed class WhitespaceRefreshTokenClient : IGraphOAuthTokenClient
@@ -383,6 +387,10 @@ public class CalendarOwnerGraphConsentServiceTests
                 "   ", // whitespace-only refresh token
                 DateTimeOffset.UtcNow.AddHours(1)));
         }
+
+        public Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(
+            string refreshToken, CancellationToken ct = default)
+            => throw new NotImplementedException();
     }
 }
 
