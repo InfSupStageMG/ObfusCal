@@ -30,12 +30,12 @@ public class GetMergedFreeBusyQueryHandlerTests
             Array.Empty<IBusySlotTransformer>(),
             NullLogger<ObfuscationPipeline>.Instance);
 
-        var handler = new GetMergedFreeBusyQueryHandler(
+        var handler = new GetMergedFreeBusyUseCase(
             calendarSource, pipeline, shadowStore, profileService,
-            NullLogger<GetMergedFreeBusyQueryHandler>.Instance);
+            NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
         var query = new GetMergedFreeBusyQuery(OwnerId, From, To);
-        var result = await handler.Handle(query, CancellationToken.None);
+        var result = await handler.ExecuteAsync(query, CancellationToken.None);
 
         Assert.IsTrue(result.Count >= 2, "Should contain both own and shadow slots");
         Assert.IsTrue(result[0].Start <= result[1].Start, "Results should be sorted by Start");
@@ -55,11 +55,11 @@ public class GetMergedFreeBusyQueryHandlerTests
             Array.Empty<IBusySlotTransformer>(),
             NullLogger<ObfuscationPipeline>.Instance);
 
-        var handler = new GetMergedFreeBusyQueryHandler(
+        var handler = new GetMergedFreeBusyUseCase(
             calendarSource, pipeline, shadowStore, profileService,
-            NullLogger<GetMergedFreeBusyQueryHandler>.Instance);
+            NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
-        var result = await handler.Handle(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
 
         Assert.HasCount(1, result);
         Assert.AreEqual(From.AddHours(10), result[0].Start);
@@ -79,11 +79,11 @@ public class GetMergedFreeBusyQueryHandlerTests
             Array.Empty<IBusySlotTransformer>(),
             NullLogger<ObfuscationPipeline>.Instance);
 
-        var handler = new GetMergedFreeBusyQueryHandler(
+        var handler = new GetMergedFreeBusyUseCase(
             calendarSource, pipeline, shadowStore, profileService,
-            NullLogger<GetMergedFreeBusyQueryHandler>.Instance);
+            NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
-        var result = await handler.Handle(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
 
         Assert.HasCount(1, result);
         Assert.AreEqual(From.AddHours(8), result[0].Start);
@@ -104,11 +104,11 @@ public class GetMergedFreeBusyQueryHandlerTests
             Array.Empty<IBusySlotTransformer>(),
             NullLogger<ObfuscationPipeline>.Instance);
 
-        var handler = new GetMergedFreeBusyQueryHandler(
+        var handler = new GetMergedFreeBusyUseCase(
             calendarSource, pipeline, shadowStore, profileService,
-            NullLogger<GetMergedFreeBusyQueryHandler>.Instance);
+            NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
-        var result = await handler.Handle(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
 
         Assert.HasCount(1, result);
         Assert.AreEqual("Title", result[0].Title);
@@ -132,11 +132,11 @@ public class GetMergedFreeBusyQueryHandlerTests
             Array.Empty<IBusySlotTransformer>(),
             NullLogger<ObfuscationPipeline>.Instance);
 
-        var handler = new GetMergedFreeBusyQueryHandler(
+        var handler = new GetMergedFreeBusyUseCase(
             calendarSource, pipeline, shadowStore, profileService,
-            NullLogger<GetMergedFreeBusyQueryHandler>.Instance);
+            NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
-        await handler.Handle(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
+        await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
 
         Assert.AreEqual(ObfuscationAuditContext.Internal, profileService.LastRequestedContext,
             "Merged free/busy should use Internal context");
@@ -159,11 +159,11 @@ public class GetMergedFreeBusyQueryHandlerTests
             Array.Empty<IBusySlotTransformer>(),
             NullLogger<ObfuscationPipeline>.Instance);
 
-        var handler = new GetMergedFreeBusyQueryHandler(
+        var handler = new GetMergedFreeBusyUseCase(
             calendarSource, pipeline, shadowStore, profileService,
-            NullLogger<GetMergedFreeBusyQueryHandler>.Instance);
+            NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
-        var result = await handler.Handle(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
 
         Assert.AreEqual(From.AddHours(8), result[0].Start, "Shadow slot (8 AM) should be first");
         Assert.AreEqual(From.AddHours(10), result[1].Start, "Own slot (10 AM) should be second");

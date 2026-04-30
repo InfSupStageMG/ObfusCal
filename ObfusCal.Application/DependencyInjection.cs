@@ -1,5 +1,8 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using ObfusCal.Application.Obfuscation;
+using ObfusCal.Application.UseCases.GetBusySlots;
+using ObfusCal.Application.UseCases.GetMergedFreeBusy;
+using ObfusCal.Application.UseCases.PushShadowSlots;
 using ObfusCal.Domain.Obfuscation;
 using ObfusCal.Domain.Obfuscation.Transformers;
 
@@ -9,8 +12,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
-        services.AddMediatR(cfg =>
-            cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly));
+        services.AddScoped<IGetBusySlotsUseCase, GetBusySlotsUseCase>();
+        services.AddScoped<IGetMergedFreeBusyUseCase, GetMergedFreeBusyUseCase>();
+        services.AddScoped<IPushShadowSlotsUseCase, PushShadowSlotsUseCase>();
 
         // Register obfuscation transformers (Domain) — order determines pipeline execution order
         services.AddTransient<IObfuscationTransformer, RemoveTitleTransformer>();

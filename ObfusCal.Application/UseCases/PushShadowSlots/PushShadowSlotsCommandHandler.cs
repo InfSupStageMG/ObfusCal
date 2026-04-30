@@ -1,16 +1,15 @@
-﻿using MediatR;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Domain.Models;
 
 namespace ObfusCal.Application.UseCases.PushShadowSlots;
 
-internal sealed class PushShadowSlotsCommandHandler(
+public sealed class PushShadowSlotsUseCase(
     IShadowSlotStore shadowSlotStore,
-    ILogger<PushShadowSlotsCommandHandler> logger)
-    : IRequestHandler<PushShadowSlotsCommand>
+    ILogger<PushShadowSlotsUseCase> logger)
+    : IPushShadowSlotsUseCase
 {
-    public async Task Handle(PushShadowSlotsCommand command, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(PushShadowSlotsCommand command, CancellationToken cancellationToken)
     {
         var slots = command.Slots
             .Select((slot, index) => new BusySlot(
@@ -33,4 +32,5 @@ internal sealed class PushShadowSlotsCommandHandler(
             command.CalendarOwnerIds.Count);
     }
 }
+
 

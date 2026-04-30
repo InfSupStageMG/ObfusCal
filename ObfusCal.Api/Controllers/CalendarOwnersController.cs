@@ -1,5 +1,4 @@
-﻿using MediatR;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
 using ObfusCal.Api.Authorization;
@@ -14,7 +13,8 @@ namespace ObfusCal.Api.Controllers;
 [Authorize]
 [Route("api/calendar-owners")]
 public sealed class CalendarOwnersController(
-    ISender sender,
+    IGetBusySlotsUseCase getBusySlotsUseCase,
+    IGetMergedFreeBusyUseCase getMergedFreeBusyUseCase,
     CalendarOwnerAccessEvaluator accessEvaluator,
     ICalendarOwnerGraphConsentService graphConsentService,
     ICalendarOwnerIcalFeedService calendarOwnerIcalFeedService,
@@ -57,7 +57,7 @@ public sealed class CalendarOwnersController(
             });
         }
 
-        var result = await sender.Send(new GetBusySlotsQuery(id, from.Value, to.Value), ct);
+        var result = await getBusySlotsUseCase.ExecuteAsync(new GetBusySlotsQuery(id, from.Value, to.Value), ct);
         return Ok(result);
     }
 
@@ -165,7 +165,7 @@ public sealed class CalendarOwnersController(
         if (from is null || to is null)
             return BadRequest("Query parameters 'from' and 'to' are required.");
 
-        var result = await sender.Send(new GetMergedFreeBusyQuery(id, from.Value, to.Value), ct);
+        var result = await getMergedFreeBusyUseCase.ExecuteAsync(new GetMergedFreeBusyQuery(id, from.Value, to.Value), ct);
         return Ok(result);
     }
 

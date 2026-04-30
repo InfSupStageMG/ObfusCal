@@ -28,8 +28,8 @@ We use **Blazor Server embedded in the existing `ObfusCal.Api` project**, served
   API in one `dotnet publish` step.
 * **Shared authentication:** The same Azure AD / JWT middleware protects both API endpoints and Razor components — no
   token relay or CORS configuration needed.
-* **Direct service access:** Razor components can inject `ISender` (MediatR) directly, calling use-cases without HTTP
-  round-trips for the internal UI.
+* **Direct service access:** Razor components can inject application use-case services directly, calling use-cases
+  without HTTP round-trips for the internal UI.
 * **No extra infrastructure:** The existing `aspnet:10.0` runtime image already includes the Blazor Server runtime (
   SignalR hub). Only a WebSocket proxy rule in nginx is required.
 * **Company domain deployment:** GUI is served from the same origin, avoiding mixed-content or cross-origin concerns

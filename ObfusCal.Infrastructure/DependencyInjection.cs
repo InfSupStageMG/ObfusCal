@@ -73,12 +73,14 @@ public static class DependencyInjection
         services.AddScoped<ICalendarOwnerGraphConsentService, CalendarOwnerGraphConsentService>();
         services.AddScoped<ICalendarOwnerIcalFeedService, CalendarOwnerIcalFeedService>();
         services.AddScoped<ICalendarOwnerObfuscationProfileService, CalendarOwnerObfuscationProfileService>();
+        services.AddScoped<ICalendarOwnerAvailabilitySyncService, CalendarOwnerAvailabilitySyncService>();
         services.AddScoped<IPeerConnectionService, PeerConnectionService>();
         services.AddScoped<IOutboundPeerSyncService, OutboundPeerSyncService>();
         services.AddScoped<IInboundPeerPullSyncService, InboundPeerPullSyncService>();
         services.AddScoped<IShadowSlotStore, EfCoreShadowSlotStore>();
         services.AddScoped<MockCalendarSource>();
         services.AddScoped<IcalFeedCalendarSource>();
+        services.AddHostedService<CalendarOwnerAvailabilityBackgroundService>();
         services.AddHostedService<PeerSyncBackgroundService>();
     }
 

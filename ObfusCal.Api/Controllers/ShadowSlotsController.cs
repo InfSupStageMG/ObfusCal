@@ -1,5 +1,4 @@
-﻿using MediatR;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -12,7 +11,11 @@ namespace ObfusCal.Api.Controllers;
 
 [ApiController]
 [Route("api/shadow-slots")]
-public sealed class ShadowSlotsController(ISender sender, AppDbContext dbContext, ILogger<ShadowSlotsController> logger) : ControllerBase
+public sealed class ShadowSlotsController(
+    IGetBusySlotsUseCase getBusySlotsUseCase,
+    IPushShadowSlotsUseCase pushShadowSlotsUseCase,
+    AppDbContext dbContext,
+    ILogger<ShadowSlotsController> logger) : ControllerBase
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -52,7 +55,7 @@ public sealed class ShadowSlotsController(ISender sender, AppDbContext dbContext
         if (calendarOwnerIds.Count == 0)
             return Forbid();
 
-        await sender.Send(new PushShadowSlotsCommand(peerId, calendarOwnerIds, parsedPayload.Slots), ct);
+        await pushShadowSlotsUseCase.ExecuteAsync(new PushShadowSlotsCommand(peerId, calendarOwnerIds, parsedPayload.Slots), ct);
 
         return Created($"/api/shadow-slots/{peerId}", null);
     }
@@ -85,7 +88,7 @@ public sealed class ShadowSlotsController(ISender sender, AppDbContext dbContext
         if (calendarOwnerId == Guid.Empty)
             return Forbid();
 
-        var slots = await sender.Send(new GetBusySlotsQuery(calendarOwnerId, from.Value, to.Value), ct);
+        var slots = await getBusySlotsUseCase.ExecuteAsync(new GetBusySlotsQuery(calendarOwnerId, from.Value, to.Value), ct);
         return Ok(slots);
     }
 

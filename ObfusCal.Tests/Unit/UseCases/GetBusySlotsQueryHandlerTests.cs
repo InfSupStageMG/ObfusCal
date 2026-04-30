@@ -24,7 +24,7 @@ public class GetBusySlotsQueryHandlerTests
         };
 
         var handler = CreateHandler(events);
-        var result = await handler.Handle(new GetBusySlotsQuery(OwnerId, From, To), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new GetBusySlotsQuery(OwnerId, From, To), CancellationToken.None);
 
         Assert.HasCount(1, result);
         Assert.AreEqual(From.AddHours(9), result[0].Start);
@@ -35,7 +35,7 @@ public class GetBusySlotsQueryHandlerTests
     public async Task Handle_WithNoEvents_ReturnsEmptyList()
     {
         var handler = CreateHandler([]);
-        var result = await handler.Handle(new GetBusySlotsQuery(OwnerId, From, To), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new GetBusySlotsQuery(OwnerId, From, To), CancellationToken.None);
 
         Assert.IsEmpty(result);
     }
@@ -50,7 +50,7 @@ public class GetBusySlotsQueryHandlerTests
         };
 
         var handler = CreateHandler(events);
-        var result = await handler.Handle(new GetBusySlotsQuery(OwnerId, From, To), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new GetBusySlotsQuery(OwnerId, From, To), CancellationToken.None);
 
         Assert.AreEqual("Title", result[0].Title);
         Assert.AreEqual("Desc", result[0].Description);
@@ -65,7 +65,7 @@ public class GetBusySlotsQueryHandlerTests
         var profileService = new FakeObfuscationProfileService();
         var handler = CreateHandler([], profileService);
 
-        await handler.Handle(new GetBusySlotsQuery(OwnerId, From, To), CancellationToken.None);
+        await handler.ExecuteAsync(new GetBusySlotsQuery(OwnerId, From, To), CancellationToken.None);
 
         Assert.AreEqual(ObfuscationAuditContext.Client, profileService.LastRequestedContext,
             "Busy slots should use Client context");
@@ -80,12 +80,12 @@ public class GetBusySlotsQueryHandlerTests
             .ToArray();
 
         var handler = CreateHandler(events);
-        var result = await handler.Handle(new GetBusySlotsQuery(OwnerId, From, To), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new GetBusySlotsQuery(OwnerId, From, To), CancellationToken.None);
 
         Assert.HasCount(3, result);
     }
 
-    private static GetBusySlotsQueryHandler CreateHandler(
+    private static GetBusySlotsUseCase CreateHandler(
         IReadOnlyList<CalendarEvent> events,
         FakeObfuscationProfileService? profileService = null)
     {
@@ -97,9 +97,9 @@ public class GetBusySlotsQueryHandlerTests
             Array.Empty<IBusySlotTransformer>(),
             NullLogger<ObfuscationPipeline>.Instance);
 
-        return new GetBusySlotsQueryHandler(
+        return new GetBusySlotsUseCase(
             calendarSource, pipeline, profileService,
-            NullLogger<GetBusySlotsQueryHandler>.Instance);
+            NullLogger<GetBusySlotsUseCase>.Instance);
     }
 
     private sealed class FakeCalendarSource(IReadOnlyList<CalendarEvent> events) : ICalendarSource

@@ -10,6 +10,8 @@ public class CalendarOwner
     public DateTimeOffset? GraphTokenExpiresAtUtc { get; set; }
     public DateTimeOffset? GraphTokenLastRefreshedAtUtc { get; set; }
     public DateTimeOffset? GraphConsentGrantedAtUtc { get; set; }
+    public DateTimeOffset? LastSyncedAt { get; set; }
+    public bool? LastSyncSucceeded { get; set; }
 
     public ICollection<CalendarOwnerPeerMapping> PeerMappings { get; set; } = [];
     public ICollection<ObfuscationProfile> ObfuscationProfiles { get; set; } = [];
