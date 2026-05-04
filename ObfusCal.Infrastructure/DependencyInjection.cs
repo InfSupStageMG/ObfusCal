@@ -82,6 +82,7 @@ public static class DependencyInjection
         services.AddScoped<IOutboundPeerSyncService, OutboundPeerSyncService>();
         services.AddScoped<IInboundPeerPullSyncService, InboundPeerPullSyncService>();
         services.AddScoped<IShadowSlotStore, EfCoreShadowSlotStore>();
+        services.AddScoped<ICalendarOwnerAvailabilitySlotStore, EfCoreCalendarOwnerAvailabilitySlotStore>();
         services.AddScoped<MockCalendarSource>();
         services.AddScoped<IcalFeedCalendarSource>();
         services.AddHostedService<CalendarOwnerAvailabilityBackgroundService>();

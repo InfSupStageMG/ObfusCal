@@ -32,6 +32,18 @@ fluent-data-grid-row > fluent-data-grid-cell {
     padding-block: 8px;
 }
 
+.dashboard-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: end;
+}
+
+.dashboard-filters > div {
+    min-width: 180px;
+    flex: 1 1 220px;
+}
+
 
 
 
