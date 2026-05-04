@@ -1,0 +1,107 @@
+﻿@page "/health-status"
+@using ObfusCal.Application.Interfaces
+@inject IStatusService StatusService
+
+<PageTitle>Health Status - ObfusCal</PageTitle>
+
+<h1>Health Status</h1>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+    <section class="card">
+        <FluentButton Appearance="Appearance.Accent" OnClick="RefreshAsync">
+            Refresh
+        </FluentButton>
+    </section>
+
+    @if (_loading)
+    {
+        <FluentProgress />
+    }
+    else if (_entries is { Count: > 0 })
+    {
+        <section class="card">
+            <h3>Calendar Owner Sync Health</h3>
+            <FluentDataGrid Items="_entries.AsQueryable()" TGridItem="CalendarOwnerStatusEntry">
+                <PropertyColumn Property="@(e => e.DisplayName)" Title="Name" Sortable="true" />
+                <TemplateColumn Title="Graph Consent">
+                    @if (context.HasGraphConsent)
+                    {
+                        <FluentBadge Appearance="Appearance.Accent" Color="Color.Success">Yes</FluentBadge>
+                    }
+                    else
+                    {
+                        <FluentBadge Appearance="Appearance.Neutral">No</FluentBadge>
+                    }
+                </TemplateColumn>
+                <TemplateColumn Title="Sync Status">
+                    @if (context.LastSyncSucceeded == true)
+                    {
+                        <FluentBadge Appearance="Appearance.Accent" Color="Color.Success">Healthy</FluentBadge>
+                    }
+                    else if (context.LastSyncSucceeded == false)
+                    {
+                        <FluentBadge Appearance="Appearance.Accent" Color="Color.Error">Failed</FluentBadge>
+                    }
+                    else
+                    {
+                        <FluentBadge Appearance="Appearance.Neutral">Never synced</FluentBadge>
+                    }
+                </TemplateColumn>
+                <PropertyColumn Property="@(e => e.LastSyncedAt)" Title="Last Synced" Format="yyyy-MM-dd HH:mm:ss" />
+                <TemplateColumn Title="Peers">
+                    @if (context.PeerConnections.Count == 0)
+                    {
+                        <span>—</span>
+                    }
+                    else
+                    {
+                        @foreach (var peer in context.PeerConnections)
+                        {
+                            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="4" VerticalAlignment="VerticalAlignment.Center" Style="margin-bottom: 2px;">
+                                @if (peer.LastSyncSucceeded == true)
+                                {
+                                    <FluentBadge Appearance="Appearance.Accent" Color="Color.Success" Style="font-size: 0.75rem;">@peer.InstanceId</FluentBadge>
+                                }
+                                else if (peer.LastSyncSucceeded == false)
+                                {
+                                    <FluentBadge Appearance="Appearance.Accent" Color="Color.Error" Style="font-size: 0.75rem;">@peer.InstanceId</FluentBadge>
+                                }
+                                else
+                                {
+                                    <FluentBadge Appearance="Appearance.Neutral" Style="font-size: 0.75rem;">@peer.InstanceId</FluentBadge>
+                                }
+                                <span style="font-size: 0.75rem;">
+                                    @(peer.LastSyncedAt?.ToString("MM-dd HH:mm") ?? "never")
+                                </span>
+                            </FluentStack>
+                        }
+                    }
+                </TemplateColumn>
+            </FluentDataGrid>
+        </section>
+    }
+    else
+    {
+        <FluentMessageBar Intent="MessageIntent.Info" Title="No data">
+            No calendar owners found.
+        </FluentMessageBar>
+    }
+</FluentStack>
+
+@code {
+    private List<CalendarOwnerStatusEntry>? _entries;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        _loading = true;
+        _entries = (await StatusService.GetStatusAsync()).ToList();
+        _loading = false;
+    }
+}
+
