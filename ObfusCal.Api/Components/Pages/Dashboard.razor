@@ -5,6 +5,7 @@
 @using ObfusCal.Application.UseCases.GetMergedFreeBusy
 @inject IGetMergedFreeBusyUseCase GetMergedFreeBusyUseCase
 @inject ICalendarOwnerService CalendarOwnerService
+@inject ICalendarOwnerAvailabilitySyncService AvailabilitySyncService
 @inject IJSRuntime Js
 
 <PageTitle>Dashboard - ObfusCal</PageTitle>
@@ -15,7 +16,7 @@
     <section class="card">
         <h3>Combined Calendar</h3>
 
-        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Bottom">
+        <div class="dashboard-filters">
             <div>
                 <FluentLabel>Calendar Owner</FluentLabel>
                 <FluentSelect TOption="CalendarOwnerOption"
@@ -43,7 +44,10 @@
             <FluentButton Appearance="Appearance.Accent" OnClick="LoadFreeBusyAsync" Disabled="_selectedOwner is null">
                 Load
             </FluentButton>
-        </FluentStack>
+            <FluentButton OnClick="RefreshAndLoadAsync" Disabled="_selectedOwner is null || _refreshing">
+                @(_refreshing ? "Refreshing..." : "Refresh")
+            </FluentButton>
+        </div>
     </section>
 
     @if (_loading)
@@ -77,9 +81,12 @@
     private List<MergedFreeBusyResponse>? _slots;
     private bool _loading;
     private bool _loaded;
+    private bool _refreshing;
 
     private List<TimeZoneOption> _timeZones = [];
     private TimeZoneOption? _selectedTimeZone;
+    private bool _timeZoneLookupStarted;
+    private static string? _sCachedTimeZoneId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -94,26 +101,45 @@
             .OrderBy(tz => tz.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        _selectedTimeZone = _timeZones.FirstOrDefault(tz => tz.Id == "UTC") ?? _timeZones.FirstOrDefault();
+        _selectedTimeZone = _timeZones.FirstOrDefault(tz =>
+                                tz.Id.Equals(_sCachedTimeZoneId, StringComparison.OrdinalIgnoreCase))
+                            ?? _timeZones.FirstOrDefault(tz => tz.Id == "UTC")
+                            ?? _timeZones.FirstOrDefault();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
-            return;
+        if (!firstRender || _timeZoneLookupStarted)
+            return Task.CompletedTask;
 
+        _timeZoneLookupStarted = true;
+        _ = ResolveBrowserTimeZoneAsync();
+        return Task.CompletedTask;
+    }
+
+    private async Task ResolveBrowserTimeZoneAsync()
+    {
         try
         {
-            var browserTimeZone = await Js.InvokeAsync<string?>("obfusCalTime.getBrowserTimeZone");
+            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(750));
+            var browserTimeZone = await Js.InvokeAsync<string?>(
+                "obfusCalTime.getCachedOrBrowserTimeZone",
+                cts.Token);
             if (string.IsNullOrWhiteSpace(browserTimeZone))
                 return;
 
+            _sCachedTimeZoneId = browserTimeZone;
+
             var option = _timeZones.FirstOrDefault(tz => tz.Id.Equals(browserTimeZone, StringComparison.OrdinalIgnoreCase));
-            if (option is not null)
-            {
-                _selectedTimeZone = option;
-                StateHasChanged();
-            }
+            if (option is null || Equals(option, _selectedTimeZone))
+                return;
+
+            _selectedTimeZone = option;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+            // Never block UI if JS timezone detection stalls.
         }
         catch (JSException)
         {
@@ -145,6 +171,23 @@
         {
             _loading = false;
             _loaded = true;
+        }
+    }
+
+    private async Task RefreshAndLoadAsync()
+    {
+        if (_selectedOwner is null)
+            return;
+
+        _refreshing = true;
+        try
+        {
+            await AvailabilitySyncService.RunSyncForOwnerAsync(_selectedOwner.Id, CancellationToken.None);
+            await LoadFreeBusyAsync();
+        }
+        finally
+        {
+            _refreshing = false;
         }
     }
 

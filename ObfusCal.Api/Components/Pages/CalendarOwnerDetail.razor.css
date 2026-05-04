@@ -1,0 +1,11 @@
+﻿.feed-actions-cell {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    padding-block: 4px;
+}
+
+.feed-delete-button {
+    margin-bottom: 2px;
+}
+

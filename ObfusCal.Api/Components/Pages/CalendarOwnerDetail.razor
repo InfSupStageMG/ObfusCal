@@ -49,9 +49,11 @@ else
                 <FluentDataGrid Items="_feeds.AsQueryable()" TGridItem="CalendarOwnerIcalFeedItem">
                     <PropertyColumn Property="@(f => f.FeedUrl)" Title="Feed URL" />
                     <TemplateColumn Title="Actions">
-                        <FluentButton Appearance="Appearance.Outline" OnClick="@(() => DeleteFeedAsync(context.Id))">
-                            Delete
-                        </FluentButton>
+                        <div class="feed-actions-cell">
+                            <FluentButton class="feed-delete-button" Appearance="Appearance.Outline" OnClick="@(() => DeleteFeedAsync(context.Id))">
+                                Delete
+                            </FluentButton>
+                        </div>
                     </TemplateColumn>
                 </FluentDataGrid>
             }
@@ -271,10 +273,3 @@ else
         public bool MergeBlocks { get; set; }
     }
 }
-
-
-
-
-
-
-

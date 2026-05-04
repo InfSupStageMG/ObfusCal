@@ -5,6 +5,7 @@ using ObfusCal.Application.Obfuscation;
 namespace ObfusCal.Application.UseCases.GetMergedFreeBusy;
 
 public sealed class GetMergedFreeBusyUseCase(
+    ICalendarOwnerAvailabilitySlotStore availabilitySlotStore,
     ICalendarSourceResolver calendarSourceResolver,
     ObfuscationPipeline obfuscationPipeline,
     IShadowSlotStore shadowSlotStore,
@@ -14,21 +15,30 @@ public sealed class GetMergedFreeBusyUseCase(
 {
     public async Task<IReadOnlyList<MergedFreeBusyResponse>> ExecuteAsync(GetMergedFreeBusyQuery query, CancellationToken cancellationToken)
     {
-        // Get own obfuscated busy slots
-        var calendarSource = await calendarSourceResolver.ResolveAsync(query.CalendarOwnerId, cancellationToken);
-        var events = await calendarSource.GetEventsAsync(
+        var ownBusySlots = await availabilitySlotStore.GetSlotsAsync(
+            query.CalendarOwnerId,
             query.From,
             query.To,
-            query.CalendarOwnerId, cancellationToken);
-        var profile = await obfuscationProfileService.GetProfileAsync(
-            query.CalendarOwnerId,
-            ObfuscationAuditContext.Internal,
             cancellationToken);
-        var ownBusySlots = obfuscationPipeline.Process(
-            events,
-            query.CalendarOwnerId.ToString(),
-            ObfuscationAuditContext.Internal,
-            profile);
+
+        if (ownBusySlots.Count == 0)
+        {
+            var calendarSource = await calendarSourceResolver.ResolveAsync(query.CalendarOwnerId, cancellationToken);
+            var events = await calendarSource.GetEventsAsync(
+                query.From,
+                query.To,
+                query.CalendarOwnerId,
+                cancellationToken);
+            var profile = await obfuscationProfileService.GetProfileAsync(
+                query.CalendarOwnerId,
+                ObfuscationAuditContext.Internal,
+                cancellationToken);
+            ownBusySlots = obfuscationPipeline.Process(
+                events,
+                query.CalendarOwnerId.ToString(),
+                ObfuscationAuditContext.Internal,
+                profile);
+        }
 
         // Get shadow slots from all peers
         var shadowSlots = await shadowSlotStore.GetAllSlotsAsync(

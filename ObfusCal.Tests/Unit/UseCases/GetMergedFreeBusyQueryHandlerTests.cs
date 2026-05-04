@@ -21,6 +21,7 @@ public class GetMergedFreeBusyQueryHandlerTests
             From.AddHours(10), From.AddHours(11), [], null);
         var shadowSlot = new BusySlot("shadow-1", From.AddHours(8), From.AddHours(9));
 
+        var availabilityStore = new FakeAvailabilitySlotStore([]);
         var calendarSource = new FakeCalendarSource([ownEvent]);
         var shadowStore = new FakeShadowSlotStore([shadowSlot]);
         var profileService = new FakeObfuscationProfileService();
@@ -31,6 +32,7 @@ public class GetMergedFreeBusyQueryHandlerTests
             NullLogger<ObfuscationPipeline>.Instance);
 
         var handler = new GetMergedFreeBusyUseCase(
+            availabilityStore,
             new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
@@ -46,6 +48,7 @@ public class GetMergedFreeBusyQueryHandlerTests
     {
         var ownEvent = new CalendarEvent("own-1", "Meeting", "desc",
             From.AddHours(10), From.AddHours(11), ["alice@example.com"], "Room 1");
+        var availabilityStore = new FakeAvailabilitySlotStore([]);
         var calendarSource = new FakeCalendarSource([ownEvent]);
         var shadowStore = new FakeShadowSlotStore([]);
         var profileService = new FakeObfuscationProfileService();
@@ -56,6 +59,7 @@ public class GetMergedFreeBusyQueryHandlerTests
             NullLogger<ObfuscationPipeline>.Instance);
 
         var handler = new GetMergedFreeBusyUseCase(
+            availabilityStore,
             new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
@@ -70,6 +74,7 @@ public class GetMergedFreeBusyQueryHandlerTests
     public async Task Handle_ReturnsShadowSlotsWhenNoOwnEvents()
     {
         var shadowSlot = new BusySlot("shadow-1", From.AddHours(8), From.AddHours(9));
+        var availabilityStore = new FakeAvailabilitySlotStore([]);
         var calendarSource = new FakeCalendarSource([]);
         var shadowStore = new FakeShadowSlotStore([shadowSlot]);
         var profileService = new FakeObfuscationProfileService();
@@ -80,6 +85,7 @@ public class GetMergedFreeBusyQueryHandlerTests
             NullLogger<ObfuscationPipeline>.Instance);
 
         var handler = new GetMergedFreeBusyUseCase(
+            availabilityStore,
             new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
@@ -94,6 +100,7 @@ public class GetMergedFreeBusyQueryHandlerTests
     {
         var ownEvent = new CalendarEvent("own-1", "Title", "Desc",
             From.AddHours(10), From.AddHours(11), ["a@b.com"], "Room");
+        var availabilityStore = new FakeAvailabilitySlotStore([]);
         var calendarSource = new FakeCalendarSource([ownEvent]);
         var shadowStore = new FakeShadowSlotStore([]);
         var profileService = new FakeObfuscationProfileService();
@@ -105,6 +112,7 @@ public class GetMergedFreeBusyQueryHandlerTests
             NullLogger<ObfuscationPipeline>.Instance);
 
         var handler = new GetMergedFreeBusyUseCase(
+            availabilityStore,
             new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
@@ -123,6 +131,7 @@ public class GetMergedFreeBusyQueryHandlerTests
     {
         var ownEvent = new CalendarEvent("own-1", "Meeting", null,
             From.AddHours(10), From.AddHours(11), [], null);
+        var availabilityStore = new FakeAvailabilitySlotStore([]);
         var calendarSource = new FakeCalendarSource([ownEvent]);
         var shadowStore = new FakeShadowSlotStore([]);
         var profileService = new FakeObfuscationProfileService();
@@ -133,6 +142,7 @@ public class GetMergedFreeBusyQueryHandlerTests
             NullLogger<ObfuscationPipeline>.Instance);
 
         var handler = new GetMergedFreeBusyUseCase(
+            availabilityStore,
             new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
@@ -150,6 +160,7 @@ public class GetMergedFreeBusyQueryHandlerTests
             From.AddHours(10), From.AddHours(11), [], null);
         var shadowSlot = new BusySlot("shadow-1", From.AddHours(8), From.AddHours(9));
 
+        var availabilityStore = new FakeAvailabilitySlotStore([]);
         var calendarSource = new FakeCalendarSource([ownEvent]);
         var shadowStore = new FakeShadowSlotStore([shadowSlot]);
         var profileService = new FakeObfuscationProfileService();
@@ -160,6 +171,7 @@ public class GetMergedFreeBusyQueryHandlerTests
             NullLogger<ObfuscationPipeline>.Instance);
 
         var handler = new GetMergedFreeBusyUseCase(
+            availabilityStore,
             new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
@@ -167,6 +179,32 @@ public class GetMergedFreeBusyQueryHandlerTests
 
         Assert.AreEqual(From.AddHours(8), result[0].Start, "Shadow slot (8 AM) should be first");
         Assert.AreEqual(From.AddHours(10), result[1].Start, "Own slot (10 AM) should be second");
+    }
+
+    [TestMethod]
+    public async Task Handle_PrefersPersistedAvailabilitySlots_WhenAvailable()
+    {
+        var snapshotSlot = new BusySlot("snapshot-1", From.AddHours(9), From.AddHours(10), "Snapshot");
+        var availabilityStore = new FakeAvailabilitySlotStore([snapshotSlot]);
+        var calendarSource = new ThrowingCalendarSource();
+        var shadowStore = new FakeShadowSlotStore([]);
+        var profileService = new FakeObfuscationProfileService();
+
+        var pipeline = new ObfuscationPipeline(
+            Array.Empty<IObfuscationTransformer>(),
+            Array.Empty<IBusySlotTransformer>(),
+            NullLogger<ObfuscationPipeline>.Instance);
+
+        var handler = new GetMergedFreeBusyUseCase(
+            availabilityStore,
+            new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
+            NullLogger<GetMergedFreeBusyUseCase>.Instance);
+
+        var result = await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
+
+        Assert.HasCount(1, result);
+        Assert.AreEqual("Snapshot", result[0].Title);
+        Assert.IsNull(profileService.LastRequestedContext, "Profile lookup is not needed when snapshot data exists.");
     }
 
     // ---- Fakes ----
@@ -182,6 +220,26 @@ public class GetMergedFreeBusyQueryHandlerTests
     {
         public Task<ICalendarSource> ResolveAsync(Guid? calendarOwnerId = null, CancellationToken ct = default) =>
             Task.FromResult(source);
+    }
+
+    private sealed class ThrowingCalendarSource : ICalendarSource
+    {
+        public Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(
+            DateTimeOffset from,
+            DateTimeOffset to,
+            Guid? calendarOwnerId = null,
+            CancellationToken ct = default)
+            => throw new InvalidOperationException("Live source should not be called when snapshot slots exist.");
+    }
+
+    private sealed class FakeAvailabilitySlotStore(IReadOnlyList<BusySlot> slots) : ICalendarOwnerAvailabilitySlotStore
+    {
+        public Task<IReadOnlyList<BusySlot>> GetSlotsAsync(
+            Guid calendarOwnerId,
+            DateTimeOffset from,
+            DateTimeOffset to,
+            CancellationToken ct = default)
+            => Task.FromResult(slots);
     }
 
     private sealed class FakeShadowSlotStore(IReadOnlyList<BusySlot> allSlots) : IShadowSlotStore
