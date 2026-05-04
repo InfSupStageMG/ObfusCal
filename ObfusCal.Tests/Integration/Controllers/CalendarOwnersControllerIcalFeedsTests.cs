@@ -54,6 +54,55 @@ public class CalendarOwnersControllerIcalFeedsTests
     }
 
     [TestMethod]
+    public async Task AddIcalFeed_SwitchesCalendarSourcePluginToIcal_WhenOwnerUsesPlaceholderProvider()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/ical-feeds",
+            new CalendarOwnersController.AddIcalFeedRequest("https://calendar.example.test/auto-switch.ics"),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
+
+        var owner = await factory.GetCalendarOwnerAsync(calendarOwnerId);
+        Assert.AreEqual("ical", owner?.CalendarSourcePluginId,
+            "Adding the first iCal feed must automatically switch the owner's calendar source to 'ical'.");
+    }
+
+    [TestMethod]
+    public async Task AddIcalFeed_DoesNotChangePlugin_WhenOwnerAlreadyUsesNonMockProvider()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        // Pre-set the owner to "graph" (simulate an owner who explicitly chose Graph).
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var dbOwner = await db.CalendarOwners.SingleAsync(o => o.Id == calendarOwnerId);
+            dbOwner.CalendarSourcePluginId = "graph";
+            await db.SaveChangesAsync();
+        }
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/ical-feeds",
+            new CalendarOwnersController.AddIcalFeedRequest("https://calendar.example.test/keep-graph.ics"),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
+
+        var owner = await factory.GetCalendarOwnerAsync(calendarOwnerId);
+        Assert.AreEqual("graph", owner?.CalendarSourcePluginId,
+            "Explicitly chosen providers must not be overridden by adding an iCal feed.");
+    }
+
+    [TestMethod]
     public async Task AddIcalFeed_ReturnsBadRequest_WhenFeedUrlIsInvalid()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);

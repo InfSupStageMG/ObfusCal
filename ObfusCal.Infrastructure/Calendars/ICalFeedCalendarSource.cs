@@ -153,25 +153,57 @@ public sealed class IcalFeedCalendarSource(
                 continue;
             }
 
-            var colonIndex = line.IndexOf(':');
-            if (current is null || colonIndex <= 0)
-                continue;
-
-            var rawKey = line[..colonIndex];
-            var value = line[(colonIndex + 1)..].Trim();
-            var key = rawKey.Split(';', 2)[0];
-
-            if (!current.TryGetValue(key, out var values))
-            {
-                values = [];
-                current[key] = values;
-            }
-
-            values.Add(value);
+            ProcessEventLine(line, current);
         }
 
         return events;
     }
+
+    private static void ProcessEventLine(string line, Dictionary<string, List<string>>? current)
+    {
+        var colonIndex = line.IndexOf(':');
+        if (current is null || colonIndex <= 0)
+            return;
+
+        var rawKey = line[..colonIndex];
+        var value = line[(colonIndex + 1)..].Trim();
+        var key = rawKey.Split(';', 2)[0];
+
+        if (!current.TryGetValue(key, out var values))
+        {
+            values = [];
+            current[key] = values;
+        }
+
+        values.Add(value);
+
+        ExtractTimeZoneId(rawKey, key, current);
+    }
+
+    private static void ExtractTimeZoneId(string rawKey, string key, Dictionary<string, List<string>> current)
+    {
+        if (!rawKey.Contains(';') ||
+            (!key.Equals("DTSTART", StringComparison.OrdinalIgnoreCase) &&
+             !key.Equals("DTEND", StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        var tzIdParam = rawKey
+            .Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Skip(1)
+            .FirstOrDefault(p => p.StartsWith("TZID=", StringComparison.OrdinalIgnoreCase));
+
+        if (tzIdParam is null)
+            return;
+
+        var tzKey = $"{key}#TZID";
+        if (!current.TryGetValue(tzKey, out var tzValues))
+        {
+            tzValues = [];
+            current[tzKey] = tzValues;
+        }
+        tzValues.Add(tzIdParam["TZID=".Length..]);
+    }
+
 
     private static List<string> UnfoldLines(string content)
     {
@@ -205,28 +237,39 @@ public sealed class IcalFeedCalendarSource(
         calendarEvent = null!;
 
         if (!values.TryGetValue("DTSTART", out var startValues)
-            || !TryParseIcsDateTime(startValues[0], out var start))
+            || !TryParseIcsDateTime(startValues[0], TryGetFirst(values, "DTSTART#TZID"), out var start))
         {
             return false;
         }
 
         DateTimeOffset end;
         if (values.TryGetValue("DTEND", out var endValues)
-            && TryParseIcsDateTime(endValues[0], out var parsedEnd))
+            && TryParseIcsDateTime(endValues[0], TryGetFirst(values, "DTEND#TZID"), out var parsedEnd))
         {
             end = parsedEnd;
         }
         else
         {
-            // RFC5545 default duration for DATE DTSTART when DTEND is omitted is one day;
-            // for DATE-TIME we use a conservative 30-minute default.
             end = startValues[0].Contains('T', StringComparison.OrdinalIgnoreCase)
                 ? start.AddMinutes(30)
                 : start.AddDays(1);
         }
 
         if (end <= start)
-            return false;
+        {
+            if (end == start
+                && IsDateOnlyValue(startValues[0])
+                && values.TryGetValue("DTEND", out var rawEndValues)
+                && rawEndValues.Count > 0
+                && IsDateOnlyValue(rawEndValues[0]))
+            {
+                end = start.AddDays(1);
+            }
+            else
+            {
+                return false;
+            }
+        }
 
         var id = TryGetFirst(values, "UID") ?? Guid.NewGuid().ToString("N");
         var title = TryGetFirst(values, "SUMMARY") ?? "Busy";
@@ -252,12 +295,15 @@ public sealed class IcalFeedCalendarSource(
     private static string? TryGetFirst(IReadOnlyDictionary<string, List<string>> values, string key)
         => values.TryGetValue(key, out var list) && list.Count > 0 ? list[0] : null;
 
+    private static bool IsDateOnlyValue(string value)
+        => !value.Contains('T', StringComparison.OrdinalIgnoreCase);
+
     private static string ParseAttendee(string raw)
     {
         return raw.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase) ? raw[7..] : raw;
     }
 
-    private static bool TryParseIcsDateTime(string value, out DateTimeOffset result)
+    private static bool TryParseIcsDateTime(string value, string? tzId, out DateTimeOffset result)
     {
         if (DateTimeOffset.TryParseExact(
                 value,
@@ -269,13 +315,30 @@ public sealed class IcalFeedCalendarSource(
             return true;
         }
 
-        if (DateTimeOffset.TryParseExact(
+        if (DateTime.TryParseExact(
                 value,
                 "yyyyMMdd'T'HHmmss",
                 CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                out result))
+                DateTimeStyles.None,
+                out var localDt))
         {
+            if (!string.IsNullOrWhiteSpace(tzId))
+            {
+                try
+                {
+                    var tz = TimeZoneInfo.FindSystemTimeZoneById(tzId);
+                    var utcDt = TimeZoneInfo.ConvertTimeToUtc(
+                        DateTime.SpecifyKind(localDt, DateTimeKind.Unspecified), tz);
+                    result = new DateTimeOffset(utcDt, TimeSpan.Zero);
+                    return true;
+                }
+                catch (TimeZoneNotFoundException)
+                {
+                    // Unrecognised TZID on this host; fall through and treat as floating (UTC).
+                }
+            }
+
+            result = new DateTimeOffset(localDt, TimeSpan.Zero);
             return true;
         }
 

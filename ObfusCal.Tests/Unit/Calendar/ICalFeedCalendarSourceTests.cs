@@ -471,6 +471,45 @@ public class IcalFeedCalendarSourceTests
     }
 
     [TestMethod]
+    public async Task GetEventsAsync_ParsesAllDayEventWithValueDateAndExplicitDtend()
+    {
+        var ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n" +
+                  "BEGIN:VEVENT\r\nUID:all-day-value-date\r\nSUMMARY:Holiday\r\n" +
+                  "DTSTART;VALUE=DATE:20260510\r\n" +
+                  "DTEND;VALUE=DATE:20260511\r\n" +
+                  "END:VEVENT\r\nEND:VCALENDAR\r\n";
+
+        var events = await GetParsedEventsAsync(ics,
+            new DateTimeOffset(2026, 5, 9, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 5, 12, 0, 0, 0, TimeSpan.Zero));
+
+        Assert.HasCount(1, events);
+        Assert.AreEqual("all-day-value-date", events[0].Id);
+        Assert.AreEqual(new DateTimeOffset(2026, 5, 10, 0, 0, 0, TimeSpan.Zero), events[0].Start);
+        Assert.AreEqual(new DateTimeOffset(2026, 5, 11, 0, 0, 0, TimeSpan.Zero), events[0].End);
+    }
+
+    [TestMethod]
+    public async Task GetEventsAsync_AllDayEventWithSameDateDtstartDtend_NormalizesToOneDay()
+    {
+        // Some providers emit DTSTART/DTEND with the same DATE value for all-day events.
+        // We normalize this to one day so full-day events are not dropped.
+        var ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n" +
+                  "BEGIN:VEVENT\r\nUID:all-day-same-date\r\nSUMMARY:Local Holiday\r\n" +
+                  "DTSTART;VALUE=DATE:20260510\r\n" +
+                  "DTEND;VALUE=DATE:20260510\r\n" +
+                  "END:VEVENT\r\nEND:VCALENDAR\r\n";
+
+        var events = await GetParsedEventsAsync(ics,
+            new DateTimeOffset(2026, 5, 9, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 5, 12, 0, 0, 0, TimeSpan.Zero));
+
+        Assert.HasCount(1, events);
+        Assert.AreEqual(new DateTimeOffset(2026, 5, 10, 0, 0, 0, TimeSpan.Zero), events[0].Start);
+        Assert.AreEqual(new DateTimeOffset(2026, 5, 11, 0, 0, 0, TimeSpan.Zero), events[0].End);
+    }
+
+    [TestMethod]
     public async Task GetEventsAsync_ParsesDtstartWithoutZ_AssumedUtc()
     {
         // Tests non-UTC datetime format parsing (yyyyMMdd'T'HHmmss without Z)
@@ -687,7 +726,8 @@ public class IcalFeedCalendarSourceTests
     [TestMethod]
     public async Task GetEventsAsync_ParsesPropertyWithSemicolonParameter()
     {
-        // DTSTART;TZID=Europe/Berlin:20260424T090000 should skip the TZID parameter
+        // DTSTART;TZID=Europe/Berlin:20260424T090000 — TZID must be respected.
+        // Europe/Berlin in April 2026 is CEST (UTC+2), so 09:00 local = 07:00 UTC.
         var ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n" +
                   "BEGIN:VEVENT\r\nUID:param-test\r\nSUMMARY:Param\r\n" +
                   "DTSTART;TZID=Europe/Berlin:20260424T090000\r\n" +
@@ -700,10 +740,52 @@ public class IcalFeedCalendarSourceTests
 
         Assert.HasCount(1, events);
         Assert.AreEqual("param-test", events[0].Id);
+        // 09:00 CEST = 07:00 UTC
+        Assert.AreEqual(new DateTimeOffset(2026, 4, 24, 7, 0, 0, TimeSpan.Zero), events[0].Start);
+        Assert.AreEqual(new DateTimeOffset(2026, 4, 24, 8, 0, 0, TimeSpan.Zero), events[0].End);
+    }
+
+    [TestMethod]
+    public async Task GetEventsAsync_ParsesDtstartWithTzidAmsterdam_ConvertsToUtc()
+    {
+        // Europe/Amsterdam in May 2026 = CEST (UTC+2): 19:00 local → 17:00 UTC.
+        var ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n" +
+                  "BEGIN:VEVENT\r\nUID:amsterdam-evening\r\nSUMMARY:Evening Event\r\n" +
+                  "DTSTART;TZID=Europe/Amsterdam:20260506T190000\r\n" +
+                  "DTEND;TZID=Europe/Amsterdam:20260506T200000\r\n" +
+                  "END:VEVENT\r\nEND:VCALENDAR\r\n";
+
+        var events = await GetParsedEventsAsync(ics,
+            new DateTimeOffset(2026, 5, 6, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 5, 7, 0, 0, 0, TimeSpan.Zero));
+
+        Assert.HasCount(1, events);
+        Assert.AreEqual(new DateTimeOffset(2026, 5, 6, 17, 0, 0, TimeSpan.Zero), events[0].Start,
+            "19:00 CEST should be stored as 17:00 UTC");
+        Assert.AreEqual(new DateTimeOffset(2026, 5, 6, 18, 0, 0, TimeSpan.Zero), events[0].End);
+    }
+
+    [TestMethod]
+    public async Task GetEventsAsync_ParsesDtstartWithUnknownTzid_FallsBackToFloatingUtc()
+    {
+        // When TZID is present but not recognised on this host, treat the time as floating (UTC).
+        var ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n" +
+                  "BEGIN:VEVENT\r\nUID:unknown-tz\r\nSUMMARY:Unknown TZ\r\n" +
+                  "DTSTART;TZID=Fictional/Nowhere:20260424T090000\r\n" +
+                  "DTEND;TZID=Fictional/Nowhere:20260424T100000\r\n" +
+                  "END:VEVENT\r\nEND:VCALENDAR\r\n";
+
+        var events = await GetParsedEventsAsync(ics,
+            new DateTimeOffset(2026, 4, 24, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 4, 25, 0, 0, 0, TimeSpan.Zero));
+
+        Assert.HasCount(1, events);
+        // Unknown TZID → fallback to floating (UTC)
+        Assert.AreEqual(new DateTimeOffset(2026, 4, 24, 9, 0, 0, TimeSpan.Zero), events[0].Start);
     }
 
     // Helper for parsing-through-DB tests
-    private async Task<IReadOnlyList<Domain.Models.CalendarEvent>> GetParsedEventsAsync(
+    private static async Task<IReadOnlyList<Domain.Models.CalendarEvent>> GetParsedEventsAsync(
         string icsContent, DateTimeOffset from, DateTimeOffset to)
     {
         await using var dbContext = CreateDbContext();

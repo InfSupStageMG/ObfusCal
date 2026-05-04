@@ -1,8 +1,11 @@
 ﻿@page "/"
+@using System.Globalization
+@using Microsoft.JSInterop
 @using ObfusCal.Application.Interfaces
 @using ObfusCal.Application.UseCases.GetMergedFreeBusy
 @inject IGetMergedFreeBusyUseCase GetMergedFreeBusyUseCase
 @inject ICalendarOwnerService CalendarOwnerService
+@inject IJSRuntime Js
 
 <PageTitle>Dashboard - ObfusCal</PageTitle>
 
@@ -29,6 +32,14 @@
                 <FluentLabel>To</FluentLabel>
                 <FluentDatePicker @bind-Value="_toDate" />
             </div>
+            <div>
+                <FluentLabel>Time zone</FluentLabel>
+                <FluentSelect TOption="TimeZoneOption"
+                              Items="_timeZones"
+                              OptionValue="@(tz => tz.Id)"
+                              OptionText="@(tz => tz.DisplayName)"
+                              @bind-SelectedOption="_selectedTimeZone" />
+            </div>
             <FluentButton Appearance="Appearance.Accent" OnClick="LoadFreeBusyAsync" Disabled="_selectedOwner is null">
                 Load
             </FluentButton>
@@ -43,10 +54,10 @@
     {
         <section class="card">
             <FluentDataGrid Items="_slots.AsQueryable()" TGridItem="MergedFreeBusyResponse">
-                <PropertyColumn Property="@(s => s.Start.LocalDateTime)" Title="Start" Format="ddd dd MMM HH:mm" />
-                <PropertyColumn Property="@(s => s.End.LocalDateTime)" Title="End" Format="HH:mm" />
+                <TemplateColumn Title="Start">@FormatInSelectedTimeZone(context.Start, "ddd dd MMM HH:mm")</TemplateColumn>
+                <TemplateColumn Title="End">@FormatInSelectedTimeZone(context.End, "HH:mm")</TemplateColumn>
                 <PropertyColumn Property="@(s => s.Title ?? "Busy")" Title="Title" />
-                <PropertyColumn Property="@(s => s.Location ?? "—")" Title="Location" />
+                <PropertyColumn Property="@(s => s.Location ?? "-")" Title="Location" />
             </FluentDataGrid>
         </section>
     }
@@ -61,11 +72,14 @@
 @code {
     private List<CalendarOwnerOption>? _calendarOwners;
     private CalendarOwnerOption? _selectedOwner;
-    private DateTime? _fromDate = DateTime.Today;
-    private DateTime? _toDate = DateTime.Today.AddDays(7);
+    private DateTime? _fromDate = DateTime.UtcNow.Date;
+    private DateTime? _toDate = DateTime.UtcNow.Date.AddDays(7);
     private List<MergedFreeBusyResponse>? _slots;
     private bool _loading;
     private bool _loaded;
+
+    private List<TimeZoneOption> _timeZones = [];
+    private TimeZoneOption? _selectedTimeZone;
 
     protected override async Task OnInitializedAsync()
     {
@@ -74,6 +88,37 @@
 
         if (_calendarOwners.Count > 0)
             _selectedOwner = _calendarOwners[0];
+
+        _timeZones = TimeZoneInfo.GetSystemTimeZones()
+            .Select(tz => new TimeZoneOption(tz.Id, tz.DisplayName))
+            .OrderBy(tz => tz.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        _selectedTimeZone = _timeZones.FirstOrDefault(tz => tz.Id == "UTC") ?? _timeZones.FirstOrDefault();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        try
+        {
+            var browserTimeZone = await Js.InvokeAsync<string?>("obfusCalTime.getBrowserTimeZone");
+            if (string.IsNullOrWhiteSpace(browserTimeZone))
+                return;
+
+            var option = _timeZones.FirstOrDefault(tz => tz.Id.Equals(browserTimeZone, StringComparison.OrdinalIgnoreCase));
+            if (option is not null)
+            {
+                _selectedTimeZone = option;
+                StateHasChanged();
+            }
+        }
+        catch (JSException)
+        {
+            // Keep UTC when browser timezone detection is unavailable.
+        }
     }
 
     private async Task LoadFreeBusyAsync()
@@ -87,9 +132,13 @@
 
         try
         {
-            var from = new DateTimeOffset(_fromDate.Value, TimeSpan.Zero);
-            var to = new DateTimeOffset(_toDate.Value, TimeSpan.Zero);
-            var result = await GetMergedFreeBusyUseCase.ExecuteAsync(new GetMergedFreeBusyQuery(_selectedOwner.Id, from, to), CancellationToken.None);
+            var timeZone = ResolveSelectedTimeZone();
+            var from = ConvertLocalDateBoundaryToUtc(_fromDate.Value.Date, timeZone);
+            var to = ConvertLocalDateBoundaryToUtc(_toDate.Value.Date.AddDays(1), timeZone);
+
+            var result = await GetMergedFreeBusyUseCase.ExecuteAsync(
+                new GetMergedFreeBusyQuery(_selectedOwner.Id, from, to),
+                CancellationToken.None);
             _slots = result.ToList();
         }
         finally
@@ -99,5 +148,39 @@
         }
     }
 
+    private TimeZoneInfo ResolveSelectedTimeZone()
+    {
+        if (_selectedTimeZone is null)
+            return TimeZoneInfo.Utc;
+
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById(_selectedTimeZone.Id);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return TimeZoneInfo.Utc;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return TimeZoneInfo.Utc;
+        }
+    }
+
+    private static DateTimeOffset ConvertLocalDateBoundaryToUtc(DateTime localDate, TimeZoneInfo timeZone)
+    {
+        var local = DateTime.SpecifyKind(localDate, DateTimeKind.Unspecified);
+        var utc = TimeZoneInfo.ConvertTimeToUtc(local, timeZone);
+        return new DateTimeOffset(utc, TimeSpan.Zero);
+    }
+
+    private string FormatInSelectedTimeZone(DateTimeOffset value, string format)
+    {
+        var timeZone = ResolveSelectedTimeZone();
+        var local = TimeZoneInfo.ConvertTime(value, timeZone);
+        return local.ToString(format, CultureInfo.CurrentCulture);
+    }
+
     private sealed record CalendarOwnerOption(Guid Id, string Name);
+    private sealed record TimeZoneOption(string Id, string DisplayName);
 }

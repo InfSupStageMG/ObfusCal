@@ -22,11 +22,10 @@ internal sealed class CalendarOwnerIcalFeedService(AppDbContext dbContext) : ICa
         string feedUrl,
         CancellationToken ct = default)
     {
-        var ownerExists = await dbContext.CalendarOwners
-            .AsNoTracking()
-            .AnyAsync(owner => owner.Id == calendarOwnerId, ct);
+        var owner = await dbContext.CalendarOwners
+            .SingleOrDefaultAsync(o => o.Id == calendarOwnerId, ct);
 
-        if (!ownerExists)
+        if (owner is null)
             return new AddCalendarOwnerIcalFeedResult(AddCalendarOwnerIcalFeedOutcome.CalendarOwnerNotFound);
 
         var normalizedFeedUrl = feedUrl.Trim();
@@ -46,6 +45,13 @@ internal sealed class CalendarOwnerIcalFeedService(AppDbContext dbContext) : ICa
         };
 
         dbContext.CalendarOwnerICalFeeds.Add(feed);
+
+        if (string.IsNullOrWhiteSpace(owner.CalendarSourcePluginId) ||
+            owner.CalendarSourcePluginId.Equals("mock", StringComparison.OrdinalIgnoreCase))
+        {
+            owner.CalendarSourcePluginId = "ical";
+        }
+
         await dbContext.SaveChangesAsync(ct);
 
         return new AddCalendarOwnerIcalFeedResult(
