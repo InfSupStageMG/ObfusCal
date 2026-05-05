@@ -41,6 +41,7 @@ public sealed class InboundPeerPullSyncService(
 
         var mappings = await dbContext.CalendarOwnerPeerMappings
             .AsNoTracking()
+            .Where(mapping => mapping.PeerConnection.Status == PeerConnectionStatus.Active)
             .Select(mapping => new PeerPullTarget(
                 mapping.PeerConnectionId,
                 mapping.CalendarOwnerId,
