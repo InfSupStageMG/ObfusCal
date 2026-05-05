@@ -8,6 +8,7 @@ using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Calendars;
 using ObfusCal.Infrastructure.Persistence;
+using ObfusCal.Infrastructure.Security;
 using ObfusCal.Infrastructure.Storage;
 using ObfusCal.Infrastructure.Sync;
 using Serilog;
@@ -33,11 +34,30 @@ public static class DependencyInjection
 
     private static void RegisterCoreInfrastructure(IServiceCollection services, IConfiguration config)
     {
-        services.AddDbContext<AppDbContext>(options =>
+        services.Configure<SecretProviderOptions>(config.GetSection(SecretProviderOptions.SectionName));
+        services.AddSingleton<EnvironmentSecretProvider>();
+        services.AddSingleton<ExternalSecretProvider>();
+        services.AddSingleton<ISecretProvider, ConfiguredSecretProvider>();
+        services.AddSingleton<ILogRedactor, DefaultLogRedactor>();
+        services.AddSingleton<ISyncRuntimeOptionsProvider, SyncRuntimeOptionsProvider>();
+        services.AddSingleton<SecretStartupValidator>();
+
+        services.Configure<SecretValidationOptions>(options =>
         {
+            options.RequiredSecretKeys.Add(SecretKeys.DefaultConnectionString);
+            options.RequiredSecretKeys.Add(SecretKeys.AzureAdTenantId);
+            options.RequiredSecretKeys.Add(SecretKeys.AzureAdClientId);
+            options.RequiredSecretKeys.Add(SecretKeys.GraphConsentClientId);
+        });
+
+        services.AddDbContext<AppDbContext>((provider, options) =>
+        {
+            var secretProvider = provider.GetRequiredService<ISecretProvider>();
+            var connectionString = secretProvider.GetSecret(SecretKeys.DefaultConnectionString)
+                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+
             options.UseNpgsql(
-                config.GetConnectionString("DefaultConnection")
-                    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found."));
+                connectionString);
 
             // Suppress the pending model changes warning — migrations are applied at startup
             options.ConfigureWarnings(w =>
@@ -76,6 +96,7 @@ public static class DependencyInjection
         services.AddScoped<ICalendarOwnerCalendarSourceService, CalendarOwnerCalendarSourceService>();
         services.AddScoped<ICalendarOwnerIcalFeedService, CalendarOwnerIcalFeedService>();
         services.AddScoped<ICalendarOwnerObfuscationProfileService, CalendarOwnerObfuscationProfileService>();
+        services.AddScoped<ICalendarOwnerClientBusySlotService, CalendarOwnerClientBusySlotService>();
         services.AddScoped<ICalendarOwnerAvailabilitySyncService, CalendarOwnerAvailabilitySyncService>();
         services.AddScoped<IPeerConnectionService, PeerConnectionService>();
         services.AddScoped<IStatusService, StatusService>();

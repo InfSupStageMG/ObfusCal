@@ -37,7 +37,7 @@ NGINX1 -- "HTTPS (peer ID validated via X-Peer-Id)" --> NGINX2
 Before starting the containers:
 
 1. Ensure certificates exist under `certs/nginx` and `certs/api` (see `certs/README.md`).
-2. Create a `.env` file from `.env.example` with PostgreSQL and API certificate values.
+2. Create a `.env` file from `.env.example` with PostgreSQL, API certificate, and application secret placeholders.
 
 Bring up a full instance (reverse proxy + API + PostgreSQL):
 
@@ -49,22 +49,33 @@ docker compose up -d --build
 podman compose up -d --build
 ```
 
-The `docker-compose.yaml` at the repository root wires the API to PostgreSQL and waits for a healthy DB before starting the API container.
+The `docker-compose.yaml` at the repository root wires the API to PostgreSQL and waits for a healthy DB before starting
+the API container.
 
-For local API-only debugging, start PostgreSQL first and then run `dotnet run --project ObfusCal.Api` outside containers.
+For local API-only debugging, start PostgreSQL first and then run `dotnet run --project ObfusCal.Api` outside
+containers.
 
 ## Environment Variables
 
-| Variable                                              | Purpose                                                                |
-|-------------------------------------------------------|------------------------------------------------------------------------|
-| `ASPNETCORE_ENVIRONMENT`                              | Set to `Development` for Swagger UI; `Production` for live deployments |
-| `ASPNETCORE_URLS`                                     | Kestrel listen URL inside the container (e.g. `https://+:8443`)        |
-| `ASPNETCORE_Kestrel__Certificates__Default__Path`     | Path to the PFX certificate file mounted into the container            |
-| `ASPNETCORE_Kestrel__Certificates__Default__Password` | Password for the PFX certificate (sourced from `.env`)                 |
-| `API_CERT_PASSWORD`                                   | Passed to `docker compose` via `.env`; sets the Kestrel cert password  |
-| `PeerConnections.ApiKeyHash` (database)               | Hashed peer API keys used by peer authentication (`Authorization: ApiKey <key>`) |
-| `ConnectionStrings__DefaultConnection`                | PostgreSQL connection string                                            |
-| `Sync__IntervalSeconds`                               | How often the background sync runs (default: `900` = 15 minutes)       |
+| Variable                                              | Purpose                                                                               |
+|-------------------------------------------------------|---------------------------------------------------------------------------------------|
+| `ASPNETCORE_ENVIRONMENT`                              | Set to `Development` for Swagger UI; `Production` for live deployments                |
+| `ASPNETCORE_URLS`                                     | Kestrel listen URL inside the container (e.g. `https://+:8443`)                       |
+| `ASPNETCORE_Kestrel__Certificates__Default__Path`     | Path to the PFX certificate file mounted into the container                           |
+| `ASPNETCORE_Kestrel__Certificates__Default__Password` | Password for the PFX certificate (sourced from `.env`)                                |
+| `API_CERT_PASSWORD`                                   | Passed to `docker compose` via `.env`; sets the Kestrel cert password                 |
+| `PeerConnections.ApiKeyHash` (database)               | Hashed peer API keys used by peer authentication (`Authorization: ApiKey <key>`)      |
+| `ConnectionStrings__DefaultConnection`                | PostgreSQL connection string (required at startup)                                    |
+| `AzureAd__TenantId`                                   | Entra tenant ID (required at startup)                                                 |
+| `AzureAd__ClientId`                                   | Entra app/client ID (required at startup)                                             |
+| `GraphConsent__ClientId`                              | Microsoft Graph consent client ID (required at startup)                               |
+| `GraphConsent__ClientSecret`                          | Microsoft Graph consent client secret (optional depending on tenant app registration) |
+| `Sync__InstanceId`                                    | Local instance identifier used in peer sync headers                                   |
+| `Sync__ApiKey`                                        | Shared API key used for peer sync authentication                                      |
+| `Sync__SyncIntervalSeconds`                           | How often the background sync runs (default: `900` = 15 minutes)                      |
+| `Secrets__Provider`                                   | Secret provider mode (`Environment` default, `External` stub)                         |
+
+At startup, ObfusCal validates required secrets and fails fast with a descriptive error when one is missing.
 
 ## CI/CD
 
@@ -83,9 +94,9 @@ docker compose up -d --build
 
 ## PoC vs Production Differences
 
-| Concern | PoC                                       | Production                                  |
-|---------|-------------------------------------------|---------------------------------------------|
-| Storage | In-memory shadow-slot store               | PostgreSQL via EF Core                      |
-| TLS     | Terminated at nginx sidecar (self-signed) | Terminated at reverse proxy with valid cert |
-| Auth    | Known-peer ID header + Entra ID OIDC      | Strong peer auth (planned) + Entra ID OIDC  |
-| Secrets | Environment variables / `.env` file       | Secrets manager or Docker secrets           |
+| Concern | PoC                                             | Production                                           |
+|---------|-------------------------------------------------|------------------------------------------------------|
+| Storage | In-memory shadow-slot store                     | PostgreSQL via EF Core                               |
+| TLS     | Terminated at nginx sidecar (self-signed)       | Terminated at reverse proxy with valid cert          |
+| Auth    | Known-peer ID header + Entra ID OIDC            | Strong peer auth (planned) + Entra ID OIDC           |
+| Secrets | `ISecretProvider` using env/config placeholders | `ISecretProvider` with external secret store backend |

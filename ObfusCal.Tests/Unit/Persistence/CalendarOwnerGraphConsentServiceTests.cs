@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.DataProtection;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
@@ -20,14 +19,10 @@ public class CalendarOwnerGraphConsentServiceTests
         db.SaveChanges();
 
         var dpProvider = DataProtectionProvider.Create("test");
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
-                ["AzureAd:TenantId"] = "tenant-id-123",
-                ["AzureAd:ClientId"] = "client-id-456"
-            })
-            .Build();
+        var secretProvider = CreateSecretProvider(
+            "https://login.microsoftonline.com/",
+            "tenant-id-123",
+            "client-id-456");
         var options = Options.Create(new GraphConsentOptions
         {
             Scope = "https://graph.microsoft.com/Calendars.Read offline_access",
@@ -35,7 +30,7 @@ public class CalendarOwnerGraphConsentServiceTests
         });
 
         var svc = new CalendarOwnerGraphConsentService(
-            db, dpProvider, config, options,
+            db, dpProvider, secretProvider, options,
             tokenClient ?? new FakeGraphOAuthTokenClient());
 
         return (svc, db, ownerId);
@@ -191,14 +186,10 @@ public class CalendarOwnerGraphConsentServiceTests
     {
         var db = TestDbContextFactory.CreateInMemory();
         var dpProvider = DataProtectionProvider.Create("test");
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
-                ["AzureAd:TenantId"] = "tenant-123",
-                ["AzureAd:ClientId"] = "azure-ad-client"
-            })
-            .Build();
+        var secretProvider = CreateSecretProvider(
+            "https://login.microsoftonline.com/",
+            "tenant-123",
+            "azure-ad-client");
         var options = Options.Create(new GraphConsentOptions
         {
             ClientId = null, // force fallback to AzureAd:ClientId
@@ -206,7 +197,7 @@ public class CalendarOwnerGraphConsentServiceTests
         });
 
         var svc = new CalendarOwnerGraphConsentService(
-            db, dpProvider, config, options, new FakeGraphOAuthTokenClient());
+            db, dpProvider, secretProvider, options, new FakeGraphOAuthTokenClient());
 
         var url = svc.BuildAuthorizationUrl("https://localhost/callback");
 
@@ -219,14 +210,10 @@ public class CalendarOwnerGraphConsentServiceTests
     {
         var db = TestDbContextFactory.CreateInMemory();
         var dpProvider = DataProtectionProvider.Create("test");
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
-                ["AzureAd:TenantId"] = "tenant-123",
-                ["AzureAd:ClientId"] = "client-123"
-            })
-            .Build();
+        var secretProvider = CreateSecretProvider(
+            "https://login.microsoftonline.com/",
+            "tenant-123",
+            "client-123");
         var options = Options.Create(new GraphConsentOptions
         {
             ClientId = "client-123",
@@ -234,7 +221,7 @@ public class CalendarOwnerGraphConsentServiceTests
         });
 
         var svc = new CalendarOwnerGraphConsentService(
-            db, dpProvider, config, options, new FakeGraphOAuthTokenClient());
+            db, dpProvider, secretProvider, options, new FakeGraphOAuthTokenClient());
 
         var url = svc.BuildAuthorizationUrl("https://localhost/callback");
 
@@ -247,14 +234,10 @@ public class CalendarOwnerGraphConsentServiceTests
     {
         var db = TestDbContextFactory.CreateInMemory();
         var dpProvider = DataProtectionProvider.Create("test");
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
-                ["AzureAd:TenantId"] = "tenant-123",
-                ["AzureAd:ClientId"] = "client-123"
-            })
-            .Build();
+        var secretProvider = CreateSecretProvider(
+            "https://login.microsoftonline.com/",
+            "tenant-123",
+            "client-123");
         var options = Options.Create(new GraphConsentOptions
         {
             ClientId = "client-123",
@@ -262,7 +245,7 @@ public class CalendarOwnerGraphConsentServiceTests
         });
 
         var svc = new CalendarOwnerGraphConsentService(
-            db, dpProvider, config, options, new FakeGraphOAuthTokenClient());
+            db, dpProvider, secretProvider, options, new FakeGraphOAuthTokenClient());
 
         var url = svc.BuildAuthorizationUrl("https://localhost/callback");
 
@@ -277,23 +260,19 @@ public class CalendarOwnerGraphConsentServiceTests
     {
         var db = TestDbContextFactory.CreateInMemory();
         var dpProvider = DataProtectionProvider.Create("test");
-        var config = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["AzureAd:Instance"] = "https://login.microsoftonline.com///",
-                ["AzureAd:TenantId"] = "my-tenant",
-                ["AzureAd:ClientId"] = "my-client"
-            })
-            .Build();
+        var secretProvider = CreateSecretProvider(
+            "https://login.microsoftonline.com///",
+            "my-tenant",
+            "my-client");
         var options = Options.Create(new GraphConsentOptions { ClientId = "my-client", Scope = "openid" });
 
         var svc = new CalendarOwnerGraphConsentService(
-            db, dpProvider, config, options, new FakeGraphOAuthTokenClient());
+            db, dpProvider, secretProvider, options, new FakeGraphOAuthTokenClient());
 
         var url = svc.BuildAuthorizationUrl("https://localhost/callback");
 
         // With TrimEnd('/'), the URL should have exactly one slash between instance and tenant
-        Assert.IsTrue(url.Contains("microsoftonline.com/my-tenant/oauth2"),
+        Assert.Contains("microsoftonline.com/my-tenant/oauth2", url,
             "Instance trailing slashes should be trimmed");
     }
 
@@ -303,8 +282,8 @@ public class CalendarOwnerGraphConsentServiceTests
         var (svc, _, _) = Setup();
         var url = svc.BuildAuthorizationUrl("https://localhost/callback");
 
-        Assert.IsTrue(url.Contains("response_mode=query"), "URL should contain response_mode=query");
-        Assert.IsTrue(url.Contains("response_type=code"), "URL should contain response_type=code");
+        Assert.Contains("response_mode=query", url, "URL should contain response_mode=query");
+        Assert.Contains("response_type=code", url, "URL should contain response_type=code");
     }
 
     [TestMethod]
@@ -341,9 +320,19 @@ public class CalendarOwnerGraphConsentServiceTests
     }
 
     [TestMethod]
-    public async Task HasConsentAsync_WithBothTokensNull_ReturnsFalse()
+    public async Task HasConsentAsync_WithTokensExplicitlyCleared_ReturnsFalse()
     {
-        var (svc, _, ownerId) = Setup();
+        var (svc, db, ownerId) = Setup();
+
+        var owner = db.CalendarOwners.Single(o => o.Id == ownerId);
+        owner.GraphAccessTokenProtected = "token";
+        owner.GraphRefreshTokenProtected = "refresh";
+        await db.SaveChangesAsync();
+
+        owner.GraphAccessTokenProtected = null;
+        owner.GraphRefreshTokenProtected = null;
+        await db.SaveChangesAsync();
+
         var hasConsent = await svc.HasConsentAsync(ownerId);
         Assert.IsFalse(hasConsent);
     }
@@ -360,6 +349,14 @@ public class CalendarOwnerGraphConsentServiceTests
         Assert.IsNull(owner.GraphRefreshTokenProtected,
             "Whitespace-only refresh token should be stored as null");
     }
+
+    private static ISecretProvider CreateSecretProvider(string instance, string tenantId, string clientId)
+        => new DictionarySecretProvider(new Dictionary<string, string?>
+        {
+            ["AzureAd:Instance"] = instance,
+            ["AzureAd:TenantId"] = tenantId,
+            ["AzureAd:ClientId"] = clientId
+        });
 
     private sealed class NullRefreshTokenClient : IGraphOAuthTokenClient
     {
@@ -391,6 +388,11 @@ public class CalendarOwnerGraphConsentServiceTests
         public Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(
             string refreshToken, CancellationToken ct = default)
             => throw new NotImplementedException();
+    }
+
+    private sealed class DictionarySecretProvider(IReadOnlyDictionary<string, string?> values) : ISecretProvider
+    {
+        public string? GetSecret(string key) => values.TryGetValue(key, out var value) ? value : null;
     }
 }
 

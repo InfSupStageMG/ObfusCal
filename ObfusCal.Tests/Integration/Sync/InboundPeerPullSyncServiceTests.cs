@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
+using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
 using ObfusCal.Infrastructure.Storage;
 using ObfusCal.Infrastructure.Sync;
@@ -185,6 +186,7 @@ public class InboundPeerPullSyncServiceTests
 
         var service = new InboundPeerPullSyncService(
             dbContext, store, httpClientFactory,
+            new NullSecretProvider(),
             Options.Create(new SyncOptions
             {
                 InstanceId = "configured-id",
@@ -216,6 +218,7 @@ public class InboundPeerPullSyncServiceTests
 
         var service = new InboundPeerPullSyncService(
             dbContext, store, httpClientFactory,
+            new NullSecretProvider(),
             Options.Create(new SyncOptions
             {
                 InstanceId = "", // empty = not configured
@@ -248,6 +251,7 @@ public class InboundPeerPullSyncServiceTests
 
         var service = new InboundPeerPullSyncService(
             dbContext, store, httpClientFactory,
+            new NullSecretProvider(),
             Options.Create(new SyncOptions
             {
                 InstanceId = "my-id",
@@ -294,6 +298,7 @@ public class InboundPeerPullSyncServiceTests
             dbContext,
             store,
             httpClientFactory,
+            new NullSecretProvider(),
             Options.Create(new SyncOptions
             {
                 InstanceId = "local-instance-id",
@@ -302,6 +307,11 @@ public class InboundPeerPullSyncServiceTests
                 SyncIntervalSeconds = 900
             }),
             logger ?? NullLogger<InboundPeerPullSyncService>.Instance);
+    }
+
+    private sealed class NullSecretProvider : ISecretProvider
+    {
+        public string? GetSecret(string key) => null;
     }
 
     private static AppDbContext CreateDbContext() => SyncIntegrationTestHelpers.CreateDbContext();

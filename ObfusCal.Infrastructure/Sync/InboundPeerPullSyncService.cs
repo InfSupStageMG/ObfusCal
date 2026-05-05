@@ -14,6 +14,7 @@ public sealed class InboundPeerPullSyncService(
     AppDbContext dbContext,
     IShadowSlotStore shadowSlotStore,
     IHttpClientFactory httpClientFactory,
+    ISecretProvider secretProvider,
     IOptions<SyncOptions> syncOptions,
     ILogger<InboundPeerPullSyncService> logger)
     : IInboundPeerPullSyncService
@@ -25,7 +26,10 @@ public sealed class InboundPeerPullSyncService(
     public async Task RunSyncCycleAsync(CancellationToken ct = default)
     {
         var options = syncOptions.Value;
-        if (string.IsNullOrWhiteSpace(options.InstanceId) || string.IsNullOrWhiteSpace(options.ApiKey))
+        var instanceId = secretProvider.GetSecret(SecretKeys.SyncInstanceId) ?? options.InstanceId;
+        var apiKey = secretProvider.GetSecret(SecretKeys.SyncApiKey) ?? options.ApiKey;
+
+        if (string.IsNullOrWhiteSpace(instanceId) || string.IsNullOrWhiteSpace(apiKey))
         {
             logger.LogDebug(
                 "Skipping inbound peer pull sync because Sync.InstanceId or Sync.ApiKey is not configured.");
@@ -49,7 +53,7 @@ public sealed class InboundPeerPullSyncService(
         {
             try
             {
-                await PullFromPeerAsync(mapping, syncWindowStart, syncWindowEnd, options, ct);
+                await PullFromPeerAsync(mapping, syncWindowStart, syncWindowEnd, instanceId, apiKey, ct);
             }
             catch (OperationCanceledException)
             {
@@ -71,7 +75,8 @@ public sealed class InboundPeerPullSyncService(
         PeerPullTarget mapping,
         DateTimeOffset from,
         DateTimeOffset to,
-        SyncOptions options,
+        string instanceId,
+        string apiKey,
         CancellationToken ct)
     {
         if (!Uri.TryCreate(mapping.BaseAddress, UriKind.Absolute, out var baseUri))
@@ -85,8 +90,8 @@ public sealed class InboundPeerPullSyncService(
 
         var endpoint = BuildPullUri(baseUri, mapping.CalendarOwnerRef, from, to);
         using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
-        request.Headers.Authorization = new AuthenticationHeaderValue(PeerApiKeyScheme, options.ApiKey);
-        request.Headers.Add(PeerIdHeaderName, options.InstanceId);
+        request.Headers.Authorization = new AuthenticationHeaderValue(PeerApiKeyScheme, apiKey);
+        request.Headers.Add(PeerIdHeaderName, instanceId);
 
         var client = httpClientFactory.CreateClient(nameof(InboundPeerPullSyncService));
 

@@ -2,21 +2,16 @@
 using System.Net.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
-using ObfusCal.Application.Obfuscation;
 using ObfusCal.Infrastructure.Persistence;
 
 namespace ObfusCal.Infrastructure.Sync;
 
 public sealed class OutboundPeerSyncService(
     AppDbContext dbContext,
-    ICalendarSourceResolver calendarSourceResolver,
-    ObfuscationPipeline obfuscationPipeline,
-    ICalendarOwnerObfuscationProfileService obfuscationProfileService,
+    ICalendarOwnerClientBusySlotService clientBusySlotService,
     IHttpClientFactory httpClientFactory,
-    IOptions<SyncOptions> syncOptions,
+    ISyncRuntimeOptionsProvider syncRuntimeOptionsProvider,
     ILogger<OutboundPeerSyncService> logger)
     : IOutboundPeerSyncService
 {
@@ -26,8 +21,11 @@ public sealed class OutboundPeerSyncService(
 
     public async Task RunSyncCycleAsync(CancellationToken ct = default)
     {
-        var options = syncOptions.Value;
-        if (string.IsNullOrWhiteSpace(options.InstanceId) || string.IsNullOrWhiteSpace(options.ApiKey))
+        var options = syncRuntimeOptionsProvider.Get();
+        var instanceId = options.InstanceId;
+        var apiKey = options.ApiKey;
+
+        if (string.IsNullOrWhiteSpace(instanceId) || string.IsNullOrWhiteSpace(apiKey))
         {
             logger.LogDebug(
                 "Skipping outbound peer sync because Sync.InstanceId or Sync.ApiKey is not configured.");
@@ -46,7 +44,7 @@ public sealed class OutboundPeerSyncService(
         {
             try
             {
-                await SyncCalendarOwnerAsync(calendarOwnerId, syncWindowStart, syncWindowEnd, options, ct);
+                await SyncCalendarOwnerAsync(calendarOwnerId, syncWindowStart, syncWindowEnd, instanceId, apiKey, ct);
             }
             catch (OperationCanceledException)
             {
@@ -66,7 +64,8 @@ public sealed class OutboundPeerSyncService(
         Guid calendarOwnerId,
         DateTimeOffset from,
         DateTimeOffset to,
-        SyncOptions options,
+        string instanceId,
+        string apiKey,
         CancellationToken ct)
     {
         var mappings = await dbContext.CalendarOwnerPeerMappings
@@ -82,20 +81,10 @@ public sealed class OutboundPeerSyncService(
         if (mappings.Count == 0)
             return;
 
-        var calendarSource = await calendarSourceResolver.ResolveAsync(calendarOwnerId, ct);
-        var events = await calendarSource.GetEventsAsync(from, to, calendarOwnerId, ct);
-        var profile = await obfuscationProfileService.GetProfileAsync(
-            calendarOwnerId,
-            ObfuscationAuditContext.Client,
-            ct);
-        var busySlots = obfuscationPipeline.Process(
-            events,
-            calendarOwnerId.ToString(),
-            ObfuscationAuditContext.Client,
-            profile);
+        var busySlots = await clientBusySlotService.BuildAsync(calendarOwnerId, from, to, ct);
 
         foreach (var mapping in mappings)
-            await PushToPeerAsync(mapping, busySlots, options, ct);
+            await PushToPeerAsync(mapping, busySlots, instanceId, apiKey, ct);
 
         logger.LogInformation(
             "Completed outbound peer sync for calendar owner {CalendarOwnerId} to {PeerCount} peer(s).",
@@ -106,7 +95,8 @@ public sealed class OutboundPeerSyncService(
     private async Task PushToPeerAsync(
         PeerMappingTarget mapping,
         IReadOnlyList<ObfusCal.Domain.Models.BusySlot> busySlots,
-        SyncOptions options,
+        string instanceId,
+        string apiKey,
         CancellationToken ct)
     {
         if (!Uri.TryCreate(mapping.BaseAddress, UriKind.Absolute, out var baseUri))
@@ -130,8 +120,8 @@ public sealed class OutboundPeerSyncService(
                 slot.AttendeeEmails,
                 slot.Location)).ToArray()));
 
-        request.Headers.Authorization = new AuthenticationHeaderValue(PeerApiKeyScheme, options.ApiKey);
-        request.Headers.Add(PeerIdHeaderName, options.InstanceId);
+        request.Headers.Authorization = new AuthenticationHeaderValue(PeerApiKeyScheme, apiKey);
+        request.Headers.Add(PeerIdHeaderName, instanceId);
 
         var client = httpClientFactory.CreateClient(nameof(OutboundPeerSyncService));
 

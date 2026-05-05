@@ -27,6 +27,14 @@ peer ID header by itself.
 **Credential storage:** Microsoft Graph OAuth refresh tokens are encrypted at rest using the .NET Data Protection API (
 DPAPI) before being written to the database. A database breach yields only ciphertext.
 
+**Centralized secret access:** Runtime secret reads are routed through `ISecretProvider` instead of direct
+`IConfiguration` access in business logic. The default `EnvironmentSecretProvider` supports standard .NET
+environment-key mapping (for example `GraphConsent:ClientSecret` -> `GRAPHCONSENT__CLIENTSECRET`). An
+`ExternalSecretProvider` stub exists behind the same abstraction for later integration with a managed secret store.
+
+**Startup validation:** `SecretStartupValidator` checks required secrets during startup and fails fast with a clear
+error when critical values are missing. This prevents deferred runtime failures in database and OAuth flows.
+
 **Data scoping:** After authentication, the user's Entra ID Object ID is extracted from the JWT token and used as a
 strict data boundary at the repository layer. A user can only access their own events, slots, and configuration.
 
@@ -68,6 +76,9 @@ The resulting `BusySlot` contract always contains `start`/`end` and can optional
 
 Structured logging via Serilog. All log entries carry context as queryable properties rather than embedded strings.
 Sensitive data (event titles, attendee emails, tokens) must never appear in any log entry at any log level.
+
+`ILogRedactor` is registered globally and used on error paths to scrub common secret patterns (Bearer tokens, API
+keys, OAuth codes/secrets, connection string passwords) before writing logs.
 
 ## Extensibility (Plugin System)
 

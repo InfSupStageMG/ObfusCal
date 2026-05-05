@@ -97,7 +97,7 @@ public class SyncControllerTests
 
         Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
         Assert.IsNotNull(response.Headers.Location, "Created response should have a Location header");
-        StringAssert.Contains(response.Headers.Location.ToString(), "/api/shadow-slots/");
+        Assert.Contains("/api/shadow-slots/", response.Headers.Location.ToString());
     }
 
     [TestMethod]

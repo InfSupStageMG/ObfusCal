@@ -142,6 +142,29 @@ dotnet test
 > Integration tests require Docker or Podman to be running — they spin up an ephemeral PostgreSQL container via
 > Testcontainers.
 
+## Secret management
+
+ObfusCal now uses a central abstraction (`ISecretProvider`) for secret access and validates required secrets during
+startup.
+
+- Default provider: `EnvironmentSecretProvider` (reads environment variables first, then configuration)
+- Optional provider mode: `ExternalSecretProvider` stub (selected via `Secrets:Provider=External`)
+- Startup fail-fast: app startup stops when required secrets are missing
+- Log safety: `ILogRedactor` masks known sensitive patterns (bearer tokens, api keys, OAuth secrets/codes,
+  connection-string passwords) before they are logged
+
+Environment variable names use the standard double-underscore mapping (for example `GRAPHCONSENT__CLIENTSECRET` and
+`CONNECTIONSTRINGS__DEFAULTCONNECTION`).
+
+### Required secrets at startup
+
+- `ConnectionStrings:DefaultConnection`
+- `AzureAd:TenantId`
+- `AzureAd:ClientId`
+- `GraphConsent:ClientId`
+
+Use `.env.example` as the authoritative placeholder list for local/compose configuration.
+
 Run mutation tests with Stryker:
 
 ```powershell
