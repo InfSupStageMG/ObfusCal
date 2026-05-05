@@ -1,7 +1,6 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
 
@@ -9,7 +8,8 @@ namespace ObfusCal.Infrastructure.Calendars;
 
 internal sealed class GraphOAuthTokenClient(
     HttpClient httpClient,
-    IConfiguration configuration,
+    ISecretProvider secretProvider,
+    ILogRedactor logRedactor,
     Microsoft.Extensions.Options.IOptions<GraphConsentOptions> graphConsentOptions)
     : IGraphOAuthTokenClient
 {
@@ -82,7 +82,7 @@ internal sealed class GraphOAuthTokenClient(
         {
             var body = await response.Content.ReadAsStringAsync(ct);
             throw new InvalidOperationException(
-                $"Graph token exchange failed with HTTP {(int)response.StatusCode}: {body}");
+                $"Graph token exchange failed with HTTP {(int)response.StatusCode}: {logRedactor.Redact(body)}");
         }
 
         var payload = await response.Content.ReadFromJsonAsync<TokenResponse>(JsonOptions, ct)
@@ -102,11 +102,12 @@ internal sealed class GraphOAuthTokenClient(
 
     private OAuthSettings BuildOAuthSettings()
     {
-        var azureAdSection = configuration.GetSection("AzureAd");
-        var instance = (azureAdSection["Instance"] ?? "https://login.microsoftonline.com/").TrimEnd('/');
-        var tenantId = azureAdSection["TenantId"] ?? throw new InvalidOperationException("AzureAd:TenantId is required.");
+        var instance = (secretProvider.GetSecret("AzureAd:Instance") ?? "https://login.microsoftonline.com/").TrimEnd('/');
+        var tenantId = secretProvider.GetSecret(SecretKeys.AzureAdTenantId)
+            ?? throw new InvalidOperationException("AzureAd:TenantId is required.");
         var clientId = graphConsentOptions.Value.ClientId
-            ?? azureAdSection["ClientId"]
+            ?? secretProvider.GetSecret(SecretKeys.GraphConsentClientId)
+            ?? secretProvider.GetSecret(SecretKeys.AzureAdClientId)
             ?? throw new InvalidOperationException("GraphConsent:ClientId or AzureAd:ClientId is required.");
 
         var scope = string.IsNullOrWhiteSpace(graphConsentOptions.Value.Scope)
@@ -116,7 +117,7 @@ internal sealed class GraphOAuthTokenClient(
         return new OAuthSettings(
             $"{instance}/{tenantId}/oauth2/v2.0/token",
             clientId,
-            graphConsentOptions.Value.ClientSecret,
+            graphConsentOptions.Value.ClientSecret ?? secretProvider.GetSecret(SecretKeys.GraphConsentClientSecret),
             scope);
     }
 

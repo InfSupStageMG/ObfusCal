@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
@@ -10,7 +9,7 @@ namespace ObfusCal.Infrastructure.Persistence;
 internal sealed class CalendarOwnerGraphConsentService(
     AppDbContext dbContext,
     IDataProtectionProvider dataProtectionProvider,
-    IConfiguration configuration,
+    ISecretProvider secretProvider,
     IOptions<GraphConsentOptions> graphConsentOptions,
     IGraphOAuthTokenClient tokenClient)
     : ICalendarOwnerGraphConsentService
@@ -56,11 +55,12 @@ internal sealed class CalendarOwnerGraphConsentService(
             throw new InvalidOperationException("Redirect URI must be an absolute URI.", ex);
         }
 
-        var azureAdSection = configuration.GetSection("AzureAd");
-        var instance = (azureAdSection["Instance"] ?? "https://login.microsoftonline.com/").TrimEnd('/');
-        var tenantId = azureAdSection["TenantId"] ?? throw new InvalidOperationException("AzureAd:TenantId is required.");
+        var instance = (secretProvider.GetSecret("AzureAd:Instance") ?? "https://login.microsoftonline.com/").TrimEnd('/');
+        var tenantId = secretProvider.GetSecret(SecretKeys.AzureAdTenantId)
+            ?? throw new InvalidOperationException("AzureAd:TenantId is required.");
         var clientId = graphConsentOptions.Value.ClientId
-            ?? azureAdSection["ClientId"]
+            ?? secretProvider.GetSecret(SecretKeys.GraphConsentClientId)
+            ?? secretProvider.GetSecret(SecretKeys.AzureAdClientId)
             ?? throw new InvalidOperationException("GraphConsent:ClientId or AzureAd:ClientId is required.");
 
         var scope = string.IsNullOrWhiteSpace(graphConsentOptions.Value.Scope)

@@ -9,7 +9,9 @@ using ObfusCal.Api.Authentication;
 using ObfusCal.Api.Authorization;
 using ObfusCal.Api.Components;
 using ObfusCal.Application;
+using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure;
+using ObfusCal.Infrastructure.Security;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -79,7 +81,7 @@ try
         options.AddSecurityDefinition("OAuth2", oauthScheme);
         options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
         {
-            [new OpenApiSecuritySchemeReference("OAuth2", null, null)] = [swaggerOAuthScope]
+            [new OpenApiSecuritySchemeReference("OAuth2")] = [swaggerOAuthScope]
         });
     });
     builder.Services.AddHealthChecks();
@@ -90,6 +92,8 @@ try
 
     var app = builder.Build();
 
+    app.Services.ValidateRequiredSecrets();
+
     app.UseSerilogRequestLogging();
     app.UseStaticFiles();
 
@@ -98,11 +102,13 @@ try
         exceptionApp.Run(async context =>
         {
             var exceptionFeature = context.Features.Get<IExceptionHandlerPathFeature>();
+            var redactor = context.RequestServices.GetRequiredService<ILogRedactor>();
+            var redactedMessage = redactor.Redact(exceptionFeature?.Error.Message ?? "Unhandled exception");
 
             Log.ForContext("RequestMethod", context.Request.Method)
                 .ForContext("RequestPath", exceptionFeature?.Path ?? context.Request.Path.Value)
                 .ForContext("TraceId", context.TraceIdentifier)
-                .Error(exceptionFeature?.Error, "Unhandled exception while processing HTTP request");
+                .Error(exceptionFeature?.Error, "Unhandled exception while processing HTTP request: {RedactedMessage}", redactedMessage);
 
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             context.Response.ContentType = "application/problem+json";

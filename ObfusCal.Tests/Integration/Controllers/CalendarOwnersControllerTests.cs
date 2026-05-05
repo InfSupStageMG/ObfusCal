@@ -362,9 +362,9 @@ public class CalendarOwnersControllerTests
         var authorizationUrl = document.RootElement.GetProperty("authorizationUrl").GetString();
 
         Assert.IsNotNull(authorizationUrl);
-        StringAssert.Contains(authorizationUrl, "login.microsoftonline.com");
-        StringAssert.Contains(authorizationUrl, "Calendars.Read");
-        StringAssert.Contains(authorizationUrl, Uri.EscapeDataString(redirectUri));
+        Assert.Contains("login.microsoftonline.com", authorizationUrl);
+        Assert.Contains("Calendars.Read", authorizationUrl);
+        Assert.Contains(Uri.EscapeDataString(redirectUri), authorizationUrl);
     }
 
     [TestMethod]

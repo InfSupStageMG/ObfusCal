@@ -2,7 +2,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Application.Obfuscation;
@@ -217,14 +216,16 @@ public class OutboundPeerSyncServiceTests
         SyncOptions? options = null)
     {
         var pipeline = new ObfuscationPipeline([], [], NullLogger<ObfuscationPipeline>.Instance);
+        var busySlotService = new CalendarOwnerClientBusySlotService(
+            new FixedCalendarSourceResolver(calendarSource),
+            pipeline,
+            profileService ?? new StubCalendarOwnerObfuscationProfileService());
 
         return new OutboundPeerSyncService(
             dbContext,
-            new FixedCalendarSourceResolver(calendarSource),
-            pipeline,
-            profileService ?? new StubCalendarOwnerObfuscationProfileService(),
+            busySlotService,
             httpClientFactory,
-            Options.Create(options ?? new SyncOptions
+            new FixedSyncRuntimeOptionsProvider(options ?? new SyncOptions
             {
                 InstanceId = "local-instance-id",
                 ApiKey = "local-instance",
@@ -232,6 +233,11 @@ public class OutboundPeerSyncServiceTests
                 SyncIntervalSeconds = 900
             }),
             logger ?? NullLogger<OutboundPeerSyncService>.Instance);
+    }
+
+    private sealed class FixedSyncRuntimeOptionsProvider(SyncOptions options) : ISyncRuntimeOptionsProvider
+    {
+        public SyncOptions Get() => options;
     }
 
     [TestMethod]
