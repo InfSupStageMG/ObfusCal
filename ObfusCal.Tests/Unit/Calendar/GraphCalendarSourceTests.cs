@@ -2,8 +2,6 @@
 using System.Text;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.FileProviders;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Calendars;
@@ -245,13 +243,13 @@ public class GraphCalendarSourceTests
         ILogger<GraphCalendarSource> logger,
         IDataProtectionProvider dataProtectionProvider)
     {
+        var instances = new FakeCalendarSourceInstanceService(ownerId => dbContext.CalendarOwners.Any(owner => owner.Id == ownerId));
         return new GraphCalendarSource(
             httpClient,
             dbContext,
             dataProtectionProvider,
             tokenClient,
-            new MockCalendarSource(),
-            new StubHostEnvironment(),
+            instances,
             logger);
     }
 
@@ -273,13 +271,6 @@ public class GraphCalendarSourceTests
         }
     }
 
-    private sealed class StubHostEnvironment : IHostEnvironment
-    {
-        public string EnvironmentName { get; set; } = Environments.Production;
-        public string ApplicationName { get; set; } = "ObfusCal.Tests";
-        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
-        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
-    }
 
     private sealed class CapturingLogger<T> : ILogger<T>
     {

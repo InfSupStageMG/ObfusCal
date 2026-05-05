@@ -39,6 +39,7 @@ public static class DependencyInjection
         services.AddSingleton<ExternalSecretProvider>();
         services.AddSingleton<ISecretProvider, ConfiguredSecretProvider>();
         services.AddSingleton<ILogRedactor, DefaultLogRedactor>();
+        services.AddSingleton<ICalendarSourceSecretProtector, CalendarSourceSecretProtector>();
         services.AddSingleton<ISyncRuntimeOptionsProvider, SyncRuntimeOptionsProvider>();
         services.AddSingleton<SecretStartupValidator>();
 
@@ -66,6 +67,7 @@ public static class DependencyInjection
 
         services.Configure<GraphConsentOptions>(config.GetSection(GraphConsentOptions.SectionName));
         services.Configure<CalendarSourceOptions>(config.GetSection(CalendarSourceOptions.SectionName));
+        services.Configure<ICloudCalendarOptions>(config.GetSection(ICloudCalendarOptions.SectionName));
         services.Configure<SyncOptions>(config.GetSection(SyncOptions.SectionName));
         services.AddDataProtection();
     }
@@ -84,6 +86,7 @@ public static class DependencyInjection
             client.BaseAddress = new Uri($"{baseUrl.TrimEnd('/')}/", UriKind.Absolute);
         });
         services.AddHttpClient<IcalFeedCalendarSource>();
+        services.AddHttpClient<ICloudCalendarSourceCore>();
         services.AddHttpClient(nameof(OutboundPeerSyncService));
         services.AddHttpClient(nameof(InboundPeerPullSyncService));
     }
@@ -94,6 +97,10 @@ public static class DependencyInjection
         services.AddScoped<ICalendarOwnerService, CalendarOwnerService>();
         services.AddScoped<ICalendarOwnerGraphConsentService, CalendarOwnerGraphConsentService>();
         services.AddScoped<ICalendarOwnerCalendarSourceService, CalendarOwnerCalendarSourceService>();
+        services.AddScoped<ICalendarSourceInstanceService, CalendarSourceInstanceService>();
+        services.AddScoped<ICalendarSourceInstanceStore>(provider =>
+            (ICalendarSourceInstanceStore)provider.GetRequiredService<ICalendarSourceInstanceService>());
+        services.AddScoped<ICalendarOwnerICloudConfigurationService, CalendarOwnerICloudConfigurationService>();
         services.AddScoped<ICalendarOwnerIcalFeedService, CalendarOwnerIcalFeedService>();
         services.AddScoped<ICalendarOwnerObfuscationProfileService, CalendarOwnerObfuscationProfileService>();
         services.AddScoped<ICalendarOwnerClientBusySlotService, CalendarOwnerClientBusySlotService>();
@@ -106,6 +113,7 @@ public static class DependencyInjection
         services.AddScoped<ICalendarOwnerAvailabilitySlotStore, EfCoreCalendarOwnerAvailabilitySlotStore>();
         services.AddScoped<MockCalendarSource>();
         services.AddScoped<IcalFeedCalendarSource>();
+        services.AddScoped<ICloudCalendarSourceCore>();
         services.AddHostedService<CalendarOwnerAvailabilityBackgroundService>();
         services.AddHostedService<PeerSyncBackgroundService>();
     }

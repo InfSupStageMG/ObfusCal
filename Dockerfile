@@ -6,6 +6,7 @@ COPY ObfusCal.Domain/ObfusCal.Domain.csproj ObfusCal.Domain/
 COPY ObfusCal.Application/ObfusCal.Application.csproj ObfusCal.Application/
 COPY ObfusCal.Infrastructure/ObfusCal.Infrastructure.csproj ObfusCal.Infrastructure/
 COPY ObfusCal.Api/ObfusCal.Api.csproj ObfusCal.Api/
+COPY ObfusCal.Plugins.ICloudCalendar/ObfusCal.Plugins.ICloudCalendar.csproj ObfusCal.Plugins.ICloudCalendar/
 COPY ObfusCal.Tests/ObfusCal.Tests.csproj ObfusCal.Tests/
 
 RUN dotnet restore

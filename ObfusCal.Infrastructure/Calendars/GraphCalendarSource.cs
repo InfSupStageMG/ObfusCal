@@ -2,10 +2,10 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Domain.Models;
@@ -19,9 +19,9 @@ public sealed class GraphCalendarSource(
     AppDbContext dbContext,
     IDataProtectionProvider dataProtectionProvider,
     IGraphOAuthTokenClient tokenClient,
-    MockCalendarSource fallbackSource,
-    IHostEnvironment hostEnvironment,
-    ILogger<GraphCalendarSource> logger) : ICalendarSource, ICalendarSourceReadinessEvaluator
+    ICalendarSourceInstanceStore calendarSourceInstanceStore,
+    ILogger<GraphCalendarSource> logger)
+    : ICalendarSource, ICalendarSourceReadinessEvaluator, ICalendarSourceInstanceHandler, ICalendarSourceInstanceReadinessEvaluator
 {
     private const string GraphCalendarViewPath = "v1.0/me/calendarView";
 
@@ -40,7 +40,7 @@ public sealed class GraphCalendarSource(
         ct.ThrowIfCancellationRequested();
 
         if (calendarOwnerId is null)
-            return await ResolveFallbackAsync(from, to, null, ct);
+            return [];
 
         var owner = await dbContext.CalendarOwners
             .SingleOrDefaultAsync(x => x.Id == calendarOwnerId.Value, ct);
@@ -49,7 +49,7 @@ public sealed class GraphCalendarSource(
             return [];
 
         if (string.IsNullOrWhiteSpace(owner.GraphAccessTokenProtected))
-            return await ResolveFallbackAsync(from, to, calendarOwnerId, ct);
+            return [];
 
         string accessToken;
         try
@@ -91,6 +91,60 @@ public sealed class GraphCalendarSource(
             .ToList();
     }
 
+    public async Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(
+        CalendarSourceInstanceContext instance,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken ct = default)
+    {
+        if (from > to)
+            throw new ArgumentException("The start of the query window must be before the end.", nameof(from));
+
+        ct.ThrowIfCancellationRequested();
+
+        var secretData = ParseSecretData(instance.SecretDataJson);
+        if (secretData is null || string.IsNullOrWhiteSpace(secretData.ProtectedAccessToken))
+            return [];
+
+        string accessToken;
+        try
+        {
+            accessToken = _tokenProtector.Unprotect(secretData.ProtectedAccessToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Unable to read Graph access token for calendar source instance {CalendarSourceInstanceId}; returning no events.",
+                instance.Id);
+            return [];
+        }
+
+        accessToken = await RefreshIfExpiringAsync(instance, secretData, accessToken, ct);
+        if (string.IsNullOrWhiteSpace(accessToken))
+            return [];
+
+        using var response = await GetCalendarViewWithRetryAsync(instance, secretData, accessToken, from, to, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            logger.LogWarning(
+                "Graph calendar fetch failed for calendar source instance {CalendarSourceInstanceId} with HTTP {StatusCode}.",
+                instance.Id,
+                (int)response.StatusCode);
+            return [];
+        }
+
+        var payload = await response.Content.ReadFromJsonAsync<GraphCalendarViewResponse>(cancellationToken: ct);
+        var events = payload?.Value ?? [];
+
+        return events
+            .Select(MapEvent)
+            .Where(mapped => mapped is not null)
+            .Select(mapped => mapped!)
+            .Where(e => e.Start < to && e.End > from)
+            .OrderBy(e => e.Start)
+            .ToList();
+    }
+
     public async Task<CalendarSourceReadiness> GetReadinessAsync(Guid calendarOwnerId, CancellationToken ct = default)
     {
         var owner = await dbContext.CalendarOwners
@@ -110,16 +164,17 @@ public sealed class GraphCalendarSource(
                 "This calendar owner has not granted Microsoft Graph calendar consent yet. Complete consent before requesting busy slots.");
     }
 
-    private async Task<IReadOnlyList<CalendarEvent>> ResolveFallbackAsync(
-        DateTimeOffset from,
-        DateTimeOffset to,
-        Guid? calendarOwnerId,
-        CancellationToken ct)
+    public Task<CalendarSourceReadiness> GetReadinessAsync(CalendarSourceInstanceContext instance, CancellationToken ct = default)
     {
-        if (!hostEnvironment.IsDevelopment())
-            return [];
+        var secretData = ParseSecretData(instance.SecretDataJson);
+        var hasConsent = !string.IsNullOrWhiteSpace(secretData?.ProtectedAccessToken)
+            || !string.IsNullOrWhiteSpace(secretData?.ProtectedRefreshToken);
 
-        return await fallbackSource.GetEventsAsync(from, to, calendarOwnerId, ct);
+        return Task.FromResult(hasConsent
+            ? CalendarSourceReadiness.Ready("Microsoft Graph calendar is configured.")
+            : CalendarSourceReadiness.NotReady(
+                "Microsoft Graph consent required.",
+                "Complete Microsoft Graph consent for this source instance before requesting busy slots."));
     }
 
     private async Task<string> RefreshIfExpiringAsync(CalendarOwner owner, string accessToken, CancellationToken ct)
@@ -129,6 +184,19 @@ public sealed class GraphCalendarSource(
             return accessToken;
 
         return await ForceRefreshAsync(owner, ct);
+    }
+
+    private async Task<string> RefreshIfExpiringAsync(
+        CalendarSourceInstanceContext instance,
+        GraphSourceSecretData secretData,
+        string accessToken,
+        CancellationToken ct)
+    {
+        var expiresAt = secretData.TokenExpiresAtUtc;
+        if (expiresAt is null || expiresAt.Value > DateTimeOffset.UtcNow.AddMinutes(1))
+            return accessToken;
+
+        return await ForceRefreshAsync(instance, secretData, ct);
     }
 
     private async Task<string> ForceRefreshAsync(CalendarOwner owner, CancellationToken ct)
@@ -176,6 +244,62 @@ public sealed class GraphCalendarSource(
         }
     }
 
+    private async Task<string> ForceRefreshAsync(
+        CalendarSourceInstanceContext instance,
+        GraphSourceSecretData secretData,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(secretData.ProtectedRefreshToken))
+        {
+            logger.LogWarning(
+                "Graph access token refresh skipped for calendar source instance {CalendarSourceInstanceId}: no refresh token available.",
+                instance.Id);
+            return string.Empty;
+        }
+
+        string refreshToken;
+        try
+        {
+            refreshToken = _tokenProtector.Unprotect(secretData.ProtectedRefreshToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Graph access token refresh failed for calendar source instance {CalendarSourceInstanceId}: refresh token could not be read.",
+                instance.Id);
+            return string.Empty;
+        }
+
+        try
+        {
+            var refreshed = await tokenClient.RefreshAccessTokenAsync(refreshToken, ct);
+            var updatedSecretData = secretData with
+            {
+                ProtectedAccessToken = _tokenProtector.Protect(refreshed.AccessToken),
+                ProtectedRefreshToken = string.IsNullOrWhiteSpace(refreshed.RefreshToken)
+                    ? secretData.ProtectedRefreshToken
+                    : _tokenProtector.Protect(refreshed.RefreshToken),
+                TokenExpiresAtUtc = refreshed.ExpiresAtUtc,
+                TokenLastRefreshedAtUtc = DateTimeOffset.UtcNow
+            };
+
+            await calendarSourceInstanceStore.UpdateSecretDataAsync(
+                instance.CalendarOwnerId,
+                instance.Id,
+                JsonSerializer.Serialize(updatedSecretData),
+                ct);
+
+            return refreshed.AccessToken;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Graph access token refresh failed for calendar source instance {CalendarSourceInstanceId}; returning no events.",
+                instance.Id);
+            return string.Empty;
+        }
+    }
+
     private async Task<HttpResponseMessage> GetCalendarViewAsync(
         string accessToken,
         DateTimeOffset from,
@@ -209,6 +333,42 @@ public sealed class GraphCalendarSource(
             return new HttpResponseMessage(HttpStatusCode.Unauthorized);
 
         return await GetCalendarViewAsync(refreshedAccessToken, from, to, ct);
+    }
+
+    private async Task<HttpResponseMessage> GetCalendarViewWithRetryAsync(
+        CalendarSourceInstanceContext instance,
+        GraphSourceSecretData secretData,
+        string accessToken,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken ct)
+    {
+        var response = await GetCalendarViewAsync(accessToken, from, to, ct);
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+            return response;
+
+        response.Dispose();
+
+        var refreshedAccessToken = await ForceRefreshAsync(instance, secretData, ct);
+        if (string.IsNullOrWhiteSpace(refreshedAccessToken))
+            return new HttpResponseMessage(HttpStatusCode.Unauthorized);
+
+        return await GetCalendarViewAsync(refreshedAccessToken, from, to, ct);
+    }
+
+    private static GraphSourceSecretData? ParseSecretData(string? secretDataJson)
+    {
+        if (string.IsNullOrWhiteSpace(secretDataJson))
+            return null;
+
+        try
+        {
+            return JsonSerializer.Deserialize<GraphSourceSecretData>(secretDataJson);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private CalendarEvent? MapEvent(GraphEvent source)
@@ -315,6 +475,11 @@ public sealed class GraphCalendarSource(
     private sealed record GraphLocation(
         [property: JsonPropertyName("displayName")]
         string? DisplayName);
+
+    internal sealed record GraphSourceSecretData(
+        string? ProtectedAccessToken,
+        string? ProtectedRefreshToken,
+        DateTimeOffset? ConsentGrantedAtUtc,
+        DateTimeOffset? TokenExpiresAtUtc,
+        DateTimeOffset? TokenLastRefreshedAtUtc);
 }
-
-
