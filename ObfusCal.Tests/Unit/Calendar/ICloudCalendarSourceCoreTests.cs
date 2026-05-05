@@ -129,7 +129,7 @@ public class ICloudCalendarSourceCoreTests
         var core = new ICloudCalendarSourceCore(httpClient, db, dataProtectionProvider, icloudOptions, logger);
 
         const string dateTimeFrom = "2026-05-06T00:00:00Z";
-        const string dateTimeTo = "2026-05-06T00:00:00Z";
+        const string dateTimeTo = "2026-05-07T00:00:00Z";
 
         // Act
         var result = await core.GetEventsAsync(

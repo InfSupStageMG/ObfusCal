@@ -210,7 +210,9 @@ internal static class IcsCalendarEventParser
                 }
                 catch (TimeZoneNotFoundException)
                 {
-                    throw new FormatException($"The specified time zone ID '{tzId}' was not found on the system.");
+                    // Unknown TZID on this host — treat as floating (UTC).
+                    result = new DateTimeOffset(localDt, TimeSpan.Zero);
+                    return true;
                 }
             }
 
