@@ -1,4 +1,6 @@
-﻿namespace ObfusCal.Infrastructure.Persistence;
+﻿using ObfusCal.Application.Interfaces;
+
+namespace ObfusCal.Infrastructure.Persistence;
 
 public class PeerConnection
 {
@@ -6,6 +8,13 @@ public class PeerConnection
     public required string InstanceId { get; set; }
     public required string BaseAddress { get; set; }
     public string ApiKeyHash { get; set; } = string.Empty;
+    public PeerConnectionStatus Status { get; set; } = PeerConnectionStatus.Active;
+
+    public string? ClientOrganisationName { get; set; }
+    public string? ClientOrganisationNameNormalized { get; set; }
+
+    public Guid? RequestedByCalendarOwnerId { get; set; }
+    public CalendarOwner? RequestedByCalendarOwner { get; set; }
 
     /// <summary>Timestamp of the last sync attempt (outbound or inbound), whether successful or not.</summary>
     public DateTimeOffset? LastSyncedAt { get; set; }
