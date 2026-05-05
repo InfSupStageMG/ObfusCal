@@ -9,6 +9,7 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
     {
         return await dbContext.PeerConnections
             .AsNoTracking()
+            .Where(p => p.Status == PeerConnectionStatus.Active)
             .OrderBy(p => p.InstanceId)
             .Select(p => new PeerConnectionSummary(
                 p.Id,
@@ -18,10 +19,24 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<PeerConnectionRequestSummary>> ListForCalendarOwnerAsync(Guid calendarOwnerId, CancellationToken ct = default)
+    {
+        return await dbContext.PeerConnections
+            .AsNoTracking()
+            .Where(p => p.RequestedByCalendarOwnerId == calendarOwnerId)
+            .OrderBy(p => p.ClientOrganisationName)
+            .Select(p => new PeerConnectionRequestSummary(
+                p.Id,
+                p.ClientOrganisationName ?? p.InstanceId,
+                p.Status))
+            .ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<PeerSyncStatus>> ListSyncStatusAsync(CancellationToken ct = default)
     {
         return await dbContext.PeerConnections
             .AsNoTracking()
+            .Where(p => p.Status == PeerConnectionStatus.Active)
             .OrderBy(p => p.InstanceId)
             .Select(p => new PeerSyncStatus(
                 p.InstanceId,
@@ -38,13 +53,56 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
             Id = Guid.NewGuid(),
             InstanceId = instanceId.Trim(),
             BaseAddress = baseAddress.Trim().TrimEnd('/'),
-            ApiKeyHash = apiKey.Trim() // In production this should be hashed
+            ApiKeyHash = apiKey.Trim(), // In production this should be hashed
+            Status = PeerConnectionStatus.Active
         };
 
         dbContext.PeerConnections.Add(peer);
         await dbContext.SaveChangesAsync(ct);
 
         return new PeerConnectionSummary(peer.Id, peer.InstanceId, peer.BaseAddress, 0);
+    }
+
+    public async Task<CreatePeerConnectionRequestResult> CreateRequestAsync(Guid calendarOwnerId, string clientOrganisationName, CancellationToken ct = default)
+    {
+        var ownerExists = await dbContext.CalendarOwners.AnyAsync(o => o.Id == calendarOwnerId, ct);
+        if (!ownerExists)
+            return new CreatePeerConnectionRequestResult(CreatePeerConnectionRequestOutcome.CalendarOwnerNotFound);
+
+        var normalizedOrganisationName = NormalizeClientOrganisationName(clientOrganisationName);
+
+        var alreadyRequested = await dbContext.PeerConnections
+            .AnyAsync(p =>
+                p.RequestedByCalendarOwnerId == calendarOwnerId
+                && p.ClientOrganisationNameNormalized == normalizedOrganisationName,
+                ct);
+
+        if (alreadyRequested)
+            return new CreatePeerConnectionRequestResult(CreatePeerConnectionRequestOutcome.Duplicate);
+
+        var peer = new PeerConnection
+        {
+            Id = Guid.NewGuid(),
+            InstanceId = $"request-{Guid.NewGuid():N}",
+            BaseAddress = "requested",
+            ApiKeyHash = string.Empty,
+            Status = PeerConnectionStatus.Requested,
+            ClientOrganisationName = clientOrganisationName.Trim(),
+            ClientOrganisationNameNormalized = normalizedOrganisationName,
+            RequestedByCalendarOwnerId = calendarOwnerId
+        };
+
+        dbContext.PeerConnections.Add(peer);
+        try
+        {
+            await dbContext.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            return new CreatePeerConnectionRequestResult(CreatePeerConnectionRequestOutcome.Duplicate);
+        }
+
+        return new CreatePeerConnectionRequestResult(CreatePeerConnectionRequestOutcome.Created, peer.Id);
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
@@ -82,5 +140,7 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
 
         return new LinkOwnerToPeerResult(LinkOwnerToPeerOutcome.Linked, mapping.CalendarOwnerRef);
     }
+
+    private static string NormalizeClientOrganisationName(string value) => value.Trim().ToUpperInvariant();
 }
 

@@ -61,6 +61,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(p => p.ApiKeyHash)
                 .IsRequired()
                 .HasMaxLength(512);
+            e.Property(p => p.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+            e.Property(p => p.ClientOrganisationName)
+                .HasMaxLength(256);
+            e.Property(p => p.ClientOrganisationNameNormalized)
+                .HasMaxLength(256);
+
+            e.HasOne(p => p.RequestedByCalendarOwner)
+                .WithMany()
+                .HasForeignKey(p => p.RequestedByCalendarOwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasIndex(p => new { p.RequestedByCalendarOwnerId, p.ClientOrganisationNameNormalized })
+                .IsUnique();
         });
 
         modelBuilder.Entity<CalendarOwnerPeerMapping>(e =>
