@@ -1,6 +1,5 @@
 ﻿using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
+using ObfusCal.Infrastructure.Security;
 using ObfusCal.Infrastructure.Storage;
 using Testcontainers.PostgreSql;
 
@@ -161,8 +161,6 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
         var existingPeer = await dbContext.PeerConnections
             .SingleOrDefaultAsync(peer => peer.InstanceId == instanceId);
 
-        var hasher = new PasswordHasher<PeerConnection>();
-
         if (existingPeer is null)
         {
             var peer = new PeerConnection
@@ -173,14 +171,14 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
                 ApiKeyHash = string.Empty
             };
 
-            peer.ApiKeyHash = hasher.HashPassword(peer, rawApiKey);
+            peer.ApiKeyHash = PeerApiKeySecurity.ComputeSha256(rawApiKey);
             dbContext.PeerConnections.Add(peer);
             await dbContext.SaveChangesAsync();
             return peer.Id;
         }
 
         existingPeer.BaseAddress = baseAddress;
-        existingPeer.ApiKeyHash = hasher.HashPassword(existingPeer, rawApiKey);
+        existingPeer.ApiKeyHash = PeerApiKeySecurity.ComputeSha256(rawApiKey);
         await dbContext.SaveChangesAsync();
         return existingPeer.Id;
     }

@@ -19,10 +19,17 @@ output (`BusySlot`) is persisted.
 **Human authentication:** All user-facing access is secured via Single Sign-On through Info Support's Entra ID (Azure
 AD) using OpenID Connect. This automatically inherits existing conditional access policies including MFA.
 
+**Sysadmin authorization:** Administrative peer-management endpoints under `/api/admin/*` require the Entra ID app role
+`Sysadmin`. Authenticated users without that role receive `403 Forbidden`.
+
 **Machine-to-machine authentication:** Peer sync endpoints require `Authorization: ApiKey ...`. Incoming credentials
 are verified against hashed `PeerConnection.ApiKeyHash` values, and outbound pushes include both `Authorization`
 and `X-Peer-Id` headers so the receiving instance can authenticate and correlate the sender without trusting the
 peer ID header by itself.
+
+**Peer credential lifecycle:** Sysadmins approve pending peer requests by setting the peer base URL and generating a
+cryptographically secure API key. Only a SHA-256 hash of that key is persisted; plaintext is returned once in the
+approval response and is never logged. Suspended peers are excluded from peer auth and sync processing immediately.
 
 **Credential storage:** Microsoft Graph OAuth refresh tokens are encrypted at rest using the .NET Data Protection API (
 DPAPI) before being written to the database. A database breach yields only ciphertext.

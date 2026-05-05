@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using ObfusCal.Api.Authentication;
+using ObfusCal.Application.Interfaces;
 using ObfusCal.Application.UseCases.GetBusySlots;
 using ObfusCal.Application.UseCases.PushShadowSlots;
 using ObfusCal.Infrastructure.Persistence;
@@ -42,12 +43,14 @@ public sealed class ShadowSlotsController(
             ? await dbContext.CalendarOwnerPeerMappings
                 .AsNoTracking()
                 .Where(mapping => mapping.PeerConnection.InstanceId == peerId)
+                .Where(mapping => mapping.PeerConnection.Status == PeerConnectionStatus.Active)
                 .Where(mapping => mapping.CalendarOwnerRef == calendarOwnerRef)
                 .Select(mapping => mapping.CalendarOwnerId)
                 .ToListAsync(ct)
             : await dbContext.CalendarOwnerPeerMappings
                 .AsNoTracking()
                 .Where(mapping => mapping.PeerConnection.InstanceId == peerId)
+                .Where(mapping => mapping.PeerConnection.Status == PeerConnectionStatus.Active)
                 .Select(mapping => mapping.CalendarOwnerId)
                 .Distinct()
                 .ToListAsync(ct);
@@ -82,6 +85,7 @@ public sealed class ShadowSlotsController(
         var calendarOwnerId = await dbContext.CalendarOwnerPeerMappings
             .Where(mapping => mapping.CalendarOwnerRef == calendarOwnerRef)
             .Where(mapping => mapping.PeerConnection.InstanceId == peerId)
+            .Where(mapping => mapping.PeerConnection.Status == PeerConnectionStatus.Active)
             .Select(mapping => mapping.CalendarOwnerId)
             .SingleOrDefaultAsync(ct);
 
