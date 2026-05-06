@@ -14,23 +14,56 @@ public class CalendarOwnersControllerIcalFeedsTests
 {
     public TestContext TestContext { get; set; } = null!;
 
+    private sealed record IcalFeedEntry(Guid Id, string FeedUrl);
+
     private static Task<Guid> SeedAuthenticatedCalendarOwnerAsync(
         CustomWebApplicationFactory factory,
         string objectId = TestAuthHandler.DefaultObjectId) =>
         factory.SeedCalendarOwnerAsync(objectId);
 
-    private static async Task<IReadOnlyList<CalendarOwnerICalFeed>> GetIcalFeedsAsync(
+    /// <summary>
+    /// Returns iCal feed entries from the CalendarSourceInstances table (new model).
+    /// Legacy CalendarOwnerICalFeeds rows are also included for backward compatibility.
+    /// </summary>
+    private static async Task<IReadOnlyList<IcalFeedEntry>> GetIcalFeedsAsync(
         CustomWebApplicationFactory factory,
         Guid calendarOwnerId)
     {
         using var scope = factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        return await dbContext.CalendarOwnerICalFeeds
+        // New instance-based feeds
+        var instanceRows = await dbContext.CalendarSourceInstances
+            .AsNoTracking()
+            .Where(i => i.CalendarOwnerId == calendarOwnerId && i.PluginId == "ical")
+            .Select(i => new { i.Id, i.ConfigurationJson, i.DisplayName })
+            .ToListAsync();
+
+        var instanceFeeds = instanceRows
+            .Select(i => new IcalFeedEntry(i.Id, ParseFeedUrl(i.ConfigurationJson) ?? i.DisplayName))
+            .ToList();
+
+        // Legacy feeds
+        var legacyFeeds = await dbContext.CalendarOwnerICalFeeds
             .AsNoTracking()
             .Where(f => f.CalendarOwnerId == calendarOwnerId)
             .OrderBy(f => f.FeedUrl)
+            .Select(f => new IcalFeedEntry(f.Id, f.FeedUrl))
             .ToListAsync();
+
+        return instanceFeeds.Concat(legacyFeeds).OrderBy(f => f.FeedUrl).ToList();
+    }
+
+    private static string? ParseFeedUrl(string? configurationJson)
+    {
+        if (string.IsNullOrWhiteSpace(configurationJson))
+            return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(configurationJson);
+            return doc.RootElement.TryGetProperty("FeedUrl", out var prop) ? prop.GetString() : null;
+        }
+        catch { return null; }
     }
 
     [TestMethod]
@@ -68,9 +101,10 @@ public class CalendarOwnersControllerIcalFeedsTests
 
         Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
 
-        var owner = await factory.GetCalendarOwnerAsync(calendarOwnerId);
-        Assert.AreEqual("ical", owner?.CalendarSourcePluginId,
-            "Adding the first iCal feed must automatically switch the owner's calendar source to 'ical'.");
+        var feeds = await GetIcalFeedsAsync(factory, calendarOwnerId);
+        Assert.HasCount(1, feeds,
+            "Adding the first iCal feed must create exactly one iCal source instance.");
+        Assert.AreEqual("https://calendar.example.test/auto-switch.ics", feeds[0].FeedUrl);
     }
 
     [TestMethod]

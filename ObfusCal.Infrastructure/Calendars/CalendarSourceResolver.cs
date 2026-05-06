@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
@@ -11,13 +12,29 @@ namespace ObfusCal.Infrastructure.Calendars;
 internal sealed class CalendarSourceResolver(
     AppDbContext dbContext,
     ICalendarSourceCatalog catalog,
+    ICalendarSourceInstanceStore calendarSourceInstanceStore,
     IServiceProvider serviceProvider,
     IOptions<CalendarSourceOptions> options,
-    IHostEnvironment environment)
+    IHostEnvironment environment,
+    ILogger<AggregateCalendarSource> aggregateLogger)
     : ICalendarSourceResolver
 {
     public async Task<ICalendarSource> ResolveAsync(Guid? calendarOwnerId = null, CancellationToken ct = default)
     {
+        if (calendarOwnerId is { } ownerId)
+        {
+            var instances = await calendarSourceInstanceStore.ListAsync(ownerId, ct);
+            if (instances.Any(instance => instance.IsEnabled && catalog.GetPlugin(instance.PluginId) is not null))
+            {
+                return new AggregateCalendarSource(
+                    ownerId,
+                    catalog,
+                    calendarSourceInstanceStore,
+                    serviceProvider,
+                    aggregateLogger);
+            }
+        }
+
         var pluginId = await ResolvePluginIdAsync(calendarOwnerId, ct);
         var plugin = catalog.GetPlugin(pluginId)
             ?? throw new InvalidOperationException($"Calendar source plugin '{pluginId}' is not registered.");

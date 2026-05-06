@@ -5,6 +5,7 @@ namespace ObfusCal.Infrastructure.Persistence;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<CalendarOwner> CalendarOwners => Set<CalendarOwner>();
+    public DbSet<CalendarSourceInstance> CalendarSourceInstances => Set<CalendarSourceInstance>();
     public DbSet<ObfuscationProfile> ObfuscationProfiles => Set<ObfuscationProfile>();
     public DbSet<PeerConnection> PeerConnections => Set<PeerConnection>();
     public DbSet<CalendarOwnerPeerMapping> CalendarOwnerPeerMappings => Set<CalendarOwnerPeerMapping>();
@@ -22,6 +23,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasMaxLength(64);
             e.Property(c => c.CalendarSourcePluginId)
                 .HasMaxLength(128);
+            e.Property(c => c.ICloudCalendarUrl)
+                .HasMaxLength(2048);
+            e.Property(c => c.ICloudAppleIdProtected)
+                .HasMaxLength(8192);
+            e.Property(c => c.ICloudAppSpecificPasswordProtected)
+                .HasMaxLength(8192);
             e.Property(c => c.GraphAccessTokenProtected)
                 .HasMaxLength(8192);
             e.Property(c => c.GraphRefreshTokenProtected)
@@ -32,6 +39,27 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasMany(c => c.ObfuscationProfiles)
                 .WithOne(profile => profile.CalendarOwner)
                 .HasForeignKey(profile => profile.CalendarOwnerId);
+
+            e.HasMany(c => c.CalendarSourceInstances)
+                .WithOne(instance => instance.CalendarOwner)
+                .HasForeignKey(instance => instance.CalendarOwnerId);
+        });
+
+        modelBuilder.Entity<CalendarSourceInstance>(e =>
+        {
+            e.HasKey(instance => instance.Id);
+            e.Property(instance => instance.PluginId)
+                .IsRequired()
+                .HasMaxLength(128);
+            e.Property(instance => instance.DisplayName)
+                .IsRequired()
+                .HasMaxLength(256);
+            e.Property(instance => instance.ConfigurationJson)
+                .HasMaxLength(32768);
+            e.Property(instance => instance.SecretDataJson)
+                .HasMaxLength(32768);
+            e.HasIndex(instance => instance.CalendarOwnerId);
+            e.HasIndex(instance => new { instance.CalendarOwnerId, instance.PluginId });
         });
 
         modelBuilder.Entity<ObfuscationProfile>(e =>

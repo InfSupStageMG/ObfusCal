@@ -17,7 +17,7 @@
         <h3>Combined Calendar</h3>
 
         <div class="dashboard-filters">
-            <div>
+            <div class="dashboard-filter-field">
                 <FluentLabel>Calendar Owner</FluentLabel>
                 <FluentSelect TOption="CalendarOwnerOption"
                               Items="_calendarOwners"
@@ -25,15 +25,19 @@
                               OptionText="@(o => o.Name)"
                               @bind-SelectedOption="_selectedOwner" />
             </div>
-            <div>
-                <FluentLabel>From</FluentLabel>
-                <FluentDatePicker @bind-Value="_fromDate" />
+
+            <div class="dashboard-filter-pair" role="group" aria-label="Date range">
+                <div class="dashboard-filter-field dashboard-filter-field--date">
+                    <FluentLabel>From</FluentLabel>
+                    <FluentDatePicker @bind-Value="_fromDate" />
+                </div>
+                <div class="dashboard-filter-field dashboard-filter-field--date">
+                    <FluentLabel>To</FluentLabel>
+                    <FluentDatePicker @bind-Value="_toDate" />
+                </div>
             </div>
-            <div>
-                <FluentLabel>To</FluentLabel>
-                <FluentDatePicker @bind-Value="_toDate" />
-            </div>
-            <div>
+
+            <div class="dashboard-filter-field dashboard-filter-field--timezone">
                 <FluentLabel>Time zone</FluentLabel>
                 <FluentSelect TOption="TimeZoneOption"
                               Items="_timeZones"
@@ -41,12 +45,15 @@
                               OptionText="@(tz => tz.DisplayName)"
                               @bind-SelectedOption="_selectedTimeZone" />
             </div>
-            <FluentButton Appearance="Appearance.Accent" OnClick="LoadFreeBusyAsync" Disabled="_selectedOwner is null">
-                Load
-            </FluentButton>
-            <FluentButton OnClick="RefreshAndLoadAsync" Disabled="_selectedOwner is null || _refreshing">
-                @(_refreshing ? "Refreshing..." : "Refresh")
-            </FluentButton>
+
+            <div class="dashboard-actions">
+                <FluentButton Appearance="Appearance.Accent" OnClick="LoadFreeBusyAsync" Disabled="_selectedOwner is null">
+                    Load
+                </FluentButton>
+                <FluentButton OnClick="RefreshAndLoadAsync" Disabled="_selectedOwner is null || _refreshing">
+                    @(_refreshing ? "Refreshing..." : "Refresh")
+                </FluentButton>
+            </div>
         </div>
     </section>
 
