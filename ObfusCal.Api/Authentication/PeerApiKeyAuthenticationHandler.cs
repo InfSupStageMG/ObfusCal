@@ -1,10 +1,11 @@
 ﻿using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
+using ObfusCal.Infrastructure.Security;
 
 namespace ObfusCal.Api.Authentication;
 
@@ -30,32 +31,28 @@ public sealed class PeerApiKeyAuthenticationHandler(
         if (string.IsNullOrWhiteSpace(providedApiKey))
             return AuthenticateResult.Fail("Missing API key.");
 
-        var peerConnections = await dbContext.PeerConnections
+        var hashedApiKey = PeerApiKeySecurity.ComputeSha256(providedApiKey);
+
+        var peer = await dbContext.PeerConnections
             .AsNoTracking()
-            .Where(peer => !string.IsNullOrWhiteSpace(peer.ApiKeyHash))
-            .ToListAsync(Context.RequestAborted);
+            .SingleOrDefaultAsync(
+                connection => connection.Status == PeerConnectionStatus.Active
+                              && connection.ApiKeyHash == hashedApiKey,
+                Context.RequestAborted);
 
-        var passwordHasher = new PasswordHasher<PeerConnection>();
+        if (peer is null)
+            return AuthenticateResult.Fail("Invalid API key.");
 
-        foreach (var peer in peerConnections)
+        var claims = new[]
         {
-            var verificationResult = passwordHasher.VerifyHashedPassword(peer, peer.ApiKeyHash, providedApiKey);
-            if (verificationResult is not (PasswordVerificationResult.Success or PasswordVerificationResult.SuccessRehashNeeded))
-                continue;
+            new Claim(ClaimTypes.NameIdentifier, peer.Id.ToString()),
+            new Claim(PeerApiKeyClaimTypes.PeerInstanceId, peer.InstanceId)
+        };
 
-            var claims = new[]
-            {
-                new Claim(ClaimTypes.NameIdentifier, peer.Id.ToString()),
-                new Claim(PeerApiKeyClaimTypes.PeerInstanceId, peer.InstanceId)
-            };
-
-            var identity = new ClaimsIdentity(claims, PeerApiKeyAuthenticationDefaults.SchemeName);
-            var principal = new ClaimsPrincipal(identity);
-            var ticket = new AuthenticationTicket(principal, PeerApiKeyAuthenticationDefaults.SchemeName);
-            return AuthenticateResult.Success(ticket);
-        }
-
-        return AuthenticateResult.Fail("Invalid API key.");
+        var identity = new ClaimsIdentity(claims, PeerApiKeyAuthenticationDefaults.SchemeName);
+        var principal = new ClaimsPrincipal(identity);
+        var ticket = new AuthenticationTicket(principal, PeerApiKeyAuthenticationDefaults.SchemeName);
+        return AuthenticateResult.Success(ticket);
     }
 }
 

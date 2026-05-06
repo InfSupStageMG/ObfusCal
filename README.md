@@ -207,6 +207,14 @@ Environment variable names use the standard double-underscore mapping (for examp
 
 Use `.env.example` as the authoritative placeholder list for local/compose configuration.
 
+## Sysadmin peer approval
+
+- ObfusCal uses an Entra ID app role named `Sysadmin` on the API app registration.
+- Only users assigned this role can call `/api/admin/peer-connections` endpoints.
+- `POST /api/admin/peer-connections/{id}/approve` generates a cryptographically secure API key and returns it once.
+- Only a SHA-256 hash of the generated key is stored in `PeerConnections.ApiKeyHash`.
+- `POST /api/admin/peer-connections/{id}/suspend` sets the peer to `Suspended` and sync/auth traffic for that peer is blocked.
+
 Run mutation tests with Stryker:
 
 ```powershell
@@ -243,7 +251,7 @@ logging, nginx reverse proxy with HTTPS.
 Microsoft Graph OAuth consent flow and calendar fetch, EF Core + PostgreSQL persistence, configurable periodic
 re-sync scheduler, iCal feed import, outbound/inbound peer sync transport, sync resilience.
 
-**Later sprints:** Sysadmin peer approval workflow, booking link feature, mTLS for inter-peer communication.
+**Later sprints:** Booking link feature, mTLS for inter-peer communication.
 
 ---
 

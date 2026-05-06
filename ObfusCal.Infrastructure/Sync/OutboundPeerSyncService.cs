@@ -71,6 +71,7 @@ public sealed class OutboundPeerSyncService(
         var mappings = await dbContext.CalendarOwnerPeerMappings
             .AsNoTracking()
             .Where(mapping => mapping.CalendarOwnerId == calendarOwnerId)
+            .Where(mapping => mapping.PeerConnection.Status == PeerConnectionStatus.Active)
             .Select(mapping => new PeerMappingTarget(
                 mapping.PeerConnectionId,
                 mapping.CalendarOwnerRef,

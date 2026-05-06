@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ObfusCal.Application.Interfaces;
+using ObfusCal.Infrastructure.Security;
 
 namespace ObfusCal.Infrastructure.Persistence;
 
@@ -32,6 +33,26 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<AdminPeerConnectionSummary>> ListForAdminAsync(CancellationToken ct = default)
+    {
+        return await dbContext.PeerConnections
+            .AsNoTracking()
+            .Include(p => p.RequestedByCalendarOwner)
+            .OrderBy(p => p.Status)
+            .ThenBy(p => p.ClientOrganisationName)
+            .ThenBy(p => p.InstanceId)
+            .Select(p => new AdminPeerConnectionSummary(
+                p.Id,
+                p.InstanceId,
+                p.BaseAddress,
+                p.Status,
+                p.ClientOrganisationName,
+                p.RequestedByCalendarOwnerId,
+                p.RequestedByCalendarOwner == null ? null : p.RequestedByCalendarOwner.Name,
+                p.CalendarOwnerMappings.Count))
+            .ToListAsync(ct);
+    }
+
     public async Task<IReadOnlyList<PeerSyncStatus>> ListSyncStatusAsync(CancellationToken ct = default)
     {
         return await dbContext.PeerConnections
@@ -53,7 +74,7 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
             Id = Guid.NewGuid(),
             InstanceId = instanceId.Trim(),
             BaseAddress = baseAddress.Trim().TrimEnd('/'),
-            ApiKeyHash = apiKey.Trim(), // In production this should be hashed
+            ApiKeyHash = PeerApiKeySecurity.ComputeSha256(apiKey.Trim()),
             Status = PeerConnectionStatus.Active
         };
 
@@ -103,6 +124,37 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
         }
 
         return new CreatePeerConnectionRequestResult(CreatePeerConnectionRequestOutcome.Created, peer.Id);
+    }
+
+    public async Task<ApprovePeerConnectionResult> ApproveAsync(Guid id, string peerBaseUrl, CancellationToken ct = default)
+    {
+        var peer = await dbContext.PeerConnections.SingleOrDefaultAsync(p => p.Id == id, ct);
+        if (peer is null)
+            return new ApprovePeerConnectionResult(ApprovePeerConnectionOutcome.NotFound);
+
+        if (peer.Status == PeerConnectionStatus.Active)
+            return new ApprovePeerConnectionResult(ApprovePeerConnectionOutcome.AlreadyActive);
+
+        var apiKey = PeerApiKeySecurity.GenerateApiKey();
+
+        peer.BaseAddress = peerBaseUrl.Trim().TrimEnd('/');
+        peer.ApiKeyHash = PeerApiKeySecurity.ComputeSha256(apiKey);
+        peer.Status = PeerConnectionStatus.Active;
+
+        await dbContext.SaveChangesAsync(ct);
+
+        return new ApprovePeerConnectionResult(ApprovePeerConnectionOutcome.Approved, apiKey);
+    }
+
+    public async Task<bool> SuspendAsync(Guid id, CancellationToken ct = default)
+    {
+        var peer = await dbContext.PeerConnections.SingleOrDefaultAsync(p => p.Id == id, ct);
+        if (peer is null)
+            return false;
+
+        peer.Status = PeerConnectionStatus.Suspended;
+        await dbContext.SaveChangesAsync(ct);
+        return true;
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
