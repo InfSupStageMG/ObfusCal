@@ -153,9 +153,27 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
         DateTimeOffset to,
         CancellationToken ct = default)
     {
+        var activePeerIds = await dbContext.CalendarOwnerPeerMappings
+            .AsNoTracking()
+            .Where(mapping => mapping.CalendarOwnerId == calendarOwnerId)
+            .Where(mapping => mapping.PeerConnection.Status == PeerConnectionStatus.Active)
+            .Select(mapping => mapping.PeerConnection.InstanceId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        if (activePeerIds.Count == 0)
+        {
+            _logger.ForContext(CalendarOwnerIdLogProperty, calendarOwnerId)
+                .ForContext(BusySlotCountLogProperty, 0)
+                .Debug("Read owner-scoped shadow slots from all peers");
+
+            return [];
+        }
+
         var entities = await dbContext.BusySlots
             .AsNoTracking()
             .Where(b => b.CalendarOwnerId == calendarOwnerId)
+            .Where(b => activePeerIds.Contains(b.PeerId))
             .Where(b => b.Start < to && b.End > from)
             .ToListAsync(ct);
         var result = entities.Select(e => new CoreBusySlot(e.SourceEventId, e.Start, e.End)).ToArray();

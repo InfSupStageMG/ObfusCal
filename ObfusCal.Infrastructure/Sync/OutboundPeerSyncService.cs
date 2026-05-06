@@ -141,10 +141,10 @@ public sealed class OutboundPeerSyncService(
             }
 
             logger.LogWarning(
-                "Peer push failed for peer {PeerId} and calendar owner ref {CalendarOwnerRef} with HTTP {StatusCode}; continuing sync cycle.",
+                "Peer push failed for peer {PeerId} and calendar owner ref {CalendarOwnerRef} with failure reason {FailureReason}; continuing sync cycle.",
                 mapping.PeerInstanceId,
                 mapping.CalendarOwnerRef,
-                (int)response.StatusCode);
+                $"HTTP {(int)response.StatusCode}");
             await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
         }
         catch (OperationCanceledException)
@@ -155,9 +155,10 @@ public sealed class OutboundPeerSyncService(
         {
             logger.LogWarning(
                 ex,
-                "Peer push failed for peer {PeerId} and calendar owner ref {CalendarOwnerRef}; continuing sync cycle.",
+                "Peer push failed for peer {PeerId} and calendar owner ref {CalendarOwnerRef} with failure reason {FailureReason}; continuing sync cycle.",
                 mapping.PeerInstanceId,
-                mapping.CalendarOwnerRef);
+                mapping.CalendarOwnerRef,
+                ex.Message);
             await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
         }
     }

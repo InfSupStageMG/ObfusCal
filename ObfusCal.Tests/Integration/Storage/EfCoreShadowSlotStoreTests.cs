@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
 using ObfusCal.Infrastructure.Storage;
 using Testcontainers.PostgreSql;
@@ -145,14 +146,92 @@ public class EfCoreShadowSlotStoreTests
         var ownerA = Guid.NewGuid();
         var ownerB = Guid.NewGuid();
 
-        await store.SetSlotsAsync("ef-peer-a", ownerA,
+        await SeedOwnerPeerMappingAsync(db, ownerA, "ef-owner-scope-peer-a");
+        await SeedOwnerPeerMappingAsync(db, ownerB, "ef-owner-scope-peer-b");
+
+        await store.SetSlotsAsync("ef-owner-scope-peer-a", ownerA,
             [new BusySlot("a-scope", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
-        await store.SetSlotsAsync("ef-peer-b", ownerB,
+        await store.SetSlotsAsync("ef-owner-scope-peer-b", ownerB,
             [new BusySlot("b-scope", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
 
         var result = await store.GetAllSlotsAsync(ownerA, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
 
         Assert.HasCount(1, result);
         Assert.AreEqual("a-scope", result[0].SourceEventId);
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_WithOwnerScope_ExcludesSlotsWhenNoActivePeerRelationshipExists()
+    {
+        await using var db = CreateDbContext();
+        var store = new EfCoreShadowSlotStore(db, Serilog.Core.Logger.None);
+        var ownerId = Guid.NewGuid();
+        var stalePeerId = "ef-stale-peer";
+
+        await store.SetSlotsAsync(stalePeerId, ownerId,
+            [new BusySlot("stale", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+
+        var withoutMapping = await store.GetAllSlotsAsync(ownerId, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+        Assert.HasCount(0, withoutMapping);
+
+        await SeedOwnerPeerMappingAsync(db, ownerId, stalePeerId, PeerConnectionStatus.Suspended);
+        var withSuspendedMapping = await store.GetAllSlotsAsync(ownerId, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+        Assert.HasCount(0, withSuspendedMapping);
+
+        await SeedOwnerPeerMappingAsync(db, ownerId, stalePeerId, PeerConnectionStatus.Active);
+        var withActiveMapping = await store.GetAllSlotsAsync(ownerId, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+        Assert.HasCount(1, withActiveMapping);
+        Assert.AreEqual("stale", withActiveMapping[0].SourceEventId);
+    }
+
+    private static async Task SeedOwnerPeerMappingAsync(
+        AppDbContext db,
+        Guid ownerId,
+        string peerInstanceId,
+        PeerConnectionStatus status = PeerConnectionStatus.Active)
+    {
+        if (!await db.CalendarOwners.AnyAsync(owner => owner.Id == ownerId))
+        {
+            db.CalendarOwners.Add(new CalendarOwner
+            {
+                Id = ownerId,
+                Name = "Integration Owner"
+            });
+        }
+
+        var existingPeer = await db.PeerConnections.SingleOrDefaultAsync(peer => peer.InstanceId == peerInstanceId);
+        var peerId = existingPeer?.Id ?? Guid.NewGuid();
+
+        if (existingPeer is null)
+        {
+            db.PeerConnections.Add(new PeerConnection
+            {
+                Id = peerId,
+                InstanceId = peerInstanceId,
+                BaseAddress = "https://peer.test/",
+                ApiKeyHash = "hash",
+                Status = status
+            });
+        }
+        else
+        {
+            existingPeer.Status = status;
+        }
+
+        var existingMapping = await db.CalendarOwnerPeerMappings
+            .SingleOrDefaultAsync(mapping => mapping.CalendarOwnerId == ownerId && mapping.PeerConnectionId == peerId);
+
+        if (existingMapping is null)
+        {
+            db.CalendarOwnerPeerMappings.Add(new CalendarOwnerPeerMapping
+            {
+                Id = Guid.NewGuid(),
+                CalendarOwnerId = ownerId,
+                PeerConnectionId = peerId,
+                CalendarOwnerRef = Guid.NewGuid()
+            });
+        }
+
+        await db.SaveChangesAsync();
     }
 }

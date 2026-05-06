@@ -1,4 +1,7 @@
-﻿using ObfusCal.Infrastructure.Storage;
+﻿using Microsoft.EntityFrameworkCore;
+using ObfusCal.Infrastructure.Storage;
+using ObfusCal.Application.Interfaces;
+using ObfusCal.Infrastructure.Persistence;
 using ObfusCal.Tests.Helpers;
 using BusySlot = ObfusCal.Domain.Models.BusySlot;
 
@@ -167,6 +170,8 @@ public class EfCoreShadowSlotStoreInMemoryTests
         var from = T0;
         var to = T0.AddHours(8);
 
+        await SeedActiveMappingAsync(db, ownerId, "p");
+
         await store.SetSlotsAsync("p", ownerId, [
             new BusySlot("mine-in", T0.AddHours(1), T0.AddHours(2)),
             new BusySlot("mine-out", T0.AddHours(10), T0.AddHours(11))
@@ -245,6 +250,8 @@ public class EfCoreShadowSlotStoreInMemoryTests
         var store = new EfCoreShadowSlotStore(db, Serilog.Core.Logger.None);
         var ownerId = Guid.NewGuid();
 
+        await SeedActiveMappingAsync(db, ownerId, "p");
+
         await store.SetSlotsAsync("p", ownerId, [new BusySlot("boundary", T0.AddHours(-1), T0)]);
 
         var result = await store.GetAllSlotsAsync(ownerId, T0, T0.AddHours(8));
@@ -259,6 +266,8 @@ public class EfCoreShadowSlotStoreInMemoryTests
         var ownerId = Guid.NewGuid();
         var to = T0.AddHours(8);
 
+        await SeedActiveMappingAsync(db, ownerId, "p");
+
         await store.SetSlotsAsync("p", ownerId, [new BusySlot("boundary", to, to.AddHours(1))]);
 
         var result = await store.GetAllSlotsAsync(ownerId, T0, to);
@@ -271,6 +280,8 @@ public class EfCoreShadowSlotStoreInMemoryTests
         await using var db = TestDbContextFactory.CreateInMemory();
         var store = new EfCoreShadowSlotStore(db, Serilog.Core.Logger.None);
         var ownerId = Guid.NewGuid();
+
+        await SeedActiveMappingAsync(db, ownerId, "p");
 
         await store.SetSlotsAsync("p", ownerId, [
             new BusySlot("overlap", T0.AddMinutes(-30), T0.AddMinutes(30))
@@ -305,6 +316,47 @@ public class EfCoreShadowSlotStoreInMemoryTests
 
         var result = await store.GetAllSlotsAsync(T0, to);
         Assert.HasCount(1, result, "Slot ending exactly at 'to' should still be included (End > from is true)");
+    }
+
+    private static async Task SeedActiveMappingAsync(AppDbContext db, Guid ownerId, string peerId)
+    {
+        if (!await db.CalendarOwners.AnyAsync(owner => owner.Id == ownerId))
+        {
+            db.CalendarOwners.Add(new CalendarOwner
+            {
+                Id = ownerId,
+                Name = "Unit Test Owner"
+            });
+        }
+
+        var peer = await db.PeerConnections.SingleOrDefaultAsync(p => p.InstanceId == peerId);
+        if (peer is null)
+        {
+            peer = new PeerConnection
+            {
+                Id = Guid.NewGuid(),
+                InstanceId = peerId,
+                BaseAddress = "https://peer.local/",
+                ApiKeyHash = "hash",
+                Status = PeerConnectionStatus.Active
+            };
+            db.PeerConnections.Add(peer);
+        }
+
+        var mappingExists = await db.CalendarOwnerPeerMappings.AnyAsync(mapping =>
+            mapping.CalendarOwnerId == ownerId && mapping.PeerConnectionId == peer.Id);
+        if (!mappingExists)
+        {
+            db.CalendarOwnerPeerMappings.Add(new CalendarOwnerPeerMapping
+            {
+                Id = Guid.NewGuid(),
+                CalendarOwnerId = ownerId,
+                PeerConnectionId = peer.Id,
+                CalendarOwnerRef = Guid.NewGuid()
+            });
+        }
+
+        await db.SaveChangesAsync();
     }
 }
 

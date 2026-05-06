@@ -101,11 +101,12 @@ public sealed class InboundPeerPullSyncService(
             using var response = await client.SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
             {
+                var failureReason = $"HTTP {(int)response.StatusCode}";
                 logger.LogWarning(
-                    "Peer pull failed for peer {PeerId} and calendar owner {CalendarOwnerId} with HTTP {StatusCode}; keeping previous slots.",
+                    "Peer pull failed for peer {PeerId} and calendar owner {CalendarOwnerId} with failure reason {FailureReason}; keeping previous slots.",
                     mapping.PeerInstanceId,
                     mapping.CalendarOwnerId,
-                    (int)response.StatusCode);
+                    failureReason);
                 await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
                 return;
             }
@@ -135,9 +136,10 @@ public sealed class InboundPeerPullSyncService(
         {
             logger.LogWarning(
                 ex,
-                "Peer pull failed for peer {PeerId} and calendar owner {CalendarOwnerId}; keeping previous slots.",
+                "Peer pull failed for peer {PeerId} and calendar owner {CalendarOwnerId} with failure reason {FailureReason}; keeping previous slots.",
                 mapping.PeerInstanceId,
-                mapping.CalendarOwnerId);
+                mapping.CalendarOwnerId,
+                ex.Message);
             await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
         }
     }
