@@ -29,6 +29,10 @@
             "low": 75,
             "break": 0
         },
+        "since": {
+            "enabled": true,
+            "target": "origin/main"
+        },
         "report-file-name": "mutation-report",
         "additional-timeout": 45000
     }
