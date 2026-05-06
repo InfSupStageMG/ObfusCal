@@ -6,6 +6,7 @@ using ObfusCal.Tests.Helpers;
 namespace ObfusCal.Tests.Integration.Controllers;
 
 [TestClass]
+[DoNotParallelize]
 public class SyncControllerTests
 {
     private static readonly CustomWebApplicationFactory Factory = new("Development", useTestAuthentication: true);

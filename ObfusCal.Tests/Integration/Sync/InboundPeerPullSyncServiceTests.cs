@@ -170,6 +170,30 @@ public class InboundPeerPullSyncServiceTests
     }
 
     [TestMethod]
+    public async Task RunSyncCycleAsync_WhenPeerIsUnreachable_LogsPeerIdAndFailureReason()
+    {
+        await using var dbContext = CreateDbContext();
+
+        var ownerId = Guid.NewGuid();
+        SeedOwnerAndPeerMapping(dbContext, ownerId, Guid.NewGuid(), "peer-unreachable", "https://peer-unreachable.local/");
+
+        var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
+        var logger = new CapturingLogger<InboundPeerPullSyncService>();
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            throw new HttpRequestException("No route to host"))));
+
+        var service = CreateService(dbContext, store, httpClientFactory, logger);
+
+        await service.RunSyncCycleAsync();
+
+        Assert.Contains(
+            entry => entry.LogLevel == LogLevel.Warning
+                     && entry.Message.Contains("peer-unreachable")
+                     && entry.Message.Contains("No route to host"),
+            logger.Entries);
+    }
+
+    [TestMethod]
     public async Task RunSyncCycleAsync_SkipsWhenOnlyInstanceIdIsConfigured()
     {
         await using var dbContext = CreateDbContext();

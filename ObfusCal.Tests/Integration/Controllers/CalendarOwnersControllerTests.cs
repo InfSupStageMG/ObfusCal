@@ -228,6 +228,7 @@ public class CalendarOwnersControllerTests
         }
     }
 
+
     [TestMethod]
     public async Task GetBusySlots_ReturnsUnauthorized_WithoutToken()
     {
@@ -696,4 +697,5 @@ public class CalendarOwnersControllerTests
 
         Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
     }
+
 }

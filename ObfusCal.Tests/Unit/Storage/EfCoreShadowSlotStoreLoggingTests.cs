@@ -1,4 +1,7 @@
-﻿using ObfusCal.Infrastructure.Storage;
+﻿using Microsoft.EntityFrameworkCore;
+using ObfusCal.Application.Interfaces;
+using ObfusCal.Infrastructure.Persistence;
+using ObfusCal.Infrastructure.Storage;
 using ObfusCal.Tests.Helpers;
 using Serilog;
 using Serilog.Core;
@@ -107,6 +110,8 @@ public class EfCoreShadowSlotStoreLoggingTests
         var store = new EfCoreShadowSlotStore(db, logger);
         var ownerId = Guid.NewGuid();
 
+        await SeedActiveMappingAsync(db, ownerId, "peer-u");
+
         await store.SetSlotsAsync("peer-u", ownerId, [new BusySlot("e1", T0, T0.AddHours(1))]);
         _ = await store.GetAllSlotsAsync(ownerId, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
 
@@ -152,6 +157,47 @@ public class EfCoreShadowSlotStoreLoggingTests
     {
         public List<LogEvent> Events { get; } = [];
         void ILogEventSink.Emit(LogEvent logEvent) => Events.Add(logEvent);
+    }
+
+    private static async Task SeedActiveMappingAsync(AppDbContext db, Guid ownerId, string peerId)
+    {
+        if (!await db.CalendarOwners.AnyAsync(owner => owner.Id == ownerId))
+        {
+            db.CalendarOwners.Add(new CalendarOwner
+            {
+                Id = ownerId,
+                Name = "Log Test Owner"
+            });
+        }
+
+        var peer = await db.PeerConnections.SingleOrDefaultAsync(p => p.InstanceId == peerId);
+        if (peer is null)
+        {
+            peer = new PeerConnection
+            {
+                Id = Guid.NewGuid(),
+                InstanceId = peerId,
+                BaseAddress = "https://peer.local/",
+                ApiKeyHash = "hash",
+                Status = PeerConnectionStatus.Active
+            };
+            db.PeerConnections.Add(peer);
+        }
+
+        var mappingExists = await db.CalendarOwnerPeerMappings.AnyAsync(mapping =>
+            mapping.CalendarOwnerId == ownerId && mapping.PeerConnectionId == peer.Id);
+        if (!mappingExists)
+        {
+            db.CalendarOwnerPeerMappings.Add(new CalendarOwnerPeerMapping
+            {
+                Id = Guid.NewGuid(),
+                CalendarOwnerId = ownerId,
+                PeerConnectionId = peer.Id,
+                CalendarOwnerRef = Guid.NewGuid()
+            });
+        }
+
+        await db.SaveChangesAsync();
     }
 }
 
