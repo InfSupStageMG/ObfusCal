@@ -1,0 +1,78 @@
+﻿@page "/consent-callback"
+@using ObfusCal.Application.Interfaces
+@inject ICalendarOwnerGoogleConsentService GoogleConsentService
+@inject ICalendarOwnerGraphConsentService GraphConsentService
+@inject NavigationManager Navigation
+
+<PageTitle>Authorizing… - ObfusCal</PageTitle>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="16" Style="max-width: 600px; margin: 2rem auto;">
+    @if (_loading)
+    {
+        <FluentProgress />
+        <p>Completing authorization, please wait…</p>
+    }
+    else if (_errorMessage is not null)
+    {
+        <FluentMessageBar Intent="MessageIntent.Error">
+            <strong>Authorization failed:</strong> @_errorMessage
+        </FluentMessageBar>
+    }
+    else
+    {
+        <FluentMessageBar Intent="MessageIntent.Success">
+            ✓ Authorization completed successfully. You can now close this window.
+        </FluentMessageBar>
+    }
+</FluentStack>
+
+@code {
+    [Parameter, SupplyParameterFromQuery] public string? Code { get; set; }
+    [Parameter, SupplyParameterFromQuery] public string? State { get; set; }
+
+    private bool _loading = true;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Code))
+        {
+            _errorMessage = "No authorization code was returned by the provider.";
+            _loading = false;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(State))
+        {
+            _errorMessage = "Authorization state was not provided.";
+            _loading = false;
+            return;
+        }
+
+        var redirectUri = $"{Navigation.BaseUri.TrimEnd('/')}/consent-callback";
+
+        try
+        {
+            try
+            {
+                await GoogleConsentService.CompleteConsentFromStateAsync(Code, redirectUri, State);
+            }
+            catch (InvalidOperationException ex)
+            {
+                if (!ex.Message.Contains("state", StringComparison.OrdinalIgnoreCase)
+                    && !ex.Message.Contains("invalid", StringComparison.OrdinalIgnoreCase)
+                    && !ex.Message.Contains("expired", StringComparison.OrdinalIgnoreCase)) throw;
+                _errorMessage = "Authorization from the provider could not be validated.";
+                _loading = false;
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.InnerException?.Message ?? ex.Message;
+        }
+
+        _loading = false;
+    }
+}
+

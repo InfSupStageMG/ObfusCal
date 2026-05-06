@@ -33,7 +33,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PluginProjectReference Include="..\ObfusCal.Plugins.ICloudCalendar\ObfusCal.Plugins.ICloudCalendar.csproj" />
+    <PluginProjectReference Include="..\ObfusCal.Plugins.*\ObfusCal.Plugins.*.csproj" />
   </ItemGroup>
 
   <Target Name="CopyPluginProjectsToOutput" AfterTargets="Build">
@@ -42,7 +42,7 @@
              Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)" />
     <MakeDir Directories="$(OutDir)plugins" />
     <ItemGroup>
-      <PluginArtifacts Include="..\ObfusCal.Plugins.ICloudCalendar\bin\$(Configuration)\$(TargetFramework)\ObfusCal.Plugins.ICloudCalendar.dll" />
+      <PluginArtifacts Include="@(PluginProjectReference->'%(RootDir)%(Directory)bin\$(Configuration)\$(TargetFramework)\%(Filename).dll')" />
     </ItemGroup>
     <Copy SourceFiles="@(PluginArtifacts)"
           DestinationFolder="$(OutDir)plugins"

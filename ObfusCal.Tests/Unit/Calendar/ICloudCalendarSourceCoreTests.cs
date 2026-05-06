@@ -195,7 +195,6 @@ public class ICloudCalendarSourceCoreTests
             httpClient,
             db,
             dataProtectionProvider,
-            new CalendarSourceSecretProtector(dataProtectionProvider),
             icloudOptions,
             logger);
 

@@ -8,6 +8,7 @@ namespace ObfusCal.Infrastructure.Calendars;
 internal sealed class CalendarSourceInstanceService(
     AppDbContext dbContext,
     ICalendarSourceCatalog catalog,
+    ICalendarSourceSecretProtector secretProtector,
     IServiceProvider serviceProvider)
     : ICalendarSourceInstanceService, ICalendarSourceInstanceStore
 {
@@ -29,6 +30,7 @@ internal sealed class CalendarSourceInstanceService(
                 context.CalendarOwnerId,
                 context.PluginId,
                 context.DisplayName,
+                context.ConfigurationJson,
                 context.IsEnabled,
                 readiness.IsReady,
                 readiness.Title,
@@ -99,7 +101,7 @@ internal sealed class CalendarSourceInstanceService(
             DisplayName = displayName,
             IsEnabled = input.IsEnabled,
             ConfigurationJson = input.ConfigurationJson,
-            SecretDataJson = input.SecretDataJson,
+            SecretDataJson = input.SecretDataJson is null ? null : secretProtector.Protect(input.SecretDataJson),
             CreatedAtUtc = DateTimeOffset.UtcNow,
             UpdatedAtUtc = DateTimeOffset.UtcNow
         };
@@ -114,6 +116,7 @@ internal sealed class CalendarSourceInstanceService(
             context.CalendarOwnerId,
             context.PluginId,
             context.DisplayName,
+            context.ConfigurationJson,
             context.IsEnabled,
             readiness.IsReady,
             readiness.Title,
@@ -140,7 +143,7 @@ internal sealed class CalendarSourceInstanceService(
             instance.ConfigurationJson = input.ConfigurationJson;
 
         if (input.SecretDataJson is not null)
-            instance.SecretDataJson = input.SecretDataJson;
+            instance.SecretDataJson = secretProtector.Protect(input.SecretDataJson);
 
         if (input.IsEnabled is { } isEnabled)
             instance.IsEnabled = isEnabled;
@@ -155,6 +158,7 @@ internal sealed class CalendarSourceInstanceService(
             context.CalendarOwnerId,
             context.PluginId,
             context.DisplayName,
+            context.ConfigurationJson,
             context.IsEnabled,
             readiness.IsReady,
             readiness.Title,
@@ -183,7 +187,7 @@ internal sealed class CalendarSourceInstanceService(
         if (instance is null)
             return false;
 
-        instance.SecretDataJson = secretDataJson;
+        instance.SecretDataJson = secretDataJson is null ? null : secretProtector.Protect(secretDataJson);
         instance.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await dbContext.SaveChangesAsync(ct);
         return true;
@@ -215,8 +219,24 @@ internal sealed class CalendarSourceInstanceService(
             instance.DisplayName,
             instance.IsEnabled,
             instance.ConfigurationJson,
-            instance.SecretDataJson,
+            TryUnprotectSecret(instance.SecretDataJson),
             plugin?.IsExternalPlugin ?? false);
+    }
+
+    private string? TryUnprotectSecret(string? protectedValue)
+    {
+        if (string.IsNullOrEmpty(protectedValue))
+            return null;
+        try
+        {
+            return secretProtector.Unprotect(protectedValue);
+        }
+        catch (Exception)
+        {
+            // Data was not encrypted (legacy plaintext data) or key material changed.
+            // Return null so the plugin treats the instance as not configured.
+            return null;
+        }
     }
 
     private static string NormalizePluginId(string pluginId) => pluginId.Trim().ToLowerInvariant();

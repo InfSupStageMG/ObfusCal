@@ -63,6 +63,7 @@ public sealed record CalendarSourceInstanceSummary(
     Guid CalendarOwnerId,
     string PluginId,
     string DisplayName,
+    string? ConfigurationJson,
     bool IsEnabled,
     bool IsReady,
     string Title,

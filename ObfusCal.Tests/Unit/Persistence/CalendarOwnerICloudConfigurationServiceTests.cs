@@ -126,8 +126,7 @@ public class CalendarOwnerICloudConfigurationServiceTests
         var instances = new FakeCalendarSourceInstanceService(ownerId => dbContext.CalendarOwners.Any(owner => owner.Id == ownerId));
         var service = new CalendarOwnerICloudConfigurationService(
             instances,
-            instances,
-            new PassthroughSecretProtector());
+            instances);
 
         return (service, dbContext, instances);
     }

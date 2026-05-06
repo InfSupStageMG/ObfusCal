@@ -104,9 +104,27 @@ public class CalendarSourcePluginCatalogTests
             "Catalog must not contain duplicate plugin IDs");
     }
 
-    // ---------------------------------------------------------------------------
-    // Failure isolation: assembly type-load errors must not crash discover
-    // ---------------------------------------------------------------------------
+    [TestMethod]
+    public void Discover_ProvidesUiMetadata_ForBuiltInPlugins()
+    {
+        var plugins = CalendarSourcePluginCatalog.Discover(includeExternalPlugins: false);
+        var graph = plugins.Single(plugin => plugin.Id == "graph");
+
+        Assert.IsNotNull(graph.Ui);
+        Assert.IsTrue(graph.Ui!.SupportsMultipleInstances);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(graph.Ui.ConfigurationJsonTemplate));
+    }
+
+    [TestMethod]
+    public void Discover_ProvidesActionMetadata_ForPluginsWithConsentFlows()
+    {
+        var plugins = CalendarSourcePluginCatalog.Discover(includeExternalPlugins: false);
+        var graph = plugins.Single(plugin => plugin.Id == "graph");
+
+        var consentAction = graph.Ui?.Actions.SingleOrDefault(a => a.ActionId == "graph-instance-consent");
+        Assert.IsNotNull(consentAction, "graph plugin should declare a 'graph-instance-consent' action");
+        Assert.IsFalse(string.IsNullOrWhiteSpace(consentAction!.Label));
+    }
 
     [TestMethod]
     public void Discover_DoesNotThrow_WhenSomeAssemblyTypesCannotBeLoaded()
@@ -127,12 +145,8 @@ public class CalendarSourcePluginCatalogTests
 
         Assert.IsNull(thrown, $"Discover() must not propagate exceptions; threw: {thrown?.Message}");
         Assert.IsNotNull(result);
-        Assert.IsTrue(result!.Count > 0, "At least the built-in plugins should always be discovered");
+        Assert.IsNotEmpty(result, "At least the built-in plugins should always be discovered");
     }
-
-    // ---------------------------------------------------------------------------
-    // Helpers — intentionally NOT annotated with [CalendarSourcePlugin]
-    // ---------------------------------------------------------------------------
 
     private sealed class StubSourceA : ICalendarSource
     {

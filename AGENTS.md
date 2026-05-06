@@ -78,3 +78,10 @@ Use this checklist before declaring the project "ready":
     - Avoid TODOs without linked issues and remove debug code before merge.
     - Treat analyzer warnings related to architecture drift or security as actionable findings, not cosmetic noise.
 
+14. **Blazor composition and code-behind discipline**
+    - Keep page markup in `*.razor` and move page logic into focused `*.razor.cs` partial files.
+    - Prefer feature-oriented partials for large pages (for example: `.Sources`, `.Feeds`, `.ICloud`, `.Profiles`, `.Sync`, `.Models`).
+    - Treat a page as an orchestrator; extract reusable UI sections into child components when a page grows beyond a single feature.
+    - Keep Blazor components in the presentation layer (`ObfusCal.Api`) and depend on `ObfusCal.Application` abstractions only.
+    - Do not move UI-specific view models into `ObfusCal.Application` unless they become shared contracts.
+    - If a page or partial becomes difficult to review, split it before merging and document the resulting file layout in the PR note.
