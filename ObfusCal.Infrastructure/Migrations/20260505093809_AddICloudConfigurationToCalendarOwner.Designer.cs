@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ObfusCal.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using ObfusCal.Infrastructure.Persistence;
 namespace ObfusCal.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260505093809_AddICloudConfigurationToCalendarOwner")]
+    partial class AddICloudConfigurationToCalendarOwner
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -218,51 +221,6 @@ namespace ObfusCal.Infrastructure.Migrations
                     b.ToTable("CalendarOwnerPeerMappings");
                 });
 
-            modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.CalendarSourceInstance", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CalendarOwnerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ConfigurationJson")
-                        .HasMaxLength(32768)
-                        .HasColumnType("character varying(32768)");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("PluginId")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("SecretDataJson")
-                        .HasMaxLength(32768)
-                        .HasColumnType("character varying(32768)");
-
-                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CalendarOwnerId");
-
-                    b.HasIndex("CalendarOwnerId", "PluginId");
-
-                    b.ToTable("CalendarSourceInstances");
-                });
-
             modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.ObfuscationProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -383,17 +341,6 @@ namespace ObfusCal.Infrastructure.Migrations
                     b.Navigation("PeerConnection");
                 });
 
-            modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.CalendarSourceInstance", b =>
-                {
-                    b.HasOne("ObfusCal.Infrastructure.Persistence.CalendarOwner", "CalendarOwner")
-                        .WithMany("CalendarSourceInstances")
-                        .HasForeignKey("CalendarOwnerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CalendarOwner");
-                });
-
             modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.ObfuscationProfile", b =>
                 {
                     b.HasOne("ObfusCal.Infrastructure.Persistence.CalendarOwner", "CalendarOwner")
@@ -417,8 +364,6 @@ namespace ObfusCal.Infrastructure.Migrations
 
             modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.CalendarOwner", b =>
                 {
-                    b.Navigation("CalendarSourceInstances");
-
                     b.Navigation("ICalFeeds");
 
                     b.Navigation("ObfuscationProfiles");

@@ -125,6 +125,48 @@ dotnet run --project ObfusCal.Api
 
 ---
 
+## iCloud setup quick guide
+
+If you configure iCloud as a calendar source, you need:
+- Your Apple ID email
+- An Apple app-specific password
+- The full iCloud CalDAV calendar URL
+
+For a full walkthrough, see `docs/13-icloud-caldav-setup.md`.
+
+### 1) Generate an app-specific password
+
+1. Open `https://account.apple.com/account/manage`.
+2. Sign in, then go to the **App-Specific Passwords** section.
+3. Create a new app-specific password for ObfusCal.
+4. Copy it immediately and store it safely.
+
+Important: Apple only shows this password once. You cannot view the same password again later.
+
+### 2) Find the iCloud CalDAV URL parts
+
+1. Open `https://www.icloud.com/calendar/`.
+2. Open browser DevTools -> **Network** tab.
+3. Filter/search for `collections`.
+4. In the calendar UI, deselect/reselect the target calendar to trigger requests.
+5. From matching requests, collect:
+   - The `p` shard code from the host (for example `p123` from `p123-caldav.icloud.com`)
+   - The `dsid` segment in the URL path
+   - The calendar identifier in the path (GUID-like, for example `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`)
+
+### 3) Build the URL used by ObfusCal
+
+Use:
+
+`https://p***-caldav.icloud.com/<dsid>/calendars/<calendar-id>/`
+
+Then configure ObfusCal with:
+- Calendar URL: the URL above
+- Apple ID: your Apple ID email
+- App-specific password: the password from step 1
+
+---
+
 ## Development
 
 Build:

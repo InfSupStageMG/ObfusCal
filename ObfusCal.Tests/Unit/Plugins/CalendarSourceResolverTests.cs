@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
@@ -133,13 +134,16 @@ public class CalendarSourceResolverTests
         services.AddTransient<AlphaCalendarSource>();
         services.AddTransient<BetaCalendarSource>();
         var sp = services.BuildServiceProvider();
+        var instances = new FakeCalendarSourceInstanceService(ownerId => db.CalendarOwners.Any(owner => owner.Id == ownerId));
 
         return new CalendarSourceResolver(
             db,
             catalog,
+            instances,
             sp,
             Options.Create(new CalendarSourceOptions { Provider = configuredProvider }),
-            new FakeHostEnvironment(environmentName));
+            new FakeHostEnvironment(environmentName),
+            NullLogger<AggregateCalendarSource>.Instance);
     }
 
     private sealed class FakeHostEnvironment(string environmentName) : IHostEnvironment

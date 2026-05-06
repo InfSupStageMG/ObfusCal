@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
 using ObfusCal.Api.Authorization;
 using ObfusCal.Application.Interfaces;
-using ObfusCal.Application.Obfuscation;
 using ObfusCal.Application.UseCases.GetBusySlots;
 using ObfusCal.Application.UseCases.GetMergedFreeBusy;
 
@@ -17,9 +16,9 @@ public sealed class CalendarOwnersController(
     IGetMergedFreeBusyUseCase getMergedFreeBusyUseCase,
     CalendarOwnerAccessEvaluator accessEvaluator,
     ICalendarOwnerCalendarSourceService calendarSourceService,
+    ICalendarSourceInstanceService calendarSourceInstanceService,
     ICalendarOwnerGraphConsentService graphConsentService,
-    ICalendarOwnerIcalFeedService calendarOwnerIcalFeedService,
-    ICalendarOwnerObfuscationProfileService obfuscationProfileService) : ControllerBase
+    ICalendarOwnerIcalFeedService calendarOwnerIcalFeedService) : ControllerBase
 {
     [HttpGet("me")]
     [ProducesResponseType(typeof(CurrentCalendarOwnerResponse), StatusCodes.Status200OK)]
@@ -47,15 +46,32 @@ public sealed class CalendarOwnersController(
         if (from is null || to is null)
             return BadRequest("Query parameters 'from' and 'to' are required.");
 
-        var selection = await calendarSourceService.GetSelectionAsync(id, ct);
-        if (selection is { IsReady: false })
+        var sourceInstances = await calendarSourceInstanceService.ListAsync(id, ct);
+        var enabledInstances = sourceInstances.Where(instance => instance.IsEnabled).ToList();
+        switch (enabledInstances.Count)
         {
-            return Conflict(new ProblemDetails
+            case > 0 when enabledInstances.All(instance => !instance.IsReady):
+                return Conflict(new ProblemDetails
+                {
+                    Status = StatusCodes.Status409Conflict,
+                    Title = "No configured calendar sources are ready.",
+                    Detail = string.Join(" ", enabledInstances.Select(instance => $"[{instance.DisplayName}] {instance.Title}"))
+                });
+            case 0:
             {
-                Status = StatusCodes.Status409Conflict,
-                Title = selection.Title,
-                Detail = selection.Detail
-            });
+                var selection = await calendarSourceService.GetSelectionAsync(id, ct);
+                if (selection is { IsReady: false })
+                {
+                    return Conflict(new ProblemDetails
+                    {
+                        Status = StatusCodes.Status409Conflict,
+                        Title = selection.Title,
+                        Detail = selection.Detail
+                    });
+                }
+
+                break;
+            }
         }
 
         var result = await getBusySlotsUseCase.ExecuteAsync(new GetBusySlotsQuery(id, from.Value, to.Value), ct);
@@ -74,14 +90,149 @@ public sealed class CalendarOwnersController(
             return accessResult;
 
         var providers = await calendarSourceService.ListProvidersAsync(id, ct);
-        return Ok(providers.Select(provider => new CalendarSourceProviderResponse(
-            provider.Id,
-            provider.DisplayName,
-            provider.IsSelected,
-            provider.IsReady,
-            provider.Title,
-            provider.Detail,
-            provider.IsExternalPlugin)).ToList());
+        return Ok(providers.Select(provider => new CalendarSourceProviderResponse
+        {
+            Id = provider.Id,
+            DisplayName = provider.DisplayName,
+            IsSelected = provider.IsSelected,
+            IsReady = provider.IsReady,
+            Title = provider.Title,
+            Detail = provider.Detail,
+            IsExternalPlugin = provider.IsExternalPlugin
+        }).ToList());
+    }
+
+    [HttpGet("{id}/calendar/sources")]
+    [ProducesResponseType(typeof(IReadOnlyList<CalendarSourceInstanceResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListCalendarSourceInstances(Guid id, CancellationToken ct)
+    {
+        var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
+        if (accessResult is not null)
+            return accessResult;
+
+        var instances = await calendarSourceInstanceService.ListAsync(id, ct);
+        return Ok(instances.Select(instance => new CalendarSourceInstanceResponse(
+            instance.Id,
+            instance.PluginId,
+            instance.DisplayName,
+            instance.IsEnabled,
+            instance.IsReady,
+            instance.Title,
+            instance.Detail,
+            instance.IsExternalPlugin)).ToList());
+    }
+
+    [HttpPost("{id}/calendar/sources")]
+    [ProducesResponseType(typeof(CalendarSourceInstanceResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateCalendarSourceInstance(Guid id, [FromBody] CreateCalendarSourceInstanceRequest request, CancellationToken ct)
+    {
+        var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
+        if (accessResult is not null)
+            return accessResult;
+
+        if (string.IsNullOrWhiteSpace(request.PluginId))
+            return BadRequest("'pluginId' is required.");
+
+        if (string.IsNullOrWhiteSpace(request.DisplayName))
+            return BadRequest("'displayName' is required.");
+
+        try
+        {
+            var created = await calendarSourceInstanceService.CreateAsync(
+                id,
+                new CreateCalendarSourceInstanceInput(
+                    request.PluginId,
+                    request.DisplayName,
+                    request.ConfigurationJson,
+                    request.SecretDataJson,
+                    request.IsEnabled),
+                ct);
+
+            if (created is null)
+                return NotFound();
+
+            return Created(
+                $"/api/calendar-owners/{id}/calendar/sources/{created.Id}",
+                new CalendarSourceInstanceResponse(
+                    created.Id,
+                    created.PluginId,
+                    created.DisplayName,
+                    created.IsEnabled,
+                    created.IsReady,
+                    created.Title,
+                    created.Detail,
+                    created.IsExternalPlugin));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Unknown calendar source plugin.",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    [HttpPatch("{id}/calendar/sources/{sourceInstanceId:guid}")]
+    [ProducesResponseType(typeof(CalendarSourceInstanceResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateCalendarSourceInstance(
+        Guid id,
+        Guid sourceInstanceId,
+        [FromBody] UpdateCalendarSourceInstanceRequest request,
+        CancellationToken ct)
+    {
+        var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
+        if (accessResult is not null)
+            return accessResult;
+
+        var updated = await calendarSourceInstanceService.UpdateAsync(
+            id,
+            sourceInstanceId,
+            new UpdateCalendarSourceInstanceInput(
+                request.DisplayName,
+                request.ConfigurationJson,
+                request.SecretDataJson,
+                request.IsEnabled),
+            ct);
+
+        if (updated is null)
+            return NotFound();
+
+        return Ok(new CalendarSourceInstanceResponse(
+            updated.Id,
+            updated.PluginId,
+            updated.DisplayName,
+            updated.IsEnabled,
+            updated.IsReady,
+            updated.Title,
+            updated.Detail,
+            updated.IsExternalPlugin));
+    }
+
+    [HttpDelete("{id}/calendar/sources/{sourceInstanceId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteCalendarSourceInstance(Guid id, Guid sourceInstanceId, CancellationToken ct)
+    {
+        var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
+        if (accessResult is not null)
+            return accessResult;
+
+        var deleted = await calendarSourceInstanceService.DeleteAsync(id, sourceInstanceId, ct);
+        return deleted ? NoContent() : NotFound();
     }
 
     [HttpPut("{id}/calendar/provider")]
@@ -146,6 +297,28 @@ public sealed class CalendarOwnersController(
             status.TokenExpiresAtUtc));
     }
 
+    [HttpGet("{id}/calendar/graph-sources/{sourceInstanceId:guid}/status")]
+    [ProducesResponseType(typeof(CalendarConsentStatusResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCalendarConsentStatusForSource(Guid id, Guid sourceInstanceId, CancellationToken ct)
+    {
+        var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
+        if (accessResult is not null)
+            return accessResult;
+
+        var status = await graphConsentService.GetStatusAsync(id, sourceInstanceId, ct);
+        if (status is null)
+            return NotFound();
+
+        return Ok(new CalendarConsentStatusResponse(
+            status.HasGraphConsent,
+            status.GrantedAtUtc,
+            status.TokenLastRefreshedAtUtc,
+            status.TokenExpiresAtUtc));
+    }
+
     [HttpGet("{id}/calendar/consent-url")]
     [ProducesResponseType(typeof(CalendarConsentUrlResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -172,6 +345,41 @@ public sealed class CalendarOwnersController(
             {
                 Status = StatusCodes.Status400BadRequest,
                 Title = "Invalid redirect URI.",
+                Detail = ex.Message
+            });
+        }
+    }
+
+    [HttpGet("{id}/calendar/graph-sources/{sourceInstanceId:guid}/consent-url")]
+    [ProducesResponseType(typeof(CalendarConsentUrlResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCalendarConsentUrlForSource(
+        Guid id,
+        Guid sourceInstanceId,
+        [FromQuery] string? redirectUri,
+        CancellationToken ct)
+    {
+        var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
+        if (accessResult is not null)
+            return accessResult;
+
+        if (string.IsNullOrWhiteSpace(redirectUri))
+            return BadRequest("A valid absolute 'redirectUri' query parameter is required.");
+
+        try
+        {
+            var authorizationUrl = await graphConsentService.BuildAuthorizationUrlAsync(id, sourceInstanceId, redirectUri, ct);
+            return Ok(new CalendarConsentUrlResponse(authorizationUrl));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Invalid redirect URI or Graph source instance.",
                 Detail = ex.Message
             });
         }
@@ -214,6 +422,44 @@ public sealed class CalendarOwnersController(
         }
     }
 
+    [HttpPost("{id}/calendar/graph-sources/{sourceInstanceId:guid}/consent")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CompleteCalendarConsentForSource(
+        Guid id,
+        Guid sourceInstanceId,
+        [FromBody] CompleteCalendarConsentRequest request,
+        CancellationToken ct)
+    {
+        var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
+        if (accessResult is not null)
+            return accessResult;
+
+        if (string.IsNullOrWhiteSpace(request.AuthorizationCode))
+            return BadRequest("'authorizationCode' is required.");
+
+        if (string.IsNullOrWhiteSpace(request.RedirectUri) || !Uri.TryCreate(request.RedirectUri, UriKind.Absolute, out _))
+            return BadRequest("A valid absolute 'redirectUri' is required.");
+
+        try
+        {
+            await graphConsentService.CompleteConsentAsync(id, sourceInstanceId, request.AuthorizationCode, request.RedirectUri, ct);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Unable to complete Microsoft Graph consent.",
+                Detail = ex.Message
+            });
+        }
+    }
+
     [HttpGet("{id}/merged-freebusy")]
     public async Task<IActionResult> GetMergedFreeBusy(
         Guid id,
@@ -232,69 +478,6 @@ public sealed class CalendarOwnersController(
         return Ok(result);
     }
 
-    [HttpGet("{id}/obfuscation-profiles")]
-    [ProducesResponseType(typeof(IReadOnlyList<ObfuscationProfileResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ListObfuscationProfiles(Guid id, CancellationToken ct)
-    {
-        var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
-        if (accessResult is not null)
-            return accessResult;
-
-        var profiles = await obfuscationProfileService.GetProfilesAsync(id, ct);
-        return Ok(profiles.Select(ToResponse).ToList());
-    }
-
-    [HttpPut("{id}/obfuscation-profiles/{context}")]
-    [ProducesResponseType(typeof(ObfuscationProfileResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> SetObfuscationProfile(
-        Guid id,
-        string context,
-        [FromBody] SetObfuscationProfileRequest request,
-        CancellationToken ct)
-    {
-        var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
-        if (accessResult is not null)
-            return accessResult;
-
-        if (!Enum.TryParse<ObfuscationAuditContext>(context, true, out var parsedContext))
-            return BadRequest("Context must be one of: Internal, Client.");
-
-        if (request.RoundingIntervalMinutes <= 0)
-            return BadRequest("'roundingIntervalMinutes' must be greater than zero.");
-
-        var updated = await obfuscationProfileService.SetProfileAsync(
-            id,
-            new ObfuscationProfileSettings(
-                parsedContext,
-                request.RemoveTitle,
-                request.RemoveDescription,
-                request.RemoveLocation,
-                request.RemoveAttendees,
-                request.RoundTimes,
-                request.RoundingIntervalMinutes,
-                request.MergeBlocks),
-            ct);
-
-        return Ok(ToResponse(updated));
-    }
-
-    private static ObfuscationProfileResponse ToResponse(ObfuscationProfileSettings profile) =>
-        new(
-            profile.Context.ToString(),
-            profile.RemoveTitle,
-            profile.RemoveDescription,
-            profile.RemoveLocation,
-            profile.RemoveAttendees,
-            profile.RoundTimes,
-            profile.RoundingIntervalMinutes,
-            profile.MergeBlocks);
 
     [HttpPost("{id}/ical-feeds")]
     [ProducesResponseType(typeof(AddIcalFeedResponse), StatusCodes.Status201Created)]
@@ -350,7 +533,7 @@ public sealed class CalendarOwnersController(
             return accessResult;
 
         var feeds = await calendarOwnerIcalFeedService.ListFeedsAsync(id, ct);
-        return Ok(feeds.Select(feed => new CalendarOwnerIcalFeedResponse(feed.Id, feed.FeedUrl)).ToList());
+        return Ok(feeds.Select(feed => new CalendarOwnerIcalFeedResponse { Id = feed.Id, FeedUrl = feed.FeedUrl }).ToList());
     }
 
     [HttpDelete("{id}/ical-feeds/{feedId:guid}")]
@@ -402,14 +585,16 @@ public sealed class CalendarOwnersController(
 
     private sealed record AddIcalFeedResponse(Guid Id, string FeedUrl);
 
-    private sealed record CalendarSourceProviderResponse(
-        string Id,
-        string DisplayName,
-        bool IsSelected,
-        bool IsReady,
-        string Title,
-        string? Detail,
-        bool IsExternalPlugin);
+    private sealed record CalendarSourceProviderResponse
+    {
+        public required string Id { get; init; }
+        public required string DisplayName { get; init; }
+        public required bool IsSelected { get; init; }
+        public required bool IsReady { get; init; }
+        public required string Title { get; init; }
+        public string? Detail { get; init; }
+        public required bool IsExternalPlugin { get; init; }
+    }
 
     private sealed record CalendarSourceSelectionResponse(
         string Id,
@@ -419,26 +604,34 @@ public sealed class CalendarOwnersController(
         string? Detail,
         bool IsExternalPlugin);
 
-    private sealed record CalendarOwnerIcalFeedResponse(Guid Id, string FeedUrl);
+    private sealed record CalendarSourceInstanceResponse(
+        Guid Id,
+        string PluginId,
+        string DisplayName,
+        bool IsEnabled,
+        bool IsReady,
+        string Title,
+        string? Detail,
+        bool IsExternalPlugin);
 
-    public sealed record SetObfuscationProfileRequest(
-        bool RemoveTitle,
-        bool RemoveDescription,
-        bool RemoveLocation,
-        bool RemoveAttendees,
-        bool RoundTimes,
-        int RoundingIntervalMinutes,
-        bool MergeBlocks);
-
-    private sealed record ObfuscationProfileResponse(
-        string Context,
-        bool RemoveTitle,
-        bool RemoveDescription,
-        bool RemoveLocation,
-        bool RemoveAttendees,
-        bool RoundTimes,
-        int RoundingIntervalMinutes,
-        bool MergeBlocks);
+    private sealed record CalendarOwnerIcalFeedResponse
+    {
+        public required Guid Id { get; init; }
+        public required string FeedUrl { get; init; }
+    }
 
     public sealed record CompleteCalendarConsentRequest(string AuthorizationCode, string RedirectUri);
+
+    public sealed record CreateCalendarSourceInstanceRequest(
+        string PluginId,
+        string DisplayName,
+        string? ConfigurationJson,
+        string? SecretDataJson,
+        bool IsEnabled = true);
+
+    public sealed record UpdateCalendarSourceInstanceRequest(
+        string? DisplayName,
+        string? ConfigurationJson,
+        string? SecretDataJson,
+        bool? IsEnabled);
 }

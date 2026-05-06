@@ -29,8 +29,9 @@ public class CalendarOwnerGraphConsentServiceTests
             ClientId = "consent-client-id"
         });
 
+        var instances = new FakeCalendarSourceInstanceService(calendarOwnerId => db.CalendarOwners.Any(owner => owner.Id == calendarOwnerId));
         var svc = new CalendarOwnerGraphConsentService(
-            db, dpProvider, secretProvider, options,
+            db, dpProvider, secretProvider, options, instances, instances,
             tokenClient ?? new FakeGraphOAuthTokenClient());
 
         return (svc, db, ownerId);
@@ -197,7 +198,10 @@ public class CalendarOwnerGraphConsentServiceTests
         });
 
         var svc = new CalendarOwnerGraphConsentService(
-            db, dpProvider, secretProvider, options, new FakeGraphOAuthTokenClient());
+            db, dpProvider, secretProvider, options,
+            new FakeCalendarSourceInstanceService(),
+            new FakeCalendarSourceInstanceService(),
+            new FakeGraphOAuthTokenClient());
 
         var url = svc.BuildAuthorizationUrl("https://localhost/callback");
 
@@ -221,7 +225,10 @@ public class CalendarOwnerGraphConsentServiceTests
         });
 
         var svc = new CalendarOwnerGraphConsentService(
-            db, dpProvider, secretProvider, options, new FakeGraphOAuthTokenClient());
+            db, dpProvider, secretProvider, options,
+            new FakeCalendarSourceInstanceService(),
+            new FakeCalendarSourceInstanceService(),
+            new FakeGraphOAuthTokenClient());
 
         var url = svc.BuildAuthorizationUrl("https://localhost/callback");
 
@@ -245,7 +252,10 @@ public class CalendarOwnerGraphConsentServiceTests
         });
 
         var svc = new CalendarOwnerGraphConsentService(
-            db, dpProvider, secretProvider, options, new FakeGraphOAuthTokenClient());
+            db, dpProvider, secretProvider, options,
+            new FakeCalendarSourceInstanceService(),
+            new FakeCalendarSourceInstanceService(),
+            new FakeGraphOAuthTokenClient());
 
         var url = svc.BuildAuthorizationUrl("https://localhost/callback");
 
@@ -267,7 +277,10 @@ public class CalendarOwnerGraphConsentServiceTests
         var options = Options.Create(new GraphConsentOptions { ClientId = "my-client", Scope = "openid" });
 
         var svc = new CalendarOwnerGraphConsentService(
-            db, dpProvider, secretProvider, options, new FakeGraphOAuthTokenClient());
+            db, dpProvider, secretProvider, options,
+            new FakeCalendarSourceInstanceService(),
+            new FakeCalendarSourceInstanceService(),
+            new FakeGraphOAuthTokenClient());
 
         var url = svc.BuildAuthorizationUrl("https://localhost/callback");
 

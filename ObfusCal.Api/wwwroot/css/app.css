@@ -35,18 +35,80 @@ fluent-data-grid-row > fluent-data-grid-cell {
 .dashboard-filters {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    align-items: end;
+    gap: 12px;
+    align-items: flex-start;
 }
 
-.dashboard-filters > div {
+.dashboard-filters > * {
+    min-width: 0;
+}
+
+.dashboard-filter-field {
     min-width: 180px;
     flex: 1 1 220px;
 }
 
+.dashboard-filter-pair {
+    display: flex;
+    gap: 12px;
+    flex: 2 1 460px;
+    min-width: 300px;
+}
 
+.dashboard-filter-pair .dashboard-filter-field {
+    min-width: 0;
+    flex: 1 1 0;
+}
 
+.dashboard-filter-field--timezone {
+    min-width: 0;
+}
 
+.dashboard-filter-field fluent-select,
+.dashboard-filter-field fluent-date-picker {
+    width: 100%;
+    max-width: 100%;
+}
 
+.dashboard-actions {
+    flex: 1 1 100%;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}
 
+.dashboard-actions fluent-button {
+    min-width: 110px;
+}
 
+@media (max-width: 900px) {
+    .dashboard-filter-field,
+    .dashboard-filter-pair {
+        flex: 1 1 calc(50% - 12px);
+        min-width: 0;
+    }
+
+    .dashboard-filter-pair .dashboard-filter-field {
+        min-width: 130px;
+    }
+}
+
+@media (max-width: 640px) {
+    .dashboard-filter-field,
+    .dashboard-filter-pair {
+        flex: 1 1 100%;
+    }
+
+    .dashboard-filter-pair {
+        flex-direction: column;
+    }
+
+    .dashboard-actions {
+        justify-content: stretch;
+    }
+
+    .dashboard-actions fluent-button {
+        flex: 1 1 100%;
+    }
+}

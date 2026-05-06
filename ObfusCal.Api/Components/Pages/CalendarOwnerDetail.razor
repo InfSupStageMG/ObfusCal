@@ -1,8 +1,11 @@
 ﻿@page "/calendar-owners/{Id:guid}"
 @using ObfusCal.Application.Interfaces
 @using ObfusCal.Application.Obfuscation
+@using Microsoft.FluentUI.AspNetCore.Components
+@using FluentIcons = Microsoft.FluentUI.AspNetCore.Components.Icons
 @inject ICalendarOwnerService CalendarOwnerService
 @inject ICalendarOwnerIcalFeedService IcalFeedService
+@inject ICalendarOwnerICloudConfigurationService ICloudConfigurationService
 @inject ICalendarOwnerObfuscationProfileService ObfuscationProfileService
 @inject ICalendarOwnerAvailabilitySyncService AvailabilitySyncService
 @inject NavigationManager Navigation
@@ -18,7 +21,7 @@
 
 @if (_owner is null)
 {
-    <FluentProgress />
+    <FluentProgress/>
 }
 else
 {
@@ -27,8 +30,10 @@ else
         @* ─── Availability Sync ─── *@
         <section class="card">
             <h3>Availability Sync</h3>
-            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center">
-                <FluentButton Appearance="Appearance.Outline" OnClick="TriggerOwnerSyncAsync" Disabled="_triggeringSyncForOwner">
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8"
+                         VerticalAlignment="VerticalAlignment.Center">
+                <FluentButton Appearance="Appearance.Outline" OnClick="TriggerOwnerSyncAsync"
+                              Disabled="_triggeringSyncForOwner">
                     @(_triggeringSyncForOwner ? "Syncing…" : "Trigger Sync Now")
                 </FluentButton>
             </FluentStack>
@@ -47,10 +52,11 @@ else
             @if (_feeds is { Count: > 0 })
             {
                 <FluentDataGrid Items="_feeds.AsQueryable()" TGridItem="CalendarOwnerIcalFeedItem">
-                    <PropertyColumn Property="@(f => f.FeedUrl)" Title="Feed URL" />
+                    <PropertyColumn Property="@(f => f.FeedUrl)" Title="Feed URL"/>
                     <TemplateColumn Title="Actions">
                         <div class="feed-actions-cell">
-                            <FluentButton class="feed-delete-button" Appearance="Appearance.Outline" OnClick="@(() => DeleteFeedAsync(context.Id))">
+                            <FluentButton class="feed-delete-button" Appearance="Appearance.Outline"
+                                          OnClick="@(() => DeleteFeedAsync(context.Id))">
                                 Delete
                             </FluentButton>
                         </div>
@@ -63,8 +69,10 @@ else
             }
 
             <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" Style="margin-top: 1rem;">
-                <FluentTextField @bind-Value="_newFeedUrl" Immediate="true" Placeholder="https://calendar.example.com/feed.ics" Style="flex: 1;" />
-                <FluentButton Appearance="Appearance.Accent" OnClick="AddFeedAsync" Disabled="@string.IsNullOrWhiteSpace(_newFeedUrl)">
+                <FluentTextField @bind-Value="_newFeedUrl" Immediate="true"
+                                 Placeholder="https://calendar.example.com/feed.ics" Style="flex: 1;"/>
+                <FluentButton Appearance="Appearance.Accent" OnClick="AddFeedAsync"
+                              Disabled="@string.IsNullOrWhiteSpace(_newFeedUrl)">
                     Add Feed
                 </FluentButton>
             </FluentStack>
@@ -73,6 +81,90 @@ else
             {
                 <FluentMessageBar Intent="@_feedMessageIntent" Style="margin-top: 0.5rem;">
                     @_feedMessage
+                </FluentMessageBar>
+            }
+        </section>
+
+        @* ─── iCloud Calendar ─── *@
+        <section class="card">
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center">
+                <h3 style="margin: 0;">iCloud Calendar</h3>
+                <a href="/docs/13-icloud-caldav-setup" target="_blank" rel="noopener noreferrer"
+                   title="Need help? This guide explains how to generate an Apple app-specific password and how to build the iCloud CalDAV URL from iCloud web network requests."
+                   aria-label="Open iCloud setup help">
+                    <FluentIcon Value="@(new FluentIcons.Regular.Size16.Info())"/>
+                </a>
+            </FluentStack>
+
+            @if (_icloudConfiguration?.IsConfigured == true)
+            {
+                <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <FluentIcon Value="@(new FluentIcons.Regular.Size16.CheckmarkCircle())"
+                                    Style="color: var(--success-color);"/>
+                        <span>
+                            Calendar URL: <strong>@_icloudConfiguration.CalendarUrl</strong>
+                        </span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_icloudConfiguration.AppleIdHint))
+                    {
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <FluentIcon Value="@(new FluentIcons.Regular.Size16.Mail())"/>
+                            <span>Apple ID: <strong>@_icloudConfiguration.AppleIdHint</strong></span>
+                        </div>
+                    }
+                </FluentStack>
+            }
+            else if (_icloudConfigurationReadinessError is not null)
+            {
+                <FluentMessageBar Intent="MessageIntent.Error">
+                    <strong>Configuration Issue:</strong> @_icloudConfigurationReadinessError
+                </FluentMessageBar>
+            }
+            else
+            {
+                <p style="color: var(--neutral-foreground-rest);">No iCloud calendar configured.</p>
+            }
+
+            <div
+                style="margin-top: 1rem; padding: 0.75rem; background-color: var(--neutral-fill-subtle); border-radius: 4px;">
+                <p style="margin-top: 0; margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--neutral-foreground-hint);">
+                    <strong>iCloud Calendar URL</strong><br>
+                    Format: <code>https://caldav.icloud.com/.../calendar/</code>
+                </p>
+            </div>
+
+            <FluentStack Orientation="Orientation.Vertical" VerticalGap="8" Style="margin-top: 1rem;">
+                <FluentTextField @bind-Value="_icloudCalendarUrl" Immediate="true"
+                                 Placeholder="https://caldav.icloud.com/.../calendar/" Label="Calendar URL"/>
+                <FluentTextField @bind-Value="_icloudAppleId" Immediate="true" Placeholder="you@example.com"
+                                 Label="Apple ID"/>
+                <FluentTextField @bind-Value="_icloudAppSpecificPassword" Immediate="true"
+                                 Placeholder="App-specific password" Label="App-Specific Password" Type="password"/>
+            </FluentStack>
+
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" Style="margin-top: 1rem;">
+                <FluentButton Appearance="Appearance.Accent" OnClick="SaveICloudConfigurationAsync"
+                              Disabled="@(string.IsNullOrWhiteSpace(_icloudCalendarUrl) || string.IsNullOrWhiteSpace(_icloudAppleId) || string.IsNullOrWhiteSpace(_icloudAppSpecificPassword) || _icloudTesting)">
+                    @(_icloudTesting ? "Testing…" : "Save & Test Configuration")
+                </FluentButton>
+                <FluentButton Appearance="Appearance.Outline" OnClick="ClearICloudConfigurationAsync"
+                              Disabled="@(_icloudConfiguration?.IsConfigured != true || _icloudTesting)">
+                    Clear
+                </FluentButton>
+            </FluentStack>
+
+            @if (_icloudMessage is not null)
+            {
+                <FluentMessageBar Intent="@_icloudMessageIntent" Style="margin-top: 0.5rem;">
+                    @_icloudMessage
+                </FluentMessageBar>
+            }
+
+            @if (_icloudConfigurationReadinessWarning is not null)
+            {
+                <FluentMessageBar Intent="MessageIntent.Warning" Style="margin-top: 0.5rem;">
+                    <strong>Note:</strong> @_icloudConfigurationReadinessWarning
                 </FluentMessageBar>
             }
         </section>
@@ -86,16 +178,18 @@ else
                 <section class="card" style="margin-bottom: 1rem;">
                     <h4>@profile.Context</h4>
                     <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
-                        <FluentCheckbox @bind-Value="profile.RemoveTitle" Label="Remove title" />
-                        <FluentCheckbox @bind-Value="profile.RemoveDescription" Label="Remove description" />
-                        <FluentCheckbox @bind-Value="profile.RemoveLocation" Label="Remove location" />
-                        <FluentCheckbox @bind-Value="profile.RemoveAttendees" Label="Remove attendees" />
-                        <FluentCheckbox @bind-Value="profile.RoundTimes" Label="Round times" />
-                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center">
+                        <FluentCheckbox @bind-Value="profile.RemoveTitle" Label="Remove title"/>
+                        <FluentCheckbox @bind-Value="profile.RemoveDescription" Label="Remove description"/>
+                        <FluentCheckbox @bind-Value="profile.RemoveLocation" Label="Remove location"/>
+                        <FluentCheckbox @bind-Value="profile.RemoveAttendees" Label="Remove attendees"/>
+                        <FluentCheckbox @bind-Value="profile.RoundTimes" Label="Round times"/>
+                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8"
+                                     VerticalAlignment="VerticalAlignment.Center">
                             <FluentLabel>Rounding interval (minutes)</FluentLabel>
-                            <FluentNumberField @bind-Value="profile.RoundingIntervalMinutes" Min="1" Max="60" Style="width: 100px;" />
+                            <FluentNumberField @bind-Value="profile.RoundingIntervalMinutes" Min="1" Max="60"
+                                               Style="width: 100px;"/>
                         </FluentStack>
-                        <FluentCheckbox @bind-Value="profile.MergeBlocks" Label="Merge adjacent blocks" />
+                        <FluentCheckbox @bind-Value="profile.MergeBlocks" Label="Merge adjacent blocks"/>
                         <FluentButton Appearance="Appearance.Accent" OnClick="@(() => SaveProfileAsync(profile))">
                             Save
                         </FluentButton>
@@ -122,10 +216,19 @@ else
     private string? _newFeedUrl;
     private string? _feedMessage;
     private MessageIntent _feedMessageIntent = MessageIntent.Info;
+    private CalendarOwnerICloudConfiguration? _icloudConfiguration;
+    private string? _icloudCalendarUrl;
+    private string? _icloudAppleId;
+    private string? _icloudAppSpecificPassword;
+    private string? _icloudMessage;
+    private MessageIntent _icloudMessageIntent = MessageIntent.Info;
+    private string? _icloudConfigurationReadinessError;
+    private string? _icloudConfigurationReadinessWarning;
     private string? _profileMessage;
     private bool _triggeringSyncForOwner;
     private string? _ownerSyncMessage;
     private MessageIntent _ownerSyncMessageIntent = MessageIntent.Info;
+    private bool _icloudTesting;
 
     protected override async Task OnInitializedAsync()
     {
@@ -134,6 +237,7 @@ else
         if (_owner is null) return;
 
         await LoadFeedsAsync();
+        await LoadICloudConfigurationAsync();
         await LoadProfilesAsync();
     }
 
@@ -219,6 +323,107 @@ else
             _feedMessage = "Failed to delete feed.";
             _feedMessageIntent = MessageIntent.Error;
         }
+    }
+
+    private async Task LoadICloudConfigurationAsync()
+    {
+        _icloudConfiguration = await ICloudConfigurationService.GetConfigurationAsync(Id);
+        _icloudCalendarUrl = _icloudConfiguration?.CalendarUrl;
+        _icloudAppleId = null;
+        _icloudAppSpecificPassword = null;
+        _icloudConfigurationReadinessError = null;
+        _icloudConfigurationReadinessWarning = null;
+    }
+
+    private async Task SaveICloudConfigurationAsync()
+    {
+        _icloudMessage = null;
+        _icloudConfigurationReadinessError = null;
+        _icloudConfigurationReadinessWarning = null;
+        _icloudTesting = true;
+        StateHasChanged();
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_icloudCalendarUrl)
+                || string.IsNullOrWhiteSpace(_icloudAppleId)
+                || string.IsNullOrWhiteSpace(_icloudAppSpecificPassword))
+            {
+                _icloudMessage = "Calendar URL, Apple ID, and app-specific password are required.";
+                _icloudMessageIntent = MessageIntent.Warning;
+                return;
+            }
+
+            var updated = await ICloudConfigurationService.SetConfigurationAsync(
+                Id,
+                new CalendarOwnerICloudConfigurationInput(
+                    _icloudCalendarUrl,
+                    _icloudAppleId,
+                    _icloudAppSpecificPassword));
+
+            if (updated is null)
+            {
+                _icloudMessage = "Failed to save iCloud configuration.";
+                _icloudMessageIntent = MessageIntent.Error;
+                return;
+            }
+
+            // Perform a test sync to verify credentials work
+            try
+            {
+                await AvailabilitySyncService.RunSyncForOwnerAsync(Id);
+                _icloudMessage = "✓ iCloud configuration saved and verified successfully!";
+                _icloudMessageIntent = MessageIntent.Success;
+            }
+            catch (Exception syncEx)
+            {
+                // Configuration saved but verification failed
+                var errorMsg = syncEx.InnerException?.Message ?? syncEx.Message;
+                if (errorMsg.Contains("401") || errorMsg.Contains("403") || errorMsg.Contains("Unauthorized"))
+                {
+                    _icloudConfigurationReadinessError = "iCloud authentication failed. Please verify your Apple ID and app-specific password.";
+                }
+                else if (errorMsg.Contains("payload was invalid"))
+                {
+                    _icloudConfigurationReadinessError = "iCloud credentials could not be read. This may happen if the application keys have changed. Please re-save your configuration.";
+                }
+                else
+                {
+                    _icloudConfigurationReadinessWarning = errorMsg;
+                }
+
+                _icloudMessage = "Configuration saved but the test sync encountered an issue. See details below.";
+                _icloudMessageIntent = MessageIntent.Warning;
+            }
+
+            await LoadICloudConfigurationAsync();
+        }
+        catch (Exception ex)
+        {
+            _icloudMessage = $"Error: {ex.Message}";
+            _icloudMessageIntent = MessageIntent.Error;
+        }
+        finally
+        {
+            _icloudTesting = false;
+        }
+    }
+
+    private async Task ClearICloudConfigurationAsync()
+    {
+        _icloudMessage = null;
+
+        var cleared = await ICloudConfigurationService.ClearConfigurationAsync(Id);
+        if (!cleared)
+        {
+            _icloudMessage = "No iCloud configuration found to clear.";
+            _icloudMessageIntent = MessageIntent.Warning;
+            return;
+        }
+
+        _icloudMessage = "iCloud configuration cleared.";
+        _icloudMessageIntent = MessageIntent.Success;
+        await LoadICloudConfigurationAsync();
     }
 
     private async Task SaveProfileAsync(ProfileViewModel profile)

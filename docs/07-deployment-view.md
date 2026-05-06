@@ -65,6 +65,8 @@ containers.
 | `ASPNETCORE_Kestrel__Certificates__Default__Path`     | Path to the PFX certificate file mounted into the container                           |
 | `ASPNETCORE_Kestrel__Certificates__Default__Password` | Password for the PFX certificate (sourced from `.env`)                                |
 | `API_CERT_PASSWORD`                                   | Passed to `docker compose` via `.env`; sets the Kestrel cert password                 |
+| `DATAPROTECTION_KEYS_PATH`                            | Path where DataProtection keys are persisted (default: `/dataprotection/keys`)        |
+| `PeerConnections.ApiKeyHash` (database)               | Hashed peer API keys used by peer authentication (`Authorization: ApiKey <key>`)      |
 | `ConnectionStrings__DefaultConnection`                | PostgreSQL connection string (required at startup)                                    |
 | `AzureAd__TenantId`                                   | Entra tenant ID (required at startup)                                                 |
 | `AzureAd__ClientId`                                   | Entra app/client ID (required at startup)                                             |
@@ -77,6 +79,22 @@ containers.
 | `Secrets__Provider`                                   | Secret provider mode (`Environment` default, `External` stub)                         |
 
 At startup, ObfusCal validates required secrets and fails fast with a descriptive error when one is missing.
+
+### DataProtection Key Persistence
+
+**IMPORTANT:** The API uses Microsoft's Data Protection API (DPAPI) to encrypt sensitive credentials (OAuth tokens,
+iCloud passwords). These encrypted values cannot be decrypted without the encryption keys.
+
+To avoid losing credentials on container restart:
+
+- Mount a persistent volume to `/dataprotection/keys` in the container (already configured in `docker-compose.yaml`)
+- Ensure the mounted directory is readable and writable by the container process
+- Do **not** share DataProtection keys between different API instances — each instance must have its own isolated key
+  store
+
+If DataProtection keys are lost, all encrypted credentials become unreadable and must be re-entered by the user.
+
+See the `Dockerfile` and `docker-compose.yaml` for the volume configuration.
 
 ## CI/CD
 
