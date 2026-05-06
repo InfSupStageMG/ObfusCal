@@ -24,8 +24,18 @@ are verified against hashed `PeerConnection.ApiKeyHash` values, and outbound pus
 and `X-Peer-Id` headers so the receiving instance can authenticate and correlate the sender without trusting the
 peer ID header by itself.
 
-**Credential storage:** Microsoft Graph OAuth refresh tokens are encrypted at rest using the .NET Data Protection API (
-DPAPI) before being written to the database. A database breach yields only ciphertext.
+**Credential encryption and key persistence:** Microsoft Graph OAuth refresh tokens and iCloud credentials are encrypted
+at rest using the .NET Data Protection API (DPAPI) before being written to the database. A database breach yields only
+ciphertext.
+
+Encryption keys are stored in the container's `/dataprotection/keys` directory, which must be mounted as a persistent
+volume. Without key persistence:
+
+- Encryption keys are regenerated on each container restart
+- Previously encrypted credentials become unreadable and must be re-entered
+- Users see errors like "iCloud credentials could not be read"
+
+Each API instance must have its own isolated DataProtection key store; keys must never be shared between instances.
 
 **Centralized secret access:** Runtime secret reads are routed through `ISecretProvider` instead of direct
 `IConfiguration` access in business logic. The default `EnvironmentSecretProvider` supports standard .NET
@@ -87,8 +97,8 @@ At startup the API:
 1. Loads any DLL in the `plugins/` directory alongside the executable using `AssemblyLoadContext`.
    A failed load is logged and skipped; other assemblies continue to load normally.
 2. Scans all loaded assemblies (built-in and external) for classes that:
-   - Implement `ICalendarSource` **and** carry `[CalendarSourcePlugin("id", "Display Name")]`
-   - Implement `IObfuscationTransformerPlugin` or `IBusySlotTransformerPlugin`
+    - Implement `ICalendarSource` **and** carry `[CalendarSourcePlugin("id", "Display Name")]`
+    - Implement `IObfuscationTransformerPlugin` or `IBusySlotTransformerPlugin`
 3. Registers discovered types into the ASP.NET Core DI container and builds the
    `ICalendarSourceCatalog` — a queryable index keyed on stable lowercase plugin IDs.
 

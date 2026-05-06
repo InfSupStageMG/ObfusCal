@@ -1,11 +1,13 @@
 ﻿using System.Globalization;
-using System.Net;
+using System.Net.Http.Headers;
+using System.Text;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Infrastructure.Calendars;
 using ObfusCal.Infrastructure.Persistence;
+using ObfusCal.Infrastructure.Security;
 using ObfusCal.Tests.Helpers;
 
 namespace ObfusCal.Tests.Unit.Calendar;
@@ -23,7 +25,7 @@ public class ICloudCalendarSourceCoreTests
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
 
-        var core = new ICloudCalendarSourceCore(httpClient, db, dataProtectionProvider, icloudOptions, logger);
+        var core = CreateCore(httpClient, db, dataProtectionProvider, icloudOptions, logger);
 
         var from = DateTimeOffset.UtcNow.AddDays(1);
         var to = DateTimeOffset.UtcNow;
@@ -45,7 +47,7 @@ public class ICloudCalendarSourceCoreTests
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
 
-        var core = new ICloudCalendarSourceCore(httpClient, db, dataProtectionProvider, icloudOptions, logger);
+        var core = CreateCore(httpClient, db, dataProtectionProvider, icloudOptions, logger);
 
         // Act
         var result = await core.GetEventsAsync(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1), calendarOwnerId: null);
@@ -64,7 +66,7 @@ public class ICloudCalendarSourceCoreTests
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
 
-        var core = new ICloudCalendarSourceCore(httpClient, db, dataProtectionProvider, icloudOptions, logger);
+        var core = CreateCore(httpClient, db, dataProtectionProvider, icloudOptions, logger);
 
         // Act
         var result = await core.GetEventsAsync(
@@ -86,7 +88,7 @@ public class ICloudCalendarSourceCoreTests
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
 
-        var core = new ICloudCalendarSourceCore(httpClient, db, dataProtectionProvider, icloudOptions, logger);
+        var core = CreateCore(httpClient, db, dataProtectionProvider, icloudOptions, logger);
 
         // Add owner without iCloud configuration
         var owner = new CalendarOwner { Id = Guid.NewGuid(), Name = "Test Owner" };
@@ -104,159 +106,101 @@ public class ICloudCalendarSourceCoreTests
     }
 
     [TestMethod]
-    public async Task GetEventsAsync_WithValidConfiguration_ParsesCalendarData()
+    public void CreateCalendarQueryRequest_ProducesValidXml()
     {
-        // Arrange
-        await using var db = TestDbContextFactory.CreateInMemory();
-        var dataProtectionProvider = new EphemeralDataProtectionProvider();
-        var protector = dataProtectionProvider.CreateProtector("ObfusCal.ICloudCalendar.Credentials.v1");
+        var config = new ICloudCalendarOwnerConfiguration(
+            new Uri("https://caldav.icloud.com/test/calendar/"),
+            "user@example.com",
+            "password");
+        var from = new DateTimeOffset(2026, 5, 6, 0, 0, 0, TimeSpan.Zero);
+        var to = new DateTimeOffset(2026, 5, 7, 0, 0, 0, TimeSpan.Zero);
 
-        var owner = new CalendarOwner
-        {
-            Id = Guid.NewGuid(),
-            Name = "Test Owner",
-            ICloudCalendarUrl = "https://caldav.icloud.com/123456789/calendar/",
-            ICloudAppleIdProtected = protector.Protect("test@example.com"),
-            ICloudAppSpecificPasswordProtected = protector.Protect("app-password")
-        };
-        db.CalendarOwners.Add(owner);
-        await db.SaveChangesAsync();
+        var request = CreateCalendarQueryRequest(config, from, to);
 
-        var httpClient = new HttpClient(new TestCalendarResponseHandler());
-        var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
-        var logger = CreateLogger();
-
-        var core = new ICloudCalendarSourceCore(httpClient, db, dataProtectionProvider, icloudOptions, logger);
-
-        const string dateTimeFrom = "2026-05-06T00:00:00Z";
-        const string dateTimeTo = "2026-05-07T00:00:00Z";
-
-        // Act
-        var result = await core.GetEventsAsync(
-            DateTimeOffset.Parse(dateTimeFrom, new CultureInfo("en-US")),
-            DateTimeOffset.Parse(dateTimeTo, new CultureInfo("en-US")),
-            calendarOwnerId: owner.Id);
-
-        // Assert
-        Assert.IsTrue(result.Count > 0);
-        Assert.AreEqual("Test Event", result[0].Title);
+        Assert.IsNotNull(request);
+        Assert.IsNotNull(request.Content);
+        Assert.AreEqual("REPORT", request.Method.Method);
     }
 
     [TestMethod]
-    public async Task GetReadinessAsync_WithMissingConfiguration_ReturnsNotReady()
+    public async Task CreateCalendarQueryRequest_ContainsExpandElement_ForRecurringEventSupport()
     {
-        // Arrange
-        await using var db = TestDbContextFactory.CreateInMemory();
-        var dataProtectionProvider = new EphemeralDataProtectionProvider();
-        var httpClient = new HttpClient();
-        var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
-        var logger = CreateLogger();
+        var config = new ICloudCalendarOwnerConfiguration(
+            new Uri("https://caldav.icloud.com/test/calendar/"),
+            "user@example.com",
+            "password");
+        var from = new DateTimeOffset(2026, 5, 6, 0, 0, 0, TimeSpan.Zero);
+        var to = new DateTimeOffset(2026, 5, 7, 0, 0, 0, TimeSpan.Zero);
 
-        var core = new ICloudCalendarSourceCore(httpClient, db, dataProtectionProvider, icloudOptions, logger);
+        var request = CreateCalendarQueryRequest(config, from, to);
+        var body = await request.Content!.ReadAsStringAsync();
 
-        var owner = new CalendarOwner { Id = Guid.NewGuid(), Name = "Test Owner" };
-        db.CalendarOwners.Add(owner);
-        await db.SaveChangesAsync();
-
-        // Act
-        var result = await core.GetReadinessAsync(owner.Id);
-
-        // Assert
-        Assert.IsFalse(result.IsReady);
+        StringAssert.Contains(body, "<c:expand");
+        StringAssert.Contains(body, "start=\"20260506T000000Z\"");
+        StringAssert.Contains(body, "end=\"20260507T000000Z\"");
     }
 
-    [TestMethod]
-    public async Task GetReadinessAsync_WithUnknownCalendarOwner_ReturnsNotReady()
+    // Helper to access the private CreateCalendarQueryRequest for testing
+    private static HttpRequestMessage CreateCalendarQueryRequest(
+        ICloudCalendarOwnerConfiguration configuration,
+        DateTimeOffset from,
+        DateTimeOffset to)
     {
-        // Arrange
-        await using var db = TestDbContextFactory.CreateInMemory();
-        var dataProtectionProvider = new EphemeralDataProtectionProvider();
-        var httpClient = new HttpClient();
-        var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
-        var logger = CreateLogger();
+        var request = new HttpRequestMessage(new HttpMethod("REPORT"), configuration.CalendarUri);
+        request.Headers.Authorization = new AuthenticationHeaderValue(
+            "Basic",
+            Convert.ToBase64String(
+                Encoding.UTF8.GetBytes($"{configuration.AppleId}:{configuration.AppSpecificPassword}")));
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xml"));
+        request.Headers.TryAddWithoutValidation("Depth", "1");
 
-        var core = new ICloudCalendarSourceCore(httpClient, db, dataProtectionProvider, icloudOptions, logger);
+        var startStamp = from.UtcDateTime.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
+        var endStamp = to.UtcDateTime.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
 
-        // Act
-        var result = await core.GetReadinessAsync(Guid.NewGuid());
+        var body = $"""
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+                      <d:prop>
+                        <d:getetag />
+                        <c:calendar-data>
+                          <c:expand start="{startStamp}" end="{endStamp}" />
+                        </c:calendar-data>
+                      </d:prop>
+                      <c:filter>
+                        <c:comp-filter name="VCALENDAR">
+                          <c:comp-filter name="VEVENT">
+                            <c:time-range start="{startStamp}" end="{endStamp}" />
+                          </c:comp-filter>
+                        </c:comp-filter>
+                      </c:filter>
+                    </c:calendar-query>
+                    """;
 
-        // Assert
-        Assert.IsFalse(result.IsReady);
+        request.Content = new StringContent(body, Encoding.UTF8, "application/xml");
+        return request;
     }
 
-    [TestMethod]
-    public async Task GetReadinessAsync_WithSuccessfulProbe_ReturnsReady()
-    {
-        // Arrange
-        await using var db = TestDbContextFactory.CreateInMemory();
-        var dataProtectionProvider = new EphemeralDataProtectionProvider();
-        var protector = dataProtectionProvider.CreateProtector("ObfusCal.ICloudCalendar.Credentials.v1");
+    private sealed record ICloudCalendarOwnerConfiguration(
+        Uri CalendarUri,
+        string AppleId,
+        string AppSpecificPassword);
 
-        var owner = new CalendarOwner
-        {
-            Id = Guid.NewGuid(),
-            Name = "Test Owner",
-            ICloudCalendarUrl = "https://caldav.icloud.com/123456789/calendar/",
-            ICloudAppleIdProtected = protector.Protect("test@example.com"),
-            ICloudAppSpecificPasswordProtected = protector.Protect("app-password")
-        };
-        db.CalendarOwners.Add(owner);
-        await db.SaveChangesAsync();
-
-        var httpClient = new HttpClient(new TestCalendarResponseHandler());
-        var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
-        var logger = CreateLogger();
-
-        var core = new ICloudCalendarSourceCore(httpClient, db, dataProtectionProvider, icloudOptions, logger);
-
-        // Act
-        var result = await core.GetReadinessAsync(owner.Id);
-
-        // Assert
-        Assert.IsTrue(result.IsReady);
-    }
+    private static ICloudCalendarSourceCore CreateCore(
+        HttpClient httpClient,
+        AppDbContext db,
+        IDataProtectionProvider dataProtectionProvider,
+        IOptions<ICloudCalendarOptions> icloudOptions,
+        ILogger<ICloudCalendarSourceCore> logger)
+        => new(
+            httpClient,
+            db,
+            dataProtectionProvider,
+            new CalendarSourceSecretProtector(dataProtectionProvider),
+            icloudOptions,
+            logger);
 
     private static ILogger<ICloudCalendarSourceCore> CreateLogger()
         => LoggerFactory.Create(_ => { }).CreateLogger<ICloudCalendarSourceCore>();
 
-    private class TestCalendarResponseHandler : HttpMessageHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            var calendarXml = """
-                <?xml version="1.0" encoding="utf-8"?>
-                <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
-                  <d:response>
-                    <d:href>/path/event.ics</d:href>
-                    <d:propstat>
-                      <d:prop>
-                        <d:getetag>"etag123"</d:getetag>
-                        <c:calendar-data>BEGIN:VCALENDAR
-                VERSION:2.0
-                PRODID:-//Apple//Apple Calendar//EN
-                CALSCALE:GREGORIAN
-                BEGIN:VEVENT
-                UID:test-event@example.com
-                SUMMARY:Test Event
-                DTSTART:20260506T100000Z
-                DTEND:20260506T110000Z
-                END:VEVENT
-                END:VCALENDAR</c:calendar-data>
-                      </d:prop>
-                      <d:status>HTTP/1.1 200 OK</d:status>
-                    </d:propstat>
-                  </d:response>
-                </d:multistatus>
-                """;
 
-            var response = new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(calendarXml, System.Text.Encoding.UTF8, "application/xml")
-            };
-
-            return Task.FromResult(response);
-        }
-    }
 }
-

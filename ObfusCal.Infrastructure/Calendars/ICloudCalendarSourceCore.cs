@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Globalization;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -18,6 +19,7 @@ public sealed class ICloudCalendarSourceCore(
     HttpClient httpClient,
     AppDbContext dbContext,
     IDataProtectionProvider dataProtectionProvider,
+    ICalendarSourceSecretProtector secretProtector,
     IOptions<ICloudCalendarOptions> options,
     ILogger<ICloudCalendarSourceCore> logger)
 {
@@ -199,8 +201,8 @@ public sealed class ICloudCalendarSourceCore(
         {
             return new ICloudCalendarOwnerConfiguration(
                 calendarUri,
-                _credentialProtector.Unprotect(secrets.ProtectedAppleId),
-                _credentialProtector.Unprotect(secrets.ProtectedAppSpecificPassword));
+                secretProtector.Unprotect(secrets.ProtectedAppleId),
+                secretProtector.Unprotect(secrets.ProtectedAppSpecificPassword));
         }
         catch (Exception ex)
         {
@@ -278,22 +280,28 @@ public sealed class ICloudCalendarSourceCore(
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xml"));
         request.Headers.TryAddWithoutValidation("Depth", "1");
 
+        var startStamp = from.UtcDateTime.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
+        var endStamp = to.UtcDateTime.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
+
         var body = $"""
-                    <?xml version=\"1.0\" encoding=\"utf-8\"?>
-                    <c:calendar-query xmlns:d=\"DAV:\" xmlns:c=\"urn:ietf:params:xml:ns:caldav\">
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
                       <d:prop>
                         <d:getetag />
-                        <c:calendar-data />
+                        <c:calendar-data>
+                          <c:expand start="{startStamp}" end="{endStamp}" />
+                        </c:calendar-data>
                       </d:prop>
                       <c:filter>
-                        <c:comp-filter name=\"VCALENDAR\">
-                          <c:comp-filter name=\"VEVENT\">
-                            <c:time-range start=\"{from.UtcDateTime:yyyyMMdd'T'HHmmss'Z'}\" end=\"{to.UtcDateTime:yyyyMMdd'T'HHmmss'Z'}\" />
+                        <c:comp-filter name="VCALENDAR">
+                          <c:comp-filter name="VEVENT">
+                            <c:time-range start="{startStamp}" end="{endStamp}" />
                           </c:comp-filter>
                         </c:comp-filter>
                       </c:filter>
                     </c:calendar-query>
                     """;
+
 
         request.Content = new StringContent(body, Encoding.UTF8, "application/xml");
         return request;

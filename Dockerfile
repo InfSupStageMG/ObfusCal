@@ -22,8 +22,15 @@ LABEL org.opencontainers.image.description="ObfusCal API"
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# Create directory for DataProtection keys (must be mounted as persistent volume)
+# See: docker-compose.yaml and docs/07-deployment-view.md
+RUN mkdir -p /dataprotection/keys && chmod 700 /dataprotection/keys
+
 COPY --from=build /app/publish .
 EXPOSE 8443
 
+# Set default DataProtection key path
+ENV DATAPROTECTION_KEYS_PATH=/dataprotection/keys
 
 ENTRYPOINT ["dotnet", "ObfusCal.Api.dll"]

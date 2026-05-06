@@ -1,4 +1,5 @@
 ﻿using System.Runtime.Loader;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -69,7 +70,40 @@ public static class DependencyInjection
         services.Configure<CalendarSourceOptions>(config.GetSection(CalendarSourceOptions.SectionName));
         services.Configure<ICloudCalendarOptions>(config.GetSection(ICloudCalendarOptions.SectionName));
         services.Configure<SyncOptions>(config.GetSection(SyncOptions.SectionName));
-        services.AddDataProtection();
+
+        // Configure DataProtection with persistent key storage for credential encryption
+        // Keys are stored in /dataprotection/keys (must be mounted as a persistent volume in containers)
+        // See: docs/07-deployment-view.md and Dockerfile for volume configuration
+        ConfigureDataProtection(services);
+    }
+
+    private static void ConfigureDataProtection(IServiceCollection services)
+    {
+        var dataProtectionKeyPath = Environment.GetEnvironmentVariable("DATAPROTECTION_KEYS_PATH")
+            ?? "/dataprotection/keys";
+
+        var dataProtectionBuilder = services.AddDataProtection()
+            .SetApplicationName("ObfusCal");
+
+        // Attempt to use persistent key storage if the directory exists or can be created
+        try
+        {
+            if (!Path.IsPathRooted(dataProtectionKeyPath))
+            {
+                dataProtectionKeyPath = Path.Combine(AppContext.BaseDirectory, dataProtectionKeyPath);
+            }
+
+            Directory.CreateDirectory(dataProtectionKeyPath);
+            dataProtectionBuilder.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeyPath));
+
+            Log.ForContext("DataProtectionKeyPath", dataProtectionKeyPath)
+                .Warning("DataProtection keys will be persisted to {Path}. Ensure this directory is mounted as a persistent volume in containers.", dataProtectionKeyPath);
+        }
+        catch (Exception ex)
+        {
+            Log.ForContext("DataProtectionKeyPath", dataProtectionKeyPath)
+                .Warning(ex, "Failed to configure persistent DataProtection key storage. Keys will be ephemeral and will be lost on application restart. Re-saving iCloud configurations may be required after restarts.");
+        }
     }
 
     private static void RegisterHttpClients(IServiceCollection services)
