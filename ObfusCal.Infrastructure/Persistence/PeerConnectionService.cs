@@ -10,7 +10,7 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
     {
         return await dbContext.PeerConnections
             .AsNoTracking()
-            .Where(p => p.Status == PeerConnectionStatus.Active)
+            .Where(p => p.Status == PeerConnectionStatus.Active && p.RevokedAt == null)
             .OrderBy(p => p.InstanceId)
             .Select(p => new PeerConnectionSummary(
                 p.Id,
@@ -57,7 +57,7 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
     {
         return await dbContext.PeerConnections
             .AsNoTracking()
-            .Where(p => p.Status == PeerConnectionStatus.Active)
+            .Where(p => p.Status == PeerConnectionStatus.Active && p.RevokedAt == null)
             .OrderBy(p => p.InstanceId)
             .Select(p => new PeerSyncStatus(
                 p.InstanceId,
@@ -67,14 +67,15 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
             .ToListAsync(ct);
     }
 
-    public async Task<PeerConnectionSummary> CreateAsync(string instanceId, string baseAddress, string apiKey, CancellationToken ct = default)
+    public async Task<PeerConnectionSummary> CreateAsync(string instanceId, string baseAddress, string apiKey, IEnumerable<string>? scopes = null, CancellationToken ct = default)
     {
         var peer = new PeerConnection
         {
             Id = Guid.NewGuid(),
             InstanceId = instanceId.Trim(),
             BaseAddress = baseAddress.Trim().TrimEnd('/'),
-            ApiKeyHash = PeerApiKeySecurity.ComputeSha256(apiKey.Trim()),
+            ApiKeyHash = PeerApiKeySecurity.Hash(apiKey.Trim()),
+            Scopes = PeerApiScopes.Normalize(scopes ?? PeerApiScopes.DefaultScopes),
             Status = PeerConnectionStatus.Active
         };
 
@@ -107,6 +108,7 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
             InstanceId = $"request-{Guid.NewGuid():N}",
             BaseAddress = "requested",
             ApiKeyHash = string.Empty,
+            Scopes = PeerApiScopes.DefaultSerializedScopes,
             Status = PeerConnectionStatus.Requested,
             ClientOrganisationName = clientOrganisationName.Trim(),
             ClientOrganisationNameNormalized = normalizedOrganisationName,
@@ -126,7 +128,7 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
         return new CreatePeerConnectionRequestResult(CreatePeerConnectionRequestOutcome.Created, peer.Id);
     }
 
-    public async Task<ApprovePeerConnectionResult> ApproveAsync(Guid id, string peerBaseUrl, CancellationToken ct = default)
+    public async Task<ApprovePeerConnectionResult> ApproveAsync(Guid id, string peerBaseUrl, IEnumerable<string>? scopes = null, CancellationToken ct = default)
     {
         var peer = await dbContext.PeerConnections.SingleOrDefaultAsync(p => p.Id == id, ct);
         if (peer is null)
@@ -138,12 +140,48 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
         var apiKey = PeerApiKeySecurity.GenerateApiKey();
 
         peer.BaseAddress = peerBaseUrl.Trim().TrimEnd('/');
-        peer.ApiKeyHash = PeerApiKeySecurity.ComputeSha256(apiKey);
+        peer.ApiKeyHash = PeerApiKeySecurity.Hash(apiKey);
+        peer.Scopes = PeerApiScopes.Normalize(scopes ?? PeerApiScopes.DefaultScopes);
+        peer.RevokedAt = null;
         peer.Status = PeerConnectionStatus.Active;
 
         await dbContext.SaveChangesAsync(ct);
 
         return new ApprovePeerConnectionResult(ApprovePeerConnectionOutcome.Approved, apiKey);
+    }
+
+    public async Task<RotatePeerApiKeyResult> RotateApiKeyAsync(Guid id, CancellationToken ct = default)
+    {
+        var peer = await dbContext.PeerConnections.SingleOrDefaultAsync(p => p.Id == id, ct);
+        if (peer is null)
+            return new RotatePeerApiKeyResult(RotatePeerApiKeyOutcome.NotFound);
+
+        if (peer.RevokedAt is not null)
+            return new RotatePeerApiKeyResult(RotatePeerApiKeyOutcome.Revoked);
+
+        if (peer.Status != PeerConnectionStatus.Active)
+            return new RotatePeerApiKeyResult(RotatePeerApiKeyOutcome.NotActive);
+
+        var apiKey = PeerApiKeySecurity.GenerateApiKey();
+        peer.ApiKeyHash = PeerApiKeySecurity.Hash(apiKey);
+        await dbContext.SaveChangesAsync(ct);
+
+        return new RotatePeerApiKeyResult(RotatePeerApiKeyOutcome.Rotated, apiKey);
+    }
+
+    public async Task<RevokePeerConnectionResult> RevokeAsync(Guid id, CancellationToken ct = default)
+    {
+        var peer = await dbContext.PeerConnections.SingleOrDefaultAsync(p => p.Id == id, ct);
+        if (peer is null)
+            return new RevokePeerConnectionResult(RevokePeerConnectionOutcome.NotFound);
+
+        if (peer.RevokedAt is not null)
+            return new RevokePeerConnectionResult(RevokePeerConnectionOutcome.AlreadyRevoked);
+
+        peer.RevokedAt = DateTimeOffset.UtcNow;
+        await dbContext.SaveChangesAsync(ct);
+
+        return new RevokePeerConnectionResult(RevokePeerConnectionOutcome.Revoked);
     }
 
     public async Task<bool> SuspendAsync(Guid id, CancellationToken ct = default)

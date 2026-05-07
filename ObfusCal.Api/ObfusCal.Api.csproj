@@ -9,12 +9,12 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="4.14.1" />
     <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Icons" Version="4.14.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Identity.Web" Version="4.8.0" />
-    <PackageReference Include="Microsoft.OpenApi" Version="2.4.1" />
+    <PackageReference Include="Microsoft.Identity.Web" Version="4.9.0" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.4" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.7" />
@@ -30,31 +30,21 @@
   </ItemGroup>
 
   <Target Name="CopyPluginProjectsToOutput" AfterTargets="Build">
-    <MSBuild Projects="@(PluginProjectReference)"
-             Targets="Build"
-             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)" />
+    <MSBuild Projects="@(PluginProjectReference)" Targets="Build" Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)" />
     <MakeDir Directories="$(OutDir)plugins" />
     <ItemGroup>
       <PluginArtifacts Include="@(PluginProjectReference->'%(RootDir)%(Directory)bin\$(Configuration)\$(TargetFramework)\%(Filename).dll')" />
     </ItemGroup>
-    <Copy SourceFiles="@(PluginArtifacts)"
-          DestinationFolder="$(OutDir)plugins"
-          SkipUnchangedFiles="true"
-          Condition="Exists('%(Identity)')" />
+    <Copy SourceFiles="@(PluginArtifacts)" DestinationFolder="$(OutDir)plugins" SkipUnchangedFiles="true" Condition="Exists('%(Identity)')" />
   </Target>
 
   <Target Name="CopyPluginProjectsToPublish" AfterTargets="Publish">
-    <MSBuild Projects="@(PluginProjectReference)"
-             Targets="Build"
-             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)" />
+    <MSBuild Projects="@(PluginProjectReference)" Targets="Build" Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)" />
     <MakeDir Directories="$(PublishDir)plugins" />
     <ItemGroup>
       <PublishedPluginArtifacts Include="@(PluginProjectReference->'%(RootDir)%(Directory)bin\$(Configuration)\$(TargetFramework)\%(Filename).dll')" />
     </ItemGroup>
-    <Copy SourceFiles="@(PublishedPluginArtifacts)"
-          DestinationFolder="$(PublishDir)plugins"
-          SkipUnchangedFiles="true"
-          Condition="Exists('%(Identity)')" />
+    <Copy SourceFiles="@(PublishedPluginArtifacts)" DestinationFolder="$(PublishDir)plugins" SkipUnchangedFiles="true" Condition="Exists('%(Identity)')" />
   </Target>
 
 </Project>

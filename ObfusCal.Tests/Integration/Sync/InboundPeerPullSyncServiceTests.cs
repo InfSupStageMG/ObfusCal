@@ -54,6 +54,7 @@ public class InboundPeerPullSyncServiceTests
         Assert.AreEqual("ApiKey", capturedRequest.AuthorizationScheme);
         Assert.AreEqual("local-instance", capturedRequest.AuthorizationParameter);
         Assert.AreEqual("local-instance-id", capturedRequest.PeerIdHeader);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(capturedRequest.PeerTimestampHeader));
         Assert.StartsWith($"https://peer-a.local/api/sync/busy-slots/{calendarOwnerRef}?", capturedRequest.RequestUri);
         Assert.Contains("from=", capturedRequest.RequestUri);
         Assert.Contains("to=", capturedRequest.RequestUri);
@@ -353,7 +354,8 @@ public class InboundPeerPullSyncServiceTests
         string RequestUri,
         string? AuthorizationScheme,
         string? AuthorizationParameter,
-        string? PeerIdHeader)
+        string? PeerIdHeader,
+        string? PeerTimestampHeader)
     {
         public static Task<CapturedRequest> FromAsync(HttpRequestMessage request)
         {
@@ -361,12 +363,17 @@ public class InboundPeerPullSyncServiceTests
                 ? values.SingleOrDefault()
                 : null;
 
+            var peerTimestampHeader = request.Headers.TryGetValues("X-Peer-Timestamp", out var timestampValues)
+                ? timestampValues.SingleOrDefault()
+                : null;
+
             return Task.FromResult(new CapturedRequest(
                 request.Method,
                 request.RequestUri!.ToString(),
                 request.Headers.Authorization?.Scheme,
                 request.Headers.Authorization?.Parameter,
-                peerIdHeader));
+                peerIdHeader,
+                peerTimestampHeader));
         }
     }
 }

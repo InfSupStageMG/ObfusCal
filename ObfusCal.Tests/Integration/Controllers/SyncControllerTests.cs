@@ -9,6 +9,8 @@ namespace ObfusCal.Tests.Integration.Controllers;
 [DoNotParallelize]
 public class SyncControllerTests
 {
+    private const string PeerTimestampHeaderName = "X-Peer-Timestamp";
+
     private static readonly CustomWebApplicationFactory Factory = new("Development", useTestAuthentication: true);
 
     [TestMethod]
@@ -94,6 +96,7 @@ public class SyncControllerTests
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "ApiKey",
             CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client);
         var response = await client.PostAsJsonAsync("/api/shadow-slots", payload);
 
         Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
@@ -113,6 +116,7 @@ public class SyncControllerTests
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "ApiKey",
             CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client);
 
         var response = await client.GetAsync(
             $"/api/sync/busy-slots/{calendarOwnerRef}?to=2023-01-02T00:00:00Z");
@@ -132,6 +136,7 @@ public class SyncControllerTests
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "ApiKey",
             CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client);
 
         var response = await client.GetAsync(
             $"/api/sync/busy-slots/{calendarOwnerRef}?from=2023-01-01T00:00:00Z");
@@ -149,11 +154,18 @@ public class SyncControllerTests
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "ApiKey",
             CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client);
 
         // Send a plain string (not an array or object with slots)
         var content = new StringContent("\"not-an-array-or-object\"", System.Text.Encoding.UTF8, "application/json");
         var response = await client.PostAsync("/api/shadow-slots", content);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    private static void SetReplayHeader(HttpClient client)
+    {
+        client.DefaultRequestHeaders.Remove(PeerTimestampHeaderName);
+        client.DefaultRequestHeaders.Add(PeerTimestampHeaderName, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
     }
 }

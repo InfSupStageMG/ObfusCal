@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:17
+    image: postgres:18
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -16,7 +16,7 @@ services:
       - internal
 
   reverse-proxy:
-    image: nginx:1.27-alpine
+    image: nginx:1.30-alpine
     container_name: obfuscal-proxy
     depends_on:
       - api
