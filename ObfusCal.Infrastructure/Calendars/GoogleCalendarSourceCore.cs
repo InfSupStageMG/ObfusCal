@@ -69,51 +69,95 @@ public sealed class GoogleCalendarSourceCore(
 
         ct.ThrowIfCancellationRequested();
 
-        if (!string.Equals(instance.PluginId, GooglePluginId, StringComparison.OrdinalIgnoreCase))
+        if (!IsGoogleSource(instance))
             return [];
 
+        var queryContext = await BuildQueryContextAsync(instance, ct);
+        if (queryContext is null)
+            return [];
+
+        using var response = await QueryEventsWithRetryAsync(
+            instance,
+            queryContext.CalendarId,
+            queryContext.SecretData,
+            queryContext.AccessToken,
+            from,
+            to,
+            ct);
+
+        if (!IsSuccessfulResponse(instance, response))
+            return [];
+
+        return await ReadAndMapEventsAsync(response, from, to, ct);
+    }
+
+    private static bool IsGoogleSource(CalendarSourceInstanceContext instance)
+        => string.Equals(instance.PluginId, GooglePluginId, StringComparison.OrdinalIgnoreCase);
+
+    private async Task<GoogleQueryContext?> BuildQueryContextAsync(CalendarSourceInstanceContext instance, CancellationToken ct)
+    {
         var configuration = ParseConfiguration(instance.ConfigurationJson) ?? new GoogleSourceConfiguration("primary");
         var secretData = ParseSecretData(instance.SecretDataJson);
         if (secretData is null || string.IsNullOrWhiteSpace(secretData.ProtectedAccessToken))
-            return [];
+            return null;
 
-        string accessToken;
+        if (!TryUnprotectAccessToken(instance, secretData, out var accessToken))
+            return null;
+
+        accessToken = await RefreshIfExpiringAsync(instance, secretData, accessToken!, ct);
+        if (string.IsNullOrWhiteSpace(accessToken))
+            return null;
+
+        var calendarId = string.IsNullOrWhiteSpace(configuration.CalendarId) ? "primary" : configuration.CalendarId;
+        return new GoogleQueryContext(secretData, accessToken, calendarId);
+    }
+
+    private bool TryUnprotectAccessToken(
+        CalendarSourceInstanceContext instance,
+        GoogleSourceSecretData secretData,
+        out string? accessToken)
+    {
         try
         {
-            accessToken = secretProtector.Unprotect(secretData.ProtectedAccessToken);
+            accessToken = secretProtector.Unprotect(secretData.ProtectedAccessToken!);
+            return true;
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex,
                 "Unable to read Google access token for calendar source instance {CalendarSourceInstanceId}; returning no events.",
                 instance.Id);
-            return [];
+            accessToken = null;
+            return false;
         }
+    }
 
-        accessToken = await RefreshIfExpiringAsync(instance, secretData, accessToken, ct);
-        if (string.IsNullOrWhiteSpace(accessToken))
-            return [];
-
-        var calendarId = string.IsNullOrWhiteSpace(configuration.CalendarId) ? "primary" : configuration.CalendarId;
-        using var response = await QueryEventsWithRetryAsync(instance, calendarId, secretData, accessToken, from, to, ct);
-
+    private bool IsSuccessfulResponse(CalendarSourceInstanceContext instance, HttpResponseMessage response)
+    {
         if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
         {
             logger.LogWarning(
                 "Google Calendar authentication failed for calendar source instance {CalendarSourceInstanceId}.",
                 instance.Id);
-            return [];
+            return false;
         }
 
-        if (!response.IsSuccessStatusCode)
-        {
-            logger.LogWarning(
-                "Google Calendar query failed for calendar source instance {CalendarSourceInstanceId} with HTTP {StatusCode}.",
-                instance.Id,
-                (int)response.StatusCode);
-            return [];
-        }
+        if (response.IsSuccessStatusCode)
+            return true;
 
+        logger.LogWarning(
+            "Google Calendar query failed for calendar source instance {CalendarSourceInstanceId} with HTTP {StatusCode}.",
+            instance.Id,
+            (int)response.StatusCode);
+        return false;
+    }
+
+    private static async Task<IReadOnlyList<CalendarEvent>> ReadAndMapEventsAsync(
+        HttpResponseMessage response,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken ct)
+    {
         var payload = await response.Content.ReadFromJsonAsync<GoogleCalendarEventsResponse>(JsonOptions, ct)
             ?? new GoogleCalendarEventsResponse([]);
 
@@ -384,13 +428,16 @@ public sealed class GoogleCalendarSourceCore(
         [property: JsonPropertyName("dateTime")]
         string? DateTime,
         [property: JsonPropertyName("date")]
-        string? Date,
-        [property: JsonPropertyName("timeZone")]
-        string? TimeZone);
+        string? Date);
 
     private sealed record GoogleEventAttendee(
         [property: JsonPropertyName("email")]
         string? Email);
+
+    private sealed record GoogleQueryContext(
+        GoogleSourceSecretData SecretData,
+        string AccessToken,
+        string CalendarId);
 
     internal sealed record GoogleSourceConfiguration(string? CalendarId);
 
