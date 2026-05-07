@@ -35,7 +35,15 @@ jobs:
         run: dotnet restore
 
       - name: Run Stryker
-        run: dotnet stryker --config-file stryker-config.json --log-to-file
+        shell: bash
+        run: |
+          SINCE_REF="${{ github.event.before }}"
+          if [ -z "$SINCE_REF" ] || [ "$SINCE_REF" = "0000000000000000000000000000000000000000" ]; then
+            SINCE_REF="origin/main"
+          fi
+
+          echo "Running Stryker incrementally since: $SINCE_REF"
+          dotnet stryker --config-file stryker-config.json --since:"$SINCE_REF" --log-to-file
 
       - name: Upload Stryker artifacts
         if: always()
