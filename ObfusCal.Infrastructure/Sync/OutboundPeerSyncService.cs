@@ -16,6 +16,7 @@ public sealed class OutboundPeerSyncService(
     : IOutboundPeerSyncService
 {
     private const string PeerIdHeaderName = "X-Peer-Id";
+    private const string PeerTimestampHeaderName = "X-Peer-Timestamp";
     private const string PeerApiKeyScheme = "ApiKey";
     private const string ShadowSlotsRelativePath = "api/shadow-slots";
 
@@ -72,6 +73,7 @@ public sealed class OutboundPeerSyncService(
             .AsNoTracking()
             .Where(mapping => mapping.CalendarOwnerId == calendarOwnerId)
             .Where(mapping => mapping.PeerConnection.Status == PeerConnectionStatus.Active)
+            .Where(mapping => mapping.PeerConnection.RevokedAt == null)
             .Select(mapping => new PeerMappingTarget(
                 mapping.PeerConnectionId,
                 mapping.CalendarOwnerRef,
@@ -123,6 +125,7 @@ public sealed class OutboundPeerSyncService(
 
         request.Headers.Authorization = new AuthenticationHeaderValue(PeerApiKeyScheme, apiKey);
         request.Headers.Add(PeerIdHeaderName, instanceId);
+        request.Headers.Add(PeerTimestampHeaderName, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
 
         var client = httpClientFactory.CreateClient(nameof(OutboundPeerSyncService));
 

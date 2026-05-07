@@ -11,6 +11,8 @@ namespace ObfusCal.Tests.Integration.Controllers;
 [TestClass]
 public class ShadowSlotsControllerTests
 {
+    private const string PeerTimestampHeaderName = "X-Peer-Timestamp";
+
     public TestContext TestContext { get; set; } = null!;
 
     [TestMethod]
@@ -30,6 +32,7 @@ public class ShadowSlotsControllerTests
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "ApiKey",
             CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
         var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
@@ -62,6 +65,7 @@ public class ShadowSlotsControllerTests
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "ApiKey",
             CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
         var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
@@ -85,6 +89,7 @@ public class ShadowSlotsControllerTests
         };
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", "invalid-peer-key");
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
 
         var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
 
@@ -129,6 +134,7 @@ public class ShadowSlotsControllerTests
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "ApiKey",
             apiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
 
         var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
 
@@ -148,6 +154,7 @@ public class ShadowSlotsControllerTests
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "ApiKey",
             CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
 
         var from = DateTimeOffset.UtcNow.AddDays(-1).ToString("O");
         var to = DateTimeOffset.UtcNow.AddDays(1).ToString("O");
@@ -185,11 +192,129 @@ public class ShadowSlotsControllerTests
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
             "ApiKey",
             CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
 
         var response = await client.GetAsync(
             $"/api/sync/busy-slots/{Guid.NewGuid()}?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
             TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task PushShadowSlots_WithMissingPushScope_ReturnsForbidden()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development");
+        using var client = factory.CreateClient();
+        var apiKey = $"scope-mismatch-{Guid.NewGuid():N}";
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        await factory.SeedPeerConnectionAsync(
+            "peer-pull-only",
+            apiKey,
+            scopes: [PeerApiScopes.PullBusySlots]);
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, Guid.NewGuid(), "peer-pull-only", apiKey);
+        await factory.SeedCalendarOwnerPeerMappingAsync(
+            calendarOwnerId,
+            Guid.NewGuid(),
+            "peer-pull-only",
+            apiKey,
+            scopes: [PeerApiScopes.PullBusySlots]);
+
+        var payload = new[]
+        {
+            new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(30) }
+        };
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", apiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
+
+        var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task PullBusySlotsForPeer_WithMissingPullScope_ReturnsForbidden()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development");
+        using var client = factory.CreateClient();
+        var instanceId = "peer-push-only";
+        var apiKey = $"scope-mismatch-{Guid.NewGuid():N}";
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        var calendarOwnerRef = Guid.NewGuid();
+        await factory.SeedPeerConnectionAsync(instanceId, apiKey, scopes: [PeerApiScopes.PushShadowSlots]);
+        await factory.SeedCalendarOwnerPeerMappingAsync(
+            calendarOwnerId,
+            calendarOwnerRef,
+            instanceId,
+            apiKey,
+            scopes: [PeerApiScopes.PushShadowSlots]);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", apiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
+
+        var response = await client.GetAsync(
+            $"/api/sync/busy-slots/{calendarOwnerRef}?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task PushShadowSlots_WithExpiredReplayTimestamp_ReturnsUnauthorized()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development");
+        using var client = factory.CreateClient();
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, Guid.NewGuid());
+
+        var payload = new[]
+        {
+            new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(30) }
+        };
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow.AddMinutes(-10));
+
+        var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task PushShadowSlots_WithRevokedPeer_ReturnsUnauthorized()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development");
+        using var client = factory.CreateClient();
+        var instanceId = "peer-revoked";
+        var apiKey = $"revoked-{Guid.NewGuid():N}";
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        await factory.SeedPeerConnectionAsync(instanceId, apiKey, revoked: true);
+        await factory.SeedCalendarOwnerPeerMappingAsync(
+            calendarOwnerId,
+            Guid.NewGuid(),
+            instanceId,
+            apiKey,
+            revoked: true);
+
+        var payload = new[]
+        {
+            new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(30) }
+        };
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", apiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
+
+        var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        Assert.AreEqual(string.Empty, body);
+    }
+
+    private static void SetReplayHeader(HttpClient client, DateTimeOffset timestamp)
+    {
+        client.DefaultRequestHeaders.Remove(PeerTimestampHeaderName);
+        client.DefaultRequestHeaders.Add(PeerTimestampHeaderName, timestamp.ToUnixTimeSeconds().ToString());
     }
 }

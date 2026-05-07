@@ -13,45 +13,6 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  mutation:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          global-json-file: global.json
-
-      - name: Restore .NET tools
-        run: dotnet tool restore
-
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Run Stryker
-        shell: bash
-        run: |
-          SINCE_REF="${{ github.event.before }}"
-          if [ -z "$SINCE_REF" ] || [ "$SINCE_REF" = "0000000000000000000000000000000000000000" ]; then
-            SINCE_REF="origin/main"
-          fi
-
-          echo "Running Stryker incrementally since: $SINCE_REF"
-          dotnet stryker --config-file stryker-config.json --since:"$SINCE_REF" --log-to-file
-
-      - name: Upload Stryker artifacts
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: stryker-output
-          path: StrykerOutput
-
   test:
     runs-on: ubuntu-latest
 

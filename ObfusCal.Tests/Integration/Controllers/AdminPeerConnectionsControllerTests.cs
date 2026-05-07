@@ -15,6 +15,8 @@ namespace ObfusCal.Tests.Integration.Controllers;
 [TestClass]
 public class AdminPeerConnectionsControllerTests
 {
+    private const string PeerTimestampHeaderName = "X-Peer-Timestamp";
+
     public TestContext TestContext { get; set; } = null!;
 
     [TestMethod]
@@ -58,7 +60,7 @@ public class AdminPeerConnectionsControllerTests
 
             Assert.AreEqual(PeerConnectionStatus.Active, peer.Status);
             Assert.AreEqual("https://peer.contoso.example", peer.BaseAddress);
-            Assert.AreEqual(PeerApiKeySecurity.ComputeSha256(plaintextApiKey!), peer.ApiKeyHash);
+            Assert.IsTrue(PeerApiKeySecurity.Verify(plaintextApiKey!, peer.ApiKeyHash));
             Assert.AreNotEqual(plaintextApiKey, peer.ApiKeyHash);
         }
 
@@ -129,12 +131,92 @@ public class AdminPeerConnectionsControllerTests
 
         using var peerClient = factory.CreateClient();
         peerClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", plaintextApiKey);
+        peerClient.DefaultRequestHeaders.Add(PeerTimestampHeaderName, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
 
         var pullResponse = await peerClient.GetAsync(
             $"/api/sync/busy-slots/{calendarOwnerRef}?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
             TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.Unauthorized, pullResponse.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task RotateFlow_InvalidatesOldApiKeyAndActivatesNewApiKey()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var instanceId = "peer-rotate";
+        var originalKey = "rotate-original-key";
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        var calendarOwnerRef = Guid.NewGuid();
+        var peerConnectionId = await factory.SeedPeerConnectionAsync(instanceId, originalKey);
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, calendarOwnerRef, instanceId, originalKey);
+
+        using var adminClient = factory.CreateAuthenticatedClientWithRoles(TestAuthHandler.DefaultObjectId, "Sysadmin");
+        var rotateResponse = await adminClient.PostAsync(
+            $"/api/admin/peer-connections/{peerConnectionId}/rotate-key",
+            null,
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.OK, rotateResponse.StatusCode);
+        var rotateJson = await rotateResponse.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using var rotateDoc = JsonDocument.Parse(rotateJson);
+        var rotatedKey = rotateDoc.RootElement.GetProperty("apiKey").GetString();
+        Assert.IsFalse(string.IsNullOrWhiteSpace(rotatedKey));
+
+        using var peerClient = factory.CreateClient();
+        peerClient.DefaultRequestHeaders.Add(PeerTimestampHeaderName, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+
+        peerClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", originalKey);
+        var oldKeyResponse = await peerClient.GetAsync(
+            $"/api/sync/busy-slots/{calendarOwnerRef}?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
+            TestContext.CancellationToken);
+        Assert.AreEqual(HttpStatusCode.Unauthorized, oldKeyResponse.StatusCode);
+
+        peerClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", rotatedKey);
+        peerClient.DefaultRequestHeaders.Remove(PeerTimestampHeaderName);
+        peerClient.DefaultRequestHeaders.Add(PeerTimestampHeaderName, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+        var newKeyResponse = await peerClient.GetAsync(
+            $"/api/sync/busy-slots/{calendarOwnerRef}?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
+            TestContext.CancellationToken);
+        Assert.AreEqual(HttpStatusCode.OK, newKeyResponse.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task RevokeFlow_SetsRevokedAt_AndPeerAuthStopsImmediately()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var instanceId = "peer-revoke";
+        var apiKey = "revoke-key";
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        var calendarOwnerRef = Guid.NewGuid();
+        var peerConnectionId = await factory.SeedPeerConnectionAsync(instanceId, apiKey);
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, calendarOwnerRef, instanceId, apiKey);
+
+        using var adminClient = factory.CreateAuthenticatedClientWithRoles(TestAuthHandler.DefaultObjectId, "Sysadmin");
+        var revokeResponse = await adminClient.PostAsync(
+            $"/api/admin/peer-connections/{peerConnectionId}/revoke",
+            null,
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.NoContent, revokeResponse.StatusCode);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var peer = await dbContext.PeerConnections.SingleAsync(p => p.Id == peerConnectionId, TestContext.CancellationToken);
+            Assert.IsNotNull(peer.RevokedAt);
+        }
+
+        using var peerClient = factory.CreateClient();
+        peerClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", apiKey);
+        peerClient.DefaultRequestHeaders.Add(PeerTimestampHeaderName, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+        var response = await peerClient.GetAsync(
+            $"/api/sync/busy-slots/{calendarOwnerRef}?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        Assert.AreEqual(string.Empty, body);
     }
 
     [TestMethod]

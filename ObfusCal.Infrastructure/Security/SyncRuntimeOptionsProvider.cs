@@ -16,6 +16,7 @@ public sealed class SyncRuntimeOptionsProvider(
         {
             SyncIntervalSeconds = configured.SyncIntervalSeconds,
             LookAheadDays = configured.LookAheadDays,
+            PeerRequestTimestampToleranceSeconds = configured.PeerRequestTimestampToleranceSeconds,
             KnownPeerIds = configured.KnownPeerIds,
             InstanceId = secretProvider.GetSecret(SecretKeys.SyncInstanceId) ?? configured.InstanceId,
             ApiKey = secretProvider.GetSecret(SecretKeys.SyncApiKey) ?? configured.ApiKey

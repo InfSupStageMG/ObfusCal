@@ -89,6 +89,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(p => p.ApiKeyHash)
                 .IsRequired()
                 .HasMaxLength(512);
+            e.Property(p => p.Scopes)
+                .IsRequired()
+                .HasMaxLength(256);
             e.Property(p => p.Status)
                 .HasConversion<string>()
                 .HasMaxLength(32)

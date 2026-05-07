@@ -48,7 +48,7 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
             return BadRequest("'peerBaseUrl' must use the http or https scheme.");
         }
 
-        var result = await peerConnectionService.ApproveAsync(id, parsedUri.AbsoluteUri, ct);
+        var result = await peerConnectionService.ApproveAsync(id, parsedUri.AbsoluteUri, request.Scopes, ct);
         return result.Outcome switch
         {
             ApprovePeerConnectionOutcome.Approved => Ok(new ApprovePeerConnectionResponse(result.PlaintextApiKey!)),
@@ -58,6 +58,55 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
                 Status = StatusCodes.Status409Conflict,
                 Title = "Peer connection is already active.",
                 Detail = "An active peer connection cannot be approved again."
+            }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
+
+    [HttpPost("{id:guid}/rotate-key")]
+    [ProducesResponseType(typeof(RotatePeerConnectionApiKeyResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RotateApiKey(Guid id, CancellationToken ct)
+    {
+        var result = await peerConnectionService.RotateApiKeyAsync(id, ct);
+        return result.Outcome switch
+        {
+            RotatePeerApiKeyOutcome.Rotated => Ok(new RotatePeerConnectionApiKeyResponse(result.PlaintextApiKey!)),
+            RotatePeerApiKeyOutcome.NotFound => NotFound(),
+            RotatePeerApiKeyOutcome.NotActive => Conflict(new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Peer connection must be active to rotate keys."
+            }),
+            RotatePeerApiKeyOutcome.Revoked => Conflict(new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Peer connection has already been revoked."
+            }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError)
+        };
+    }
+
+    [HttpPost("{id:guid}/revoke")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Revoke(Guid id, CancellationToken ct)
+    {
+        var result = await peerConnectionService.RevokeAsync(id, ct);
+        return result.Outcome switch
+        {
+            RevokePeerConnectionOutcome.Revoked => NoContent(),
+            RevokePeerConnectionOutcome.NotFound => NotFound(),
+            RevokePeerConnectionOutcome.AlreadyRevoked => Conflict(new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Peer connection has already been revoked."
             }),
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
@@ -84,8 +133,9 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
         string? RequestedByCalendarOwnerName,
         int MappingCount);
 
-    public sealed record ApprovePeerConnectionRequest(string PeerBaseUrl);
+    public sealed record ApprovePeerConnectionRequest(string PeerBaseUrl, IReadOnlyList<string>? Scopes = null);
 
     private sealed record ApprovePeerConnectionResponse(string ApiKey);
+    private sealed record RotatePeerConnectionApiKeyResponse(string ApiKey);
 }
 

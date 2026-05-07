@@ -51,6 +51,7 @@ public class OutboundPeerSyncServiceTests
         Assert.AreEqual("ApiKey", capturedRequest.AuthorizationScheme);
         Assert.AreEqual("local-instance", capturedRequest.AuthorizationParameter);
         Assert.AreEqual("local-instance-id", capturedRequest.PeerIdHeader);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(capturedRequest.PeerTimestampHeader));
 
         using var document = JsonDocument.Parse(capturedRequest.Body);
         var root = document.RootElement;
@@ -384,6 +385,7 @@ public class OutboundPeerSyncServiceTests
         string? AuthorizationScheme,
         string? AuthorizationParameter,
         string? PeerIdHeader,
+        string? PeerTimestampHeader,
         string Body)
     {
         public static async Task<CapturedRequest> FromAsync(HttpRequestMessage request)
@@ -396,12 +398,17 @@ public class OutboundPeerSyncServiceTests
                 ? values.SingleOrDefault()
                 : null;
 
+            var peerTimestampHeader = request.Headers.TryGetValues("X-Peer-Timestamp", out var timestampValues)
+                ? timestampValues.SingleOrDefault()
+                : null;
+
             return new CapturedRequest(
                 request.Method,
                 request.RequestUri!.ToString(),
                 request.Headers.Authorization?.Scheme,
                 request.Headers.Authorization?.Parameter,
                 peerIdHeader,
+                peerTimestampHeader,
                 body);
         }
     }

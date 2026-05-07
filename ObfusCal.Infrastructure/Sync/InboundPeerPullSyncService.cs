@@ -20,6 +20,7 @@ public sealed class InboundPeerPullSyncService(
     : IInboundPeerPullSyncService
 {
     private const string PeerIdHeaderName = "X-Peer-Id";
+    private const string PeerTimestampHeaderName = "X-Peer-Timestamp";
     private const string PeerApiKeyScheme = "ApiKey";
     private const string BusySlotsRelativePath = "api/sync/busy-slots";
 
@@ -42,6 +43,7 @@ public sealed class InboundPeerPullSyncService(
         var mappings = await dbContext.CalendarOwnerPeerMappings
             .AsNoTracking()
             .Where(mapping => mapping.PeerConnection.Status == PeerConnectionStatus.Active)
+            .Where(mapping => mapping.PeerConnection.RevokedAt == null)
             .Select(mapping => new PeerPullTarget(
                 mapping.PeerConnectionId,
                 mapping.CalendarOwnerId,
@@ -93,6 +95,7 @@ public sealed class InboundPeerPullSyncService(
         using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
         request.Headers.Authorization = new AuthenticationHeaderValue(PeerApiKeyScheme, apiKey);
         request.Headers.Add(PeerIdHeaderName, instanceId);
+        request.Headers.Add(PeerTimestampHeaderName, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
 
         var client = httpClientFactory.CreateClient(nameof(InboundPeerPullSyncService));
 
