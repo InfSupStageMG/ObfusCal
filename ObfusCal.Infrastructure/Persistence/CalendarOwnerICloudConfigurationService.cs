@@ -6,7 +6,8 @@ namespace ObfusCal.Infrastructure.Persistence;
 
 internal sealed class CalendarOwnerICloudConfigurationService(
     ICalendarSourceInstanceService calendarSourceInstanceService,
-    ICalendarSourceInstanceStore calendarSourceInstanceStore)
+    ICalendarSourceInstanceStore calendarSourceInstanceStore,
+    ICalendarSourceSecretProtector secretProtector)
     : ICalendarOwnerICloudConfigurationService
 {
     private const string PluginId = "icloud";
@@ -32,16 +33,17 @@ internal sealed class CalendarOwnerICloudConfigurationService(
 
         var configuration = ParseConfiguration(instance.ConfigurationJson);
         var secrets = ParseSecretData(instance.SecretDataJson);
+        var unprotectedAppleId = TryUnprotect(secrets?.AppleId);
+        var unprotectedAppPassword = TryUnprotect(secrets?.AppSpecificPassword);
         var isConfigured = !string.IsNullOrWhiteSpace(configuration?.CalendarUrl)
-            && secrets is not null
-            && !string.IsNullOrWhiteSpace(secrets.AppleId)
-            && !string.IsNullOrWhiteSpace(secrets.AppSpecificPassword);
+            && !string.IsNullOrWhiteSpace(unprotectedAppleId)
+            && !string.IsNullOrWhiteSpace(unprotectedAppPassword);
 
         return new CalendarOwnerICloudConfiguration(
             calendarOwnerId,
             isConfigured,
             configuration?.CalendarUrl,
-            MaskAppleId(secrets?.AppleId));
+            MaskAppleId(unprotectedAppleId));
     }
 
     public async Task<CalendarOwnerICloudConfiguration?> SetConfigurationAsync(
@@ -88,8 +90,8 @@ internal sealed class CalendarOwnerICloudConfigurationService(
                     JsonOptions),
                 SecretDataJson: JsonSerializer.Serialize(
                     new ICloudCalendarSourceCore.ICloudCalendarInstanceSecretData(
-                        input.AppleId.Trim(),
-                        input.AppSpecificPassword.Trim()),
+                        secretProtector.Protect(input.AppleId.Trim()),
+                        secretProtector.Protect(input.AppSpecificPassword.Trim())),
                     JsonOptions),
                 IsEnabled: true),
             ct);
@@ -125,6 +127,21 @@ internal sealed class CalendarOwnerICloudConfigurationService(
             ct);
 
         return updated is not null;
+    }
+
+    private string? TryUnprotect(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        try
+        {
+            return secretProtector.Unprotect(value);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
 

@@ -177,9 +177,9 @@ internal sealed class CalendarOwnerGoogleConsentService(
         var effectiveRedirectUri = ResolveRedirectUri(redirectUri);
 
         var options = googleOAuthDependencies.Options.Value;
-        var authorizationEndpoint = options.AuthorizationEndpoint.Trim();
-        if (string.IsNullOrWhiteSpace(authorizationEndpoint))
+        if (string.IsNullOrWhiteSpace(options.AuthorizationEndpoint))
             throw new InvalidOperationException("GoogleConsent:AuthorizationEndpoint is required.");
+        var authorizationEndpoint = options.AuthorizationEndpoint.Trim();
 
         var configClientId = string.IsNullOrWhiteSpace(options.ClientId) || IsPlaceholder(options.ClientId)
             ? null
@@ -189,9 +189,9 @@ internal sealed class CalendarOwnerGoogleConsentService(
             ?? secretProvider.GetSecret(SecretKeys.GoogleConsentClientId)
             ?? throw new InvalidOperationException("GoogleConsent:ClientId is required. Set via environment variable GOOGLECONSENT__CLIENTID or configuration.");
 
-        var scope = options.Scope.Trim();
-        if (string.IsNullOrWhiteSpace(scope))
+        if (string.IsNullOrWhiteSpace(options.Scope))
             throw new InvalidOperationException("GoogleConsent:Scope is required.");
+        var scope = options.Scope.Trim();
 
         var state = BuildStateToken(calendarOwnerId, calendarSourceInstanceId, effectiveRedirectUri);
 
@@ -304,9 +304,10 @@ internal sealed class CalendarOwnerGoogleConsentService(
             new CreateCalendarSourceInstanceInput(GooglePluginId, "Google Calendar", JsonSerializer.Serialize(new GoogleCalendarSourceCore.GoogleSourceConfiguration("primary"))),
             ct);
 
-        return created is null
-            ? null
-            : await instanceDependencies.Store.GetAsync(calendarOwnerId, created.Id, ct);
+        if (created is null)
+            return null;
+
+        return await instanceDependencies.Store.GetAsync(calendarOwnerId, created.Id, ct);
     }
 
     private static GoogleCalendarSourceCore.GoogleSourceSecretData? ParseSecretData(string? secretDataJson)

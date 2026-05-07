@@ -54,7 +54,7 @@ public class CalendarOwnerICloudConfigurationServiceTests
         Assert.IsNotNull(persisted);
         Assert.IsTrue(persisted.IsEnabled);
         Assert.IsTrue(persisted.ConfigurationJson?.Contains("caldav.icloud.com", StringComparison.Ordinal) == true);
-        Assert.IsTrue(persisted.SecretDataJson?.Contains("user@example.com", StringComparison.Ordinal) == true);
+        Assert.IsFalse(persisted.SecretDataJson?.Contains("user@example.com", StringComparison.Ordinal) == true);
     }
 
     [TestMethod]
@@ -126,8 +126,26 @@ public class CalendarOwnerICloudConfigurationServiceTests
         var instances = new FakeCalendarSourceInstanceService(ownerId => dbContext.CalendarOwners.Any(owner => owner.Id == ownerId));
         var service = new CalendarOwnerICloudConfigurationService(
             instances,
-            instances);
+            instances,
+            new PrefixCalendarSourceSecretProtector());
 
         return (service, dbContext, instances);
+    }
+
+    private sealed class PrefixCalendarSourceSecretProtector : ICalendarSourceSecretProtector
+    {
+        private const string Prefix = "enc:";
+
+        public string Protect(string plaintext)
+            => Prefix + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(plaintext));
+
+        public string Unprotect(string protectedValue)
+        {
+            if (!protectedValue.StartsWith(Prefix, StringComparison.Ordinal))
+                throw new InvalidOperationException("Value is not protected.");
+
+            var payload = protectedValue[Prefix.Length..];
+            return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(payload));
+        }
     }
 }

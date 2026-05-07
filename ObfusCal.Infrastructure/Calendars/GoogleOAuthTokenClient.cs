@@ -104,9 +104,10 @@ internal sealed class GoogleOAuthTokenClient(
             ?? secretProvider.GetSecret(SecretKeys.GoogleConsentClientId)
             ?? throw new InvalidOperationException("GoogleConsent:ClientId is required. Set via environment variable GOOGLECONSENT__CLIENTID or configuration.");
 
-        var tokenEndpoint = googleConsentOptions.Value.TokenEndpoint.Trim();
-        if (string.IsNullOrWhiteSpace(tokenEndpoint))
+        var configuredTokenEndpoint = googleConsentOptions.Value.TokenEndpoint;
+        if (string.IsNullOrWhiteSpace(configuredTokenEndpoint))
             throw new InvalidOperationException("GoogleConsent:TokenEndpoint is required.");
+        var tokenEndpoint = configuredTokenEndpoint.Trim();
 
         var configClientSecret = string.IsNullOrWhiteSpace(googleConsentOptions.Value.ClientSecret) || IsPlaceholder(googleConsentOptions.Value.ClientSecret)
             ? null

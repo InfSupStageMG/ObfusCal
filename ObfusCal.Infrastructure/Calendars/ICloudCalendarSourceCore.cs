@@ -20,6 +20,7 @@ public sealed class ICloudCalendarSourceCore(
     HttpClient httpClient,
     AppDbContext dbContext,
     IDataProtectionProvider dataProtectionProvider,
+    ICalendarSourceSecretProtector secretProtector,
     IOptions<ICloudCalendarOptions> options,
     ILogger<ICloudCalendarSourceCore> logger)
 {
@@ -182,7 +183,7 @@ public sealed class ICloudCalendarSourceCore(
         }
     }
 
-    private static ICloudCalendarOwnerConfiguration? TryBuildConfiguration(CalendarSourceInstanceContext instance)
+    private ICloudCalendarOwnerConfiguration? TryBuildConfiguration(CalendarSourceInstanceContext instance)
     {
         var configuration = ParseConfiguration(instance.ConfigurationJson);
         var secrets = ParseSecretData(instance.SecretDataJson);
@@ -197,7 +198,20 @@ public sealed class ICloudCalendarSourceCore(
             return null;
         }
 
-        return new ICloudCalendarOwnerConfiguration(calendarUri, secrets.AppleId, secrets.AppSpecificPassword);
+        try
+        {
+            return new ICloudCalendarOwnerConfiguration(
+                calendarUri,
+                secretProtector.Unprotect(secrets.AppleId),
+                secretProtector.Unprotect(secrets.AppSpecificPassword));
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Unable to read protected iCloud credentials for calendar source instance {CalendarSourceInstanceId}.",
+                instance.Id);
+            return null;
+        }
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };

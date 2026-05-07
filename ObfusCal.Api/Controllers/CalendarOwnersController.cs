@@ -20,7 +20,7 @@ public sealed class CalendarOwnersController(
     CalendarConsentServices consentServices,
     ICalendarOwnerIcalFeedService calendarOwnerIcalFeedService) : ControllerBase
 {
-    private const string ValidRedirectReq = "A valid absolute 'redirectUri' query parameter is required.";
+    private const string ValidRedirectReq = "A valid absolute 'redirectUri' value is required.";
     private const string AuthorizationCodeIsRequired = "'authorizationCode' is required.";
 
     [HttpGet("me")]
@@ -82,7 +82,7 @@ public sealed class CalendarOwnersController(
     }
 
     [HttpGet("{id}/calendar/providers")]
-    [ProducesResponseType(typeof(IReadOnlyList<CalendarSourceProviderResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IReadOnlyList<CalendarSourceProviderInfo>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -93,14 +93,7 @@ public sealed class CalendarOwnersController(
             return accessResult;
 
         var providers = await calendarSourceService.ListProvidersAsync(id, ct);
-        return Ok(providers.Select(provider => new CalendarSourceProviderResponse(
-            provider.Id,
-            provider.DisplayName,
-            provider.IsSelected,
-            provider.IsReady,
-            provider.Title,
-            provider.Detail,
-            provider.IsExternalPlugin)).ToList());
+        return Ok(providers);
     }
 
     [HttpGet("{id}/calendar/sources")]
@@ -720,7 +713,7 @@ public sealed class CalendarOwnersController(
     }
 
     [HttpGet("{id}/ical-feeds")]
-    [ProducesResponseType(typeof(IReadOnlyList<CalendarOwnerIcalFeedResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IReadOnlyList<CalendarOwnerIcalFeedItem>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -731,7 +724,7 @@ public sealed class CalendarOwnersController(
             return accessResult;
 
         var feeds = await calendarOwnerIcalFeedService.ListFeedsAsync(id, ct);
-        return Ok(feeds.Select(feed => new CalendarOwnerIcalFeedResponse(feed.Id, feed.FeedUrl)).ToList());
+        return Ok(feeds);
     }
 
     [HttpDelete("{id}/ical-feeds/{feedId:guid}")]
@@ -789,15 +782,6 @@ public sealed class CalendarOwnersController(
 
     private sealed record AddIcalFeedResponse(Guid Id, string FeedUrl);
 
-    private sealed record CalendarSourceProviderResponse(
-        string Id,
-        string DisplayName,
-        bool IsSelected,
-        bool IsReady,
-        string Title,
-        string? Detail,
-        bool IsExternalPlugin);
-
     private sealed record CalendarSourceSelectionResponse(
         string Id,
         string DisplayName,
@@ -816,7 +800,6 @@ public sealed class CalendarOwnersController(
         string? Detail,
         bool IsExternalPlugin);
 
-    private sealed record CalendarOwnerIcalFeedResponse(Guid Id, string FeedUrl);
 
     public sealed record CompleteCalendarConsentRequest(string AuthorizationCode, string RedirectUri);
 
