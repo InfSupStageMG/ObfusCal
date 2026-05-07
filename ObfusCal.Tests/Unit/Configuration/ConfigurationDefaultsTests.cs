@@ -1,4 +1,5 @@
 ﻿using ObfusCal.Application.Configuration;
+using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
 
 namespace ObfusCal.Tests.Unit.Configuration;
@@ -13,6 +14,7 @@ public class ConfigurationDefaultsTests
 
         Assert.AreEqual(900, options.SyncIntervalSeconds);
         Assert.AreEqual(14, options.LookAheadDays);
+        Assert.AreEqual(300, options.PeerRequestTimestampToleranceSeconds);
     }
 
     [TestMethod]
@@ -33,6 +35,7 @@ public class ConfigurationDefaultsTests
         };
 
         Assert.AreEqual(string.Empty, peer.ApiKeyHash);
+        Assert.AreEqual(PeerApiScopes.DefaultSerializedScopes, peer.Scopes);
     }
 }
 

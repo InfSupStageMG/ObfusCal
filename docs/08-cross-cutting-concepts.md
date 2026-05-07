@@ -28,8 +28,14 @@ and `X-Peer-Id` headers so the receiving instance can authenticate and correlate
 peer ID header by itself.
 
 **Peer credential lifecycle:** Sysadmins approve pending peer requests by setting the peer base URL and generating a
-cryptographically secure API key. Only a SHA-256 hash of that key is persisted; plaintext is returned once in the
-approval response and is never logged. Suspended peers are excluded from peer auth and sync processing immediately.
+cryptographically secure API key. Keys are stored as salted PBKDF2-SHA256 hashes (210000 iterations); plaintext is
+returned once in the approval/rotation response and is never logged. Revoking a peer sets `PeerConnection.RevokedAt`
+and blocks authentication immediately.
+
+**Peer scopes and replay protection:** Each peer stores allowed scopes in `PeerConnection.Scopes` and the API enforces
+scope checks per endpoint (`push_shadow_slots` for `POST /api/shadow-slots`, `pull_busy_slots` for
+`GET /api/sync/busy-slots/{calendarOwnerRef}`). Peer sync requests include `X-Peer-Timestamp` and are accepted only
+within `Sync:PeerRequestTimestampToleranceSeconds` (default 300 seconds) to limit naive replay attacks.
 
 
 **Credential encryption and key persistence:** Microsoft Graph OAuth refresh tokens and iCloud credentials are encrypted

@@ -212,7 +212,11 @@ Use `.env.example` as the authoritative placeholder list for local/compose confi
 - ObfusCal uses an Entra ID app role named `Sysadmin` on the API app registration.
 - Only users assigned this role can call `/api/admin/peer-connections` endpoints.
 - `POST /api/admin/peer-connections/{id}/approve` generates a cryptographically secure API key and returns it once.
-- Only a SHA-256 hash of the generated key is stored in `PeerConnections.ApiKeyHash`.
+- Peer API keys are stored as salted PBKDF2-SHA256 hashes in `PeerConnections.ApiKeyHash` (`210000` iterations).
+- `POST /api/admin/peer-connections/{id}/rotate-key` rotates the key atomically and invalidates the previous key immediately.
+- `POST /api/admin/peer-connections/{id}/revoke` sets `PeerConnections.RevokedAt` and blocks peer authentication immediately.
+- Peer endpoints enforce scope claims from `PeerConnections.Scopes` (`push_shadow_slots`, `pull_busy_slots`).
+- Peer sync requests include `X-Peer-Timestamp` and are rejected when outside `Sync:PeerRequestTimestampToleranceSeconds` (default 300 seconds).
 - `POST /api/admin/peer-connections/{id}/suspend` sets the peer to `Suspended` and sync/auth traffic for that peer is blocked.
 
 Run mutation tests with Stryker:

@@ -45,6 +45,7 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
                 ["Swagger:OAuth:Scope"] = "api://22222222-2222-2222-2222-222222222222/access_as_user",
                 ["Sync:InstanceId"] = "integration-test-local-instance",
                 ["Sync:ApiKey"] = "integration-test-outbound-api-key",
+                ["Sync:PeerRequestTimestampToleranceSeconds"] = "300",
                 ["Sync:SyncIntervalSeconds"] = "3600",
                 ["Sync:LookAheadDays"] = "14"
             }));
@@ -153,7 +154,9 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
     public async Task<Guid> SeedPeerConnectionAsync(
         string instanceId = IntegrationTestPeerInstanceId,
         string rawApiKey = IntegrationTestPeerApiKey,
-        string baseAddress = "https://peer-a.local")
+        string baseAddress = "https://peer-a.local",
+        IEnumerable<string>? scopes = null,
+        bool revoked = false)
     {
         using var scope = Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -168,17 +171,21 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
                 Id = Guid.NewGuid(),
                 InstanceId = instanceId,
                 BaseAddress = baseAddress,
-                ApiKeyHash = string.Empty
+                ApiKeyHash = string.Empty,
+                Scopes = PeerApiScopes.Normalize(scopes ?? PeerApiScopes.DefaultScopes)
             };
 
-            peer.ApiKeyHash = PeerApiKeySecurity.ComputeSha256(rawApiKey);
+            peer.ApiKeyHash = PeerApiKeySecurity.Hash(rawApiKey);
+            peer.RevokedAt = revoked ? DateTimeOffset.UtcNow : null;
             dbContext.PeerConnections.Add(peer);
             await dbContext.SaveChangesAsync();
             return peer.Id;
         }
 
         existingPeer.BaseAddress = baseAddress;
-        existingPeer.ApiKeyHash = PeerApiKeySecurity.ComputeSha256(rawApiKey);
+        existingPeer.ApiKeyHash = PeerApiKeySecurity.Hash(rawApiKey);
+        existingPeer.Scopes = PeerApiScopes.Normalize(scopes ?? PeerApiScopes.DefaultScopes);
+        existingPeer.RevokedAt = revoked ? DateTimeOffset.UtcNow : null;
         await dbContext.SaveChangesAsync();
         return existingPeer.Id;
     }
@@ -187,9 +194,11 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
         Guid calendarOwnerId,
         Guid calendarOwnerRef,
         string instanceId = IntegrationTestPeerInstanceId,
-        string rawApiKey = IntegrationTestPeerApiKey)
+        string rawApiKey = IntegrationTestPeerApiKey,
+        IEnumerable<string>? scopes = null,
+        bool revoked = false)
     {
-        var peerConnectionId = await SeedPeerConnectionAsync(instanceId, rawApiKey);
+        var peerConnectionId = await SeedPeerConnectionAsync(instanceId, rawApiKey, scopes: scopes, revoked: revoked);
 
         using var scope = Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();

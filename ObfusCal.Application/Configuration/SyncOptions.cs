@@ -8,6 +8,7 @@ public sealed class SyncOptions
     public int LookAheadDays { get; init; } = 14;
     public string InstanceId { get; init; } = string.Empty;
     public string ApiKey { get; init; } = string.Empty;
+    public int PeerRequestTimestampToleranceSeconds { get; init; } = 300;
     public List<string> KnownPeerIds { get; init; } = [];
 }
 

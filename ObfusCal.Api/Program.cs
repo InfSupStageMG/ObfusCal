@@ -46,7 +46,20 @@ try
             _ => { })
         .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
-    builder.Services.AddAuthorization();
+    builder.Services.AddAuthorization(options =>
+    {
+        options.AddPolicy(PeerApiAuthorizationPolicies.PushShadowSlots, policy =>
+        {
+            policy.AddAuthenticationSchemes(PeerApiKeyAuthenticationDefaults.SchemeName);
+            policy.RequireClaim(PeerApiKeyClaimTypes.Scope, PeerApiScopes.PushShadowSlots);
+        });
+
+        options.AddPolicy(PeerApiAuthorizationPolicies.PullBusySlots, policy =>
+        {
+            policy.AddAuthenticationSchemes(PeerApiKeyAuthenticationDefaults.SchemeName);
+            policy.RequireClaim(PeerApiKeyClaimTypes.Scope, PeerApiScopes.PullBusySlots);
+        });
+    });
     builder.Services.AddScoped<CalendarOwnerAccessEvaluator>();
 
     builder.Services
