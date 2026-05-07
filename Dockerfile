@@ -33,7 +33,8 @@ EXPOSE 8443
 # Set default DataProtection key path
 ENV DATAPROTECTION_KEYS_PATH=/dataprotection/keys
 
-RUN chown -R 1000:1000 /app && chown -R 1000:1000 /dataprotection/keys
+RUN chown -R 1000:1000 /app
+RUN chown -R 1000:1000 /dataprotection/keys
 USER 1000
 
 ENTRYPOINT ["dotnet", "ObfusCal.Api.dll"]
