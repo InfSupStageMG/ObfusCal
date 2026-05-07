@@ -1,11 +1,11 @@
 ﻿@page "/calendar-owners/{Id:guid}"
 @using ObfusCal.Application.Interfaces
-@using ObfusCal.Application.Obfuscation
 @using Microsoft.FluentUI.AspNetCore.Components
-@using FluentIcons = Microsoft.FluentUI.AspNetCore.Components.Icons
 @inject ICalendarOwnerService CalendarOwnerService
-@inject ICalendarOwnerIcalFeedService IcalFeedService
-@inject ICalendarOwnerICloudConfigurationService ICloudConfigurationService
+@inject ICalendarSourceCatalog CalendarSourceCatalog
+@inject ICalendarSourceInstanceService CalendarSourceInstanceService
+@inject ICalendarOwnerGoogleConsentService GoogleConsentService
+@inject ICalendarOwnerGraphConsentService GraphConsentService
 @inject ICalendarOwnerObfuscationProfileService ObfuscationProfileService
 @inject ICalendarOwnerAvailabilitySyncService AvailabilitySyncService
 @inject NavigationManager Navigation
@@ -45,127 +45,226 @@ else
             }
         </section>
 
-        @* ─── iCal Feeds ─── *@
-        <section class="card">
-            <h3>iCal Feeds</h3>
-
-            @if (_feeds is { Count: > 0 })
-            {
-                <FluentDataGrid Items="_feeds.AsQueryable()" TGridItem="CalendarOwnerIcalFeedItem">
-                    <PropertyColumn Property="@(f => f.FeedUrl)" Title="Feed URL"/>
-                    <TemplateColumn Title="Actions">
-                        <div class="feed-actions-cell">
-                            <FluentButton class="feed-delete-button" Appearance="Appearance.Outline"
-                                          OnClick="@(() => DeleteFeedAsync(context.Id))">
-                                Delete
-                            </FluentButton>
-                        </div>
-                    </TemplateColumn>
-                </FluentDataGrid>
-            }
-            else
-            {
-                <p>No iCal feeds configured.</p>
-            }
-
-            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" Style="margin-top: 1rem;">
-                <FluentTextField @bind-Value="_newFeedUrl" Immediate="true"
-                                 Placeholder="https://calendar.example.com/feed.ics" Style="flex: 1;"/>
-                <FluentButton Appearance="Appearance.Accent" OnClick="AddFeedAsync"
-                              Disabled="@string.IsNullOrWhiteSpace(_newFeedUrl)">
-                    Add Feed
-                </FluentButton>
-            </FluentStack>
-
-            @if (_feedMessage is not null)
-            {
-                <FluentMessageBar Intent="@_feedMessageIntent" Style="margin-top: 0.5rem;">
-                    @_feedMessage
-                </FluentMessageBar>
-            }
-        </section>
-
-        @* ─── iCloud Calendar ─── *@
+        @* ─── Calendar Sources ─── *@
         <section class="card">
             <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center">
-                <h3 style="margin: 0;">iCloud Calendar</h3>
-                <a href="/docs/13-icloud-caldav-setup" target="_blank" rel="noopener noreferrer"
-                   title="Need help? This guide explains how to generate an Apple app-specific password and how to build the iCloud CalDAV URL from iCloud web network requests."
-                   aria-label="Open iCloud setup help">
-                    <FluentIcon Value="@(new FluentIcons.Regular.Size16.Info())"/>
-                </a>
+                <h3 style="margin: 0; flex: 1;">Calendar Sources</h3>
+                @if (_pluginOptions.Count > 0)
+                {
+                    <FluentButton Appearance="@(_showAddForm ? Appearance.Outline : Appearance.Accent)"
+                                  OnClick="@(() => { _showAddForm = !_showAddForm; _sourceMessage = null; })">
+                        @(_showAddForm ? "Cancel" : "+ Add Source")
+                    </FluentButton>
+                }
             </FluentStack>
 
-            @if (_icloudConfiguration?.IsConfigured == true)
+            @if (_pluginOptions.Count == 0)
             {
-                <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <FluentIcon Value="@(new FluentIcons.Regular.Size16.CheckmarkCircle())"
-                                    Style="color: var(--success-color);"/>
-                        <span>
-                            Calendar URL: <strong>@_icloudConfiguration.CalendarUrl</strong>
-                        </span>
-                    </div>
-                    @if (!string.IsNullOrWhiteSpace(_icloudConfiguration.AppleIdHint))
+                <FluentMessageBar Intent="MessageIntent.Warning" Style="margin-top: 0.75rem;">
+                    No calendar source plugins were discovered. Drop plugin assemblies in the <code>plugins</code> folder and restart.
+                </FluentMessageBar>
+            }
+
+            @if (_showAddForm)
+            {
+                <section class="card" style="margin-top: 1rem; background-color: var(--neutral-fill-subtle);">
+                    <h4 style="margin: 0 0 0.75rem 0;">New Calendar Source</h4>
+                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+                        <FluentSelect TOption="PluginOption"
+                                      Items="_pluginOptions"
+                                      OptionValue="@(option => option.Id)"
+                                      OptionText="@(option => option.DisplayLabel)"
+                                      @bind-SelectedOption="SelectedPluginOption"/>
+
+                        <FluentTextField @bind-Value="_newSourceDisplayName" Immediate="true"
+                                         Label="Display name" Placeholder="My calendar"/>
+
+                        @if (HasFieldEditors(_newSourceConfigurationFields))
+                        {
+                            <h4 style="margin: 0.25rem 0 0 0;">Configuration</h4>
+                            @foreach (var field in _newSourceConfigurationFields)
+                            {
+                                var f = field;
+                                <div @key="f.Key" style="display:flex;flex-direction:column;gap:2px;">
+                                    <label style="font-size:0.875rem;font-weight:500;">@f.Label</label>
+                                    <input type="text"
+                                           @key="@($"cfg-new-{f.Key}")"
+                                           style="width:100%;padding:5px 8px;border:1px solid var(--neutral-stroke-rest);border-radius:4px;font:inherit;box-sizing:border-box;background:var(--neutral-fill-input-rest,#fff);color:inherit;"
+                                           placeholder="@(f.Placeholder ?? "")"
+                                           value="@f.Value"
+                                           @oninput="@(e => f.Value = e.Value?.ToString())"/>
+                                </div>
+                            }
+                        }
+                        else if (!string.IsNullOrWhiteSpace(_newSourceConfigurationJson))
+                        {
+                            <FluentLabel>Configuration JSON</FluentLabel>
+                            <textarea style="width:100%;min-height:90px;" @bind="_newSourceConfigurationJson"></textarea>
+                        }
+
+                        @if (HasFieldEditors(_newSourceSecretFields))
+                        {
+                            <h4 style="margin: 0.25rem 0 0 0;">Secrets</h4>
+                            @foreach (var field in _newSourceSecretFields)
+                            {
+                                var f = field;
+                                <div @key="f.Key" style="display:flex;flex-direction:column;gap:2px;">
+                                    <label style="font-size:0.875rem;font-weight:500;">@f.Label</label>
+                                    <input type="password"
+                                           @key="@($"sec-new-{f.Key}")"
+                                           style="width:100%;padding:5px 8px;border:1px solid var(--neutral-stroke-rest);border-radius:4px;font:inherit;box-sizing:border-box;background:var(--neutral-fill-input-rest,#fff);color:inherit;"
+                                           placeholder="@(f.Placeholder ?? "")"
+                                           @oninput="@(e => f.Value = e.Value?.ToString())"/>
+                                </div>
+                            }
+                        }
+                        else if (!string.IsNullOrWhiteSpace(_newSourceSecretDataJson))
+                        {
+                            <FluentLabel>Secret JSON</FluentLabel>
+                            <textarea style="width:100%;min-height:90px;" @bind="_newSourceSecretDataJson"></textarea>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(_selectedPluginOption?.SetupHint))
+                        {
+                            <FluentMessageBar Intent="MessageIntent.Info">@_selectedPluginOption.SetupHint</FluentMessageBar>
+                        }
+
+                        <FluentCheckbox @bind-Value="_newSourceIsEnabled" Label="Enabled"/>
+                        <FluentButton Appearance="Appearance.Accent" OnClick="CreateSourceInstanceAsync"
+                                      Disabled="@(_selectedPluginOption is null || _creatingSourceInstance)">
+                            @(_creatingSourceInstance ? "Adding..." : "Add Source")
+                        </FluentButton>
+
+                        @if (_sourceMessage is not null && _lastActionInstanceId is null)
+                        {
+                            <FluentMessageBar Intent="@_sourceMessageIntent">@_sourceMessage</FluentMessageBar>
+                        }
+                    </FluentStack>
+                </section>
+            }
+
+            @* Success message after add (form is now closed) *@
+            @if (_sourceMessage is not null && _lastActionInstanceId is null && !_showAddForm)
+            {
+                <FluentMessageBar Intent="@_sourceMessageIntent" Style="margin-top: 0.75rem;">@_sourceMessage</FluentMessageBar>
+            }
+
+            @if (_sourceInstances.Count > 0)
+            {
+                <FluentStack Orientation="Orientation.Vertical" VerticalGap="12" Style="margin-top: 1rem;">
+                    @foreach (var instance in _sourceInstances)
                     {
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <FluentIcon Value="@(new FluentIcons.Regular.Size16.Mail())"/>
-                            <span>Apple ID: <strong>@_icloudConfiguration.AppleIdHint</strong></span>
-                        </div>
+                        <section class="card" style="margin-bottom: 0;" @key="instance.Id">
+                            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8"
+                                         VerticalAlignment="VerticalAlignment.Center">
+                                <h4 style="margin: 0;">@instance.DisplayName</h4>
+                                <FluentBadge Appearance="Appearance.Neutral">@instance.PluginDisplayName</FluentBadge>
+                                @if (instance.IsReady)
+                                {
+                                    <FluentBadge Appearance="Appearance.Accent" Color="Color.Success">Ready</FluentBadge>
+                                }
+                                else
+                                {
+                                    <FluentBadge Appearance="Appearance.Neutral">Not Ready</FluentBadge>
+                                }
+                            </FluentStack>
+
+                            <p style="margin-top: 0.5rem; margin-bottom: 0.25rem;"><strong>@instance.Title</strong></p>
+                            @if (!string.IsNullOrWhiteSpace(instance.Detail))
+                            {
+                                <p style="margin-top: 0;">@instance.Detail</p>
+                            }
+
+                            <FluentStack Orientation="Orientation.Vertical" VerticalGap="8" Style="margin-top: 0.5rem;">
+                                <FluentTextField @bind-Value="instance.DisplayName" Immediate="true" Label="Display name"/>
+
+                                @if (HasFieldEditors(instance.ConfigurationFields))
+                                {
+                                    <h4 style="margin: 0.25rem 0 0 0;">Configuration</h4>
+                                    @foreach (var field in instance.ConfigurationFields)
+                                    {
+                                        var f = field;
+                                        <div @key="f.Key" style="display:flex;flex-direction:column;gap:2px;">
+                                            <label style="font-size:0.875rem;font-weight:500;">@f.Label</label>
+                                            <input type="text"
+                                                   @key="@($"cfg-{instance.Id}-{f.Key}")"
+                                                   style="width:100%;padding:5px 8px;border:1px solid var(--neutral-stroke-rest);border-radius:4px;font:inherit;box-sizing:border-box;background:var(--neutral-fill-input-rest,#fff);color:inherit;"
+                                                   placeholder="@(f.Placeholder ?? "")"
+                                                   value="@f.Value"
+                                                   @oninput="@(e => f.Value = e.Value?.ToString())"/>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <FluentLabel>Configuration JSON</FluentLabel>
+                                    <textarea style="width:100%;min-height:90px;" @bind="instance.ConfigurationJson"></textarea>
+                                }
+
+                                @if (HasFieldEditors(instance.SecretFields))
+                                {
+                                    <h4 style="margin: 0.25rem 0 0 0;">Secrets</h4>
+                                    <p style="margin: 0 0 0.25rem; font-size: 0.8rem; color: var(--neutral-foreground-hint);">
+                                        Leave blank to keep the existing saved value.
+                                    </p>
+                                    @foreach (var field in instance.SecretFields)
+                                    {
+                                        var f = field;
+                                        <div @key="f.Key" style="display:flex;flex-direction:column;gap:2px;">
+                                            <label style="font-size:0.875rem;font-weight:500;">@f.Label</label>
+                                            <input type="password"
+                                                   @key="@($"sec-{instance.Id}-{f.Key}")"
+                                                   style="width:100%;padding:5px 8px;border:1px solid var(--neutral-stroke-rest);border-radius:4px;font:inherit;box-sizing:border-box;background:var(--neutral-fill-input-rest,#fff);color:inherit;"
+                                                   placeholder="Enter new value to update"
+                                                   @oninput="@(e => f.Value = e.Value?.ToString())"/>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <FluentLabel>Secret JSON</FluentLabel>
+                                    <textarea style="width:100%;min-height:90px;" @bind="instance.SecretDataJson"></textarea>
+                                }
+
+                                <FluentCheckbox @bind-Value="instance.IsEnabled" Label="Enabled"/>
+
+                                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" Style="flex-wrap: wrap;">
+                                    <FluentButton Appearance="Appearance.Accent"
+                                                  OnClick="@(() => UpdateSourceInstanceAsync(instance))"
+                                                  Disabled="_updatingSourceInstanceId == instance.Id">
+                                        @(_updatingSourceInstanceId == instance.Id ? "Saving..." : "Save")
+                                    </FluentButton>
+                                    <FluentButton Appearance="Appearance.Outline"
+                                                  OnClick="@(() => DeleteSourceInstanceAsync(instance.Id))"
+                                                  Disabled="_deletingSourceInstanceId == instance.Id">
+                                        @(_deletingSourceInstanceId == instance.Id ? "Deleting..." : "Delete")
+                                    </FluentButton>
+                                    @foreach (var action in instance.Actions)
+                                    {
+                                        var capturedAction = action;
+                                        var capturedInstance = instance;
+                                        var isRunning = _executingActionInstanceId == instance.Id && _executingActionId == action.ActionId;
+                                        <FluentButton Appearance="Appearance.Outline"
+                                                      Title="@action.Hint"
+                                                      OnClick="@(() => InvokePluginActionAsync(capturedInstance, capturedAction))"
+                                                      Disabled="@isRunning">
+                                            @(isRunning ? "Redirecting…" : action.Label)
+                                        </FluentButton>
+                                    }
+                                </FluentStack>
+
+                                @if (_sourceMessage is not null && _lastActionInstanceId == instance.Id)
+                                {
+                                    <FluentMessageBar Intent="@_sourceMessageIntent">@_sourceMessage</FluentMessageBar>
+                                }
+                            </FluentStack>
+                        </section>
                     }
                 </FluentStack>
             }
-            else if (_icloudConfigurationReadinessError is not null)
+            else if (!_showAddForm)
             {
-                <FluentMessageBar Intent="MessageIntent.Error">
-                    <strong>Configuration Issue:</strong> @_icloudConfigurationReadinessError
-                </FluentMessageBar>
-            }
-            else
-            {
-                <p style="color: var(--neutral-foreground-rest);">No iCloud calendar configured.</p>
-            }
-
-            <div
-                style="margin-top: 1rem; padding: 0.75rem; background-color: var(--neutral-fill-subtle); border-radius: 4px;">
-                <p style="margin-top: 0; margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--neutral-foreground-hint);">
-                    <strong>iCloud Calendar URL</strong><br>
-                    Format: <code>https://caldav.icloud.com/.../calendar/</code>
-                </p>
-            </div>
-
-            <FluentStack Orientation="Orientation.Vertical" VerticalGap="8" Style="margin-top: 1rem;">
-                <FluentTextField @bind-Value="_icloudCalendarUrl" Immediate="true"
-                                 Placeholder="https://caldav.icloud.com/.../calendar/" Label="Calendar URL"/>
-                <FluentTextField @bind-Value="_icloudAppleId" Immediate="true" Placeholder="you@example.com"
-                                 Label="Apple ID"/>
-                <FluentTextField @bind-Value="_icloudAppSpecificPassword" Immediate="true"
-                                 Placeholder="App-specific password" Label="App-Specific Password" Type="password"/>
-            </FluentStack>
-
-            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" Style="margin-top: 1rem;">
-                <FluentButton Appearance="Appearance.Accent" OnClick="SaveICloudConfigurationAsync"
-                              Disabled="@(string.IsNullOrWhiteSpace(_icloudCalendarUrl) || string.IsNullOrWhiteSpace(_icloudAppleId) || string.IsNullOrWhiteSpace(_icloudAppSpecificPassword) || _icloudTesting)">
-                    @(_icloudTesting ? "Testing…" : "Save & Test Configuration")
-                </FluentButton>
-                <FluentButton Appearance="Appearance.Outline" OnClick="ClearICloudConfigurationAsync"
-                              Disabled="@(_icloudConfiguration?.IsConfigured != true || _icloudTesting)">
-                    Clear
-                </FluentButton>
-            </FluentStack>
-
-            @if (_icloudMessage is not null)
-            {
-                <FluentMessageBar Intent="@_icloudMessageIntent" Style="margin-top: 0.5rem;">
-                    @_icloudMessage
-                </FluentMessageBar>
-            }
-
-            @if (_icloudConfigurationReadinessWarning is not null)
-            {
-                <FluentMessageBar Intent="MessageIntent.Warning" Style="margin-top: 0.5rem;">
-                    <strong>Note:</strong> @_icloudConfigurationReadinessWarning
-                </FluentMessageBar>
+                <p style="margin-top: 1rem;">No calendar sources configured yet. Click <strong>+ Add Source</strong> to get started.</p>
             }
         </section>
 
@@ -205,276 +304,4 @@ else
             }
         </section>
     </FluentStack>
-}
-
-@code {
-    [Parameter] public Guid Id { get; set; }
-
-    private CalendarOwnerInfo? _owner;
-    private List<CalendarOwnerIcalFeedItem>? _feeds;
-    private List<ProfileViewModel> _profiles = [];
-    private string? _newFeedUrl;
-    private string? _feedMessage;
-    private MessageIntent _feedMessageIntent = MessageIntent.Info;
-    private CalendarOwnerICloudConfiguration? _icloudConfiguration;
-    private string? _icloudCalendarUrl;
-    private string? _icloudAppleId;
-    private string? _icloudAppSpecificPassword;
-    private string? _icloudMessage;
-    private MessageIntent _icloudMessageIntent = MessageIntent.Info;
-    private string? _icloudConfigurationReadinessError;
-    private string? _icloudConfigurationReadinessWarning;
-    private string? _profileMessage;
-    private bool _triggeringSyncForOwner;
-    private string? _ownerSyncMessage;
-    private MessageIntent _ownerSyncMessageIntent = MessageIntent.Info;
-    private bool _icloudTesting;
-
-    protected override async Task OnInitializedAsync()
-    {
-        _owner = await CalendarOwnerService.GetByIdAsync(Id);
-
-        if (_owner is null) return;
-
-        await LoadFeedsAsync();
-        await LoadICloudConfigurationAsync();
-        await LoadProfilesAsync();
-    }
-
-    private async Task LoadFeedsAsync()
-    {
-        var items = await IcalFeedService.ListFeedsAsync(Id);
-        _feeds = items.ToList();
-    }
-
-    private async Task LoadProfilesAsync()
-    {
-        var profiles = await ObfuscationProfileService.GetProfilesAsync(Id);
-        _profiles = profiles.Select(p => new ProfileViewModel
-        {
-            Context = p.Context,
-            RemoveTitle = p.RemoveTitle,
-            RemoveDescription = p.RemoveDescription,
-            RemoveLocation = p.RemoveLocation,
-            RemoveAttendees = p.RemoveAttendees,
-            RoundTimes = p.RoundTimes,
-            RoundingIntervalMinutes = p.RoundingIntervalMinutes,
-            MergeBlocks = p.MergeBlocks
-        }).ToList();
-
-        // Ensure both contexts are shown
-        foreach (var ctx in Enum.GetValues<ObfuscationAuditContext>())
-        {
-            if (_profiles.All(p => p.Context != ctx))
-            {
-                var def = ObfuscationProfileSettings.CreateDefault(ctx);
-                _profiles.Add(new ProfileViewModel
-                {
-                    Context = ctx,
-                    RemoveTitle = def.RemoveTitle,
-                    RemoveDescription = def.RemoveDescription,
-                    RemoveLocation = def.RemoveLocation,
-                    RemoveAttendees = def.RemoveAttendees,
-                    RoundTimes = def.RoundTimes,
-                    RoundingIntervalMinutes = def.RoundingIntervalMinutes,
-                    MergeBlocks = def.MergeBlocks
-                });
-            }
-        }
-    }
-
-    private async Task AddFeedAsync()
-    {
-        _feedMessage = null;
-        if (string.IsNullOrWhiteSpace(_newFeedUrl)) return;
-
-        var result = await IcalFeedService.AddFeedAsync(Id, _newFeedUrl);
-        switch (result.Outcome)
-        {
-            case AddCalendarOwnerIcalFeedOutcome.Added:
-                _feedMessage = $"Feed added successfully.";
-                _feedMessageIntent = MessageIntent.Success;
-                _newFeedUrl = null;
-                await LoadFeedsAsync();
-                break;
-            case AddCalendarOwnerIcalFeedOutcome.Duplicate:
-                _feedMessage = "This feed URL already exists.";
-                _feedMessageIntent = MessageIntent.Warning;
-                break;
-            default:
-                _feedMessage = "Failed to add feed.";
-                _feedMessageIntent = MessageIntent.Error;
-                break;
-        }
-    }
-
-    private async Task DeleteFeedAsync(Guid feedId)
-    {
-        _feedMessage = null;
-        var result = await IcalFeedService.DeleteFeedAsync(Id, feedId);
-        if (result.Outcome == DeleteCalendarOwnerIcalFeedOutcome.Deleted)
-        {
-            await LoadFeedsAsync();
-            _feedMessage = "Feed deleted.";
-            _feedMessageIntent = MessageIntent.Success;
-        }
-        else
-        {
-            _feedMessage = "Failed to delete feed.";
-            _feedMessageIntent = MessageIntent.Error;
-        }
-    }
-
-    private async Task LoadICloudConfigurationAsync()
-    {
-        _icloudConfiguration = await ICloudConfigurationService.GetConfigurationAsync(Id);
-        _icloudCalendarUrl = _icloudConfiguration?.CalendarUrl;
-        _icloudAppleId = null;
-        _icloudAppSpecificPassword = null;
-        _icloudConfigurationReadinessError = null;
-        _icloudConfigurationReadinessWarning = null;
-    }
-
-    private async Task SaveICloudConfigurationAsync()
-    {
-        _icloudMessage = null;
-        _icloudConfigurationReadinessError = null;
-        _icloudConfigurationReadinessWarning = null;
-        _icloudTesting = true;
-        StateHasChanged();
-
-        try
-        {
-            if (string.IsNullOrWhiteSpace(_icloudCalendarUrl)
-                || string.IsNullOrWhiteSpace(_icloudAppleId)
-                || string.IsNullOrWhiteSpace(_icloudAppSpecificPassword))
-            {
-                _icloudMessage = "Calendar URL, Apple ID, and app-specific password are required.";
-                _icloudMessageIntent = MessageIntent.Warning;
-                return;
-            }
-
-            var updated = await ICloudConfigurationService.SetConfigurationAsync(
-                Id,
-                new CalendarOwnerICloudConfigurationInput(
-                    _icloudCalendarUrl,
-                    _icloudAppleId,
-                    _icloudAppSpecificPassword));
-
-            if (updated is null)
-            {
-                _icloudMessage = "Failed to save iCloud configuration.";
-                _icloudMessageIntent = MessageIntent.Error;
-                return;
-            }
-
-            // Perform a test sync to verify credentials work
-            try
-            {
-                await AvailabilitySyncService.RunSyncForOwnerAsync(Id);
-                _icloudMessage = "✓ iCloud configuration saved and verified successfully!";
-                _icloudMessageIntent = MessageIntent.Success;
-            }
-            catch (Exception syncEx)
-            {
-                // Configuration saved but verification failed
-                var errorMsg = syncEx.InnerException?.Message ?? syncEx.Message;
-                if (errorMsg.Contains("401") || errorMsg.Contains("403") || errorMsg.Contains("Unauthorized"))
-                {
-                    _icloudConfigurationReadinessError = "iCloud authentication failed. Please verify your Apple ID and app-specific password.";
-                }
-                else if (errorMsg.Contains("payload was invalid"))
-                {
-                    _icloudConfigurationReadinessError = "iCloud credentials could not be read. This may happen if the application keys have changed. Please re-save your configuration.";
-                }
-                else
-                {
-                    _icloudConfigurationReadinessWarning = errorMsg;
-                }
-
-                _icloudMessage = "Configuration saved but the test sync encountered an issue. See details below.";
-                _icloudMessageIntent = MessageIntent.Warning;
-            }
-
-            await LoadICloudConfigurationAsync();
-        }
-        catch (Exception ex)
-        {
-            _icloudMessage = $"Error: {ex.Message}";
-            _icloudMessageIntent = MessageIntent.Error;
-        }
-        finally
-        {
-            _icloudTesting = false;
-        }
-    }
-
-    private async Task ClearICloudConfigurationAsync()
-    {
-        _icloudMessage = null;
-
-        var cleared = await ICloudConfigurationService.ClearConfigurationAsync(Id);
-        if (!cleared)
-        {
-            _icloudMessage = "No iCloud configuration found to clear.";
-            _icloudMessageIntent = MessageIntent.Warning;
-            return;
-        }
-
-        _icloudMessage = "iCloud configuration cleared.";
-        _icloudMessageIntent = MessageIntent.Success;
-        await LoadICloudConfigurationAsync();
-    }
-
-    private async Task SaveProfileAsync(ProfileViewModel profile)
-    {
-        _profileMessage = null;
-        var settings = new ObfuscationProfileSettings(
-            profile.Context,
-            profile.RemoveTitle,
-            profile.RemoveDescription,
-            profile.RemoveLocation,
-            profile.RemoveAttendees,
-            profile.RoundTimes,
-            profile.RoundingIntervalMinutes,
-            profile.MergeBlocks);
-
-        await ObfuscationProfileService.SetProfileAsync(Id, settings);
-        _profileMessage = $"{profile.Context} profile saved.";
-    }
-
-    private async Task TriggerOwnerSyncAsync()
-    {
-        _triggeringSyncForOwner = true;
-        _ownerSyncMessage = null;
-        StateHasChanged();
-
-        try
-        {
-            await AvailabilitySyncService.RunSyncForOwnerAsync(Id);
-            _ownerSyncMessage = $"Sync completed at {DateTimeOffset.UtcNow:HH:mm:ss} UTC.";
-            _ownerSyncMessageIntent = MessageIntent.Success;
-        }
-        catch (Exception ex)
-        {
-            _ownerSyncMessage = $"Sync failed: {ex.Message}";
-            _ownerSyncMessageIntent = MessageIntent.Error;
-        }
-        finally
-        {
-            _triggeringSyncForOwner = false;
-        }
-    }
-
-    private sealed class ProfileViewModel
-    {
-        public ObfuscationAuditContext Context { get; set; }
-        public bool RemoveTitle { get; set; }
-        public bool RemoveDescription { get; set; }
-        public bool RemoveLocation { get; set; }
-        public bool RemoveAttendees { get; set; }
-        public bool RoundTimes { get; set; }
-        public int RoundingIntervalMinutes { get; set; }
-        public bool MergeBlocks { get; set; }
-    }
 }

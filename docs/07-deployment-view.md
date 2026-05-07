@@ -74,6 +74,7 @@ containers.
 | `AzureAd__ClientId`                                   | Entra app/client ID (required at startup)                                             |
 | `GraphConsent__ClientId`                              | Microsoft Graph consent client ID (required at startup)                               |
 | `GraphConsent__ClientSecret`                          | Microsoft Graph consent client secret (optional depending on tenant app registration) |
+| `GoogleConsent__RedirectUri`                          | Optional Google OAuth callback override; must exactly match the URI registered in Google Cloud |
 | `Sync__InstanceId`                                    | Local instance identifier used in peer sync headers                                   |
 | `Sync__ApiKey`                                        | Shared API key used for peer sync authentication                                      |
 | `Sync__PeerRequestTimestampToleranceSeconds`          | Replay window tolerance for `X-Peer-Timestamp` (default `300`)                        |
@@ -81,6 +82,10 @@ containers.
 | `Secrets__Provider`                                   | Secret provider mode (`Environment` default, `External` stub)                         |
 
 At startup, ObfusCal validates required secrets and fails fast with a descriptive error when one is missing.
+
+For Google Calendar OAuth in local development, prefer `https://localhost/consent-callback` or another public HTTPS
+callback URI that is registered on the Google OAuth client. Google rejects `.local` redirect domains such as
+`https://obfuscal.local/consent-callback`.
 
 ### DataProtection Key Persistence
 

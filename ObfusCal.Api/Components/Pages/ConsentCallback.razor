@@ -1,0 +1,99 @@
+﻿@page "/consent-callback"
+@using ObfusCal.Application.Interfaces
+@using System.Collections.Concurrent
+@using Microsoft.Extensions.Logging
+@inject ICalendarOwnerGoogleConsentService GoogleConsentService
+@inject ICalendarOwnerGraphConsentService GraphConsentService
+@inject NavigationManager Navigation
+@inject ILogger<ConsentCallback> Logger
+
+<PageTitle>Authorizing… - ObfusCal</PageTitle>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="16" Style="max-width: 600px; margin: 2rem auto;">
+    @if (_loading)
+    {
+        <FluentProgress />
+        <p>Completing authorization, please wait…</p>
+    }
+    else if (_errorMessage is not null)
+    {
+        <FluentMessageBar Intent="MessageIntent.Error">
+            <strong>Authorization failed:</strong> @_errorMessage
+        </FluentMessageBar>
+    }
+    else
+    {
+        <FluentMessageBar Intent="MessageIntent.Success">
+            ✓ Authorization completed successfully. You can now close this window.
+        </FluentMessageBar>
+    }
+</FluentStack>
+
+@code {
+    private static readonly ConcurrentDictionary<string, byte> ProcessedStates = new(StringComparer.Ordinal);
+
+    [Parameter, SupplyParameterFromQuery] public string? Code { get; set; }
+    [Parameter, SupplyParameterFromQuery] public string? State { get; set; }
+
+    private bool _loading = true;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var shouldReleaseState = false;
+        string? stateToken = null;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(Code))
+            {
+                _errorMessage = "No authorization code was returned by the provider.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(State))
+            {
+                _errorMessage = "Authorization state was not provided.";
+                return;
+            }
+
+            stateToken = State;
+            if (!ProcessedStates.TryAdd(stateToken, 0))
+            {
+                Logger.LogInformation("Skipping duplicate consent callback for state token.");
+                return;
+            }
+
+            shouldReleaseState = true;
+
+            try
+            {
+                await GoogleConsentService.CompleteConsentFromStateAsync(Code, State);
+                shouldReleaseState = false; // keep state locked so duplicate callbacks are no-ops
+            }
+            catch (InvalidOperationException ex) when (IsStateValidationFailure(ex.Message))
+            {
+                Logger.LogWarning(ex, "State validation failed during consent completion");
+                _errorMessage = "Authorization from the provider could not be validated.";
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Unexpected error during consent completion. Exception type: {ExceptionType}", ex.GetType().Name);
+                _errorMessage = ex.InnerException?.Message ?? ex.Message;
+            }
+        }
+        finally
+        {
+            if (shouldReleaseState && stateToken is not null)
+                ProcessedStates.TryRemove(stateToken, out _);
+
+            _loading = false;
+        }
+    }
+
+    private static bool IsStateValidationFailure(string message)
+        => message.Contains("state", StringComparison.OrdinalIgnoreCase)
+           || (message.Contains("expired", StringComparison.OrdinalIgnoreCase)
+               && message.Contains("consent", StringComparison.OrdinalIgnoreCase));
+}
+

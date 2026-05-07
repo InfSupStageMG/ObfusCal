@@ -2,15 +2,18 @@
 using ObfusCal.Domain.Models;
 using ObfusCal.Infrastructure.Calendars;
 
-namespace ObfusCal.Plugins.ICloudCalendar;
+namespace ObfusCal.Plugins.GoogleCalendar;
 
-[CalendarSourcePlugin("icloud", "iCloud Calendar")]
+[CalendarSourcePlugin("google", "Google Calendar")]
 [CalendarSourcePluginUi(
     supportsMultipleInstances: true,
-    configurationJsonTemplate: "{\"calendarUrl\":\"https://caldav.icloud.com/.../calendar/\"}",
-    secretDataJsonTemplate: "{\"appleId\":\"you@example.com\",\"appSpecificPassword\":\"\"}",
-    setupHint: "Generate an app-specific password in your Apple ID settings. The Apple ID and app-specific password are stored encrypted.")]
-public sealed class ICloudCalendarSourcePlugin(ICloudCalendarSourceCore sourceCore)
+    configurationJsonTemplate: "{\"calendarId\":\"primary\"}",
+    setupHint: "Use the Google consent flow to populate tokens for each source instance.")]
+[CalendarSourcePluginAction(
+    "google-instance-consent",
+    "Start Google OAuth",
+    hint: "Authorizes ObfusCal to read your Google Calendar for this source instance.")]
+public sealed class GoogleCalendarSourcePlugin(GoogleCalendarSourceCore sourceCore)
     : ICalendarSource, ICalendarSourceReadinessEvaluator, ICalendarSourceInstanceHandler, ICalendarSourceInstanceReadinessEvaluator
 {
     public Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(
@@ -31,6 +34,6 @@ public sealed class ICloudCalendarSourcePlugin(ICloudCalendarSourceCore sourceCo
         sourceCore.GetReadinessAsync(calendarOwnerId, ct);
 
     public Task<CalendarSourceReadiness> GetReadinessAsync(CalendarSourceInstanceContext instance, CancellationToken ct = default) =>
-        sourceCore.GetReadinessAsync(instance, ct);
+        GoogleCalendarSourceCore.GetReadinessAsync(instance, ct);
 }
 

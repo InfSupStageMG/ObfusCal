@@ -16,6 +16,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.7" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.7" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.5.1" />
     <PackageReference Include="MSTest" Version="4.2.2" />
     <PackageReference Include="MSTest.TestAdapter" Version="4.2.2" />
@@ -33,7 +34,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PluginProjectReference Include="..\ObfusCal.Plugins.ICloudCalendar\ObfusCal.Plugins.ICloudCalendar.csproj" />
+    <PluginProjectReference Include="..\ObfusCal.Plugins.*\ObfusCal.Plugins.*.csproj" />
   </ItemGroup>
 
   <Target Name="CopyPluginProjectsToOutput" AfterTargets="Build">
@@ -42,7 +43,7 @@
              Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework)" />
     <MakeDir Directories="$(OutDir)plugins" />
     <ItemGroup>
-      <PluginArtifacts Include="..\ObfusCal.Plugins.ICloudCalendar\bin\$(Configuration)\$(TargetFramework)\ObfusCal.Plugins.ICloudCalendar.dll" />
+      <PluginArtifacts Include="@(PluginProjectReference->'%(RootDir)%(Directory)bin\$(Configuration)\$(TargetFramework)\%(Filename).dll')" />
     </ItemGroup>
     <Copy SourceFiles="@(PluginArtifacts)"
           DestinationFolder="$(OutDir)plugins"

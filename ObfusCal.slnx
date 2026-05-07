@@ -4,5 +4,6 @@
   <Project Path="ObfusCal.Infrastructure/ObfusCal.Infrastructure.csproj" />
   <Project Path="ObfusCal.Api/ObfusCal.Api.csproj" />
   <Project Path="ObfusCal.Plugins.ICloudCalendar/ObfusCal.Plugins.ICloudCalendar.csproj" />
+  <Project Path="ObfusCal.Plugins.GoogleCalendar/ObfusCal.Plugins.GoogleCalendar.csproj" />
   <Project Path="ObfusCal.Tests/ObfusCal.Tests.csproj" />
 </Solution>

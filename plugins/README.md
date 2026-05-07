@@ -7,58 +7,162 @@ A failed or incompatible DLL is logged and skipped; all other plugins continue t
 
 ---
 
-## Calendar source plugins
+## Authoring a Calendar Source Plugin
 
-Implement `ICalendarSource` from `ObfusCal.Application` and annotate your class with
-`[CalendarSourcePlugin]` from the same namespace:
+### 1 — Create a project
+
+Name your project `ObfusCal.Plugins.<YourName>` and target `net10.0`:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- reference only Application and Domain — never Infrastructure -->
+    <PackageReference Include="ObfusCal.Application" Version="*" />
+  </ItemGroup>
+</Project>
+```
+
+> **Naming convention matters.** Any project matching `ObfusCal.Plugins.*` is automatically built and
+> copied to the `plugins/` output folder by the wildcard MSBuild targets in `ObfusCal.Api` and
+> `ObfusCal.Tests`. You do **not** need to edit those `.csproj` files.
+
+---
+
+### 2 — Implement the calendar source contract
+
+Implement `ICalendarSource` from `ObfusCal.Application.Interfaces` and annotate your class with
+`[CalendarSourcePlugin]`:
 
 ```csharp
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Domain.Models;
 
-[CalendarSourcePlugin("google", "Google Workspace")]
-public sealed class GoogleCalendarSource : ICalendarSource
+[CalendarSourcePlugin("acme", "Acme Calendar")]
+public sealed class AcmeCalendarSource : ICalendarSource
 {
     public Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(
         DateTimeOffset from, DateTimeOffset to,
         Guid? calendarOwnerId = null, CancellationToken ct = default)
     {
-        // fetch events from Google Calendar API here
+        // fetch events from the Acme Calendar API
         throw new NotImplementedException();
     }
 }
 ```
 
-The first argument to `[CalendarSourcePlugin]` is the stable, lowercase **plugin ID** used in configuration,
-database records, and API responses. Choose carefully — changing it after deployment requires a data migration.
+The first argument to `[CalendarSourcePlugin]` is the stable **plugin ID** — lowercase, no spaces.
+It is stored in database records, config files, and API responses. **Changing it after deployment
+requires a data migration.**
 
-### Readiness evaluation (optional)
+---
 
-If your adapter requires setup before it can be used (e.g. OAuth consent, a configured feed URL), also implement
-`ICalendarSourceReadinessEvaluator`:
+### 3 — Provide setup UI metadata (optional but recommended)
+
+Add `[CalendarSourcePluginUi]` to describe how the generic owner-detail UI should render your plugin's
+setup form:
 
 ```csharp
-[CalendarSourcePlugin("google", "Google Workspace")]
-public sealed class GoogleCalendarSource : ICalendarSource, ICalendarSourceReadinessEvaluator
+[CalendarSourcePlugin("acme", "Acme Calendar")]
+[CalendarSourcePluginUi(
+    supportsMultipleInstances: true,
+    configurationJsonTemplate: """{"calendarId":"primary","region":"eu"}""",
+    secretDataJsonTemplate:    """{"apiKey":"<your-api-key>"}""",
+    setupHint: "Create an API key at https://acme.example.com/api-keys and paste it in the Secret JSON field.")]
+public sealed class AcmeCalendarSource : ICalendarSource { ... }
+```
+
+| Property                    | Purpose                                                         |
+|-----------------------------|-----------------------------------------------------------------|
+| `supportsMultipleInstances` | Whether an owner may have more than one instance of this plugin |
+| `configurationJsonTemplate` | Pre-filled content for the **Configuration JSON** textarea      |
+| `secretDataJsonTemplate`    | Pre-filled content for the **Secret JSON** textarea             |
+| `setupHint`                 | Informational message shown above the Add button                |
+
+---
+
+### 4 — Declare plugin action buttons (optional)
+
+If your plugin has a setup step that requires navigation (e.g. an OAuth consent flow), declare it with
+`[CalendarSourcePluginAction]`. The attribute may be applied multiple times.
+
+```csharp
+[CalendarSourcePlugin("acme", "Acme Calendar")]
+[CalendarSourcePluginUi(...)]
+[CalendarSourcePluginAction(
+    "acme-oauth",                                    // action ID (stable, lowercase)
+    "Authorize Acme",                                // button label
+    hint: "Opens the Acme OAuth flow for this source instance.")]
+public sealed class AcmeCalendarSource : ICalendarSource { ... }
+```
+
+#### Built-in action IDs handled by the UI
+
+| Action ID                 | Behaviour                                                                                                                |
+|---------------------------|--------------------------------------------------------------------------------------------------------------------------|
+| `google-instance-consent` | Calls `ICalendarOwnerGoogleConsentService.BuildAuthorizationUrlAsync` for the instance and navigates to the returned URL |
+| `graph-instance-consent`  | Calls `ICalendarOwnerGraphConsentService.BuildAuthorizationUrlAsync` for the instance and navigates to the returned URL  |
+
+Actions with an **unrecognised ID** show a warning message. To add support for a new action ID, open
+`CalendarOwnerDetail.razor` and add a `case` to `InvokePluginActionAsync`.
+
+The consent callback page (`/consent-callback`) handles the OAuth redirect for both built-in consent
+actions. It reads `ownerId`, `instanceId`, and `plugin` from the query string and calls the appropriate
+completion service.
+
+---
+
+### 5 — Readiness evaluation (optional)
+
+If a source instance requires configuration before it can be used, also implement
+`ICalendarSourceInstanceReadinessEvaluator`:
+
+```csharp
+[CalendarSourcePlugin("acme", "Acme Calendar")]
+public sealed class AcmeCalendarSource : ICalendarSource, ICalendarSourceInstanceReadinessEvaluator
 {
-    public async Task<CalendarSourceReadiness> GetReadinessAsync(Guid calendarOwnerId, CancellationToken ct = default)
+    public async Task<CalendarSourceReadiness> GetReadinessAsync(
+        CalendarSourceInstanceContext instance,
+        CancellationToken ct = default)
     {
-        var hasConsent = /* check your consent store */ false;
-        return hasConsent
+        var hasKey = !string.IsNullOrWhiteSpace(instance.SecretDataJson);
+        return hasKey
             ? CalendarSourceReadiness.Ready()
-            : CalendarSourceReadiness.NotReady("Google consent required.", "Visit /calendar/consent to grant access.");
+            : CalendarSourceReadiness.NotReady(
+                "API key required.",
+                "Paste your Acme API key in the Secret JSON field.");
     }
 
     // ... ICalendarSource implementation
 }
 ```
 
+Legacy owner-level readiness uses `ICalendarSourceReadinessEvaluator` (no `instance` parameter).
+
+---
+
+### 6 — Build and deploy
+
+**During development** (if your project follows the naming convention `ObfusCal.Plugins.*`):
+
+```
+dotnet build ObfusCal.slnx
+# The plugin DLL is automatically copied to ObfusCal.Api/bin/.../plugins/
+```
+
+**For production** — copy the plugin DLL and its dependencies into the `plugins/` sub-folder alongside
+`ObfusCal.Api.dll`, then restart the API process.
+
 ---
 
 ## Obfuscation transformer plugins
 
-Implement `IObfuscationTransformerPlugin` (event-level) or `IBusySlotTransformerPlugin` (slot-level) from
-`ObfusCal.Domain.Obfuscation`:
+Implement `IObfuscationTransformerPlugin` (event-level) or `IBusySlotTransformerPlugin` (slot-level)
+from `ObfusCal.Domain.Obfuscation`:
 
 ```csharp
 using ObfusCal.Domain.Models;
@@ -85,8 +189,8 @@ No attribute is needed — the plugin system discovers any concrete class that i
 | `ObfusCal.Application` | Same major version as the running host |
 | `ObfusCal.Domain`      | Same major version as the running host |
 
-Plugins are loaded as **trusted code** in the same process. There is no sandbox boundary. Do not load plugins
-from untrusted sources.
+Plugins are loaded as **trusted code** in the same process. There is no sandbox boundary. Do not load
+plugins from untrusted sources.
 
 ---
 
@@ -96,7 +200,7 @@ Once registered, a plugin becomes selectable via the API:
 
 ```
 PUT /api/calendar-owners/{id}/calendar/provider
-{ "providerId": "google" }
+{ "providerId": "acme" }
 ```
 
 Or configure the application-wide default in `appsettings.json`:
@@ -104,8 +208,7 @@ Or configure the application-wide default in `appsettings.json`:
 ```json
 {
   "CalendarSource": {
-    "Provider": "google"
+    "Provider": "acme"
   }
 }
 ```
-

@@ -4,10 +4,10 @@ using System.Text;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ObfusCal.Application.Interfaces;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Infrastructure.Calendars;
 using ObfusCal.Infrastructure.Persistence;
-using ObfusCal.Infrastructure.Security;
 using ObfusCal.Tests.Helpers;
 
 namespace ObfusCal.Tests.Unit.Calendar;
@@ -195,12 +195,19 @@ public class ICloudCalendarSourceCoreTests
             httpClient,
             db,
             dataProtectionProvider,
-            new CalendarSourceSecretProtector(dataProtectionProvider),
+            new PassthroughCalendarSourceSecretProtector(),
             icloudOptions,
             logger);
 
     private static ILogger<ICloudCalendarSourceCore> CreateLogger()
         => LoggerFactory.Create(_ => { }).CreateLogger<ICloudCalendarSourceCore>();
+
+    private sealed class PassthroughCalendarSourceSecretProtector : ICalendarSourceSecretProtector
+    {
+        public string Protect(string plaintext) => plaintext;
+
+        public string Unprotect(string protectedValue) => protectedValue;
+    }
 
 
 }
