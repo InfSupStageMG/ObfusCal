@@ -16,7 +16,7 @@ services:
       - internal
 
   reverse-proxy:
-    image: nginx:1.27-alpine
+    image: nginx:1.30-alpine
     container_name: obfuscal-proxy
     depends_on:
       - api
