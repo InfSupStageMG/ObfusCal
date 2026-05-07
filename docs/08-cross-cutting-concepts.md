@@ -53,6 +53,11 @@ environment-key mapping (for example `GraphConsent:ClientSecret` -> `GRAPHCONSEN
 **Startup validation:** `SecretStartupValidator` checks required secrets during startup and fails fast with a clear
 error when critical values are missing. This prevents deferred runtime failures in database and OAuth flows.
 
+**OAuth redirect discipline:** Google Calendar OAuth uses an exact redirect URI match. ObfusCal can override the
+runtime callback origin via `GoogleConsent:RedirectUri` / `GOOGLECONSENT__REDIRECTURI` so container, proxy, and local
+debugging setups can use a single registered callback. `.local` redirect domains are rejected early because Google does
+not accept them for this flow.
+
 **Data scoping:** After authentication, the user's Entra ID Object ID is extracted from the JWT token and used as a
 strict data boundary at the repository layer. A user can only access their own events, slots, and configuration.
 

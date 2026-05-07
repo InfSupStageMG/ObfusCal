@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
@@ -14,19 +15,20 @@ internal sealed class CalendarOwnerGoogleConsentService(
     ISecretProvider secretProvider,
     GoogleOAuthDependencies googleOAuthDependencies,
     ICalendarSourceSecretProtector secretProtector,
-    ICalendarSourceInstanceService calendarSourceInstanceService,
-    ICalendarSourceInstanceStore calendarSourceInstanceStore)
+    GoogleConsentInstanceDependencies instanceDependencies,
+    ILogger<CalendarOwnerGoogleConsentService> logger)
     : ICalendarOwnerGoogleConsentService
 {
     private const string GooglePluginId = "google";
     private const string GoogleSourceInstanceNotFoundMessage = "Google calendar source instance was not found.";
+    private const string InvalidLocalRedirectUriMessage = "Google OAuth does not accept '.local' redirect URIs. Configure GoogleConsent:RedirectUri to use https://localhost/... or a public HTTPS redirect URI that is registered in Google Cloud.";
 
     private readonly IDataProtector _stateProtector = dataProtectionProvider
         .CreateProtector("ObfusCal.GoogleConsent.State.v1");
 
     public async Task<CalendarOwnerGoogleConsentStatus?> GetStatusAsync(Guid calendarOwnerId, CancellationToken ct = default)
     {
-        var instance = await calendarSourceInstanceStore.GetFirstAsync(calendarOwnerId, GooglePluginId, ct);
+        var instance = await instanceDependencies.Store.GetFirstAsync(calendarOwnerId, GooglePluginId, ct);
         if (instance is null)
             return await dbContext.CalendarOwners
                 .AsNoTracking()
@@ -42,7 +44,7 @@ internal sealed class CalendarOwnerGoogleConsentService(
         Guid calendarSourceInstanceId,
         CancellationToken ct = default)
     {
-        var instance = await calendarSourceInstanceStore.GetAsync(calendarOwnerId, calendarSourceInstanceId, ct);
+        var instance = await instanceDependencies.Store.GetAsync(calendarOwnerId, calendarSourceInstanceId, ct);
         if (instance is null || !string.Equals(instance.PluginId, GooglePluginId, StringComparison.OrdinalIgnoreCase))
             return null;
 
@@ -83,7 +85,7 @@ internal sealed class CalendarOwnerGoogleConsentService(
         string redirectUri,
         CancellationToken ct = default)
     {
-        var instance = await calendarSourceInstanceStore.GetAsync(calendarOwnerId, calendarSourceInstanceId, ct);
+        var instance = await instanceDependencies.Store.GetAsync(calendarOwnerId, calendarSourceInstanceId, ct);
         if (instance is null || !string.Equals(instance.PluginId, GooglePluginId, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException(GoogleSourceInstanceNotFoundMessage);
 
@@ -116,15 +118,17 @@ internal sealed class CalendarOwnerGoogleConsentService(
         if (string.IsNullOrWhiteSpace(authorizationCode))
             throw new InvalidOperationException("Authorization code is required to complete Google consent.");
 
-        var instance = await calendarSourceInstanceStore.GetAsync(calendarOwnerId, calendarSourceInstanceId, ct)
+        var instance = await instanceDependencies.Store.GetAsync(calendarOwnerId, calendarSourceInstanceId, ct)
             ?? throw new InvalidOperationException(GoogleSourceInstanceNotFoundMessage);
 
         if (!string.Equals(instance.PluginId, GooglePluginId, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("The specified calendar source instance is not a Google source.");
 
-        ValidateState(state, redirectUri, calendarOwnerId, calendarSourceInstanceId);
+        var statePayload = ValidateState(state, calendarOwnerId, calendarSourceInstanceId);
+        var effectiveRedirectUri = statePayload.RedirectUri;
 
-        var tokenResponse = await googleOAuthDependencies.TokenClient.ExchangeAuthorizationCodeAsync(authorizationCode, redirectUri, ct);
+        var tokenResponse = await googleOAuthDependencies.TokenClient.ExchangeAuthorizationCodeAsync(authorizationCode, effectiveRedirectUri, ct);
+
         var existingSecretData = ParseSecretData(instance.SecretDataJson);
         var secretData = new GoogleCalendarSourceCore.GoogleSourceSecretData(
             secretProtector.Protect(tokenResponse.AccessToken),
@@ -135,7 +139,7 @@ internal sealed class CalendarOwnerGoogleConsentService(
             tokenResponse.ExpiresAtUtc,
             DateTimeOffset.UtcNow);
 
-        var updated = await calendarSourceInstanceService.UpdateAsync(
+        var updated = await instanceDependencies.Service.UpdateAsync(
             calendarOwnerId,
             calendarSourceInstanceId,
             new UpdateCalendarSourceInstanceInput(
@@ -145,51 +149,32 @@ internal sealed class CalendarOwnerGoogleConsentService(
 
         if (updated is null)
             throw new InvalidOperationException(GoogleSourceInstanceNotFoundMessage);
+
+        logger.LogInformation("Google consent stored for calendar owner {CalendarOwnerId}", calendarOwnerId);
     }
 
     public async Task CompleteConsentFromStateAsync(
         string authorizationCode,
-        string redirectUri,
         string state,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(state))
             throw new InvalidOperationException("State is required to complete Google consent.");
 
-        GoogleConsentStatePayload payload;
-        try
-        {
-            var json = _stateProtector.Unprotect(state);
-            payload = JsonSerializer.Deserialize<GoogleConsentStatePayload>(json)
-                ?? throw new InvalidOperationException("Google consent state is invalid.");
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException("Google consent state is invalid or expired.", ex);
-        }
-
-        if (payload.ExpiresAtUtc < DateTimeOffset.UtcNow)
-            throw new InvalidOperationException("Google consent state has expired. Start consent again.");
-
-        if (!string.Equals(payload.RedirectUri, redirectUri, StringComparison.Ordinal))
-            throw new InvalidOperationException("Google consent redirect URI does not match the original request.");
+        var payload = ValidateState(state);
 
         await CompleteConsentAsync(
             payload.CalendarOwnerId,
             payload.CalendarSourceInstanceId,
             authorizationCode,
-            redirectUri,
+            payload.RedirectUri,
             state,
             ct);
     }
 
     private string BuildAuthorizationUrlCore(string redirectUri, Guid calendarOwnerId, Guid calendarSourceInstanceId)
     {
-        if (!Uri.TryCreate(redirectUri, UriKind.Absolute, out var redirect)
-            || (redirect.Scheme != Uri.UriSchemeHttp && redirect.Scheme != Uri.UriSchemeHttps))
-        {
-            throw new InvalidOperationException("Redirect URI must be a valid absolute http or https URI.");
-        }
+        var effectiveRedirectUri = ResolveRedirectUri(redirectUri);
 
         var options = googleOAuthDependencies.Options.Value;
         var authorizationEndpoint = options.AuthorizationEndpoint.Trim();
@@ -208,16 +193,16 @@ internal sealed class CalendarOwnerGoogleConsentService(
         if (string.IsNullOrWhiteSpace(scope))
             throw new InvalidOperationException("GoogleConsent:Scope is required.");
 
-        var state = BuildStateToken(calendarOwnerId, calendarSourceInstanceId, redirectUri);
+        var state = BuildStateToken(calendarOwnerId, calendarSourceInstanceId, effectiveRedirectUri);
 
         var query = string.Join("&",
             $"client_id={Uri.EscapeDataString(clientId)}",
             "response_type=code",
-            $"redirect_uri={Uri.EscapeDataString(redirectUri)}",
+            $"redirect_uri={Uri.EscapeDataString(effectiveRedirectUri)}",
             $"scope={Uri.EscapeDataString(scope)}",
             "access_type=offline",
             "include_granted_scopes=true",
-            "prompt=consent",
+            $"prompt={Uri.EscapeDataString("select_account consent")}",
             $"state={Uri.EscapeDataString(state)}");
 
         return $"{authorizationEndpoint}?{query}";
@@ -243,31 +228,59 @@ internal sealed class CalendarOwnerGoogleConsentService(
         return _stateProtector.Protect(JsonSerializer.Serialize(payload));
     }
 
-    private void ValidateState(string state, string redirectUri, Guid calendarOwnerId, Guid calendarSourceInstanceId)
+    private string ResolveRedirectUri(string requestedRedirectUri)
+    {
+        var configuredRedirectUri = googleOAuthDependencies.Options.Value.RedirectUri;
+        var effectiveRedirectUri = string.IsNullOrWhiteSpace(configuredRedirectUri) || IsPlaceholder(configuredRedirectUri)
+            ? requestedRedirectUri
+            : configuredRedirectUri;
+
+        if (!Uri.TryCreate(effectiveRedirectUri, UriKind.Absolute, out var redirect)
+            || (redirect.Scheme != Uri.UriSchemeHttp && redirect.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new InvalidOperationException("Redirect URI must be a valid absolute http or https URI.");
+        }
+
+        if (redirect.Host.EndsWith(".local", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(InvalidLocalRedirectUriMessage);
+
+        return effectiveRedirectUri.Trim();
+    }
+
+    private GoogleConsentStatePayload ValidateState(
+        string state,
+        Guid? calendarOwnerId = null,
+        Guid? calendarSourceInstanceId = null)
     {
         if (string.IsNullOrWhiteSpace(state))
             throw new InvalidOperationException("State is required to complete Google consent.");
 
-        GoogleConsentStatePayload payload;
-        try
-        {
-            var json = _stateProtector.Unprotect(state);
-            payload = JsonSerializer.Deserialize<GoogleConsentStatePayload>(json)
-                ?? throw new InvalidOperationException("Google consent state is invalid.");
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException("Google consent state is invalid or expired.", ex);
-        }
+        var payload = UnprotectState(state);
 
         if (payload.ExpiresAtUtc < DateTimeOffset.UtcNow)
             throw new InvalidOperationException("Google consent state has expired. Start consent again.");
 
-        if (!string.Equals(payload.RedirectUri, redirectUri, StringComparison.Ordinal))
-            throw new InvalidOperationException("Google consent redirect URI does not match the original request.");
-
-        if (payload.CalendarOwnerId != calendarOwnerId || payload.CalendarSourceInstanceId != calendarSourceInstanceId)
+        if (calendarOwnerId is not null
+            && (payload.CalendarOwnerId != calendarOwnerId || payload.CalendarSourceInstanceId != calendarSourceInstanceId))
+        {
             throw new InvalidOperationException("Google consent state does not match this calendar source.");
+        }
+
+        return payload;
+    }
+
+    private GoogleConsentStatePayload UnprotectState(string state)
+    {
+        try
+        {
+            var json = _stateProtector.Unprotect(state);
+            return JsonSerializer.Deserialize<GoogleConsentStatePayload>(json)
+                ?? throw new InvalidOperationException("Google consent state is invalid.");
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            throw new InvalidOperationException("Google consent state is invalid or expired.", ex);
+        }
     }
 
     private async Task EnsureOwnerExistsAsync(Guid calendarOwnerId, CancellationToken ct)
@@ -282,18 +295,18 @@ internal sealed class CalendarOwnerGoogleConsentService(
 
     private async Task<CalendarSourceInstanceContext?> EnsureDefaultGoogleInstanceAsync(Guid calendarOwnerId, CancellationToken ct)
     {
-        var existing = await calendarSourceInstanceStore.GetFirstAsync(calendarOwnerId, GooglePluginId, ct);
+        var existing = await instanceDependencies.Store.GetFirstAsync(calendarOwnerId, GooglePluginId, ct);
         if (existing is not null)
             return existing;
 
-        var created = await calendarSourceInstanceService.CreateAsync(
+        var created = await instanceDependencies.Service.CreateAsync(
             calendarOwnerId,
             new CreateCalendarSourceInstanceInput(GooglePluginId, "Google Calendar", JsonSerializer.Serialize(new GoogleCalendarSourceCore.GoogleSourceConfiguration("primary"))),
             ct);
 
         return created is null
             ? null
-            : await calendarSourceInstanceStore.GetAsync(calendarOwnerId, created.Id, ct);
+            : await instanceDependencies.Store.GetAsync(calendarOwnerId, created.Id, ct);
     }
 
     private static GoogleCalendarSourceCore.GoogleSourceSecretData? ParseSecretData(string? secretDataJson)
@@ -321,3 +334,7 @@ internal sealed class CalendarOwnerGoogleConsentService(
 internal sealed record GoogleOAuthDependencies(
     IOptions<GoogleConsentOptions> Options,
     IGoogleOAuthTokenClient TokenClient);
+
+internal sealed record GoogleConsentInstanceDependencies(
+    ICalendarSourceInstanceService Service,
+    ICalendarSourceInstanceStore Store);

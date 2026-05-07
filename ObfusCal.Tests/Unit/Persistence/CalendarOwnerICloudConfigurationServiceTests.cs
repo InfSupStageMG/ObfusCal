@@ -130,10 +130,4 @@ public class CalendarOwnerICloudConfigurationServiceTests
 
         return (service, dbContext, instances);
     }
-
-    private sealed class PassthroughSecretProtector : ICalendarSourceSecretProtector
-    {
-        public string Protect(string plaintext) => plaintext;
-        public string Unprotect(string protectedValue) => protectedValue;
-    }
 }

@@ -8,6 +8,7 @@ public sealed class GoogleConsentOptions
     public string AuthorizationEndpoint { get; init; } = string.Empty;
     public string TokenEndpoint { get; init; } = string.Empty;
     public string Scope { get; init; } = string.Empty;
+    public string? RedirectUri { get; init; }
     public string? ClientId { get; init; }
     public string? ClientSecret { get; init; }
 }

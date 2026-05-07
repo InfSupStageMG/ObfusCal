@@ -123,7 +123,7 @@ public class CalendarSourcePluginCatalogTests
 
         var consentAction = graph.Ui?.Actions.SingleOrDefault(a => a.ActionId == "graph-instance-consent");
         Assert.IsNotNull(consentAction, "graph plugin should declare a 'graph-instance-consent' action");
-        Assert.IsFalse(string.IsNullOrWhiteSpace(consentAction!.Label));
+        Assert.IsFalse(string.IsNullOrWhiteSpace(consentAction.Label));
     }
 
     [TestMethod]

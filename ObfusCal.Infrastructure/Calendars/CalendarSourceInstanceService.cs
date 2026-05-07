@@ -22,7 +22,7 @@ internal sealed class CalendarSourceInstanceService(
             .ToListAsync(ct);
 
         var summaries = new List<CalendarSourceInstanceSummary>(instances.Count);
-        foreach (var context in instances.Select(instance => ToContext(instance)))
+        foreach (var context in instances.Select(ToContext))
         {
             var readiness = await GetReadinessAsync(context, ct);
             summaries.Add(new CalendarSourceInstanceSummary(

@@ -17,10 +17,12 @@ public sealed class CalendarOwnersController(
     CalendarOwnerAccessEvaluator accessEvaluator,
     ICalendarOwnerCalendarSourceService calendarSourceService,
     ICalendarSourceInstanceService calendarSourceInstanceService,
-    ICalendarOwnerGraphConsentService graphConsentService,
-    ICalendarOwnerGoogleConsentService googleConsentService,
+    CalendarConsentServices consentServices,
     ICalendarOwnerIcalFeedService calendarOwnerIcalFeedService) : ControllerBase
 {
+    private const string ValidRedirectReq = "A valid absolute 'redirectUri' query parameter is required.";
+    private const string AuthorizationCodeIsRequired = "'authorizationCode' is required.";
+
     [HttpGet("me")]
     [ProducesResponseType(typeof(CurrentCalendarOwnerResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -91,16 +93,14 @@ public sealed class CalendarOwnersController(
             return accessResult;
 
         var providers = await calendarSourceService.ListProvidersAsync(id, ct);
-        return Ok(providers.Select(provider => new CalendarSourceProviderResponse
-        {
-            Id = provider.Id,
-            DisplayName = provider.DisplayName,
-            IsSelected = provider.IsSelected,
-            IsReady = provider.IsReady,
-            Title = provider.Title,
-            Detail = provider.Detail,
-            IsExternalPlugin = provider.IsExternalPlugin
-        }).ToList());
+        return Ok(providers.Select(provider => new CalendarSourceProviderResponse(
+            provider.Id,
+            provider.DisplayName,
+            provider.IsSelected,
+            provider.IsReady,
+            provider.Title,
+            provider.Detail,
+            provider.IsExternalPlugin)).ToList());
     }
 
     [HttpGet("{id}/calendar/sources")]
@@ -287,7 +287,7 @@ public sealed class CalendarOwnersController(
         if (accessResult is not null)
             return accessResult;
 
-        var status = await graphConsentService.GetStatusAsync(id, ct);
+        var status = await consentServices.Graph.GetStatusAsync(id, ct);
         if (status is null)
             return NotFound();
 
@@ -309,7 +309,7 @@ public sealed class CalendarOwnersController(
         if (accessResult is not null)
             return accessResult;
 
-        var status = await graphConsentService.GetStatusAsync(id, sourceInstanceId, ct);
+        var status = await consentServices.Graph.GetStatusAsync(id, sourceInstanceId, ct);
         if (status is null)
             return NotFound();
 
@@ -331,7 +331,7 @@ public sealed class CalendarOwnersController(
         if (accessResult is not null)
             return accessResult;
 
-        var status = await googleConsentService.GetStatusAsync(id, ct);
+        var status = await consentServices.Google.GetStatusAsync(id, ct);
         if (status is null)
             return NotFound();
 
@@ -353,7 +353,7 @@ public sealed class CalendarOwnersController(
         if (accessResult is not null)
             return accessResult;
 
-        var status = await googleConsentService.GetStatusAsync(id, sourceInstanceId, ct);
+        var status = await consentServices.Google.GetStatusAsync(id, sourceInstanceId, ct);
         if (status is null)
             return NotFound();
 
@@ -377,11 +377,11 @@ public sealed class CalendarOwnersController(
             return accessResult;
 
         if (string.IsNullOrWhiteSpace(redirectUri))
-            return BadRequest("A valid absolute 'redirectUri' query parameter is required.");
+            return BadRequest(ValidRedirectReq);
 
         try
         {
-            var authorizationUrl = graphConsentService.BuildAuthorizationUrl(redirectUri);
+            var authorizationUrl = consentServices.Graph.BuildAuthorizationUrl(redirectUri);
             return Ok(new CalendarConsentUrlResponse(authorizationUrl));
         }
         catch (InvalidOperationException ex)
@@ -412,11 +412,11 @@ public sealed class CalendarOwnersController(
             return accessResult;
 
         if (string.IsNullOrWhiteSpace(redirectUri))
-            return BadRequest("A valid absolute 'redirectUri' query parameter is required.");
+            return BadRequest(ValidRedirectReq);
 
         try
         {
-            var authorizationUrl = await graphConsentService.BuildAuthorizationUrlAsync(id, sourceInstanceId, redirectUri, ct);
+            var authorizationUrl = await consentServices.Graph.BuildAuthorizationUrlAsync(id, sourceInstanceId, redirectUri, ct);
             return Ok(new CalendarConsentUrlResponse(authorizationUrl));
         }
         catch (InvalidOperationException ex)
@@ -443,11 +443,11 @@ public sealed class CalendarOwnersController(
             return accessResult;
 
         if (string.IsNullOrWhiteSpace(redirectUri))
-            return BadRequest("A valid absolute 'redirectUri' query parameter is required.");
+            return BadRequest(ValidRedirectReq);
 
         try
         {
-            var authorizationUrl = await googleConsentService.BuildAuthorizationUrlAsync(id, redirectUri, ct);
+            var authorizationUrl = await consentServices.Google.BuildAuthorizationUrlAsync(id, redirectUri, ct);
             return Ok(new CalendarConsentUrlResponse(authorizationUrl));
         }
         catch (InvalidOperationException ex)
@@ -478,11 +478,11 @@ public sealed class CalendarOwnersController(
             return accessResult;
 
         if (string.IsNullOrWhiteSpace(redirectUri))
-            return BadRequest("A valid absolute 'redirectUri' query parameter is required.");
+            return BadRequest(ValidRedirectReq);
 
         try
         {
-            var authorizationUrl = await googleConsentService.BuildAuthorizationUrlAsync(id, sourceInstanceId, redirectUri, ct);
+            var authorizationUrl = await consentServices.Google.BuildAuthorizationUrlAsync(id, sourceInstanceId, redirectUri, ct);
             return Ok(new CalendarConsentUrlResponse(authorizationUrl));
         }
         catch (InvalidOperationException ex)
@@ -512,14 +512,14 @@ public sealed class CalendarOwnersController(
             return accessResult;
 
         if (string.IsNullOrWhiteSpace(request.AuthorizationCode))
-            return BadRequest("'authorizationCode' is required.");
+            return BadRequest(AuthorizationCodeIsRequired);
 
         if (string.IsNullOrWhiteSpace(request.RedirectUri) || !Uri.TryCreate(request.RedirectUri, UriKind.Absolute, out _))
-            return BadRequest("A valid absolute 'redirectUri' is required.");
+            return BadRequest(ValidRedirectReq);
 
         try
         {
-            await graphConsentService.CompleteConsentAsync(id, request.AuthorizationCode, request.RedirectUri, ct);
+            await consentServices.Graph.CompleteConsentAsync(id, request.AuthorizationCode, request.RedirectUri, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -550,14 +550,14 @@ public sealed class CalendarOwnersController(
             return accessResult;
 
         if (string.IsNullOrWhiteSpace(request.AuthorizationCode))
-            return BadRequest("'authorizationCode' is required.");
+            return BadRequest(AuthorizationCodeIsRequired);
 
         if (string.IsNullOrWhiteSpace(request.RedirectUri) || !Uri.TryCreate(request.RedirectUri, UriKind.Absolute, out _))
-            return BadRequest("A valid absolute 'redirectUri' is required.");
+            return BadRequest(ValidRedirectReq);
 
         try
         {
-            await graphConsentService.CompleteConsentAsync(id, sourceInstanceId, request.AuthorizationCode, request.RedirectUri, ct);
+            await consentServices.Graph.CompleteConsentAsync(id, sourceInstanceId, request.AuthorizationCode, request.RedirectUri, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -587,17 +587,17 @@ public sealed class CalendarOwnersController(
             return accessResult;
 
         if (string.IsNullOrWhiteSpace(request.AuthorizationCode))
-            return BadRequest("'authorizationCode' is required.");
+            return BadRequest(AuthorizationCodeIsRequired);
 
         if (string.IsNullOrWhiteSpace(request.State))
             return BadRequest("'state' is required.");
 
         if (string.IsNullOrWhiteSpace(request.RedirectUri) || !Uri.TryCreate(request.RedirectUri, UriKind.Absolute, out _))
-            return BadRequest("A valid absolute 'redirectUri' is required.");
+            return BadRequest(ValidRedirectReq);
 
         try
         {
-            await googleConsentService.CompleteConsentAsync(id, request.AuthorizationCode, request.RedirectUri, request.State, ct);
+            await consentServices.Google.CompleteConsentAsync(id, request.AuthorizationCode, request.RedirectUri, request.State, ct);
             return NoContent();
         }
         catch (InvalidOperationException ex)
@@ -628,17 +628,17 @@ public sealed class CalendarOwnersController(
             return accessResult;
 
         if (string.IsNullOrWhiteSpace(request.AuthorizationCode))
-            return BadRequest("'authorizationCode' is required.");
+            return BadRequest(AuthorizationCodeIsRequired);
 
         if (string.IsNullOrWhiteSpace(request.State))
             return BadRequest("'state' is required.");
 
         if (string.IsNullOrWhiteSpace(request.RedirectUri) || !Uri.TryCreate(request.RedirectUri, UriKind.Absolute, out _))
-            return BadRequest("A valid absolute 'redirectUri' is required.");
+            return BadRequest(ValidRedirectReq);
 
         try
         {
-            await googleConsentService.CompleteConsentAsync(
+            await consentServices.Google.CompleteConsentAsync(
                 id,
                 sourceInstanceId,
                 request.AuthorizationCode,
@@ -731,7 +731,7 @@ public sealed class CalendarOwnersController(
             return accessResult;
 
         var feeds = await calendarOwnerIcalFeedService.ListFeedsAsync(id, ct);
-        return Ok(feeds.Select(feed => new CalendarOwnerIcalFeedResponse { Id = feed.Id, FeedUrl = feed.FeedUrl }).ToList());
+        return Ok(feeds.Select(feed => new CalendarOwnerIcalFeedResponse(feed.Id, feed.FeedUrl)).ToList());
     }
 
     [HttpDelete("{id}/ical-feeds/{feedId:guid}")]
@@ -789,16 +789,14 @@ public sealed class CalendarOwnersController(
 
     private sealed record AddIcalFeedResponse(Guid Id, string FeedUrl);
 
-    private sealed record CalendarSourceProviderResponse
-    {
-        public required string Id { get; init; }
-        public required string DisplayName { get; init; }
-        public required bool IsSelected { get; init; }
-        public required bool IsReady { get; init; }
-        public required string Title { get; init; }
-        public string? Detail { get; init; }
-        public required bool IsExternalPlugin { get; init; }
-    }
+    private sealed record CalendarSourceProviderResponse(
+        string Id,
+        string DisplayName,
+        bool IsSelected,
+        bool IsReady,
+        string Title,
+        string? Detail,
+        bool IsExternalPlugin);
 
     private sealed record CalendarSourceSelectionResponse(
         string Id,
@@ -818,11 +816,7 @@ public sealed class CalendarOwnersController(
         string? Detail,
         bool IsExternalPlugin);
 
-    private sealed record CalendarOwnerIcalFeedResponse
-    {
-        public required Guid Id { get; init; }
-        public required string FeedUrl { get; init; }
-    }
+    private sealed record CalendarOwnerIcalFeedResponse(Guid Id, string FeedUrl);
 
     public sealed record CompleteCalendarConsentRequest(string AuthorizationCode, string RedirectUri);
 

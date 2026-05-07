@@ -182,9 +182,7 @@ public sealed class ICloudCalendarSourceCore(
         }
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
-
-    private ICloudCalendarOwnerConfiguration? TryBuildConfiguration(CalendarSourceInstanceContext instance)
+    private static ICloudCalendarOwnerConfiguration? TryBuildConfiguration(CalendarSourceInstanceContext instance)
     {
         var configuration = ParseConfiguration(instance.ConfigurationJson);
         var secrets = ParseSecretData(instance.SecretDataJson);
@@ -201,6 +199,8 @@ public sealed class ICloudCalendarSourceCore(
 
         return new ICloudCalendarOwnerConfiguration(calendarUri, secrets.AppleId, secrets.AppSpecificPassword);
     }
+
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private async Task<ICloudCalendarQueryResult> QueryCalendarAsync(
         Guid calendarOwnerId,

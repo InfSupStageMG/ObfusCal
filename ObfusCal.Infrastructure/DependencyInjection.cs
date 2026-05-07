@@ -137,6 +137,13 @@ public static class DependencyInjection
             return new GoogleOAuthDependencies(options, tokenClient);
         });
 
+        services.AddScoped(provider =>
+        {
+            var service = provider.GetRequiredService<ICalendarSourceInstanceService>();
+            var store = provider.GetRequiredService<ICalendarSourceInstanceStore>();
+            return new GoogleConsentInstanceDependencies(service, store);
+        });
+
         services.AddScoped<ICalendarOwnerScopeResolver, EfCoreCalendarOwnerScopeResolver>();
         services.AddScoped<ICalendarOwnerService, CalendarOwnerService>();
         services.AddScoped<ICalendarOwnerGraphConsentService, CalendarOwnerGraphConsentService>();

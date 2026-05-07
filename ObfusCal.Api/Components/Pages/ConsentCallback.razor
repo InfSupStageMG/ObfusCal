@@ -1,8 +1,11 @@
 ﻿@page "/consent-callback"
 @using ObfusCal.Application.Interfaces
+@using System.Collections.Concurrent
+@using Microsoft.Extensions.Logging
 @inject ICalendarOwnerGoogleConsentService GoogleConsentService
 @inject ICalendarOwnerGraphConsentService GraphConsentService
 @inject NavigationManager Navigation
+@inject ILogger<ConsentCallback> Logger
 
 <PageTitle>Authorizing… - ObfusCal</PageTitle>
 
@@ -27,6 +30,8 @@
 </FluentStack>
 
 @code {
+    private static readonly ConcurrentDictionary<string, byte> ProcessedStates = new(StringComparer.Ordinal);
+
     [Parameter, SupplyParameterFromQuery] public string? Code { get; set; }
     [Parameter, SupplyParameterFromQuery] public string? State { get; set; }
 
@@ -35,44 +40,60 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (string.IsNullOrWhiteSpace(Code))
-        {
-            _errorMessage = "No authorization code was returned by the provider.";
-            _loading = false;
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(State))
-        {
-            _errorMessage = "Authorization state was not provided.";
-            _loading = false;
-            return;
-        }
-
-        var redirectUri = $"{Navigation.BaseUri.TrimEnd('/')}/consent-callback";
+        var shouldReleaseState = false;
+        string? stateToken = null;
 
         try
         {
-            try
+            if (string.IsNullOrWhiteSpace(Code))
             {
-                await GoogleConsentService.CompleteConsentFromStateAsync(Code, redirectUri, State);
-            }
-            catch (InvalidOperationException ex)
-            {
-                if (!ex.Message.Contains("state", StringComparison.OrdinalIgnoreCase)
-                    && !ex.Message.Contains("invalid", StringComparison.OrdinalIgnoreCase)
-                    && !ex.Message.Contains("expired", StringComparison.OrdinalIgnoreCase)) throw;
-                _errorMessage = "Authorization from the provider could not be validated.";
-                _loading = false;
+                _errorMessage = "No authorization code was returned by the provider.";
                 return;
             }
-        }
-        catch (Exception ex)
-        {
-            _errorMessage = ex.InnerException?.Message ?? ex.Message;
-        }
 
-        _loading = false;
+            if (string.IsNullOrWhiteSpace(State))
+            {
+                _errorMessage = "Authorization state was not provided.";
+                return;
+            }
+
+            stateToken = State;
+            if (!ProcessedStates.TryAdd(stateToken, 0))
+            {
+                Logger.LogInformation("Skipping duplicate consent callback for state token.");
+                return;
+            }
+
+            shouldReleaseState = true;
+
+            try
+            {
+                await GoogleConsentService.CompleteConsentFromStateAsync(Code, State);
+                shouldReleaseState = false; // keep state locked so duplicate callbacks are no-ops
+            }
+            catch (InvalidOperationException ex) when (IsStateValidationFailure(ex.Message))
+            {
+                Logger.LogWarning(ex, "State validation failed during consent completion");
+                _errorMessage = "Authorization from the provider could not be validated.";
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Unexpected error during consent completion. Exception type: {ExceptionType}", ex.GetType().Name);
+                _errorMessage = ex.InnerException?.Message ?? ex.Message;
+            }
+        }
+        finally
+        {
+            if (shouldReleaseState && stateToken is not null)
+                ProcessedStates.TryRemove(stateToken, out _);
+
+            _loading = false;
+        }
     }
+
+    private static bool IsStateValidationFailure(string message)
+        => message.Contains("state", StringComparison.OrdinalIgnoreCase)
+           || (message.Contains("expired", StringComparison.OrdinalIgnoreCase)
+               && message.Contains("consent", StringComparison.OrdinalIgnoreCase));
 }
 

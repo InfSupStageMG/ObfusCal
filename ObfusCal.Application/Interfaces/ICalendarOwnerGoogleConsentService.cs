@@ -30,12 +30,12 @@ public interface ICalendarOwnerGoogleConsentService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Completes Google consent by extracting the calendar owner and instance IDs from the encrypted state parameter.
-    /// This is used in callback handlers where the IDs are not available in the request.
+    /// Completes Google consent by extracting the calendar owner, instance IDs, and redirect URI
+    /// from the encrypted state parameter. The redirect URI used at authorization start is embedded
+    /// in the state token, so callers do not need to supply it.
     /// </summary>
     Task CompleteConsentFromStateAsync(
         string authorizationCode,
-        string redirectUri,
         string state,
         CancellationToken ct = default);
 }

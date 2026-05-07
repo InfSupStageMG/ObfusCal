@@ -8,6 +8,7 @@ using Microsoft.OpenApi;
 using ObfusCal.Api.Authentication;
 using ObfusCal.Api.Authorization;
 using ObfusCal.Api.Components;
+using ObfusCal.Api.Controllers;
 using ObfusCal.Application;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure;
@@ -48,6 +49,9 @@ try
 
     builder.Services.AddAuthorization();
     builder.Services.AddScoped<CalendarOwnerAccessEvaluator>();
+    builder.Services.AddScoped(provider => new CalendarConsentServices(
+        provider.GetRequiredService<ICalendarOwnerGraphConsentService>(),
+        provider.GetRequiredService<ICalendarOwnerGoogleConsentService>()));
 
     builder.Services
         .AddControllers()

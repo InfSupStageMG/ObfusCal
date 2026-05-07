@@ -7,7 +7,6 @@ using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Infrastructure.Calendars;
 using ObfusCal.Infrastructure.Persistence;
-using ObfusCal.Infrastructure.Security;
 using ObfusCal.Tests.Helpers;
 
 namespace ObfusCal.Tests.Unit.Calendar;

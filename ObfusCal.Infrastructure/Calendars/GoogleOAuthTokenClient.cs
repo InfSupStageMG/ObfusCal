@@ -1,6 +1,7 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
@@ -11,7 +12,8 @@ internal sealed class GoogleOAuthTokenClient(
     HttpClient httpClient,
     ISecretProvider secretProvider,
     ILogRedactor logRedactor,
-    IOptions<GoogleConsentOptions> googleConsentOptions)
+    IOptions<GoogleConsentOptions> googleConsentOptions,
+    ILogger<GoogleOAuthTokenClient> logger)
     : IGoogleOAuthTokenClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -31,13 +33,13 @@ internal sealed class GoogleOAuthTokenClient(
             throw new InvalidOperationException("A valid absolute redirect URI is required to exchange Google consent.");
 
         var settings = BuildOAuthSettings();
+
         var form = new Dictionary<string, string>
         {
             ["grant_type"] = "authorization_code",
             ["client_id"] = settings.ClientId,
             ["code"] = authorizationCode,
-            ["redirect_uri"] = redirectUri,
-            ["scope"] = settings.Scope
+            ["redirect_uri"] = redirectUri
         };
 
         if (!string.IsNullOrWhiteSpace(settings.ClientSecret))
@@ -71,11 +73,12 @@ internal sealed class GoogleOAuthTokenClient(
         CancellationToken ct)
     {
         using var response = await httpClient.PostAsync(tokenEndpoint, new FormUrlEncodedContent(form), ct);
+
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync(ct);
-            throw new InvalidOperationException(
-                $"Google token exchange failed with HTTP {(int)response.StatusCode}: {logRedactor.Redact(body)}");
+            logger.LogError("Google token exchange failed with HTTP {StatusCode}: {ErrorBody}", (int)response.StatusCode, logRedactor.Redact(body));
+            throw new InvalidOperationException(BuildTokenExchangeFailureMessage((int)response.StatusCode, body, logRedactor.Redact(body)));
         }
 
         var payload = await response.Content.ReadFromJsonAsync<TokenResponse>(JsonOptions, ct)
@@ -101,10 +104,6 @@ internal sealed class GoogleOAuthTokenClient(
             ?? secretProvider.GetSecret(SecretKeys.GoogleConsentClientId)
             ?? throw new InvalidOperationException("GoogleConsent:ClientId is required. Set via environment variable GOOGLECONSENT__CLIENTID or configuration.");
 
-        var scope = googleConsentOptions.Value.Scope.Trim();
-        if (string.IsNullOrWhiteSpace(scope))
-            throw new InvalidOperationException("GoogleConsent:Scope is required.");
-
         var tokenEndpoint = googleConsentOptions.Value.TokenEndpoint.Trim();
         if (string.IsNullOrWhiteSpace(tokenEndpoint))
             throw new InvalidOperationException("GoogleConsent:TokenEndpoint is required.");
@@ -118,8 +117,34 @@ internal sealed class GoogleOAuthTokenClient(
         return new OAuthSettings(
             tokenEndpoint,
             clientId,
-            clientSecret,
-            scope);
+            clientSecret);
+    }
+
+    private static string BuildTokenExchangeFailureMessage(int statusCode, string body, string redactedBody)
+    {
+        try
+        {
+            using var json = JsonDocument.Parse(body);
+            var root = json.RootElement;
+            var error = root.TryGetProperty("error", out var errorProp) ? errorProp.GetString() : null;
+            var description = root.TryGetProperty("error_description", out var descriptionProp) ? descriptionProp.GetString() : null;
+
+            if (string.Equals(error, "invalid_grant", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Google token exchange failed with invalid_grant. The authorization code may be expired or already used, or the redirect URI did not exactly match the URI used during authorization.";
+            }
+
+            if (!string.IsNullOrWhiteSpace(error) || !string.IsNullOrWhiteSpace(description))
+            {
+                return $"Google token exchange failed with HTTP {statusCode}: error='{error}', description='{description}'.";
+            }
+        }
+        catch (JsonException)
+        {
+            // Keep the generic message when the provider does not return JSON.
+        }
+
+        return $"Google token exchange failed with HTTP {statusCode}: {redactedBody}";
     }
 
     private static bool IsPlaceholder(string? value)
@@ -139,6 +164,6 @@ internal sealed class GoogleOAuthTokenClient(
         [property: JsonPropertyName("expires_in")]
         int? ExpiresIn);
 
-    private sealed record OAuthSettings(string TokenEndpoint, string ClientId, string? ClientSecret, string Scope);
+    private sealed record OAuthSettings(string TokenEndpoint, string ClientId, string? ClientSecret);
 }
 
