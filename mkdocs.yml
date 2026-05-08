@@ -18,7 +18,7 @@ theme:
 nav:
   - Home: index.md
   - Guides:
-      - "13. iCloud CalDAV Setup": 13-icloud-caldav-setup.md
+      - "iCloud CalDAV Setup": icloud-caldav-setup.md
   - Architecture:
       - "1. Introduction & Goals": 01-introduction-goals.md
       - "2. Architecture Constraints": 02-architecture-constraints.md

@@ -1,4 +1,4 @@
-﻿# 13. iCloud CalDAV Setup Guide
+﻿# iCloud CalDAV Setup Guide
 
 This guide explains how to configure an iCloud calendar source in ObfusCal.
 
