@@ -239,6 +239,58 @@ public class AdminPeerConnectionsControllerTests
 
         Assert.AreEqual(HttpStatusCode.Unauthorized, unauthorizedResponse.StatusCode);
     }
+
+    [TestMethod]
+    public async Task Approve_ReturnsBadRequest_WhenPeerBaseUrlUsesHttpScheme()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+
+        var consultantObjectId = Guid.NewGuid().ToString();
+        await factory.SeedCalendarOwnerAsync(consultantObjectId);
+        using var consultantClient = factory.CreateAuthenticatedClient(consultantObjectId);
+
+        var requestResponse = await consultantClient.PostAsJsonAsync(
+            "/api/peer-connections/request",
+            new PeerConnectionsController.RequestPeerConnectionRequest("Contoso"),
+            TestContext.CancellationToken);
+        var requestJson = await requestResponse.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using var requestDocument = JsonDocument.Parse(requestJson);
+        var peerConnectionId = requestDocument.RootElement.GetProperty("id").GetGuid();
+
+        using var adminClient = factory.CreateAuthenticatedClientWithRoles(TestAuthHandler.DefaultObjectId, "Sysadmin");
+        var approveResponse = await adminClient.PostAsJsonAsync(
+            $"/api/admin/peer-connections/{peerConnectionId}/approve",
+            new AdminPeerConnectionsController.ApprovePeerConnectionRequest("http://peer.contoso.example"),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, approveResponse.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task Approve_ReturnsBadRequest_WhenPeerBaseUrlUsesPrivateIpHost()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+
+        var consultantObjectId = Guid.NewGuid().ToString();
+        await factory.SeedCalendarOwnerAsync(consultantObjectId);
+        using var consultantClient = factory.CreateAuthenticatedClient(consultantObjectId);
+
+        var requestResponse = await consultantClient.PostAsJsonAsync(
+            "/api/peer-connections/request",
+            new PeerConnectionsController.RequestPeerConnectionRequest("Contoso"),
+            TestContext.CancellationToken);
+        var requestJson = await requestResponse.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using var requestDocument = JsonDocument.Parse(requestJson);
+        var peerConnectionId = requestDocument.RootElement.GetProperty("id").GetGuid();
+
+        using var adminClient = factory.CreateAuthenticatedClientWithRoles(TestAuthHandler.DefaultObjectId, "Sysadmin");
+        var approveResponse = await adminClient.PostAsJsonAsync(
+            $"/api/admin/peer-connections/{peerConnectionId}/approve",
+            new AdminPeerConnectionsController.ApprovePeerConnectionRequest("https://10.0.0.9"),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, approveResponse.StatusCode);
+    }
 }
 
 

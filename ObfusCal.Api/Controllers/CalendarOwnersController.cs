@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
+using System.ComponentModel.DataAnnotations;
 using ObfusCal.Api.Authorization;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Application.UseCases.GetBusySlots;
@@ -38,16 +39,12 @@ public sealed class CalendarOwnersController(
     [HttpGet("{id}/busy-slots")]
     public async Task<IActionResult> GetBusySlots(
         Guid id,
-        [FromQuery] DateTimeOffset? from,
-        [FromQuery] DateTimeOffset? to,
+        [FromQuery] TimeWindowQuery query,
         CancellationToken ct)
     {
         var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
         if (accessResult is not null)
             return accessResult;
-
-        if (from is null || to is null)
-            return BadRequest("Query parameters 'from' and 'to' are required.");
 
         var sourceInstances = await calendarSourceInstanceService.ListAsync(id, ct);
         var enabledInstances = sourceInstances.Where(instance => instance.IsEnabled).ToList();
@@ -77,7 +74,7 @@ public sealed class CalendarOwnersController(
             }
         }
 
-        var result = await getBusySlotsUseCase.ExecuteAsync(new GetBusySlotsQuery(id, from.Value, to.Value), ct);
+        var result = await getBusySlotsUseCase.ExecuteAsync(new GetBusySlotsQuery(id, query.From!.Value, query.To!.Value), ct);
         return Ok(result);
     }
 
@@ -130,12 +127,6 @@ public sealed class CalendarOwnersController(
         var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
         if (accessResult is not null)
             return accessResult;
-
-        if (string.IsNullOrWhiteSpace(request.PluginId))
-            return BadRequest("'pluginId' is required.");
-
-        if (string.IsNullOrWhiteSpace(request.DisplayName))
-            return BadRequest("'displayName' is required.");
 
         try
         {
@@ -241,9 +232,6 @@ public sealed class CalendarOwnersController(
         if (accessResult is not null)
             return accessResult;
 
-        if (string.IsNullOrWhiteSpace(request.ProviderId))
-            return BadRequest("'providerId' is required.");
-
         try
         {
             var selection = await calendarSourceService.SetSelectionAsync(id, request.ProviderId, ct);
@@ -320,18 +308,18 @@ public sealed class CalendarOwnersController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetCalendarConsentUrl(Guid id, [FromQuery] string? redirectUri, CancellationToken ct)
+    public async Task<IActionResult> GetCalendarConsentUrl(Guid id, [FromQuery] RedirectUriQuery query, CancellationToken ct)
     {
         var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
         if (accessResult is not null)
             return accessResult;
 
-        if (string.IsNullOrWhiteSpace(redirectUri))
+        if (!Uri.TryCreate(query.RedirectUri, UriKind.Absolute, out _))
             return BadRequest(ValidRedirectReq);
 
         try
         {
-            var authorizationUrl = consentServices.Graph.BuildAuthorizationUrl(redirectUri);
+            var authorizationUrl = consentServices.Graph.BuildAuthorizationUrl(query.RedirectUri);
             return Ok(new CalendarConsentUrlResponse(authorizationUrl));
         }
         catch (InvalidOperationException ex)
@@ -354,19 +342,19 @@ public sealed class CalendarOwnersController(
     public async Task<IActionResult> GetCalendarConsentUrlForSource(
         Guid id,
         Guid sourceInstanceId,
-        [FromQuery] string? redirectUri,
+        [FromQuery] RedirectUriQuery query,
         CancellationToken ct)
     {
         var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
         if (accessResult is not null)
             return accessResult;
 
-        if (string.IsNullOrWhiteSpace(redirectUri))
+        if (!Uri.TryCreate(query.RedirectUri, UriKind.Absolute, out _))
             return BadRequest(ValidRedirectReq);
 
         try
         {
-            var authorizationUrl = await consentServices.Graph.BuildAuthorizationUrlAsync(id, sourceInstanceId, redirectUri, ct);
+            var authorizationUrl = await consentServices.Graph.BuildAuthorizationUrlAsync(id, sourceInstanceId, query.RedirectUri, ct);
             return Ok(new CalendarConsentUrlResponse(authorizationUrl));
         }
         catch (InvalidOperationException ex)
@@ -395,10 +383,7 @@ public sealed class CalendarOwnersController(
         if (accessResult is not null)
             return accessResult;
 
-        if (string.IsNullOrWhiteSpace(request.AuthorizationCode))
-            return BadRequest(AuthorizationCodeIsRequired);
-
-        if (string.IsNullOrWhiteSpace(request.RedirectUri) || !Uri.TryCreate(request.RedirectUri, UriKind.Absolute, out _))
+        if (!Uri.TryCreate(request.RedirectUri, UriKind.Absolute, out _))
             return BadRequest(ValidRedirectReq);
 
         try
@@ -433,10 +418,7 @@ public sealed class CalendarOwnersController(
         if (accessResult is not null)
             return accessResult;
 
-        if (string.IsNullOrWhiteSpace(request.AuthorizationCode))
-            return BadRequest(AuthorizationCodeIsRequired);
-
-        if (string.IsNullOrWhiteSpace(request.RedirectUri) || !Uri.TryCreate(request.RedirectUri, UriKind.Absolute, out _))
+        if (!Uri.TryCreate(request.RedirectUri, UriKind.Absolute, out _))
             return BadRequest(ValidRedirectReq);
 
         try
@@ -458,18 +440,14 @@ public sealed class CalendarOwnersController(
     [HttpGet("{id}/merged-freebusy")]
     public async Task<IActionResult> GetMergedFreeBusy(
         Guid id,
-        [FromQuery] DateTimeOffset? from,
-        [FromQuery] DateTimeOffset? to,
+        [FromQuery] TimeWindowQuery query,
         CancellationToken ct)
     {
         var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
         if (accessResult is not null)
             return accessResult;
 
-        if (from is null || to is null)
-            return BadRequest("Query parameters 'from' and 'to' are required.");
-
-        var result = await getMergedFreeBusyUseCase.ExecuteAsync(new GetMergedFreeBusyQuery(id, from.Value, to.Value), ct);
+        var result = await getMergedFreeBusyUseCase.ExecuteAsync(new GetMergedFreeBusyQuery(id, query.From!.Value, query.To!.Value), ct);
         return Ok(result);
     }
 
@@ -487,19 +465,7 @@ public sealed class CalendarOwnersController(
         if (accessResult is not null)
             return accessResult;
 
-        if (string.IsNullOrWhiteSpace(request.FeedUrl))
-            return BadRequest("'feedUrl' is required.");
-
-        if (!Uri.TryCreate(request.FeedUrl, UriKind.Absolute, out var feedUri))
-            return BadRequest("'feedUrl' must be a valid absolute URI.");
-
-        if (!string.Equals(feedUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(feedUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
-        {
-            return BadRequest("'feedUrl' must use the http or https scheme.");
-        }
-
-        var result = await calendarOwnerIcalFeedService.AddFeedAsync(id, feedUri.AbsoluteUri, ct);
+        var result = await calendarOwnerIcalFeedService.AddFeedAsync(id, request.FeedUrl, ct);
         return result.Outcome switch
         {
             AddCalendarOwnerIcalFeedOutcome.Added => Created(
@@ -512,6 +478,12 @@ public sealed class CalendarOwnersController(
                 Detail = "The provided feed URL is already configured for this calendar owner."
             }),
             AddCalendarOwnerIcalFeedOutcome.CalendarOwnerNotFound => NotFound(),
+            AddCalendarOwnerIcalFeedOutcome.InvalidUrl => BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Invalid or unsafe iCal feed URL.",
+                Detail = "Only public https URLs are allowed for iCal feeds."
+            }),
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
     }
@@ -574,9 +546,11 @@ public sealed class CalendarOwnersController(
 
     private sealed record CalendarConsentUrlResponse(string AuthorizationUrl);
 
-    public sealed record AddIcalFeedRequest(string FeedUrl);
+    public sealed record AddIcalFeedRequest(
+        [param: Required, MaxLength(2048)] string FeedUrl);
 
-    public sealed record SetCalendarProviderRequest(string ProviderId);
+    public sealed record SetCalendarProviderRequest(
+        [param: Required, MaxLength(64)] string ProviderId);
 
     private sealed record AddIcalFeedResponse(Guid Id, string FeedUrl);
 
@@ -599,18 +573,32 @@ public sealed class CalendarOwnersController(
         bool IsExternalPlugin);
 
 
-    public sealed record CompleteCalendarConsentRequest(string AuthorizationCode, string RedirectUri);
+    public sealed record CompleteCalendarConsentRequest(
+        [param: Required, MaxLength(4096)] string AuthorizationCode,
+        [param: Required, MaxLength(2048), Url] string RedirectUri);
 
     public sealed record CreateCalendarSourceInstanceRequest(
-        string PluginId,
-        string DisplayName,
+        [param: Required, MaxLength(64)] string PluginId,
+        [param: Required, MaxLength(128)] string DisplayName,
         string? ConfigurationJson,
         string? SecretDataJson,
         bool IsEnabled = true);
 
     public sealed record UpdateCalendarSourceInstanceRequest(
-        string? DisplayName,
+        [param: MaxLength(128)] string? DisplayName,
         string? ConfigurationJson,
         string? SecretDataJson,
         bool? IsEnabled);
+
+    public sealed record RedirectUriQuery(
+        [param: Required, MaxLength(2048), Url] string RedirectUri);
+
+    public sealed class TimeWindowQuery
+    {
+        [Required]
+        public DateTimeOffset? From { get; init; }
+
+        [Required]
+        public DateTimeOffset? To { get; init; }
+    }
 }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
 
@@ -9,6 +10,7 @@ internal sealed class CalendarSourceInstanceService(
     AppDbContext dbContext,
     ICalendarSourceCatalog catalog,
     ICalendarSourceSecretProtector secretProtector,
+    IUrlSafetyValidator urlSafetyValidator,
     IServiceProvider serviceProvider)
     : ICalendarSourceInstanceService, ICalendarSourceInstanceStore
 {
@@ -93,6 +95,8 @@ internal sealed class CalendarSourceInstanceService(
             ? plugin.DisplayName
             : input.DisplayName.Trim();
 
+        await ValidateIcalConfigurationAsync(plugin.Id, input.ConfigurationJson, ct);
+
         var instance = new CalendarSourceInstance
         {
             Id = Guid.NewGuid(),
@@ -140,7 +144,10 @@ internal sealed class CalendarSourceInstanceService(
             instance.DisplayName = string.IsNullOrWhiteSpace(input.DisplayName) ? instance.DisplayName : input.DisplayName.Trim();
 
         if (input.ConfigurationJson is not null)
+        {
+            await ValidateIcalConfigurationAsync(instance.PluginId, input.ConfigurationJson, ct);
             instance.ConfigurationJson = input.ConfigurationJson;
+        }
 
         if (input.SecretDataJson is not null)
             instance.SecretDataJson = secretProtector.Protect(input.SecretDataJson);
@@ -240,5 +247,38 @@ internal sealed class CalendarSourceInstanceService(
     }
 
     private static string NormalizePluginId(string pluginId) => pluginId.Trim().ToLowerInvariant();
+
+    private async Task ValidateIcalConfigurationAsync(string pluginId, string? configurationJson, CancellationToken ct)
+    {
+        if (!string.Equals(pluginId, "ical", StringComparison.Ordinal))
+            return;
+
+        if (string.IsNullOrWhiteSpace(configurationJson))
+            return;
+
+        string? feedUrl;
+        try
+        {
+            using var doc = JsonDocument.Parse(configurationJson);
+            if (!doc.RootElement.TryGetProperty("feedUrl", out var feedUrlProp)
+                && !doc.RootElement.TryGetProperty("FeedUrl", out feedUrlProp))
+            {
+                return;
+            }
+
+            feedUrl = feedUrlProp.GetString();
+        }
+        catch (JsonException)
+        {
+            throw new InvalidOperationException("iCal configuration JSON is invalid.");
+        }
+
+        if (string.IsNullOrWhiteSpace(feedUrl))
+            return;
+
+        var validation = await urlSafetyValidator.ValidateAsync(feedUrl, ct);
+        if (!validation.IsValid)
+            throw new InvalidOperationException($"iCal feed URL is invalid: {validation.Message}");
+    }
 }
 

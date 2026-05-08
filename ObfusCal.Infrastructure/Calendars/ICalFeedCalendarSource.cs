@@ -4,6 +4,7 @@ using System.Text.Json;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Domain.Models;
 using ObfusCal.Infrastructure.Persistence;
+using ObfusCal.Infrastructure.Security;
 
 namespace ObfusCal.Infrastructure.Calendars;
 
@@ -22,9 +23,21 @@ public sealed class IcalFeedCalendarSource(
     HttpClient httpClient,
     AppDbContext dbContext,
     MockCalendarSource fallbackSource,
+    IUrlSafetyValidator? urlSafetyValidator,
     ILogger<IcalFeedCalendarSource> logger)
     : ICalendarSource, ICalendarSourceReadinessEvaluator, ICalendarSourceInstanceHandler, ICalendarSourceInstanceReadinessEvaluator
 {
+    private readonly IUrlSafetyValidator effectiveUrlSafetyValidator = urlSafetyValidator ?? new UrlSafetyValidator();
+
+    public IcalFeedCalendarSource(
+        HttpClient httpClient,
+        AppDbContext dbContext,
+        MockCalendarSource fallbackSource,
+        ILogger<IcalFeedCalendarSource> logger)
+        : this(httpClient, dbContext, fallbackSource, null, logger)
+    {
+    }
+
     public async Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(DateTimeOffset from,
         DateTimeOffset to,
         Guid? calendarOwnerId = null,
@@ -107,26 +120,25 @@ public sealed class IcalFeedCalendarSource(
                 "Add at least one iCal feed before requesting busy slots from the iCal provider.");
     }
 
-    public Task<CalendarSourceReadiness> GetReadinessAsync(CalendarSourceInstanceContext instance, CancellationToken ct = default)
+    public async Task<CalendarSourceReadiness> GetReadinessAsync(CalendarSourceInstanceContext instance, CancellationToken ct = default)
     {
         var feedUrl = ParseFeedUrl(instance.ConfigurationJson);
         if (string.IsNullOrWhiteSpace(feedUrl))
         {
-            return Task.FromResult(CalendarSourceReadiness.NotReady(
+            return CalendarSourceReadiness.NotReady(
                 "iCal feed required.",
-                "Configure a feed URL for this iCal source instance."));
+                "Configure a feed URL for this iCal source instance.");
         }
 
-        if (!Uri.TryCreate(feedUrl, UriKind.Absolute, out var uri)
-            || (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+        var validation = await effectiveUrlSafetyValidator.ValidateAsync(feedUrl, ct);
+        if (!validation.IsValid)
         {
-            return Task.FromResult(CalendarSourceReadiness.NotReady(
+            return CalendarSourceReadiness.NotReady(
                 "iCal feed URL is invalid.",
-                "Use an absolute http or https feed URL."));
+                validation.Message);
         }
 
-        return Task.FromResult(CalendarSourceReadiness.Ready("iCal feed is configured."));
+        return CalendarSourceReadiness.Ready("iCal feed is configured.");
     }
 
     private async Task<IReadOnlyList<CalendarEvent>> FetchFeedEventsAsync(
@@ -134,14 +146,18 @@ public sealed class IcalFeedCalendarSource(
         Guid calendarOwnerId,
         CancellationToken ct)
     {
-        if (!Uri.TryCreate(feedUrl, UriKind.Absolute, out var feedUri))
+        var validation = await effectiveUrlSafetyValidator.ValidateAsync(feedUrl, ct);
+        if (!validation.IsValid)
         {
             logger.LogWarning(
-                "Calendar owner {CalendarOwnerId} has an invalid iCal feed URL: {FeedUrl}.",
+                "Calendar owner {CalendarOwnerId} has an unsafe iCal feed URL: {FeedUrl}. Reason: {Reason}",
                 calendarOwnerId,
-                feedUrl);
+                feedUrl,
+                validation.Message);
             return [];
         }
+
+        var feedUri = new Uri(feedUrl, UriKind.Absolute);
 
         try
         {

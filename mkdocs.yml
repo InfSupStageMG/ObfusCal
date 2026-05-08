@@ -41,6 +41,7 @@ nav:
           - "0008: Project Structure": adr/0008-project-structure.md
           - "0009: Blazor Server GUI": adr/0009-blazor-server-gui.md
           - "0010: Fluent UI Component Library": adr/0010-fluentui-blazor-component-library.md
+          - "0011: Input Validation Strategy": adr/0011-input-validation-strategy.md
 
       - "10. Quality Requirements": 10-quality-requirements.md
       - "11. Risks & Technical Debt": 11-risks-technical-debt.md

@@ -23,7 +23,8 @@ public enum AddCalendarOwnerIcalFeedOutcome
 {
     Added,
     Duplicate,
-    CalendarOwnerNotFound
+    CalendarOwnerNotFound,
+    InvalidUrl
 }
 
 public sealed record AddCalendarOwnerIcalFeedResult(

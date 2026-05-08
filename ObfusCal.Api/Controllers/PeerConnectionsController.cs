@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
+using System.ComponentModel.DataAnnotations;
 using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Controllers;
@@ -20,9 +21,6 @@ public sealed class PeerConnectionsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> RequestPeerConnection([FromBody] RequestPeerConnectionRequest request, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.ClientOrganisationName))
-            return BadRequest("'clientOrganisationName' is required.");
-
         var calendarOwnerScope = await ResolveCalendarOwnerScopeAsync(ct);
         if (calendarOwnerScope is null)
             return Unauthorized();
@@ -73,7 +71,8 @@ public sealed class PeerConnectionsController(
         return await calendarOwnerScopeResolver.FindByEntraObjectIdAsync(objectId, ct);
     }
 
-    public sealed record RequestPeerConnectionRequest(string ClientOrganisationName);
+    public sealed record RequestPeerConnectionRequest(
+        [param: Required, MaxLength(128)] string ClientOrganisationName);
 
     private sealed record CreatePeerConnectionRequestResponse(Guid Id);
 

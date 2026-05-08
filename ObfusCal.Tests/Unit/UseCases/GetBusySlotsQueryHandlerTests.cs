@@ -1,7 +1,10 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Application.Obfuscation;
 using ObfusCal.Application.UseCases.GetBusySlots;
+using ObfusCal.Application.UseCases.Validation;
 using ObfusCal.Domain.Models;
 using ObfusCal.Domain.Obfuscation;
 
@@ -85,9 +88,26 @@ public class GetBusySlotsQueryHandlerTests
         Assert.HasCount(3, result);
     }
 
+    [TestMethod]
+    public async Task Handle_ThrowsRequestValidationException_WhenWindowExceedsConfiguredLimit()
+    {
+        var handler = CreateHandler([], maxQueryWindowDays: 1);
+
+        try
+        {
+            await handler.ExecuteAsync(new GetBusySlotsQuery(OwnerId, From, From.AddDays(2)), CancellationToken.None);
+            Assert.Fail("Expected RequestValidationException for oversized query window.");
+        }
+        catch (RequestValidationException)
+        {
+            // Expected.
+        }
+    }
+
     private static GetBusySlotsUseCase CreateHandler(
         IReadOnlyList<CalendarEvent> events,
-        FakeObfuscationProfileService? profileService = null)
+        FakeObfuscationProfileService? profileService = null,
+        int maxQueryWindowDays = 90)
     {
         var calendarSource = new FakeCalendarSource(events);
         profileService ??= new FakeObfuscationProfileService();
@@ -99,6 +119,7 @@ public class GetBusySlotsQueryHandlerTests
 
         return new GetBusySlotsUseCase(
             new FixedCalendarSourceResolver(calendarSource), pipeline, profileService,
+            Options.Create(new SyncOptions { MaxQueryWindowDays = maxQueryWindowDays }),
             NullLogger<GetBusySlotsUseCase>.Instance);
     }
 

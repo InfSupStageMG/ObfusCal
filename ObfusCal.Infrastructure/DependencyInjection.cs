@@ -42,6 +42,7 @@ public static class DependencyInjection
         services.AddSingleton<ILogRedactor, DefaultLogRedactor>();
         services.AddSingleton<ICalendarSourceSecretProtector, CalendarSourceSecretProtector>();
         services.AddSingleton<ISyncRuntimeOptionsProvider, SyncRuntimeOptionsProvider>();
+        services.AddSingleton<IUrlSafetyValidator, UrlSafetyValidator>();
         services.AddSingleton<SecretStartupValidator>();
 
         services.Configure<SecretValidationOptions>(options =>

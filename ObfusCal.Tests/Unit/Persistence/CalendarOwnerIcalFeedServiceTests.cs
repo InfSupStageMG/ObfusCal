@@ -13,7 +13,16 @@ public class CalendarOwnerIcalFeedServiceTests
         var ownerId = Guid.NewGuid();
         db.CalendarOwners.Add(new CalendarOwner { Id = ownerId, Name = "Test" });
         db.SaveChanges();
-        return (new CalendarOwnerIcalFeedService(db), db, ownerId);
+        return (new CalendarOwnerIcalFeedService(db, new PermissiveUrlSafetyValidator()), db, ownerId);
+    }
+
+    private static (CalendarOwnerIcalFeedService svc, Guid ownerId) SetupRejectingUrls()
+    {
+        var db = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        db.CalendarOwners.Add(new CalendarOwner { Id = ownerId, Name = "Test" });
+        db.SaveChanges();
+        return (new CalendarOwnerIcalFeedService(db, new RejectingUrlSafetyValidator()), ownerId);
     }
 
     [TestMethod]
@@ -139,6 +148,16 @@ public class CalendarOwnerIcalFeedServiceTests
     }
 
     [TestMethod]
+    public async Task AddFeedAsync_ReturnsInvalidUrl_WhenUrlValidatorRejectsInput()
+    {
+        var (svc, ownerId) = SetupRejectingUrls();
+
+        var result = await svc.AddFeedAsync(ownerId, "https://127.0.0.1/feed.ics");
+
+        Assert.AreEqual(AddCalendarOwnerIcalFeedOutcome.InvalidUrl, result.Outcome);
+    }
+
+    [TestMethod]
     public async Task DeleteFeedAsync_ReturnsNotFound_WhenDifferentOwnerIdProvided()
     {
         var (svc, _, _) = Setup();
@@ -171,6 +190,28 @@ public class CalendarOwnerIcalFeedServiceTests
         // Correct combination should work
         var result3 = await svc.DeleteFeedAsync(ownerA, feedA.FeedId!.Value);
         Assert.AreEqual(DeleteCalendarOwnerIcalFeedOutcome.Deleted, result3.Outcome);
+    }
+
+    private sealed class PermissiveUrlSafetyValidator : IUrlSafetyValidator
+    {
+        public Task<UrlSafetyValidationResult> ValidateAsync(string url, CancellationToken ct = default) =>
+            Task.FromResult(UrlSafetyValidationResult.Success());
+
+        public Task<UrlSafetyValidationResult> ValidateAsync(Uri uri, CancellationToken ct = default) =>
+            Task.FromResult(UrlSafetyValidationResult.Success());
+    }
+
+    private sealed class RejectingUrlSafetyValidator : IUrlSafetyValidator
+    {
+        public Task<UrlSafetyValidationResult> ValidateAsync(string url, CancellationToken ct = default) =>
+            Task.FromResult(UrlSafetyValidationResult.Fail(
+                UrlSafetyValidationError.PrivateNetworkHost,
+                "Private hosts are blocked."));
+
+        public Task<UrlSafetyValidationResult> ValidateAsync(Uri uri, CancellationToken ct = default) =>
+            Task.FromResult(UrlSafetyValidationResult.Fail(
+                UrlSafetyValidationError.PrivateNetworkHost,
+                "Private hosts are blocked."));
     }
 }
 

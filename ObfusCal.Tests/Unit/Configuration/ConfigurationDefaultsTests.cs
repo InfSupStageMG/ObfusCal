@@ -15,6 +15,8 @@ public class ConfigurationDefaultsTests
         Assert.AreEqual(900, options.SyncIntervalSeconds);
         Assert.AreEqual(14, options.LookAheadDays);
         Assert.AreEqual(300, options.PeerRequestTimestampToleranceSeconds);
+        Assert.AreEqual(90, options.MaxQueryWindowDays);
+        Assert.AreEqual(500, options.MaxShadowSlotsPerRequest);
     }
 
     [TestMethod]

@@ -1,6 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Application.Obfuscation;
+using ObfusCal.Application.UseCases.Validation;
 
 namespace ObfusCal.Application.UseCases.GetMergedFreeBusy;
 
@@ -10,11 +13,14 @@ public sealed class GetMergedFreeBusyUseCase(
     ObfuscationPipeline obfuscationPipeline,
     IShadowSlotStore shadowSlotStore,
     ICalendarOwnerObfuscationProfileService obfuscationProfileService,
+    IOptions<SyncOptions> syncOptions,
     ILogger<GetMergedFreeBusyUseCase> logger)
     : IGetMergedFreeBusyUseCase
 {
     public async Task<IReadOnlyList<MergedFreeBusyResponse>> ExecuteAsync(GetMergedFreeBusyQuery query, CancellationToken cancellationToken)
     {
+        ValidateWindow(query, syncOptions.Value.MaxQueryWindowDays);
+
         var ownBusySlots = await availabilitySlotStore.GetSlotsAsync(
             query.CalendarOwnerId,
             query.From,
@@ -69,6 +75,20 @@ public sealed class GetMergedFreeBusyUseCase(
             mergedSlots.Count);
 
         return mergedSlots;
+    }
+
+    private static void ValidateWindow(GetMergedFreeBusyQuery query, int configuredMaxWindowDays)
+    {
+        if (query.To <= query.From)
+            throw new RequestValidationException("to", "'to' must be greater than 'from'.");
+
+        var maxWindowDays = Math.Max(1, configuredMaxWindowDays);
+        if (query.To - query.From > TimeSpan.FromDays(maxWindowDays))
+        {
+            throw new RequestValidationException(
+                "to",
+                $"The requested window exceeds the maximum of {maxWindowDays} day(s).");
+        }
     }
 }
 

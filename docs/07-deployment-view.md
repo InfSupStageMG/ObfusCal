@@ -53,6 +53,9 @@ podman compose up -d --build
 The `docker-compose.yaml` at the repository root wires the API to PostgreSQL and waits for a healthy DB before starting
 the API container.
 
+The API container remains single-purpose for the API process. Runtime still depends on external infrastructure
+(PostgreSQL, TLS key material, and environment-provided secrets).
+
 For local API-only debugging, start PostgreSQL first and then run `dotnet run --project ObfusCal.Api` outside
 containers.
 
@@ -79,6 +82,8 @@ containers.
 | `Sync__ApiKey`                                        | Shared API key used for peer sync authentication                                      |
 | `Sync__PeerRequestTimestampToleranceSeconds`          | Replay window tolerance for `X-Peer-Timestamp` (default `300`)                        |
 | `Sync__SyncIntervalSeconds`                           | How often the background sync runs (default: `900` = 15 minutes)                      |
+| `Sync__MaxQueryWindowDays`                            | Maximum allowed inbound query window in days for busy/free-busy endpoints (default `90`) |
+| `Sync__MaxShadowSlotsPerRequest`                      | Maximum allowed shadow slots in one push payload (default `500`)                      |
 | `Secrets__Provider`                                   | Secret provider mode (`Environment` default, `External` stub)                         |
 
 At startup, ObfusCal validates required secrets and fails fast with a descriptive error when one is missing.
