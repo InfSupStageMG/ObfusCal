@@ -17,7 +17,7 @@ RUN dotnet publish ObfusCal.Api -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
-LABEL maintainer="Matthias Hendrickx - Gijs Pennings @ InfoSupport"
+LABEL maintainer="Matthias Hendrickx - Gijs Pennings @ InternshipCompany"
 LABEL org.opencontainers.image.description="ObfusCal API"
 
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*

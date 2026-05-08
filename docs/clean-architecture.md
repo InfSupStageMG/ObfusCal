@@ -1,14 +1,17 @@
 # Clean Architecture - Project Structure & Rules
 
-This document defines the architectural conventions for this codebase. It is intended for both human developers and AI assistants working on the project. All contributions must adhere to these rules.
+This document defines the architectural conventions for this codebase. It is intended for both human developers and AI
+assistants working on the project. All contributions must adhere to these rules.
 
-> This is a **target architecture guide** for ObfusCal. Some examples describe the desired end state, not the current implementation.
+> This is a **target architecture guide** for ObfusCal. Some examples describe the desired end state, not the current
+> implementation.
 
 ---
 
 ## Overview
 
-This project follows **Clean Architecture** as described by Robert C. Martin. The core principle is the **Dependency Rule**:
+This project follows **Clean Architecture** as described by Robert C. Martin. The core principle is the **Dependency
+Rule**:
 
 > Source code dependencies may only point **inward**. An inner layer must never reference anything from an outer layer.
 
@@ -48,8 +51,8 @@ tests/
 └── ObfusCal.Integration.Tests/
 ```
 
-Current repository projects are `ObfusCal.Domain`, `ObfusCal.Application`, `ObfusCal.Infrastructure`, `ObfusCal.Api`, and
-`ObfusCal.Tests`.
+Current repository projects are `ObfusCal.Domain`, `ObfusCal.Application`, `ObfusCal.Infrastructure`, `ObfusCal.Api`,
+and `ObfusCal.Tests`.
 
 ---
 
@@ -60,12 +63,14 @@ Current repository projects are `ObfusCal.Domain`, `ObfusCal.Application`, `Obfu
 **The innermost layer. Contains all enterprise business rules.**
 
 #### Rules
+
 - Has **zero external NuGet dependencies**. Only the .NET BCL is allowed.
 - Contains no references to any other project in the solution.
 - All business logic that is intrinsic to the domain (invariants, rules, state transitions) lives here and nowhere else.
 - Never references EF Core, ASP.NET, or any framework.
 
 #### Allowed contents
+
 - **Entities / aggregates** - e.g., `CalendarOwner`, `SyncPeer`, `ShadowSlotBatch`.
 - **Value objects** - e.g., `BusyWindow`, `CalendarOwnerId`, `PeerId`.
 - **Domain events** - e.g., `BusySlotsObfuscatedEvent`, `ShadowSlotsPushedEvent`.
@@ -139,6 +144,7 @@ public static class CalendarOwnerErrors
 **Orchestrates domain objects to fulfill use cases. Contains no business logic of its own.**
 
 #### Rules
+
 - References only `ObfusCal.Domain`. Never references `Infrastructure` or `Api`.
 - Defines **interfaces** for external dependencies (calendar providers, storage, clock, peer directory).
 - Organizes use cases using **CQRS**: commands mutate state, queries read state.
@@ -146,6 +152,7 @@ public static class CalendarOwnerErrors
 - Uses explicit hand-written mappings (no AutoMapper).
 
 #### Allowed contents
+
 - **Commands and command handlers** - e.g., push incoming shadow slots.
 - **Queries and query handlers** - e.g., get merged free/busy view.
 - **Validators** - one per command/query.
@@ -155,6 +162,7 @@ public static class CalendarOwnerErrors
 - **Domain event handlers**.
 
 #### Forbidden contents
+
 - EF Core, SQL, or persistence implementation details.
 - Direct HTTP clients or SDK usage.
 - References to `Infrastructure` or `Api` projects.
@@ -257,6 +265,7 @@ public interface IShadowSlotStore
 **Implements all interfaces defined in Application. Contains all framework and I/O concerns.**
 
 #### Rules
+
 - References both `ObfusCal.Domain` and `ObfusCal.Application`.
 - Is not referenced from feature code in `ObfusCal.Api`; wiring happens at composition root (`Program.cs`).
 - Classes in this layer primarily exist to implement Application abstractions.
@@ -264,6 +273,7 @@ public interface IShadowSlotStore
 - External service clients (calendar APIs, HTTP peers, storage) live here.
 
 #### Allowed contents
+
 - **DbContext** and EF Core mappings.
 - **Migrations**.
 - **Repository/storage implementations**.
@@ -273,6 +283,7 @@ public interface IShadowSlotStore
 - **`DependencyInjection.cs`** extension method (target end state).
 
 #### Forbidden contents
+
 - Business logic.
 - Direct references to `ObfusCal.Api` feature code.
 - Use-case orchestration.
@@ -337,18 +348,21 @@ public static class DependencyInjection
 **The entry point of the application. Translates HTTP to application commands/queries and back.**
 
 #### Rules
+
 - References only `ObfusCal.Application` in the target architecture.
 - The composition root (`Program.cs`) is the place where Application and Infrastructure meet.
 - Controllers/endpoints are thin: receive input, dispatch command/query, translate result.
 - Validation is handled in Application via pipeline behaviors.
 
 #### Allowed contents
+
 - Controllers or Minimal APIs.
 - Middleware (exception handling, request logging, correlation IDs).
 - `Program.cs` composition root.
 - Result-to-ProblemDetails mapping extensions.
 
 #### Forbidden contents
+
 - Business logic.
 - Direct database access.
 - Domain entity construction in controllers.
@@ -421,7 +435,8 @@ ObfusCal.Infrastructure
     └──► ObfusCal.Domain        (persists and reads entities/value objects)
 ```
 
-`ObfusCal.Api` and `ObfusCal.Infrastructure` should not depend on each other's feature code. They connect at runtime through DI.
+`ObfusCal.Api` and `ObfusCal.Infrastructure` should not depend on each other's feature code. They connect at runtime
+through DI.
 
 ---
 
@@ -459,11 +474,11 @@ Use a `Result<T>` / `Error` pattern throughout. Never use exceptions to communic
 
 Each layer should have a dedicated test project and strategy.
 
-| Layer | Test project | Strategy |
-|---|---|---|
-| Domain | `ObfusCal.Domain.Tests` | Pure unit tests for invariants and value objects. |
+| Layer       | Test project                 | Strategy                                                                   |
+|-------------|------------------------------|----------------------------------------------------------------------------|
+| Domain      | `ObfusCal.Domain.Tests`      | Pure unit tests for invariants and value objects.                          |
 | Application | `ObfusCal.Application.Tests` | Unit tests with mocked interfaces (`ICalendarSource`, `IShadowSlotStore`). |
-| Integration | `ObfusCal.Integration.Tests` | End-to-end HTTP tests via `WebApplicationFactory<Program>`. |
+| Integration | `ObfusCal.Integration.Tests` | End-to-end HTTP tests via `WebApplicationFactory<Program>`.                |
 
 Current state: tests are centralized in `ObfusCal.Tests`. Split by layer incrementally while preserving coverage.
 
@@ -471,16 +486,16 @@ Current state: tests are centralized in `ObfusCal.Tests`. Split by layer increme
 
 ## NuGet Package Ownership by Layer
 
-| Package | Allowed in |
-|---|---|
-| *(none)* | Domain |
-| Microsoft.Extensions.DependencyInjection.Abstractions | Application |
-| Entity Framework Core | Infrastructure |
-| Npgsql.EntityFrameworkCore.PostgreSQL | Infrastructure |
-| Serilog | Infrastructure |
-| Calendar provider SDKs / HTTP clients | Infrastructure |
-| Microsoft.AspNetCore | Api |
-| Swashbuckle | Api |
+| Package                                               | Allowed in     |
+|-------------------------------------------------------|----------------|
+| *(none)*                                              | Domain         |
+| Microsoft.Extensions.DependencyInjection.Abstractions | Application    |
+| Entity Framework Core                                 | Infrastructure |
+| Npgsql.EntityFrameworkCore.PostgreSQL                 | Infrastructure |
+| Serilog                                               | Infrastructure |
+| Calendar provider SDKs / HTTP clients                 | Infrastructure |
+| Microsoft.AspNetCore                                  | Api            |
+| Swashbuckle                                           | Api            |
 
 If you want to add a NuGet package to `ObfusCal.Domain`, stop and reconsider first.
 
@@ -488,15 +503,15 @@ If you want to add a NuGet package to `ObfusCal.Domain`, stop and reconsider fir
 
 ## Rules Summary
 
-| Rule | Detail |
-|---|---|
-| **Dependency direction** | Always inward. Never outward. |
-| **Domain has no dependencies** | Zero external NuGet packages. Zero project references. |
-| **Interfaces in Application** | Repository/service interfaces are defined in `Application`, implemented in `Infrastructure`. |
-| **Infrastructure not used directly in Api features** | They meet at the composition root in `Program.cs`. |
-| **No logic in controllers** | Controllers dispatch commands/queries and map results. |
-| **No business logic in Application** | Handlers orchestrate; domain rules stay in domain. |
-| **No persistence in Application** | Handlers call abstractions, never EF/SQL directly. |
-| **Result pattern, not exceptions** | Business rule violations return `Result.Failure(error)`. |
-| **One handler per use case** | Every command/query has one handler. |
-| **Validators in Application** | One validator per command/query, executed via pipeline. |
+| Rule                                                 | Detail                                                                                       |
+|------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| **Dependency direction**                             | Always inward. Never outward.                                                                |
+| **Domain has no dependencies**                       | Zero external NuGet packages. Zero project references.                                       |
+| **Interfaces in Application**                        | Repository/service interfaces are defined in `Application`, implemented in `Infrastructure`. |
+| **Infrastructure not used directly in Api features** | They meet at the composition root in `Program.cs`.                                           |
+| **No logic in controllers**                          | Controllers dispatch commands/queries and map results.                                       |
+| **No business logic in Application**                 | Handlers orchestrate; domain rules stay in domain.                                           |
+| **No persistence in Application**                    | Handlers call abstractions, never EF/SQL directly.                                           |
+| **Result pattern, not exceptions**                   | Business rule violations return `Result.Failure(error)`.                                     |
+| **One handler per use case**                         | Every command/query has one handler.                                                         |
+| **Validators in Application**                        | One validator per command/query, executed via pipeline.                                      |

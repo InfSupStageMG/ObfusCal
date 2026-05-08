@@ -11,7 +11,7 @@
 | **ICalendarSource**         | The core interface for all calendar input mechanisms (e.g., Graph API, iCal). It decouples the obfuscation pipeline from specific calendar providers.                        |
 | **IObfuscationTransformer** | A single, chainable step in the obfuscation pipeline (e.g., remove title, round times) that transforms a `CalendarEvent`.                                                    |
 | **IBusySlotTransformer**    | A post-processing transformer for busy slots (e.g., merge overlapping or adjacent blocks).                                                                                   |
-| **Instance**                | A single server deployment of the ObfusCal application (e.g., the Info Support server or a client server).                                                                   |
+| **Instance**                | A single server deployment of the ObfusCal application (e.g., the internship company server or a client server).                                                             |
 | **IShadowSlotStore**        | The storage layer for shadow slots received from peer instances. Data is isolated by peer ID and populated only via inbound sync calls.                                      |
 | **Merge**                   | Combining multiple calendar blocks into fewer, larger blocks to hide meeting patterns and prevent duration fingerprinting.                                                   |
 | **ObfuscationPipeline**     | The in-memory service that acts as a privacy gatekeeper, passing raw `CalendarEvent`s through transformer steps to produce safe `BusySlot`s.                                 |

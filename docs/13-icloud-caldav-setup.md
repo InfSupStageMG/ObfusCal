@@ -24,9 +24,9 @@ Important: Apple shows this password only once. You cannot retrieve the same val
 3. Search/filter for `collections`.
 4. In the calendar UI, deselect and reselect the calendar you want to connect.
 5. In matching requests, collect these parts:
-   - `p` shard code in the hostname (for example `p123` from `p123-caldav.icloud.com`)
-   - `dsid` segment in the request path
-   - calendar identifier in the path (GUID-like value, usually `8-4-4-4-12` format)
+    - `p` shard code in the hostname (for example `p123` from `p123-caldav.icloud.com`)
+    - `dsid` segment in the request path
+    - calendar identifier in the path (GUID-like value, usually `8-4-4-4-12` format)
 
 Tip: the calendar identifier is often visible in the request path under a `calendars` segment.
 
@@ -37,6 +37,7 @@ Build the full calendar URL like this:
 `https://p***-caldav.icloud.com/<dsid>/calendars/<calendar-id>/`
 
 Where:
+
 - `p***` is your shard code
 - `<dsid>` is your DSID segment
 - `<calendar-id>` is your calendar identifier
@@ -46,6 +47,7 @@ Keep the trailing slash.
 ## 4) Enter values in ObfusCal
 
 In the iCloud source configuration, enter:
+
 - Calendar URL: the full URL from step 3
 - Apple ID: your Apple ID email
 - App-specific password: the value from step 1
@@ -56,7 +58,8 @@ Then save and run a sync/readiness check.
 
 - `401` or `403`: usually wrong Apple ID/password pair, or app-specific password is invalid.
 - `400`: often an invalid/incomplete CalDAV URL path. Verify shard, DSID, calendar ID, and trailing slash.
-- `The payload was invalid`: encrypted credentials cannot be decrypted in current environment. Re-save the iCloud configuration.
+- `The payload was invalid`: encrypted credentials cannot be decrypted in current environment. Re-save the iCloud
+  configuration.
 
 ## Security notes
 

@@ -16,8 +16,8 @@ output (`BusySlot`) is persisted.
 
 ## Security
 
-**Human authentication:** All user-facing access is secured via Single Sign-On through Info Support's Entra ID (Azure
-AD) using OpenID Connect. This automatically inherits existing conditional access policies including MFA.
+**Human authentication:** All user-facing access is secured via Single Sign-On through internship company's Entra ID (
+Azure AD) using OpenID Connect. This automatically inherits existing conditional access policies including MFA.
 
 **Sysadmin authorization:** Administrative peer-management endpoints under `/api/admin/*` require the Entra ID app role
 `Sysadmin`. Authenticated users without that role receive `403 Forbidden`.
@@ -36,7 +36,6 @@ and blocks authentication immediately.
 scope checks per endpoint (`push_shadow_slots` for `POST /api/shadow-slots`, `pull_busy_slots` for
 `GET /api/sync/busy-slots/{calendarOwnerRef}`). Peer sync requests include `X-Peer-Timestamp` and are accepted only
 within `Sync:PeerRequestTimestampToleranceSeconds` (default 300 seconds) to limit naive replay attacks.
-
 
 **Credential encryption and key persistence:** Microsoft Graph OAuth refresh tokens and iCloud credentials are encrypted
 at rest using the .NET Data Protection API (DPAPI) before being written to the database. A database breach yields only

@@ -38,7 +38,8 @@ Before starting the containers:
 
 1. Ensure certificates exist under `certs/nginx` and `certs/api` (see `certs/README.md`).
 2. Create a `.env` file from `.env.example` with PostgreSQL, API certificate, and application secret placeholders.
-3. Ensure the Entra ID app role `Sysadmin` exists on the API app registration and is assigned to designated administrators.
+3. Ensure the Entra ID app role `Sysadmin` exists on the API app registration and is assigned to designated
+   administrators.
 
 Bring up a full instance (reverse proxy + API + PostgreSQL):
 
@@ -58,28 +59,28 @@ containers.
 
 ## Environment Variables
 
-| Variable                                              | Purpose                                                                               |
-|-------------------------------------------------------|---------------------------------------------------------------------------------------|
-| `ASPNETCORE_ENVIRONMENT`                              | Set to `Development` for Swagger UI; `Production` for live deployments                |
-| `ASPNETCORE_URLS`                                     | Kestrel listen URL inside the container (e.g. `https://+:8443`)                       |
-| `ASPNETCORE_Kestrel__Certificates__Default__Path`     | Path to the PFX certificate file mounted into the container                           |
-| `ASPNETCORE_Kestrel__Certificates__Default__Password` | Password for the PFX certificate (sourced from `.env`)                                |
-| `API_CERT_PASSWORD`                                   | Passed to `docker compose` via `.env`; sets the Kestrel cert password                 |
-| `DATAPROTECTION_KEYS_PATH`                            | Path where DataProtection keys are persisted (default: `/dataprotection/keys`)        |
-| `PeerConnections.ApiKeyHash` (database)               | Salted PBKDF2-SHA256 hash of peer API keys used by peer authentication                 |
-| `PeerConnections.Scopes` (database)                   | Space-separated peer scopes (`push_shadow_slots`, `pull_busy_slots`)                   |
-| `PeerConnections.RevokedAt` (database)                | Revocation timestamp; non-null peers are rejected by peer authentication                |
-| `ConnectionStrings__DefaultConnection`                | PostgreSQL connection string (required at startup)                                    |
-| `AzureAd__TenantId`                                   | Entra tenant ID (required at startup)                                                 |
-| `AzureAd__ClientId`                                   | Entra app/client ID (required at startup)                                             |
-| `GraphConsent__ClientId`                              | Microsoft Graph consent client ID (required at startup)                               |
-| `GraphConsent__ClientSecret`                          | Microsoft Graph consent client secret (optional depending on tenant app registration) |
+| Variable                                              | Purpose                                                                                        |
+|-------------------------------------------------------|------------------------------------------------------------------------------------------------|
+| `ASPNETCORE_ENVIRONMENT`                              | Set to `Development` for Swagger UI; `Production` for live deployments                         |
+| `ASPNETCORE_URLS`                                     | Kestrel listen URL inside the container (e.g. `https://+:8443`)                                |
+| `ASPNETCORE_Kestrel__Certificates__Default__Path`     | Path to the PFX certificate file mounted into the container                                    |
+| `ASPNETCORE_Kestrel__Certificates__Default__Password` | Password for the PFX certificate (sourced from `.env`)                                         |
+| `API_CERT_PASSWORD`                                   | Passed to `docker compose` via `.env`; sets the Kestrel cert password                          |
+| `DATAPROTECTION_KEYS_PATH`                            | Path where DataProtection keys are persisted (default: `/dataprotection/keys`)                 |
+| `PeerConnections.ApiKeyHash` (database)               | Salted PBKDF2-SHA256 hash of peer API keys used by peer authentication                         |
+| `PeerConnections.Scopes` (database)                   | Space-separated peer scopes (`push_shadow_slots`, `pull_busy_slots`)                           |
+| `PeerConnections.RevokedAt` (database)                | Revocation timestamp; non-null peers are rejected by peer authentication                       |
+| `ConnectionStrings__DefaultConnection`                | PostgreSQL connection string (required at startup)                                             |
+| `AzureAd__TenantId`                                   | Entra tenant ID (required at startup)                                                          |
+| `AzureAd__ClientId`                                   | Entra app/client ID (required at startup)                                                      |
+| `GraphConsent__ClientId`                              | Microsoft Graph consent client ID (required at startup)                                        |
+| `GraphConsent__ClientSecret`                          | Microsoft Graph consent client secret (optional depending on tenant app registration)          |
 | `GoogleConsent__RedirectUri`                          | Optional Google OAuth callback override; must exactly match the URI registered in Google Cloud |
-| `Sync__InstanceId`                                    | Local instance identifier used in peer sync headers                                   |
-| `Sync__ApiKey`                                        | Shared API key used for peer sync authentication                                      |
-| `Sync__PeerRequestTimestampToleranceSeconds`          | Replay window tolerance for `X-Peer-Timestamp` (default `300`)                        |
-| `Sync__SyncIntervalSeconds`                           | How often the background sync runs (default: `900` = 15 minutes)                      |
-| `Secrets__Provider`                                   | Secret provider mode (`Environment` default, `External` stub)                         |
+| `Sync__InstanceId`                                    | Local instance identifier used in peer sync headers                                            |
+| `Sync__ApiKey`                                        | Shared API key used for peer sync authentication                                               |
+| `Sync__PeerRequestTimestampToleranceSeconds`          | Replay window tolerance for `X-Peer-Timestamp` (default `300`)                                 |
+| `Sync__SyncIntervalSeconds`                           | How often the background sync runs (default: `900` = 15 minutes)                               |
+| `Secrets__Provider`                                   | Secret provider mode (`Environment` default, `External` stub)                                  |
 
 At startup, ObfusCal validates required secrets and fails fast with a descriptive error when one is missing.
 
@@ -120,9 +121,9 @@ docker compose up -d --build
 
 ## PoC vs Production Differences
 
-| Concern | PoC                                             | Production                                           |
-|---------|-------------------------------------------------|------------------------------------------------------|
-| Storage | In-memory shadow-slot store                     | PostgreSQL via EF Core                               |
-| TLS     | Terminated at nginx sidecar (self-signed)       | Terminated at reverse proxy with valid cert          |
-| Auth    | API key + scope + timestamp replay checks + Entra ID OIDC | Strong peer auth + Entra ID OIDC              |
-| Secrets | `ISecretProvider` using env/config placeholders | `ISecretProvider` with external secret store backend |
+| Concern | PoC                                                       | Production                                           |
+|---------|-----------------------------------------------------------|------------------------------------------------------|
+| Storage | In-memory shadow-slot store                               | PostgreSQL via EF Core                               |
+| TLS     | Terminated at nginx sidecar (self-signed)                 | Terminated at reverse proxy with valid cert          |
+| Auth    | API key + scope + timestamp replay checks + Entra ID OIDC | Strong peer auth + Entra ID OIDC                     |
+| Secrets | `ISecretProvider` using env/config placeholders           | `ISecretProvider` with external secret store backend |

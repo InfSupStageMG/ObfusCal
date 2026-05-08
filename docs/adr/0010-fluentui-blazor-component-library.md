@@ -1,7 +1,7 @@
 ﻿# ADR 0010: UI component library: Microsoft Fluent UI Blazor
 
 * **Status:** Accepted
-* **Deciders:** Matthias Hendrickx, Gijs Pennings, Coach (Info Support)
+* **Deciders:** Matthias Hendrickx, Gijs Pennings, Coach (internship company)
 * **Date:** 2026-04-29
 
 ## Context and problem statement

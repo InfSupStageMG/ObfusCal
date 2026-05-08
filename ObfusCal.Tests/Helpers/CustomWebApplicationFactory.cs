@@ -35,7 +35,7 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
                 ["ConnectionStrings:DefaultConnection"] = Postgres.GetConnectionString(),
                 ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
                 ["AzureAd:TenantId"] = "11111111-1111-1111-1111-111111111111",
-                ["AzureAd:Domain"] = "infosupport.onmicrosoft.com",
+                ["AzureAd:Domain"] = "internshipcompany.onmicrosoft.com",
                 ["AzureAd:ClientId"] = "22222222-2222-2222-2222-222222222222",
                 ["GraphConsent:ApiBaseUrl"] = "https://graph.microsoft.com",
                 ["GraphConsent:Scope"] = "https://graph.microsoft.com/Calendars.Read offline_access",

@@ -6,8 +6,8 @@ calendar data**.
 
 ## The Problem
 
-Software consultants at Info Support frequently work across multiple client engagements simultaneously.
-A consultant's work calendar at a client site, their Info Support calendar, and their personal calendars
+Software consultants at internship company frequently work across multiple client engagements simultaneously.
+A consultant's work calendar at a client site, their company calendar, and their personal calendars
 all exist in separate silos. When a meeting invitation arrives in one calendar, there is no automated way
 to verify whether that time is already claimed somewhere else.
 

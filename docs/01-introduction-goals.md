@@ -30,9 +30,9 @@ raw events and persisted data (see chapters 4 and 5).
 
 ## Stakeholders
 
-| Role                                    | Concern                                                                                 |
-|-----------------------------------------|-----------------------------------------------------------------------------------------|
-| Consultant                              | Correct availability is visible to colleagues without leaking sensitive meeting details |
-| System Administrator                    | System is secure, auditable, and maintainable within company network policies           |
-| Client IT Department                    | Instance can be deployed and operated without understanding application internals       |
-| Info Support (Coach / Assignment Owner) | Solution is open-source, architecturally sound, and demonstrates privacy-by-design      |
+| Role                                          | Concern                                                                                 |
+|-----------------------------------------------|-----------------------------------------------------------------------------------------|
+| Consultant                                    | Correct availability is visible to colleagues without leaking sensitive meeting details |
+| System Administrator                          | System is secure, auditable, and maintainable within company network policies           |
+| Client IT Department                          | Instance can be deployed and operated without understanding application internals       |
+| internship company (Coach / Assignment Owner) | Solution is open-source, architecturally sound, and demonstrates privacy-by-design      |
