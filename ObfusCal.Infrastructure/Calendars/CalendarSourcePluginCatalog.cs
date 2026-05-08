@@ -38,11 +38,23 @@ internal sealed class CalendarSourcePluginCatalog(IReadOnlyList<CalendarSourcePl
                 if (attribute is null)
                     continue;
 
+                var uiAttribute = type.GetCustomAttribute<CalendarSourcePluginUiAttribute>();
+                var actions = type.GetCustomAttributes<CalendarSourcePluginActionAttribute>()
+                    .Select(a => new CalendarSourcePluginActionDescriptor(a.ActionId, a.Label, a.Hint))
+                    .ToList();
+                var ui = new CalendarSourcePluginUiDescriptor(
+                    uiAttribute?.SupportsMultipleInstances ?? true,
+                    uiAttribute?.ConfigurationJsonTemplate,
+                    uiAttribute?.SecretDataJsonTemplate,
+                    uiAttribute?.SetupHint,
+                    actions);
+
                 descriptors.Add(new CalendarSourcePluginDescriptor(
                     attribute.Id.Trim().ToLowerInvariant(),
                     attribute.DisplayName,
                     type,
-                    isExternalAssembly));
+                    isExternalAssembly,
+                    ui));
             }
         }
 

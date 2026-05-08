@@ -14,6 +14,14 @@ using ObfusCal.Infrastructure.Persistence;
 namespace ObfusCal.Infrastructure.Calendars;
 
 [CalendarSourcePlugin("graph", "Microsoft Graph")]
+[CalendarSourcePluginUi(
+    supportsMultipleInstances: true,
+    configurationJsonTemplate: "{\"calendarId\":\"primary\"}",
+    setupHint: "Use the Graph consent flow to populate tokens for each source instance.")]
+[CalendarSourcePluginAction(
+    "graph-instance-consent",
+    "Start Microsoft OAuth",
+    hint: "Authorizes ObfusCal to read your Microsoft Graph Calendar for this source instance.")]
 public sealed class GraphCalendarSource(
     HttpClient httpClient,
     AppDbContext dbContext,

@@ -4,6 +4,9 @@ using ObfusCal.Domain.Models;
 namespace ObfusCal.Infrastructure.Calendars;
 
 [CalendarSourcePlugin("mock", "Mock calendar")]
+[CalendarSourcePluginUi(
+    supportsMultipleInstances: true,
+    setupHint: "No configuration required. Useful for local development and demos.")]
 public sealed class MockCalendarSource : ICalendarSource, ICalendarSourceReadinessEvaluator
 {
     public Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(DateTimeOffset from,

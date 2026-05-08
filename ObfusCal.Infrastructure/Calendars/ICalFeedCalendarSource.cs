@@ -14,6 +14,10 @@ namespace ObfusCal.Infrastructure.Calendars;
 /// </summary>
 
 [CalendarSourcePlugin("ical", "iCal feed")]
+[CalendarSourcePluginUi(
+    supportsMultipleInstances: true,
+    configurationJsonTemplate: "{\"feedUrl\":\"https://calendar.example.com/feed.ics\"}",
+    setupHint: "Set a feed URL in configuration JSON. No secret JSON is required.")]
 public sealed class IcalFeedCalendarSource(
     HttpClient httpClient,
     AppDbContext dbContext,

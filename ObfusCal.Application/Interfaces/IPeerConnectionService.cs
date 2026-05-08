@@ -6,9 +6,11 @@ public interface IPeerConnectionService
     Task<IReadOnlyList<PeerConnectionRequestSummary>> ListForCalendarOwnerAsync(Guid calendarOwnerId, CancellationToken ct = default);
     Task<IReadOnlyList<AdminPeerConnectionSummary>> ListForAdminAsync(CancellationToken ct = default);
     Task<IReadOnlyList<PeerSyncStatus>> ListSyncStatusAsync(CancellationToken ct = default);
-    Task<PeerConnectionSummary> CreateAsync(string instanceId, string baseAddress, string apiKey, CancellationToken ct = default);
+    Task<PeerConnectionSummary> CreateAsync(string instanceId, string baseAddress, string apiKey, IEnumerable<string>? scopes = null, CancellationToken ct = default);
     Task<CreatePeerConnectionRequestResult> CreateRequestAsync(Guid calendarOwnerId, string clientOrganisationName, CancellationToken ct = default);
-    Task<ApprovePeerConnectionResult> ApproveAsync(Guid id, string peerBaseUrl, CancellationToken ct = default);
+    Task<ApprovePeerConnectionResult> ApproveAsync(Guid id, string peerBaseUrl, IEnumerable<string>? scopes = null, CancellationToken ct = default);
+    Task<RotatePeerApiKeyResult> RotateApiKeyAsync(Guid id, CancellationToken ct = default);
+    Task<RevokePeerConnectionResult> RevokeAsync(Guid id, CancellationToken ct = default);
     Task<bool> SuspendAsync(Guid id, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
     Task<LinkOwnerToPeerResult> LinkOwnerToPeerAsync(Guid calendarOwnerId, Guid peerConnectionId, CancellationToken ct = default);
@@ -48,6 +50,28 @@ public enum ApprovePeerConnectionOutcome
 public sealed record ApprovePeerConnectionResult(
     ApprovePeerConnectionOutcome Outcome,
     string? PlaintextApiKey = null);
+
+public enum RotatePeerApiKeyOutcome
+{
+    Rotated,
+    NotFound,
+    NotActive,
+    Revoked
+}
+
+public sealed record RotatePeerApiKeyResult(
+    RotatePeerApiKeyOutcome Outcome,
+    string? PlaintextApiKey = null);
+
+public enum RevokePeerConnectionOutcome
+{
+    Revoked,
+    NotFound,
+    AlreadyRevoked
+}
+
+public sealed record RevokePeerConnectionResult(
+    RevokePeerConnectionOutcome Outcome);
 
 public enum PeerConnectionStatus
 {

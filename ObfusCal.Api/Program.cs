@@ -8,6 +8,7 @@ using Microsoft.OpenApi;
 using ObfusCal.Api.Authentication;
 using ObfusCal.Api.Authorization;
 using ObfusCal.Api.Components;
+using ObfusCal.Api.Controllers;
 using ObfusCal.Application;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure;
@@ -46,8 +47,24 @@ try
             _ => { })
         .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 
-    builder.Services.AddAuthorization();
+    builder.Services.AddAuthorization(options =>
+    {
+        options.AddPolicy(PeerApiAuthorizationPolicies.PushShadowSlots, policy =>
+        {
+            policy.AddAuthenticationSchemes(PeerApiKeyAuthenticationDefaults.SchemeName);
+            policy.RequireClaim(PeerApiKeyClaimTypes.Scope, PeerApiScopes.PushShadowSlots);
+        });
+
+        options.AddPolicy(PeerApiAuthorizationPolicies.PullBusySlots, policy =>
+        {
+            policy.AddAuthenticationSchemes(PeerApiKeyAuthenticationDefaults.SchemeName);
+            policy.RequireClaim(PeerApiKeyClaimTypes.Scope, PeerApiScopes.PullBusySlots);
+        });
+    });
     builder.Services.AddScoped<CalendarOwnerAccessEvaluator>();
+    builder.Services.AddScoped(provider => new CalendarConsentServices(
+        provider.GetRequiredService<ICalendarOwnerGraphConsentService>(),
+        provider.GetRequiredService<ICalendarOwnerGoogleConsentService>()));
 
     builder.Services
         .AddControllers()

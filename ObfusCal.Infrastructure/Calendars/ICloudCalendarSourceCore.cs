@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Xml.Linq;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -190,8 +191,8 @@ public sealed class ICloudCalendarSourceCore(
         if (configuration is null
             || secrets is null
             || string.IsNullOrWhiteSpace(configuration.CalendarUrl)
-            || string.IsNullOrWhiteSpace(secrets.ProtectedAppleId)
-            || string.IsNullOrWhiteSpace(secrets.ProtectedAppSpecificPassword)
+            || string.IsNullOrWhiteSpace(secrets.AppleId)
+            || string.IsNullOrWhiteSpace(secrets.AppSpecificPassword)
             || !Uri.TryCreate(configuration.CalendarUrl, UriKind.Absolute, out var calendarUri))
         {
             return null;
@@ -201,8 +202,8 @@ public sealed class ICloudCalendarSourceCore(
         {
             return new ICloudCalendarOwnerConfiguration(
                 calendarUri,
-                secretProtector.Unprotect(secrets.ProtectedAppleId),
-                secretProtector.Unprotect(secrets.ProtectedAppSpecificPassword));
+                secretProtector.Unprotect(secrets.AppleId),
+                secretProtector.Unprotect(secrets.AppSpecificPassword));
         }
         catch (Exception ex)
         {
@@ -212,6 +213,8 @@ public sealed class ICloudCalendarSourceCore(
             return null;
         }
     }
+
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private async Task<ICloudCalendarQueryResult> QueryCalendarAsync(
         Guid calendarOwnerId,
@@ -335,7 +338,7 @@ public sealed class ICloudCalendarSourceCore(
 
         try
         {
-            return JsonSerializer.Deserialize<ICloudCalendarInstanceConfiguration>(configurationJson);
+            return JsonSerializer.Deserialize<ICloudCalendarInstanceConfiguration>(configurationJson, JsonOptions);
         }
         catch
         {
@@ -350,7 +353,7 @@ public sealed class ICloudCalendarSourceCore(
 
         try
         {
-            return JsonSerializer.Deserialize<ICloudCalendarInstanceSecretData>(secretDataJson);
+            return JsonSerializer.Deserialize<ICloudCalendarInstanceSecretData>(secretDataJson, JsonOptions);
         }
         catch
         {
@@ -363,11 +366,12 @@ public sealed class ICloudCalendarSourceCore(
         string AppleId,
         string AppSpecificPassword);
 
-    internal sealed record ICloudCalendarInstanceConfiguration(string CalendarUrl);
+    internal sealed record ICloudCalendarInstanceConfiguration(
+        [property: JsonPropertyName("calendarUrl")] string CalendarUrl);
 
     internal sealed record ICloudCalendarInstanceSecretData(
-        string ProtectedAppleId,
-        string ProtectedAppSpecificPassword);
+        [property: JsonPropertyName("appleId")] string AppleId,
+        [property: JsonPropertyName("appSpecificPassword")] string AppSpecificPassword);
 
     private sealed record ICloudCalendarQueryResult(
         ICloudCalendarQueryStatus Status,

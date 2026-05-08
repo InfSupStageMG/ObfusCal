@@ -80,6 +80,10 @@ openssl pkcs12 -export `
 
 2. Create a `.env` file from `.env.example` and fill in the values.
 
+   For Google Calendar OAuth, set `GOOGLECONSENT__REDIRECTURI` to a Google-registered callback such as
+   `https://localhost/consent-callback` or a public HTTPS URI. Do not use `https://obfuscal.local/consent-callback`
+   for Google OAuth — Google rejects `.local` redirect domains.
+
 3. Optionally add a hosts entry for `obfuscal.local`:
 
 ```
@@ -198,6 +202,9 @@ startup.
 Environment variable names use the standard double-underscore mapping (for example `GRAPHCONSENT__CLIENTSECRET` and
 `CONNECTIONSTRINGS__DEFAULTCONNECTION`).
 
+For Google Calendar OAuth, you can optionally override the callback URI with `GOOGLECONSENT__REDIRECTURI`. This must
+match a redirect URI registered on the Google OAuth client exactly.
+
 ### Required secrets at startup
 
 - `ConnectionStrings:DefaultConnection`
@@ -212,7 +219,11 @@ Use `.env.example` as the authoritative placeholder list for local/compose confi
 - ObfusCal uses an Entra ID app role named `Sysadmin` on the API app registration.
 - Only users assigned this role can call `/api/admin/peer-connections` endpoints.
 - `POST /api/admin/peer-connections/{id}/approve` generates a cryptographically secure API key and returns it once.
-- Only a SHA-256 hash of the generated key is stored in `PeerConnections.ApiKeyHash`.
+- Peer API keys are stored as salted PBKDF2-SHA256 hashes in `PeerConnections.ApiKeyHash` (`210000` iterations).
+- `POST /api/admin/peer-connections/{id}/rotate-key` rotates the key atomically and invalidates the previous key immediately.
+- `POST /api/admin/peer-connections/{id}/revoke` sets `PeerConnections.RevokedAt` and blocks peer authentication immediately.
+- Peer endpoints enforce scope claims from `PeerConnections.Scopes` (`push_shadow_slots`, `pull_busy_slots`).
+- Peer sync requests include `X-Peer-Timestamp` and are rejected when outside `Sync:PeerRequestTimestampToleranceSeconds` (default 300 seconds).
 - `POST /api/admin/peer-connections/{id}/suspend` sets the peer to `Suspended` and sync/auth traffic for that peer is blocked.
 
 Run mutation tests with Stryker:

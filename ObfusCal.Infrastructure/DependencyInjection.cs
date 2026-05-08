@@ -67,6 +67,7 @@ public static class DependencyInjection
         });
 
         services.Configure<GraphConsentOptions>(config.GetSection(GraphConsentOptions.SectionName));
+        services.Configure<GoogleConsentOptions>(config.GetSection(GoogleConsentOptions.SectionName));
         services.Configure<CalendarSourceOptions>(config.GetSection(CalendarSourceOptions.SectionName));
         services.Configure<ICloudCalendarOptions>(config.GetSection(ICloudCalendarOptions.SectionName));
         services.Configure<SyncOptions>(config.GetSection(SyncOptions.SectionName));
@@ -109,6 +110,7 @@ public static class DependencyInjection
     private static void RegisterHttpClients(IServiceCollection services)
     {
         services.AddHttpClient<IGraphOAuthTokenClient, GraphOAuthTokenClient>();
+        services.AddHttpClient<IGoogleOAuthTokenClient, GoogleOAuthTokenClient>();
         services.AddHttpClient<GraphCalendarSource>((provider, client) =>
         {
             var options = provider.GetRequiredService<IOptions<GraphConsentOptions>>().Value;
@@ -120,16 +122,32 @@ public static class DependencyInjection
             client.BaseAddress = new Uri($"{baseUrl.TrimEnd('/')}/", UriKind.Absolute);
         });
         services.AddHttpClient<IcalFeedCalendarSource>();
+        services.AddHttpClient<GoogleCalendarSourceCore>();
         services.AddHttpClient<ICloudCalendarSourceCore>();
         services.AddHttpClient(nameof(OutboundPeerSyncService));
         services.AddHttpClient(nameof(InboundPeerPullSyncService));
     }
 
-    private static void RegisterDomainServices(IServiceCollection services)
+     private static void RegisterDomainServices(IServiceCollection services)
     {
+        services.AddScoped(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<GoogleConsentOptions>>();
+            var tokenClient = provider.GetRequiredService<IGoogleOAuthTokenClient>();
+            return new GoogleOAuthDependencies(options, tokenClient);
+        });
+
+        services.AddScoped(provider =>
+        {
+            var service = provider.GetRequiredService<ICalendarSourceInstanceService>();
+            var store = provider.GetRequiredService<ICalendarSourceInstanceStore>();
+            return new GoogleConsentInstanceDependencies(service, store);
+        });
+
         services.AddScoped<ICalendarOwnerScopeResolver, EfCoreCalendarOwnerScopeResolver>();
         services.AddScoped<ICalendarOwnerService, CalendarOwnerService>();
         services.AddScoped<ICalendarOwnerGraphConsentService, CalendarOwnerGraphConsentService>();
+        services.AddScoped<ICalendarOwnerGoogleConsentService, CalendarOwnerGoogleConsentService>();
         services.AddScoped<ICalendarOwnerCalendarSourceService, CalendarOwnerCalendarSourceService>();
         services.AddScoped<ICalendarSourceInstanceService, CalendarSourceInstanceService>();
         services.AddScoped<ICalendarSourceInstanceStore>(provider =>
@@ -147,6 +165,7 @@ public static class DependencyInjection
         services.AddScoped<ICalendarOwnerAvailabilitySlotStore, EfCoreCalendarOwnerAvailabilitySlotStore>();
         services.AddScoped<MockCalendarSource>();
         services.AddScoped<IcalFeedCalendarSource>();
+        services.AddScoped<GoogleCalendarSourceCore>();
         services.AddScoped<ICloudCalendarSourceCore>();
         services.AddHostedService<CalendarOwnerAvailabilityBackgroundService>();
         services.AddHostedService<PeerSyncBackgroundService>();

@@ -7,6 +7,7 @@ COPY ObfusCal.Application/ObfusCal.Application.csproj ObfusCal.Application/
 COPY ObfusCal.Infrastructure/ObfusCal.Infrastructure.csproj ObfusCal.Infrastructure/
 COPY ObfusCal.Api/ObfusCal.Api.csproj ObfusCal.Api/
 COPY ObfusCal.Plugins.ICloudCalendar/ObfusCal.Plugins.ICloudCalendar.csproj ObfusCal.Plugins.ICloudCalendar/
+COPY ObfusCal.Plugins.GoogleCalendar/ObfusCal.Plugins.GoogleCalendar.csproj ObfusCal.Plugins.GoogleCalendar/
 COPY ObfusCal.Tests/ObfusCal.Tests.csproj ObfusCal.Tests/
 
 RUN dotnet restore
@@ -32,5 +33,9 @@ EXPOSE 8443
 
 # Set default DataProtection key path
 ENV DATAPROTECTION_KEYS_PATH=/dataprotection/keys
+
+RUN chown -R 1000:1000 /app
+RUN chown -R 1000:1000 /dataprotection/keys
+USER 1000
 
 ENTRYPOINT ["dotnet", "ObfusCal.Api.dll"]

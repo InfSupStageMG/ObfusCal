@@ -21,7 +21,7 @@ public sealed class ShadowSlotsController(
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     [HttpPost]
-    [Authorize(AuthenticationSchemes = PeerApiKeyAuthenticationDefaults.SchemeName)]
+    [Authorize(AuthenticationSchemes = PeerApiKeyAuthenticationDefaults.SchemeName, Policy = PeerApiAuthorizationPolicies.PushShadowSlots)]
     [ProducesResponseType(typeof(void), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -44,6 +44,7 @@ public sealed class ShadowSlotsController(
                 .AsNoTracking()
                 .Where(mapping => mapping.PeerConnection.InstanceId == peerId)
                 .Where(mapping => mapping.PeerConnection.Status == PeerConnectionStatus.Active)
+                .Where(mapping => mapping.PeerConnection.RevokedAt == null)
                 .Where(mapping => mapping.CalendarOwnerRef == calendarOwnerRef)
                 .Select(mapping => mapping.CalendarOwnerId)
                 .ToListAsync(ct)
@@ -51,6 +52,7 @@ public sealed class ShadowSlotsController(
                 .AsNoTracking()
                 .Where(mapping => mapping.PeerConnection.InstanceId == peerId)
                 .Where(mapping => mapping.PeerConnection.Status == PeerConnectionStatus.Active)
+                .Where(mapping => mapping.PeerConnection.RevokedAt == null)
                 .Select(mapping => mapping.CalendarOwnerId)
                 .Distinct()
                 .ToListAsync(ct);
@@ -64,7 +66,7 @@ public sealed class ShadowSlotsController(
     }
 
     [HttpGet("/api/sync/busy-slots/{calendarOwnerRef:guid}")]
-    [Authorize(AuthenticationSchemes = PeerApiKeyAuthenticationDefaults.SchemeName)]
+    [Authorize(AuthenticationSchemes = PeerApiKeyAuthenticationDefaults.SchemeName, Policy = PeerApiAuthorizationPolicies.PullBusySlots)]
     [ProducesResponseType(typeof(IReadOnlyList<BusySlotResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -86,6 +88,7 @@ public sealed class ShadowSlotsController(
             .Where(mapping => mapping.CalendarOwnerRef == calendarOwnerRef)
             .Where(mapping => mapping.PeerConnection.InstanceId == peerId)
             .Where(mapping => mapping.PeerConnection.Status == PeerConnectionStatus.Active)
+            .Where(mapping => mapping.PeerConnection.RevokedAt == null)
             .Select(mapping => mapping.CalendarOwnerId)
             .SingleOrDefaultAsync(ct);
 
