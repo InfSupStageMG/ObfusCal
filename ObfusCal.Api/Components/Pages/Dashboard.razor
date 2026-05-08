@@ -3,6 +3,7 @@
 @using Microsoft.JSInterop
 @using ObfusCal.Application.Interfaces
 @using ObfusCal.Application.UseCases.GetMergedFreeBusy
+@using ObfusCal.Api.Components.Shared
 @inject IGetMergedFreeBusyUseCase GetMergedFreeBusyUseCase
 @inject ICalendarOwnerService CalendarOwnerService
 @inject ICalendarOwnerAvailabilitySyncService AvailabilitySyncService
@@ -63,14 +64,10 @@
     }
     else if (_slots is { Count: > 0 })
     {
-        <section class="card">
-            <FluentDataGrid Items="_slots.AsQueryable()" TGridItem="MergedFreeBusyResponse">
-                <TemplateColumn Title="Start">@FormatInSelectedTimeZone(context.Start, "ddd dd MMM HH:mm")</TemplateColumn>
-                <TemplateColumn Title="End">@FormatInSelectedTimeZone(context.End, "HH:mm")</TemplateColumn>
-                <PropertyColumn Property="@(s => s.Title ?? "Busy")" Title="Title" />
-                <PropertyColumn Property="@(s => s.Location ?? "-")" Title="Location" />
-            </FluentDataGrid>
-        </section>
+        <MergedFreeBusyCalendarView
+            Slots="_slots"
+            TimeZone="ResolveSelectedTimeZone()"
+            DisplayDate="_fromDate" />
     }
     else if (_loaded)
     {
@@ -224,12 +221,6 @@
         return new DateTimeOffset(utc, TimeSpan.Zero);
     }
 
-    private string FormatInSelectedTimeZone(DateTimeOffset value, string format)
-    {
-        var timeZone = ResolveSelectedTimeZone();
-        var local = TimeZoneInfo.ConvertTime(value, timeZone);
-        return local.ToString(format, CultureInfo.CurrentCulture);
-    }
 
     private sealed record CalendarOwnerOption(Guid Id, string Name);
     private sealed record TimeZoneOption(string Id, string DisplayName);
