@@ -240,9 +240,11 @@ internal sealed class CalendarSourceInstanceService(
         }
         catch (Exception)
         {
-            // Data was not encrypted (legacy plaintext data) or key material changed.
-            // Return null so the plugin treats the instance as not configured.
-            return null;
+            // Data was not encrypted (legacy plaintext data), was migrated with per-field
+            // encryption, or key material changed.  If the value looks like a JSON object,
+            // return it as-is so the plugin's own credential-fallback logic can attempt
+            // field-level decryption.  Otherwise return null (not recoverable here).
+            return protectedValue.TrimStart().StartsWith('{') ? protectedValue : null;
         }
     }
 

@@ -111,6 +111,34 @@ public sealed class CalendarOwnerAvailabilitySyncService(
         IReadOnlyList<BusySlot> busySlots,
         CancellationToken ct)
     {
+        const int maxRetries = 3;
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                await ReplaceAvailabilitySnapshotCoreAsync(calendarOwnerId, busySlots, ct);
+                return;
+            }
+            catch (DbUpdateConcurrencyException) when (attempt < maxRetries)
+            {
+                logger.LogWarning(
+                    "Concurrency conflict while persisting availability snapshot for calendar owner {CalendarOwnerId} (attempt {Attempt}/{MaxRetries}). Retrying.",
+                    calendarOwnerId,
+                    attempt,
+                    maxRetries);
+
+                // Detach all tracked entities so the next attempt starts clean.
+                foreach (var entry in dbContext.ChangeTracker.Entries().ToList())
+                    entry.State = EntityState.Detached;
+            }
+        }
+    }
+
+    private async Task ReplaceAvailabilitySnapshotCoreAsync(
+        Guid calendarOwnerId,
+        IReadOnlyList<BusySlot> busySlots,
+        CancellationToken ct)
+    {
         var owner = await dbContext.CalendarOwners
             .SingleOrDefaultAsync(o => o.Id == calendarOwnerId, ct)
             ?? throw new InvalidOperationException($"Calendar owner {calendarOwnerId} was not found.");
