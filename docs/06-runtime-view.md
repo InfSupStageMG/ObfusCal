@@ -35,7 +35,7 @@ An authenticated calendar owner requests their own obfuscated availability windo
 ## Scenario 3: User Authenticates and Views Availability
 
 1. User opens Swagger UI or another API client.
-2. The application redirects to Info Support's Entra ID login page via OpenID Connect.
+2. The application redirects to internship company's Entra ID login page via OpenID Connect.
 3. After successful authentication (including MFA), Entra ID returns a JWT token.
 4. The application extracts the user's Object ID from the token and scopes all subsequent data access to that ID.
 5. The user can call `GET /api/calendar-owners/{id}/merged-freebusy` to view their own merged availability; this flow

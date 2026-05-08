@@ -1,0 +1,211 @@
+﻿@using System.Globalization
+@using ObfusCal.Application.UseCases.GetMergedFreeBusy
+
+<section class="card calendar-view">
+    <div class="calendar-grid">
+        <div class="calendar-header">
+            <h3>@_monthYear</h3>
+        </div>
+
+        <div class="calendar-weekdays">
+            @foreach (var day in new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" })
+            {
+                <div class="calendar-weekday">@day</div>
+            }
+        </div>
+
+        <div class="calendar-dates">
+            @foreach (var (date, hasEvents, events) in _calendarDays)
+            {
+                <div class="calendar-day @(hasEvents ? "has-events" : "") @(date == null ? "other-month" : "") @(date == _selectedDate ? "selected" : "")"
+                     @onclick="@(() => SelectDay(date))"
+                     role="button"
+                     tabindex="0"
+                     style="cursor: @(date.HasValue ? "pointer" : "default");">
+                    @if (date.HasValue)
+                    {
+                        <div class="calendar-day-number">@date.Value.Day</div>
+                        @if (hasEvents && events.Count > 0)
+                        {
+                            <div class="calendar-day-events">
+                                @foreach (var evt in events.Take(2))
+                                {
+                                    <div class="calendar-event-badge" title="@(evt.Title ?? "Busy") - @FormatTime(evt) to @FormatEndTime(evt)">
+                                        <span class="event-time">@FormatTime(evt)-@FormatEndTime(evt)</span>
+                                    </div>
+                                }
+                                @if (events.Count > 2)
+                                {
+                                    <div class="calendar-event-badge more">+@(events.Count - 2)</div>
+                                }
+                            </div>
+                        }
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@if (_showModal && _selectedDate.HasValue && _selectedDayEvents.Count > 0)
+{
+    <div class="modal-backdrop" @onclick="CloseModal"></div>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>@_selectedDate.Value.ToString("dddd, dd MMMM yyyy", CultureInfo.CurrentCulture)</h2>
+                <button class="modal-close" @onclick="CloseModal" aria-label="Close">
+                    <span>×</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="events-list">
+                    @foreach (var evt in _selectedDayEvents)
+                    {
+                        <div class="event-item">
+                            <div class="event-time-range">
+                                <strong>@FormatInTimeZone(evt.Start, "HH:mm")</strong> – <strong>@FormatInTimeZone(evt.End, "HH:mm")</strong>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(evt.Title))
+                            {
+                                <div class="event-title">@evt.Title</div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(evt.Location))
+                            {
+                                <div class="event-location">📍 @evt.Location</div>
+                            }
+                            @if (evt.AttendeeEmails?.Count > 0)
+                            {
+                                <div class="event-attendees">
+                                    👥 @string.Join(", ", evt.AttendeeEmails)
+                                </div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(evt.Description))
+                            {
+                                <div class="event-description">@evt.Description</div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public required List<MergedFreeBusyResponse> Slots { get; set; }
+
+    [Parameter]
+    public required TimeZoneInfo TimeZone { get; set; }
+
+    [Parameter]
+    public DateTime? DisplayDate { get; set; } = DateTime.UtcNow;
+
+    private string _monthYear = "";
+    private List<(DateTime? Date, bool HasEvents, List<MergedFreeBusyResponse> Events)> _calendarDays = [];
+    private List<MergedFreeBusyResponse> _selectedDayEvents = [];
+    private DateTime? _selectedDate;
+    private bool _showModal;
+
+    protected override void OnParametersSet()
+    {
+        BuildCalendarGrid();
+    }
+
+    private void SelectDay(DateTime? date)
+    {
+        if (date is null || date.Value.Month != DisplayDate?.Month)
+            return;
+
+        _selectedDate = date;
+        _selectedDayEvents = GetEventsForDate(date.Value);
+        _showModal = _selectedDayEvents.Count > 0;
+    }
+
+    private void CloseModal()
+    {
+        _showModal = false;
+        _selectedDate = null;
+        _selectedDayEvents = [];
+    }
+
+    private void BuildCalendarGrid()
+    {
+        if (DisplayDate is null)
+            return;
+
+        var firstDay = new DateTime(DisplayDate.Value.Year, DisplayDate.Value.Month, 1);
+        _monthYear = firstDay.ToString("MMMM yyyy", CultureInfo.CurrentCulture);
+
+        _calendarDays = [];
+
+        // Add days from previous month
+        var startDayOfWeek = (int)firstDay.DayOfWeek;
+        var daysInPreviousMonth = new DateTime(firstDay.Year, firstDay.Month, 1).AddDays(-1).Day;
+
+        for (int i = startDayOfWeek - 1; i >= 0; i--)
+        {
+            var date = new DateTime(firstDay.Year, firstDay.Month, 1).AddDays(-i - 1);
+            _calendarDays.Add((date, false, []));
+        }
+
+        // Add days of current month
+        var daysInMonth = DateTime.DaysInMonth(firstDay.Year, firstDay.Month);
+        for (int day = 1; day <= daysInMonth; day++)
+        {
+            var date = new DateTime(firstDay.Year, firstDay.Month, day);
+            var eventsOnDay = GetEventsForDate(date);
+            _calendarDays.Add((date, eventsOnDay.Count > 0, eventsOnDay));
+        }
+
+        // Add days from next month to fill grid
+        var remainingCells = 42 - _calendarDays.Count; // 6 weeks * 7 days
+        for (int i = 1; i <= remainingCells; i++)
+        {
+            var date = new DateTime(firstDay.Year, firstDay.Month, daysInMonth).AddDays(i);
+            _calendarDays.Add((date, false, []));
+        }
+    }
+
+    private List<MergedFreeBusyResponse> GetEventsForDate(DateTime date)
+    {
+        if (Slots is null || Slots.Count == 0)
+            return [];
+
+        return Slots
+            .Where(s =>
+            {
+                var startInTz = TimeZoneInfo.ConvertTime(s.Start, TimeZone);
+                var endInTz = TimeZoneInfo.ConvertTime(s.End, TimeZone);
+                var startDate = startInTz.Date;
+                var endDate = endInTz.Date;
+
+                // Event spans across this date or starts on this date
+                return (startDate <= date && endDate >= date) ||
+                       (startDate >= date && startDate <= date);
+            })
+            .OrderBy(s => TimeZoneInfo.ConvertTime(s.Start, TimeZone))
+            .ToList();
+    }
+
+    private string FormatTime(MergedFreeBusyResponse evt)
+    {
+        var time = TimeZoneInfo.ConvertTime(evt.Start, TimeZone);
+        return time.ToString("HH:mm", CultureInfo.CurrentCulture);
+    }
+
+    private string FormatEndTime(MergedFreeBusyResponse evt)
+    {
+        var time = TimeZoneInfo.ConvertTime(evt.End, TimeZone);
+        return time.ToString("HH:mm", CultureInfo.CurrentCulture);
+    }
+
+    private string FormatInTimeZone(DateTimeOffset value, string format)
+    {
+        var local = TimeZoneInfo.ConvertTime(value, TimeZone);
+        return local.ToString(format, CultureInfo.CurrentCulture);
+    }
+}
+
+

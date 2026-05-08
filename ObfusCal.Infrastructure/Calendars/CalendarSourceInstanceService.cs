@@ -241,7 +241,8 @@ internal sealed class CalendarSourceInstanceService(
         catch (Exception)
         {
             // Data was not encrypted (legacy plaintext data) or key material changed.
-            // Return null so the plugin treats the instance as not configured.
+            // Treat as unavailable at this shared layer; plugin-specific compatibility
+            // handling belongs in the plugin implementation.
             return null;
         }
     }

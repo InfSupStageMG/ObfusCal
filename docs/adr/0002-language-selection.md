@@ -7,7 +7,7 @@
 ## Context and problem statement
 
 We needed to select a backend language for the server application. The choice affects available libraries, team
-productivity, and long-term maintainability within an Info Support context.
+productivity, and long-term maintainability within an internship company context.
 
 ## Considered options
 
@@ -22,7 +22,7 @@ We selected **.NET 10 (C#)**.
 
 ## Decision rationale
 
-.NET has the strongest alignment with this project: deep in-house expertise at Info Support, first-class Microsoft Graph
+.NET has the strongest alignment with this project: deep in-house expertise at internship company, first-class Microsoft Graph
 SDK support, built-in background service hosting, and a mature ecosystem for the enterprise calendar integrations we
 need.
 

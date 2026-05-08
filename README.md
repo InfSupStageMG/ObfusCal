@@ -277,7 +277,7 @@ re-sync scheduler, iCal feed import, outbound/inbound peer sync transport, sync 
 
 ## Contributing
 
-This project is developed as an internship assignment at [Info Support](https://www.infosupport.com). Contributions and
+This project is developed as an internship assignment at internship company. Contributions and
 feedback are welcome. Please open an issue before submitting a pull request.
 
 ---

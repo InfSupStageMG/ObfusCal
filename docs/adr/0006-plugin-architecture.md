@@ -1,12 +1,12 @@
 ﻿# ADR 0006: Extension model: manual assembly scanning plugin architecture
 
 * **Status:** Accepted
-* **Deciders:** Matthias Hendrickx, Gijs Pennings, Coach (Info Support)
+* **Deciders:** Matthias Hendrickx, Gijs Pennings, Coach (internship company)
 * **Date:** 2026-04-20
 
 ## Context and problem statement
 
-End users and future Info Support teams need to be able to add new calendar adapters (e.g. Google Workspace) or custom
+End users and future internship company teams need to be able to add new calendar adapters (e.g. Google Workspace) or custom
 obfuscation transformers without modifying or recompiling the core application. We needed to decide how to support this
 extensibility.
 

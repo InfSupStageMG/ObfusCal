@@ -207,8 +207,8 @@ Or configure the application-wide default in `appsettings.json`:
 
 ```json
 {
-  "CalendarSource": {
-    "Provider": "acme"
-  }
+    "CalendarSource": {
+        "Provider": "acme"
+    }
 }
 ```

@@ -1,7 +1,7 @@
 ﻿# ADR 0009: Web GUI hosting model: Blazor Server embedded in API container
 
 * **Status:** Accepted
-* **Deciders:** Matthias Hendrickx, Gijs Pennings, Coach (Info Support)
+* **Deciders:** Matthias Hendrickx, Gijs Pennings, Coach (internship company)
 * **Date:** 2026-04-29
 
 ## Context and problem statement
