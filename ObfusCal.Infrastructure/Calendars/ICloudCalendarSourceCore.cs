@@ -198,38 +198,73 @@ public sealed class ICloudCalendarSourceCore(
         CancellationToken ct)
     {
         var configuration = ParseConfiguration(instance.ConfigurationJson);
-        var secrets = ParseSecretData(instance.SecretDataJson);
+        var secretResolution = await ResolveInstanceSecretsAsync(instance, ct);
 
         if (configuration is null
-            || secrets is null
+            || secretResolution is null
             || string.IsNullOrWhiteSpace(configuration.CalendarUrl)
-            || string.IsNullOrWhiteSpace(secrets.AppleId)
-            || string.IsNullOrWhiteSpace(secrets.AppSpecificPassword)
+            || string.IsNullOrWhiteSpace(secretResolution.Value.Secrets.AppleId)
+            || string.IsNullOrWhiteSpace(secretResolution.Value.Secrets.AppSpecificPassword)
             || !Uri.TryCreate(configuration.CalendarUrl, UriKind.Absolute, out var calendarUri))
         {
             return null;
         }
 
-        // Instance contexts are typically already decrypted by CalendarSourceInstanceService.
-        // Only migrate when the value was protected with a non-primary protector or when
-        // the persisted SecretDataJson blob is still in a legacy/raw JSON format at rest.
         var appleId = TryReadInstanceCredential(
-            secrets.AppleId,
+            secretResolution.Value.Secrets.AppleId,
             "Apple ID",
             instance.Id);
         var appSpecificPassword = TryReadInstanceCredential(
-            secrets.AppSpecificPassword,
+            secretResolution.Value.Secrets.AppSpecificPassword,
             "app-specific password",
             instance.Id);
 
         if (string.IsNullOrWhiteSpace(appleId.Value) || string.IsNullOrWhiteSpace(appSpecificPassword.Value))
             return null;
 
-        var needsBlobMigration = await ShouldMigrateInstanceSecretStorageAsync(instance.Id, ct);
-        if (appleId.NeedsReprotect || appSpecificPassword.NeedsReprotect || needsBlobMigration)
-            await TryMigrateInstanceCredentialsAsync(instance.Id, configuration, appleId.Value, appSpecificPassword.Value, ct);
+        if (appleId.NeedsReprotect || appSpecificPassword.NeedsReprotect || secretResolution.Value.NeedsBlobMigration)
+            await TryMigrateInstanceCredentialsAsync(instance.Id, configuration, appleId.Value,
+                appSpecificPassword.Value, ct);
 
         return new ICloudCalendarOwnerConfiguration(calendarUri, appleId.Value, appSpecificPassword.Value);
+    }
+
+    private async Task<InstanceSecretResolution?> ResolveInstanceSecretsAsync(
+        CalendarSourceInstanceContext instance,
+        CancellationToken ct)
+    {
+        var secretsFromContext = ParseSecretData(instance.SecretDataJson);
+        if (secretsFromContext is not null)
+        {
+            var needsBlobMigration = await ShouldMigrateInstanceSecretStorageAsync(instance.Id, ct);
+            return new InstanceSecretResolution(secretsFromContext, needsBlobMigration);
+        }
+
+        var storedSecretData = await dbContext.CalendarSourceInstances
+            .AsNoTracking()
+            .Where(x => x.Id == instance.Id)
+            .Select(x => x.SecretDataJson)
+            .SingleOrDefaultAsync(ct);
+
+        if (string.IsNullOrWhiteSpace(storedSecretData))
+            return null;
+
+        try
+        {
+            var decryptedJson = secretProtector.Unprotect(storedSecretData);
+            var decryptedSecrets = ParseSecretData(decryptedJson);
+            return decryptedSecrets is null
+                ? null
+                : new InstanceSecretResolution(decryptedSecrets, false);
+        }
+        catch (Exception ex) when (IsUnprotectFailure(ex))
+        {
+            // Keep legacy/plaintext/per-field compatibility inside iCloud plugin only.
+            var legacySecrets = ParseSecretData(storedSecretData);
+            return legacySecrets is null
+                ? null
+                : new InstanceSecretResolution(legacySecrets, true);
+        }
     }
 
     private CredentialReadResult TryReadInstanceCredential(
@@ -237,7 +272,8 @@ public sealed class ICloudCalendarSourceCore(
         string credentialKind,
         Guid instanceId)
     {
-        if (TryUnprotect(secretProtector.Unprotect, protectedOrPlaintext, out var value, out var expectedFailure, out var unexpectedFailure))
+        if (TryUnprotect(secretProtector.Unprotect, protectedOrPlaintext, out var value, out var expectedFailure,
+                out var unexpectedFailure))
             return new CredentialReadResult(value, false);
 
         if (TryUnprotect(_credentialProtector.Unprotect, protectedOrPlaintext, out value, out _, out _))
@@ -253,11 +289,9 @@ public sealed class ICloudCalendarSourceCore(
         }
 
         // Expected unprotect failures are normal for already-decrypted instance context values.
-        // Treat as plaintext-in-memory and let at-rest blob inspection decide if migration is needed.
-        if (expectedFailure)
-            return new CredentialReadResult(protectedOrPlaintext, false);
-
-        return new CredentialReadResult(null, false);
+        return expectedFailure
+            ? new CredentialReadResult(protectedOrPlaintext, false)
+            : new CredentialReadResult(null, false);
     }
 
     private async Task<bool> ShouldMigrateInstanceSecretStorageAsync(Guid instanceId, CancellationToken ct)
@@ -340,8 +374,6 @@ public sealed class ICloudCalendarSourceCore(
 
             if (events.Count == 0 && parsedEvents.Count > 0)
             {
-                // CalDAV request already applies server-side time-range filtering. If local overlap math
-                // drops everything (for example due to floating-time interpretation), prefer parsed events.
                 logger.LogWarning(
                     "iCloud local overlap filter removed all {ParsedEventCount} parsed event(s) for calendar owner {CalendarOwnerId}. Falling back to server-filtered parsed events.",
                     parsedEvents.Count,
@@ -410,7 +442,6 @@ public sealed class ICloudCalendarSourceCore(
                     </c:calendar-query>
                     """;
 
-
         request.Content = new StringContent(body, Encoding.UTF8, "application/xml");
         return request;
     }
@@ -475,24 +506,13 @@ public sealed class ICloudCalendarSourceCore(
         [property: JsonPropertyName("calendarUrl")]
         string CalendarUrl);
 
-    internal sealed record ICloudCalendarInstanceSecretData(
-        [property: JsonPropertyName("appleId")]
-        string AppleId,
-        [property: JsonPropertyName("appSpecificPassword")]
-        string AppSpecificPassword);
+    private readonly record struct CredentialReadResult(string? Value, bool NeedsReprotect);
 
-    private sealed record ICloudCalendarQueryResult(
-        ICloudCalendarQueryStatus Status,
-        IReadOnlyList<CalendarEvent> Events);
+    private readonly record struct InstanceSecretResolution(
+        ICloudCalendarInstanceSecretData Secrets,
+        bool NeedsBlobMigration);
 
-    private enum ICloudCalendarQueryStatus
-    {
-        Success,
-        NotConfigured,
-        AuthenticationFailed,
-        Unreachable,
-        Failed
-    }
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     private CredentialReadResult TryUnprotectWithLegacyPlaintextFallback(
         string protectedOrPlaintext,
@@ -505,14 +525,16 @@ public sealed class ICloudCalendarSourceCore(
         var hadExpectedUnprotectFailure = false;
         Exception? unexpectedFailure = null;
 
-        if (TryUnprotect(primaryUnprotect, protectedOrPlaintext, out var value, out var expectedFailure, out var unexpected))
+        if (TryUnprotect(primaryUnprotect, protectedOrPlaintext, out var value, out var expectedFailure,
+                out var unexpected))
             return new CredentialReadResult(value, false);
 
         hadExpectedUnprotectFailure |= expectedFailure;
         unexpectedFailure ??= unexpected;
 
         if (secondaryUnprotect is not null
-            && TryUnprotect(secondaryUnprotect, protectedOrPlaintext, out value, out expectedFailure, out unexpected))
+            && TryUnprotect(secondaryUnprotect, protectedOrPlaintext, out value, out expectedFailure,
+                out unexpected))
         {
             return new CredentialReadResult(value, true);
         }
@@ -662,7 +684,23 @@ public sealed class ICloudCalendarSourceCore(
         return count;
     }
 
-    private readonly record struct CredentialReadResult(string? Value, bool NeedsReprotect);
 
-    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+    internal sealed record ICloudCalendarInstanceSecretData(
+        [property: JsonPropertyName("appleId")]
+        string AppleId,
+        [property: JsonPropertyName("appSpecificPassword")]
+        string AppSpecificPassword);
+
+    private sealed record ICloudCalendarQueryResult(
+        ICloudCalendarQueryStatus Status,
+        IReadOnlyList<CalendarEvent> Events);
+
+    private enum ICloudCalendarQueryStatus
+    {
+        Success,
+        NotConfigured,
+        AuthenticationFailed,
+        Unreachable,
+        Failed
+    }
 }

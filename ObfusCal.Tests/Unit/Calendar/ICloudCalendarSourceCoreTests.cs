@@ -521,6 +521,65 @@ public class ICloudCalendarSourceCoreTests
             "UpdatedAtUtc should remain unchanged when no migration is needed.");
     }
 
+    [TestMethod]
+    public async Task GetReadinessAsync_WithNullContextSecretAndLegacyStoredJson_RecoversAndMigrates()
+    {
+        await using var db = TestDbContextFactory.CreateInMemory();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var httpClient = new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(string.Empty)
+        }));
+        var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
+        var logger = CreateLogger();
+        var protector = new PrefixCalendarSourceSecretProtector("enc:");
+
+        var core = CreateCore(httpClient, db, dataProtectionProvider, icloudOptions, logger, protector);
+
+        var ownerId = Guid.NewGuid();
+        var instanceId = Guid.NewGuid();
+
+        db.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Owner",
+            CalendarSourcePluginId = "icloud"
+        });
+
+        db.CalendarSourceInstances.Add(new CalendarSourceInstance
+        {
+            Id = instanceId,
+            CalendarOwnerId = ownerId,
+            PluginId = "icloud",
+            DisplayName = "iCloud",
+            IsEnabled = true,
+            ConfigurationJson = "{\"calendarUrl\":\"https://caldav.icloud.com/test/calendar/\"}",
+            SecretDataJson = "{\"appleId\":\"user@example.com\",\"appSpecificPassword\":\"app-password\"}",
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        // Simulate shared store behavior: unprotect failed at store layer, so context secret is null.
+        var instance = new CalendarSourceInstanceContext(
+            instanceId,
+            ownerId,
+            "icloud",
+            "iCloud Calendar",
+            true,
+            "{\"calendarUrl\":\"https://caldav.icloud.com/test/calendar/\"}",
+            null,
+            false);
+
+        var readiness = await core.GetReadinessAsync(instance, CancellationToken.None);
+
+        Assert.IsTrue(readiness.IsReady);
+
+        var persisted = await db.CalendarSourceInstances.AsNoTracking().SingleAsync(x => x.Id == instanceId);
+        Assert.IsNotNull(persisted.SecretDataJson);
+        Assert.IsTrue(persisted.SecretDataJson.StartsWith("enc:"),
+            "Legacy raw JSON should be migrated to protected whole-blob storage.");
+    }
+
     // Helper to access the private CreateCalendarQueryRequest for testing
     private static HttpRequestMessage CreateCalendarQueryRequest(
         ICloudCalendarOwnerConfiguration configuration,
