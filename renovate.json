@@ -8,5 +8,5 @@
             "matchPackageNames": ["Microsoft.OpenApi"],
             "versioning": "same-major"
         }
-    ],
+    ]
 }
