@@ -18,6 +18,7 @@ theme:
 nav:
   - Home: index.md
   - Guides:
+      - "SBOM (Software Bill of Materials)": sbom/index.md
       - "iCloud CalDAV Setup": icloud-caldav-setup.md
   - Architecture:
       - "1. Introduction & Goals": 01-introduction-goals.md
