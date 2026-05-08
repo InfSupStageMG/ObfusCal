@@ -11,6 +11,7 @@ using ObfusCal.Api.Components;
 using ObfusCal.Api.Controllers;
 using ObfusCal.Application;
 using ObfusCal.Application.Interfaces;
+using ObfusCal.Application.UseCases.Validation;
 using ObfusCal.Infrastructure;
 using ObfusCal.Infrastructure.Security;
 using Serilog;
@@ -71,6 +72,20 @@ try
         .AddJsonOptions(o =>
             o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);
 
+    builder.Services.Configure<ApiBehaviorOptions>(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var problem = new ValidationProblemDetails(context.ModelState)
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "One or more validation errors occurred."
+            };
+            problem.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
+            return new BadRequestObjectResult(problem);
+        };
+    });
+
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen(options =>
     {
@@ -119,13 +134,30 @@ try
         exceptionApp.Run(async context =>
         {
             var exceptionFeature = context.Features.Get<IExceptionHandlerPathFeature>();
+            if (exceptionFeature?.Error is RequestValidationException requestValidationException)
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                context.Response.ContentType = "application/problem+json";
+
+                var validationProblem = new ValidationProblemDetails(requestValidationException.Errors.ToDictionary(kvp => kvp.Key, kvp => kvp.Value))
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "One or more validation errors occurred."
+                };
+                validationProblem.Extensions["traceId"] = context.TraceIdentifier;
+
+                await context.Response.WriteAsJsonAsync(validationProblem);
+                return;
+            }
+
             var redactor = context.RequestServices.GetRequiredService<ILogRedactor>();
-            var redactedMessage = redactor.Redact(exceptionFeature?.Error.Message ?? "Unhandled exception");
+            var exception = exceptionFeature?.Error;
+            var redactedMessage = redactor.Redact(exception?.Message ?? "Unhandled exception");
 
             Log.ForContext("RequestMethod", context.Request.Method)
                 .ForContext("RequestPath", exceptionFeature?.Path ?? context.Request.Path.Value)
                 .ForContext("TraceId", context.TraceIdentifier)
-                .Error(exceptionFeature?.Error, "Unhandled exception while processing HTTP request: {RedactedMessage}", redactedMessage);
+                .Error(exception, "Unhandled exception while processing HTTP request: {RedactedMessage}", redactedMessage);
 
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             context.Response.ContentType = "application/problem+json";

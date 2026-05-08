@@ -44,7 +44,8 @@ public enum ApprovePeerConnectionOutcome
 {
     Approved,
     NotFound,
-    AlreadyActive
+    AlreadyActive,
+    InvalidBaseUrl
 }
 
 public sealed record ApprovePeerConnectionResult(

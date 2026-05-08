@@ -312,6 +312,33 @@ public class ShadowSlotsControllerTests
         Assert.AreEqual(string.Empty, body);
     }
 
+    [TestMethod]
+    public async Task PushShadowSlots_ReturnsBadRequest_WhenSlotBatchExceedsMaximum()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development");
+        using var client = factory.CreateClient();
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, Guid.NewGuid());
+
+        var start = DateTimeOffset.UtcNow;
+        var payload = Enumerable.Range(0, 501)
+            .Select(i => new
+            {
+                start = start.AddMinutes(i),
+                end = start.AddMinutes(i + 1)
+            })
+            .ToArray();
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "ApiKey",
+            CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
+
+        var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     private static void SetReplayHeader(HttpClient client, DateTimeOffset timestamp)
     {
         client.DefaultRequestHeaders.Remove(PeerTimestampHeaderName);

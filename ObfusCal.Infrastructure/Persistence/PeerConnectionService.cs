@@ -4,7 +4,9 @@ using ObfusCal.Infrastructure.Security;
 
 namespace ObfusCal.Infrastructure.Persistence;
 
-internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConnectionService
+internal sealed class PeerConnectionService(
+    AppDbContext dbContext,
+    IUrlSafetyValidator urlSafetyValidator) : IPeerConnectionService
 {
     public async Task<IReadOnlyList<PeerConnectionSummary>> ListAsync(CancellationToken ct = default)
     {
@@ -69,11 +71,17 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
 
     public async Task<PeerConnectionSummary> CreateAsync(string instanceId, string baseAddress, string apiKey, IEnumerable<string>? scopes = null, CancellationToken ct = default)
     {
+        var createValidation = await urlSafetyValidator.ValidateAsync(baseAddress, ct);
+        if (!createValidation.IsValid)
+            throw new ArgumentException(createValidation.Message, nameof(baseAddress));
+
+        var normalizedBaseAddress = NormalizeAbsoluteUrl(baseAddress);
+
         var peer = new PeerConnection
         {
             Id = Guid.NewGuid(),
             InstanceId = instanceId.Trim(),
-            BaseAddress = baseAddress.Trim().TrimEnd('/'),
+            BaseAddress = normalizedBaseAddress,
             ApiKeyHash = PeerApiKeySecurity.Hash(apiKey.Trim()),
             Scopes = PeerApiScopes.Normalize(scopes ?? PeerApiScopes.DefaultScopes),
             Status = PeerConnectionStatus.Active
@@ -130,6 +138,10 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
 
     public async Task<ApprovePeerConnectionResult> ApproveAsync(Guid id, string peerBaseUrl, IEnumerable<string>? scopes = null, CancellationToken ct = default)
     {
+        var validation = await urlSafetyValidator.ValidateAsync(peerBaseUrl, ct);
+        if (!validation.IsValid)
+            return new ApprovePeerConnectionResult(ApprovePeerConnectionOutcome.InvalidBaseUrl);
+
         var peer = await dbContext.PeerConnections.SingleOrDefaultAsync(p => p.Id == id, ct);
         if (peer is null)
             return new ApprovePeerConnectionResult(ApprovePeerConnectionOutcome.NotFound);
@@ -139,7 +151,7 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
 
         var apiKey = PeerApiKeySecurity.GenerateApiKey();
 
-        peer.BaseAddress = peerBaseUrl.Trim().TrimEnd('/');
+        peer.BaseAddress = NormalizeAbsoluteUrl(peerBaseUrl);
         peer.ApiKeyHash = PeerApiKeySecurity.Hash(apiKey);
         peer.Scopes = PeerApiScopes.Normalize(scopes ?? PeerApiScopes.DefaultScopes);
         peer.RevokedAt = null;
@@ -232,5 +244,8 @@ internal sealed class PeerConnectionService(AppDbContext dbContext) : IPeerConne
     }
 
     private static string NormalizeClientOrganisationName(string value) => value.Trim().ToUpperInvariant();
+
+    private static string NormalizeAbsoluteUrl(string url) =>
+        new Uri(url.Trim(), UriKind.Absolute).AbsoluteUri.TrimEnd('/');
 }
 

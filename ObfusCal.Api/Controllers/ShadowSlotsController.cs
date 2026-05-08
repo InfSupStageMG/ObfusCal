@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.ComponentModel.DataAnnotations;
 using ObfusCal.Api.Authentication;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Application.UseCases.GetBusySlots;
@@ -73,16 +74,12 @@ public sealed class ShadowSlotsController(
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> PullBusySlotsForPeer(
         Guid calendarOwnerRef,
-        [FromQuery] DateTimeOffset? from,
-        [FromQuery] DateTimeOffset? to,
+        [FromQuery] TimeWindowQuery query,
         CancellationToken ct)
     {
         var peerId = User.FindFirst(PeerApiKeyClaimTypes.PeerInstanceId)?.Value;
         if (string.IsNullOrWhiteSpace(peerId))
             return Unauthorized();
-
-        if (from is null || to is null)
-            return BadRequest("Query parameters 'from' and 'to' are required.");
 
         var calendarOwnerId = await dbContext.CalendarOwnerPeerMappings
             .Where(mapping => mapping.CalendarOwnerRef == calendarOwnerRef)
@@ -95,7 +92,7 @@ public sealed class ShadowSlotsController(
         if (calendarOwnerId == Guid.Empty)
             return Forbid();
 
-        var slots = await getBusySlotsUseCase.ExecuteAsync(new GetBusySlotsQuery(calendarOwnerId, from.Value, to.Value), ct);
+        var slots = await getBusySlotsUseCase.ExecuteAsync(new GetBusySlotsQuery(calendarOwnerId, query.From!.Value, query.To!.Value), ct);
         return Ok(slots);
     }
 
@@ -126,5 +123,16 @@ public sealed class ShadowSlotsController(
 
     private sealed record ParsedShadowSlotsPayload(Guid? CalendarOwnerRef, IReadOnlyList<ShadowSlotInput> Slots);
 
-    private sealed record PushShadowSlotsRequest(Guid CalendarOwnerRef, IReadOnlyList<ShadowSlotInput> Slots);
+    private sealed record PushShadowSlotsRequest(
+        [property: Required] Guid? CalendarOwnerRef,
+        [property: Required, MinLength(1)] IReadOnlyList<ShadowSlotInput> Slots);
+
+    public sealed class TimeWindowQuery
+    {
+        [Required]
+        public DateTimeOffset? From { get; init; }
+
+        [Required]
+        public DateTimeOffset? To { get; init; }
+    }
 }

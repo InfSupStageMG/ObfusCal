@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
+using System.ComponentModel.DataAnnotations;
 using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Controllers;
@@ -83,5 +84,7 @@ public sealed class SyncController(
         return Accepted();
     }
 
-    public sealed record TriggerSyncRequest(Guid? CalendarOwnerId = null);
+    public sealed record TriggerSyncRequest(
+        [param: Range(typeof(Guid), "00000000-0000-0000-0000-000000000001", "ffffffff-ffff-ffff-ffff-ffffffffffff")]
+        Guid? CalendarOwnerId = null);
 }
