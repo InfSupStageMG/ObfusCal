@@ -67,6 +67,16 @@ not accept them for this flow.
 **Data scoping:** After authentication, the user's Entra ID Object ID is extracted from the JWT token and used as a
 strict data boundary at the repository layer. A user can only access their own events, slots, and configuration.
 
+**Inbound payload validation:** API request models use DataAnnotations and ASP.NET Core global model-state handling.
+Validation failures return uniform `400` `ValidationProblemDetails` responses (without stack traces).
+
+**SSRF resistance for outbound URL inputs:** User/admin-provided URLs (for iCal feeds and peer base URLs) are validated
+through a shared URL safety service. Only `https` URLs are accepted and hosts resolving to private, loopback, or
+link-local IP ranges are rejected.
+
+**Abuse-resistance limits:** Time-window queries are capped by `Sync:MaxQueryWindowDays` (default `90`) and shadow-slot
+push payload size is capped by `Sync:MaxShadowSlotsPerRequest` (default `500`).
+
 ## Obfuscation Pipeline
 
 The pipeline uses a chain-of-responsibility pattern. A raw `CalendarEvent` is passed through a sequence of

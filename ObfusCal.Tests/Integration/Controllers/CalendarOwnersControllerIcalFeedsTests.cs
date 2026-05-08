@@ -153,6 +153,59 @@ public class CalendarOwnersControllerIcalFeedsTests
     }
 
     [TestMethod]
+    public async Task AddIcalFeed_ReturnsBadRequest_WhenFeedUrlUsesHttpScheme()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/ical-feeds",
+            new CalendarOwnersController.AddIcalFeedRequest("http://calendar.example.test/feed.ics"),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task AddIcalFeed_ReturnsBadRequest_WhenFeedUrlUsesPrivateIpHost()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/ical-feeds",
+            new CalendarOwnersController.AddIcalFeedRequest("https://10.0.0.5/feed.ics"),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task AddIcalFeed_ReturnsValidationProblemDetails_WhenFeedUrlIsMissing()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/ical-feeds",
+            new { },
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var payload = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using var document = JsonDocument.Parse(payload);
+        Assert.AreEqual("One or more validation errors occurred.", document.RootElement.GetProperty("title").GetString());
+        Assert.IsTrue(document.RootElement.TryGetProperty("errors", out _));
+    }
+
+    [TestMethod]
     public async Task AddIcalFeed_ReturnsConflict_WhenFeedAlreadyExists()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);

@@ -1,6 +1,9 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Application.UseCases.PushShadowSlots;
+using ObfusCal.Application.UseCases.Validation;
 using ObfusCal.Domain.Models;
 
 namespace ObfusCal.Tests.Unit.UseCases;
@@ -12,7 +15,7 @@ public class PushShadowSlotsCommandHandlerTests
     public async Task Handle_StoresSlotsWithPeerIdPrefix()
     {
         var store = new CapturingShadowSlotStore();
-        var handler = new PushShadowSlotsUseCase(store, NullLogger<PushShadowSlotsUseCase>.Instance);
+        var handler = CreateHandler(store);
 
         var ownerId = Guid.NewGuid();
         var command = new PushShadowSlotsCommand(
@@ -31,7 +34,7 @@ public class PushShadowSlotsCommandHandlerTests
     public async Task Handle_CreatesCorrectSourceEventId_WithIndex()
     {
         var store = new CapturingShadowSlotStore();
-        var handler = new PushShadowSlotsUseCase(store, NullLogger<PushShadowSlotsUseCase>.Instance);
+        var handler = CreateHandler(store);
 
         var ownerId = Guid.NewGuid();
         var command = new PushShadowSlotsCommand(
@@ -52,7 +55,7 @@ public class PushShadowSlotsCommandHandlerTests
     public async Task Handle_StoresSlotsForEachDistinctOwner()
     {
         var store = new CapturingShadowSlotStore();
-        var handler = new PushShadowSlotsUseCase(store, NullLogger<PushShadowSlotsUseCase>.Instance);
+        var handler = CreateHandler(store);
 
         var ownerA = Guid.NewGuid();
         var ownerB = Guid.NewGuid();
@@ -70,7 +73,7 @@ public class PushShadowSlotsCommandHandlerTests
     public async Task Handle_DeduplicatesOwnerIds()
     {
         var store = new CapturingShadowSlotStore();
-        var handler = new PushShadowSlotsUseCase(store, NullLogger<PushShadowSlotsUseCase>.Instance);
+        var handler = CreateHandler(store);
 
         var ownerId = Guid.NewGuid();
         var command = new PushShadowSlotsCommand(
@@ -87,7 +90,7 @@ public class PushShadowSlotsCommandHandlerTests
     public async Task Handle_MapsAllSlotFields()
     {
         var store = new CapturingShadowSlotStore();
-        var handler = new PushShadowSlotsUseCase(store, NullLogger<PushShadowSlotsUseCase>.Instance);
+        var handler = CreateHandler(store);
 
         var start = DateTimeOffset.UtcNow;
         var end = start.AddHours(1);
@@ -106,6 +109,39 @@ public class PushShadowSlotsCommandHandlerTests
         Assert.AreEqual("a@b.com", slot.AttendeeEmails![0]);
         Assert.AreEqual("Loc", slot.Location);
     }
+
+    [TestMethod]
+    public async Task Handle_ThrowsRequestValidationException_WhenBatchExceedsLimit()
+    {
+        var store = new CapturingShadowSlotStore();
+        var handler = CreateHandler(store, maxShadowSlotsPerRequest: 1);
+
+        var command = new PushShadowSlotsCommand(
+            "peer-x",
+            [Guid.NewGuid()],
+            [
+                new ShadowSlotInput(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1)),
+                new ShadowSlotInput(DateTimeOffset.UtcNow.AddHours(2), DateTimeOffset.UtcNow.AddHours(3))
+            ]);
+
+        try
+        {
+            await handler.ExecuteAsync(command, CancellationToken.None);
+            Assert.Fail("Expected RequestValidationException for oversized shadow-slot batch.");
+        }
+        catch (RequestValidationException)
+        {
+            // Expected.
+        }
+    }
+
+    private static PushShadowSlotsUseCase CreateHandler(
+        IShadowSlotStore store,
+        int maxShadowSlotsPerRequest = 500) =>
+        new(
+            store,
+            Options.Create(new SyncOptions { MaxShadowSlotsPerRequest = maxShadowSlotsPerRequest }),
+            NullLogger<PushShadowSlotsUseCase>.Instance);
 
     private sealed class CapturingShadowSlotStore : IShadowSlotStore
     {

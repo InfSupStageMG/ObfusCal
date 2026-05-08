@@ -4,7 +4,9 @@ using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Infrastructure.Persistence;
 
-internal sealed class CalendarOwnerIcalFeedService(AppDbContext dbContext) : ICalendarOwnerIcalFeedService
+internal sealed class CalendarOwnerIcalFeedService(
+    AppDbContext dbContext,
+    IUrlSafetyValidator urlSafetyValidator) : ICalendarOwnerIcalFeedService
 {
     public async Task<IReadOnlyList<CalendarOwnerIcalFeedItem>> ListFeedsAsync(
         Guid calendarOwnerId,
@@ -40,13 +42,17 @@ internal sealed class CalendarOwnerIcalFeedService(AppDbContext dbContext) : ICa
         string feedUrl,
         CancellationToken ct = default)
     {
+        var validation = await urlSafetyValidator.ValidateAsync(feedUrl, ct);
+        if (!validation.IsValid)
+            return new AddCalendarOwnerIcalFeedResult(AddCalendarOwnerIcalFeedOutcome.InvalidUrl);
+
         var owner = await dbContext.CalendarOwners
             .SingleOrDefaultAsync(o => o.Id == calendarOwnerId, ct);
 
         if (owner is null)
             return new AddCalendarOwnerIcalFeedResult(AddCalendarOwnerIcalFeedOutcome.CalendarOwnerNotFound);
 
-        var normalizedFeedUrl = feedUrl.Trim();
+        var normalizedFeedUrl = new Uri(feedUrl.Trim(), UriKind.Absolute).AbsoluteUri;
 
         var instanceConfigJsons = await dbContext.CalendarSourceInstances
             .AsNoTracking()

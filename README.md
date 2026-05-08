@@ -226,6 +226,15 @@ Use `.env.example` as the authoritative placeholder list for local/compose confi
 - Peer sync requests include `X-Peer-Timestamp` and are rejected when outside `Sync:PeerRequestTimestampToleranceSeconds` (default 300 seconds).
 - `POST /api/admin/peer-connections/{id}/suspend` sets the peer to `Suspended` and sync/auth traffic for that peer is blocked.
 
+## Input validation and SSRF protections
+
+- Request DTOs use DataAnnotations and invalid payloads are returned as `400` `ValidationProblemDetails`.
+- iCal feed URLs and peer base URLs are validated with a shared URL safety policy:
+  - only `https` scheme is accepted
+  - hosts resolving to private, loopback, or link-local IP ranges are rejected
+- Query windows for `busy-slots` and `merged-freebusy` are bounded by `Sync:MaxQueryWindowDays` (default `90`).
+- Shadow-slot push payloads are bounded by `Sync:MaxShadowSlotsPerRequest` (default `500`).
+
 Run mutation tests with Stryker:
 
 ```powershell

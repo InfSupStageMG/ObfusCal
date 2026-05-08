@@ -198,6 +198,38 @@ public class CalendarOwnersControllerTests
     }
 
     [TestMethod]
+    public async Task GetBusySlots_ReturnsBadRequest_WhenWindowExceedsConfiguredMaximum()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var calendarOwnerId = await SeedConsentedCalendarOwnerAsync(factory);
+        using var client = factory.CreateAuthenticatedClient();
+
+        var from = "2026-01-01T00:00:00Z";
+        var to = "2026-05-01T00:00:00Z";
+        var response = await client.GetAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/busy-slots?from={from}&to={to}",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task GetMergedFreeBusy_ReturnsBadRequest_WhenWindowExceedsConfiguredMaximum()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
+        using var client = factory.CreateAuthenticatedClient();
+
+        var from = "2026-01-01T00:00:00Z";
+        var to = "2026-05-01T00:00:00Z";
+        var response = await client.GetAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/merged-freebusy?from={from}&to={to}",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [TestMethod]
     public async Task GetMergedFreeBusy_ReturnsJsonWithStartAndEndFields()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);

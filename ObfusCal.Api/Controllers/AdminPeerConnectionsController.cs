@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Controllers;
@@ -36,19 +37,7 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Approve(Guid id, [FromBody] ApprovePeerConnectionRequest request, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.PeerBaseUrl))
-            return BadRequest("'peerBaseUrl' is required.");
-
-        if (!Uri.TryCreate(request.PeerBaseUrl, UriKind.Absolute, out var parsedUri))
-            return BadRequest("'peerBaseUrl' must be a valid absolute URI.");
-
-        if (!string.Equals(parsedUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(parsedUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
-        {
-            return BadRequest("'peerBaseUrl' must use the http or https scheme.");
-        }
-
-        var result = await peerConnectionService.ApproveAsync(id, parsedUri.AbsoluteUri, request.Scopes, ct);
+        var result = await peerConnectionService.ApproveAsync(id, request.PeerBaseUrl, request.Scopes, ct);
         return result.Outcome switch
         {
             ApprovePeerConnectionOutcome.Approved => Ok(new ApprovePeerConnectionResponse(result.PlaintextApiKey!)),
@@ -58,6 +47,12 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
                 Status = StatusCodes.Status409Conflict,
                 Title = "Peer connection is already active.",
                 Detail = "An active peer connection cannot be approved again."
+            }),
+            ApprovePeerConnectionOutcome.InvalidBaseUrl => BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Invalid or unsafe peer base URL.",
+                Detail = "Only public https URLs are allowed for peer base addresses."
             }),
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
@@ -133,7 +128,9 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
         string? RequestedByCalendarOwnerName,
         int MappingCount);
 
-    public sealed record ApprovePeerConnectionRequest(string PeerBaseUrl, IReadOnlyList<string>? Scopes = null);
+    public sealed record ApprovePeerConnectionRequest(
+        [param: Required, MaxLength(2048)] string PeerBaseUrl,
+        IReadOnlyList<string>? Scopes = null);
 
     private sealed record ApprovePeerConnectionResponse(string ApiKey);
     private sealed record RotatePeerConnectionApiKeyResponse(string ApiKey);

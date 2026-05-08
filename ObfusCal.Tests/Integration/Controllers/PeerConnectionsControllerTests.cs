@@ -122,6 +122,27 @@ public class PeerConnectionsControllerTests
         Assert.AreEqual(1, firstListDocument.RootElement.GetArrayLength());
         Assert.AreEqual("Contoso", firstListDocument.RootElement[0].GetProperty("clientOrganisationName").GetString());
     }
+
+    [TestMethod]
+    public async Task RequestPeerConnection_ReturnsValidationProblemDetails_WhenClientOrganisationNameMissing()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        await factory.SeedCalendarOwnerAsync(objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/peer-connections/request",
+            new { },
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var json = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using var document = JsonDocument.Parse(json);
+        Assert.AreEqual("One or more validation errors occurred.", document.RootElement.GetProperty("title").GetString());
+        Assert.IsTrue(document.RootElement.TryGetProperty("errors", out _));
+    }
 }
 
 

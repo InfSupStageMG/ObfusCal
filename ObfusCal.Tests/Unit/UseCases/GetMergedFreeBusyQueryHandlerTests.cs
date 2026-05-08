@@ -1,7 +1,10 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Application.Obfuscation;
 using ObfusCal.Application.UseCases.GetMergedFreeBusy;
+using ObfusCal.Application.UseCases.Validation;
 using ObfusCal.Domain.Models;
 using ObfusCal.Domain.Obfuscation;
 
@@ -34,6 +37,7 @@ public class GetMergedFreeBusyQueryHandlerTests
         var handler = new GetMergedFreeBusyUseCase(
             availabilityStore,
             new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
+            Options.Create(new SyncOptions()),
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
         var query = new GetMergedFreeBusyQuery(OwnerId, From, To);
@@ -61,6 +65,7 @@ public class GetMergedFreeBusyQueryHandlerTests
         var handler = new GetMergedFreeBusyUseCase(
             availabilityStore,
             new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
+            Options.Create(new SyncOptions()),
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
         var result = await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
@@ -87,6 +92,7 @@ public class GetMergedFreeBusyQueryHandlerTests
         var handler = new GetMergedFreeBusyUseCase(
             availabilityStore,
             new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
+            Options.Create(new SyncOptions()),
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
         var result = await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
@@ -114,6 +120,7 @@ public class GetMergedFreeBusyQueryHandlerTests
         var handler = new GetMergedFreeBusyUseCase(
             availabilityStore,
             new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
+            Options.Create(new SyncOptions()),
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
         var result = await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
@@ -144,6 +151,7 @@ public class GetMergedFreeBusyQueryHandlerTests
         var handler = new GetMergedFreeBusyUseCase(
             availabilityStore,
             new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
+            Options.Create(new SyncOptions()),
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
         await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
@@ -173,6 +181,7 @@ public class GetMergedFreeBusyQueryHandlerTests
         var handler = new GetMergedFreeBusyUseCase(
             availabilityStore,
             new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
+            Options.Create(new SyncOptions()),
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
         var result = await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
@@ -198,6 +207,7 @@ public class GetMergedFreeBusyQueryHandlerTests
         var handler = new GetMergedFreeBusyUseCase(
             availabilityStore,
             new FixedCalendarSourceResolver(calendarSource), pipeline, shadowStore, profileService,
+            Options.Create(new SyncOptions()),
             NullLogger<GetMergedFreeBusyUseCase>.Instance);
 
         var result = await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, To), CancellationToken.None);
@@ -205,6 +215,36 @@ public class GetMergedFreeBusyQueryHandlerTests
         Assert.HasCount(1, result);
         Assert.AreEqual("Snapshot", result[0].Title);
         Assert.IsNull(profileService.LastRequestedContext, "Profile lookup is not needed when snapshot data exists.");
+    }
+
+    [TestMethod]
+    public async Task Handle_ThrowsRequestValidationException_WhenWindowExceedsConfiguredLimit()
+    {
+        var availabilityStore = new FakeAvailabilitySlotStore([]);
+        var calendarSource = new FakeCalendarSource([]);
+        var shadowStore = new FakeShadowSlotStore([]);
+        var profileService = new FakeObfuscationProfileService();
+
+        var pipeline = new ObfuscationPipeline([], [], NullLogger<ObfuscationPipeline>.Instance);
+
+        var handler = new GetMergedFreeBusyUseCase(
+            availabilityStore,
+            new FixedCalendarSourceResolver(calendarSource),
+            pipeline,
+            shadowStore,
+            profileService,
+            Options.Create(new SyncOptions { MaxQueryWindowDays = 1 }),
+            NullLogger<GetMergedFreeBusyUseCase>.Instance);
+
+        try
+        {
+            await handler.ExecuteAsync(new GetMergedFreeBusyQuery(OwnerId, From, From.AddDays(2)), CancellationToken.None);
+            Assert.Fail("Expected RequestValidationException for oversized query window.");
+        }
+        catch (RequestValidationException)
+        {
+            // Expected.
+        }
     }
 
     // ---- Fakes ----
