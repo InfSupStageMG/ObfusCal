@@ -435,7 +435,7 @@ public class ShadowSlotsControllerTests
         await using var factory = new CustomWebApplicationFactory("Development");
         using var client = factory.CreateClient();
 
-        var oversizedContent = new StringContent(new string('x', 1_500_000), Encoding.UTF8, "application/json");
+        using var oversizedContent = new StringContent(new string('x', 1_500_000), Encoding.UTF8, "application/json");
 
         var response = await client.PostAsync("/api/shadow-slots", oversizedContent, TestContext.CancellationToken);
 
