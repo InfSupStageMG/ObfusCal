@@ -140,29 +140,33 @@ public static class DependencyInjection
         var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("PeerTransportHttpClient");
 
         var handler = new SocketsHttpHandler();
-        handler.SslOptions.RemoteCertificateValidationCallback = (sender, certificate, _, sslPolicyErrors) =>
-            ValidateRemoteCertificateCallback(sender, certificate, sslPolicyErrors, options, logger);
-
-        handler.SslOptions.LocalCertificateSelectionCallback = (sender, _, _, _, _) =>
-            SelectLocalCertificateCallback(sender, logger);
+        handler.SslOptions.RemoteCertificateValidationCallback =
+            (sender, cert, chain, errors) => ValidatePeerRemoteCertificate(sender, cert as X509Certificate2, chain, errors, options, logger);
+        handler.SslOptions.LocalCertificateSelectionCallback =
+            (sender, targetHost, localCerts, remoteCert, issuers) =>
+            SelectPeerLocalCertificate(sender, targetHost, localCerts, remoteCert, issuers, logger);
 
         return handler;
     }
 
-    private static bool ValidateRemoteCertificateCallback(
-        object? sender,
-        X509Certificate? certificate,
+    private static bool ValidatePeerRemoteCertificate(
+        object sender,
+        X509Certificate2? certificate,
+        X509Chain? chain,
         System.Net.Security.SslPolicyErrors sslPolicyErrors,
         PeerTransportSecurityOptions options,
         Microsoft.Extensions.Logging.ILogger logger)
     {
+        if (certificate == null)
+            return false;
+
         var request = sender as HttpRequestMessage;
         var pinnedThumbprint = request?.Options.TryGetValue(PeerTransportRequestOptions.PinnedCertificateThumbprint, out var pinned) == true
             ? pinned
             : null;
 
         var result = PeerTransportSecurity.ValidateRemoteCertificate(
-            certificate as X509Certificate2,
+            certificate,
             sslPolicyErrors,
             pinnedThumbprint,
             options.AllowSelfSignedCerts);
@@ -178,8 +182,12 @@ public static class DependencyInjection
         return result.IsTrusted;
     }
 
-    private static X509Certificate2? SelectLocalCertificateCallback(
-        object? sender,
+    private static X509Certificate? SelectPeerLocalCertificate(
+        object sender,
+        string targetHost,
+        X509CertificateCollection localCertificates,
+        X509Certificate? remoteCertificate,
+        string[] acceptableIssuers,
         Microsoft.Extensions.Logging.ILogger logger)
     {
         var request = sender as HttpRequestMessage;
@@ -188,7 +196,7 @@ public static class DependencyInjection
             : null;
         var peerId = request?.Options.TryGetValue(PeerTransportRequestOptions.PeerInstanceId, out var id) == true ? id : null;
 
-        return PeerTransportSecurity.TryResolveClientCertificate(clientThumbprint, logger, peerId);
+        return PeerTransportSecurity.TryResolveClientCertificate(clientThumbprint, logger, peerId) ?? remoteCertificate;
     }
 
      private static void RegisterDomainServices(IServiceCollection services)
