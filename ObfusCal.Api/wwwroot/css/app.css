@@ -22,6 +22,92 @@ html, body {
 
     --message-bar-margin: 0.5rem 0 0 0;
     --card-margin-top: 1rem;
+
+    --cal-color-primary: #1976d2;
+    --cal-color-primary-light: #2196f3;
+    --cal-color-primary-lighter: #bbdefb;
+    --cal-color-primary-lightest: #e3f2fd;
+    --cal-color-primary-dark: #1565c0;
+
+    --cal-color-text-primary: #424242;
+    --cal-color-text-secondary: #757575;
+    --cal-color-text-hint: #9e9e9e;
+    --cal-color-text-muted: #656565;
+
+    --cal-color-border: #e0e0e0;
+    --cal-color-border-light: #e5e5e5;
+    --cal-color-background: #ffffff;
+    --cal-color-background-subtle: #fafafa;
+    --cal-color-background-hover: #f0f0f0;
+    --cal-color-background-disabled: #bdbdbd;
+
+    --cal-color-overlay: rgba(0, 0, 0, 0.5);
+    --cal-color-shadow: rgba(0, 0, 0, 0.2);
+
+    --cal-sp-xs: 2px;
+    --cal-sp-sm: 4px;
+    --cal-sp-md: 8px;
+    --cal-sp-lg: 12px;
+    --cal-sp-xl: 16px;
+    --cal-sp-2xl: 20px;
+    --cal-sp-3xl: 24px;
+
+    --cal-font-weight-regular: 400;
+    --cal-font-weight-medium: 500;
+    --cal-font-weight-semibold: 600;
+
+    --cal-font-size-xs: 0.65rem;
+    --cal-font-size-sm: 0.75rem;
+    --cal-font-size-md: 0.875rem;
+    --cal-font-size-base: 0.9rem;
+    --cal-font-size-lg: 1rem;
+    --cal-font-size-xl: 1.1rem;
+    --cal-font-size-2xl: 1.25rem;
+
+    --cal-font-family-mono: 'Courier New', monospace;
+
+    --cal-transition-fast: 0.2s;
+
+    --cal-z-modal-backdrop: 1000;
+    --cal-z-modal-dialog: 1001;
+
+    --color-primary: var(--cal-color-primary);
+    --color-primary-light: var(--cal-color-primary-light);
+    --color-primary-lighter: var(--cal-color-primary-lighter);
+    --color-primary-lightest: var(--cal-color-primary-lightest);
+    --color-primary-dark: var(--cal-color-primary-dark);
+
+    --color-text-primary: var(--cal-color-text-primary);
+    --color-text-secondary: var(--cal-color-text-secondary);
+    --color-text-hint: var(--cal-color-text-hint);
+    --color-text-muted: var(--cal-color-text-muted);
+
+    --color-border: var(--cal-color-border);
+    --color-border-light: var(--cal-color-border-light);
+    --color-background: var(--cal-color-background);
+    --color-background-subtle: var(--cal-color-background-subtle);
+    --color-background-hover: var(--cal-color-background-hover);
+    --color-background-disabled: var(--cal-color-background-disabled);
+
+    --color-overlay: var(--cal-color-overlay);
+    --color-shadow: var(--cal-color-shadow);
+
+    --font-weight-regular: var(--cal-font-weight-regular);
+    --font-weight-medium: var(--cal-font-weight-medium);
+    --font-weight-semibold: var(--cal-font-weight-semibold);
+
+    --font-size-xs: var(--cal-font-size-xs);
+    --font-size-sm: var(--cal-font-size-sm);
+    --font-size-md: var(--cal-font-size-md);
+    --font-size-base: var(--cal-font-size-base);
+    --font-size-lg: var(--cal-font-size-lg);
+    --font-size-xl: var(--cal-font-size-xl);
+    --font-size-2xl: var(--cal-font-size-2xl);
+
+    --font-family-mono: var(--cal-font-family-mono);
+    --transition-fast: var(--cal-transition-fast);
+    --z-modal-backdrop: var(--cal-z-modal-backdrop);
+    --z-modal-dialog: var(--cal-z-modal-dialog);
 }
 
 .card {
