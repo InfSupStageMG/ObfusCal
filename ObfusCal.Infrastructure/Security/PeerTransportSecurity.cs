@@ -1,4 +1,6 @@
 ﻿using System.Net.Security;
+using System.Security;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 
@@ -90,7 +92,25 @@ public static class PeerTransportSecurity
                     return certificate;
                 }
             }
-            catch (Exception ex)
+            catch (CryptographicException ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Failed to load client certificate {Thumbprint} for peer {PeerId} from {StoreLocation} store.",
+                    normalizedThumbprint,
+                    peerInstanceId ?? "<unknown>",
+                    storeLocation);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Failed to load client certificate {Thumbprint} for peer {PeerId} from {StoreLocation} store.",
+                    normalizedThumbprint,
+                    peerInstanceId ?? "<unknown>",
+                    storeLocation);
+            }
+            catch (SecurityException ex)
             {
                 logger.LogWarning(
                     ex,

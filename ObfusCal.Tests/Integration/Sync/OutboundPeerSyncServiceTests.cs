@@ -371,11 +371,12 @@ public class OutboundPeerSyncServiceTests
         await dbContext.SaveChangesAsync();
 
         CapturedRequest? capturedRequest = null;
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(async request =>
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(async request =>
         {
             capturedRequest = await CapturedRequest.FromAsync(request);
             return new HttpResponseMessage(HttpStatusCode.OK);
-        })));
+        }));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(dbContext, httpClientFactory, new StubCalendarSource([]));
 

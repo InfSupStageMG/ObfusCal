@@ -332,11 +332,12 @@ public class InboundPeerPullSyncServiceTests
 
         CapturedRequest? capturedRequest = null;
         var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(async request =>
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(async request =>
         {
             capturedRequest = await CapturedRequest.FromAsync(request);
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
-        })));
+        }));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(dbContext, store, httpClientFactory);
 

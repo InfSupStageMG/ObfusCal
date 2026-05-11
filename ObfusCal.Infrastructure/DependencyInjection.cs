@@ -1,4 +1,5 @@
 ﻿using System.Runtime.Loader;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
@@ -140,41 +141,54 @@ public static class DependencyInjection
 
         var handler = new SocketsHttpHandler();
         handler.SslOptions.RemoteCertificateValidationCallback = (sender, certificate, _, sslPolicyErrors) =>
-        {
-            var request = sender as HttpRequestMessage;
-            var pinnedThumbprint = request?.Options.TryGetValue(PeerTransportRequestOptions.PinnedCertificateThumbprint, out var pinned) == true
-                ? pinned
-                : null;
-
-            var result = PeerTransportSecurity.ValidateRemoteCertificate(
-                certificate,
-                sslPolicyErrors,
-                pinnedThumbprint,
-                options.AllowSelfSignedCerts);
-
-            if (!result.IsTrusted)
-            {
-                logger.LogWarning(
-                    "Rejected peer certificate for {PeerId}: {Reason}",
-                    request?.Options.TryGetValue(PeerTransportRequestOptions.PeerInstanceId, out var peerId) == true ? peerId : "<unknown>",
-                    result.FailureReason);
-            }
-
-            return result.IsTrusted;
-        };
+            ValidateRemoteCertificateCallback(sender, certificate, sslPolicyErrors, options, logger);
 
         handler.SslOptions.LocalCertificateSelectionCallback = (sender, _, _, _, _) =>
-        {
-            var request = sender as HttpRequestMessage;
-            var clientThumbprint = request?.Options.TryGetValue(PeerTransportRequestOptions.ClientCertificateThumbprint, out var thumbprint) == true
-                ? thumbprint
-                : null;
-            var peerId = request?.Options.TryGetValue(PeerTransportRequestOptions.PeerInstanceId, out var id) == true ? id : null;
-
-            return PeerTransportSecurity.TryResolveClientCertificate(clientThumbprint, logger, peerId);
-        };
+            SelectLocalCertificateCallback(sender, logger);
 
         return handler;
+    }
+
+    private static bool ValidateRemoteCertificateCallback(
+        object? sender,
+        X509Certificate? certificate,
+        System.Net.Security.SslPolicyErrors sslPolicyErrors,
+        PeerTransportSecurityOptions options,
+        Microsoft.Extensions.Logging.ILogger logger)
+    {
+        var request = sender as HttpRequestMessage;
+        var pinnedThumbprint = request?.Options.TryGetValue(PeerTransportRequestOptions.PinnedCertificateThumbprint, out var pinned) == true
+            ? pinned
+            : null;
+
+        var result = PeerTransportSecurity.ValidateRemoteCertificate(
+            certificate as X509Certificate2,
+            sslPolicyErrors,
+            pinnedThumbprint,
+            options.AllowSelfSignedCerts);
+
+        if (!result.IsTrusted)
+        {
+            logger.LogWarning(
+                "Rejected peer certificate for {PeerId}: {Reason}",
+                request?.Options.TryGetValue(PeerTransportRequestOptions.PeerInstanceId, out var peerId) == true ? peerId : "<unknown>",
+                result.FailureReason);
+        }
+
+        return result.IsTrusted;
+    }
+
+    private static X509Certificate2? SelectLocalCertificateCallback(
+        object? sender,
+        Microsoft.Extensions.Logging.ILogger logger)
+    {
+        var request = sender as HttpRequestMessage;
+        var clientThumbprint = request?.Options.TryGetValue(PeerTransportRequestOptions.ClientCertificateThumbprint, out var thumbprint) == true
+            ? thumbprint
+            : null;
+        var peerId = request?.Options.TryGetValue(PeerTransportRequestOptions.PeerInstanceId, out var id) == true ? id : null;
+
+        return PeerTransportSecurity.TryResolveClientCertificate(clientThumbprint, logger, peerId);
     }
 
      private static void RegisterDomainServices(IServiceCollection services)
