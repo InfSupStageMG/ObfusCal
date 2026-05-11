@@ -1,6 +1,5 @@
 ﻿@page "/calendar-owners/{Id:guid}"
 @using ObfusCal.Application.Interfaces
-@using Microsoft.FluentUI.AspNetCore.Components
 @inject ICalendarOwnerService CalendarOwnerService
 @inject ICalendarSourceCatalog CalendarSourceCatalog
 @inject ICalendarSourceInstanceService CalendarSourceInstanceService
@@ -38,7 +37,7 @@ else
             </FluentStack>
             @if (_ownerSyncMessage is not null)
             {
-                <FluentMessageBar Intent="@_ownerSyncMessageIntent">
+                <FluentMessageBar Intent="@_ownerSyncMessageIntent" Class="card-message">
                     @_ownerSyncMessage
                 </FluentMessageBar>
             }
@@ -58,7 +57,7 @@ else
 
             @if (_pluginOptions.Count == 0)
             {
-                <FluentMessageBar Intent="MessageIntent.Warning">
+                <FluentMessageBar Intent="MessageIntent.Warning" Class="card-message">
                     No calendar source plugins were discovered. Drop plugin assemblies in the <code>plugins</code> folder and restart.
                 </FluentMessageBar>
             }
@@ -72,9 +71,13 @@ else
                                       Items="_pluginOptions"
                                       OptionValue="@(option => option.Id)"
                                       OptionText="@(option => option.DisplayLabel)"
+                                      Class="app-form-control"
+                                      Style="width: 100%; max-width: 100%; min-width: 0;"
                                       @bind-SelectedOption="SelectedPluginOption"/>
 
                         <FluentTextField @bind-Value="_newSourceDisplayName" Immediate="true"
+                                         Class="app-form-control"
+                                         Style="width: 100%; max-width: 100%; min-width: 0;"
                                          Label="Display name" Placeholder="My calendar"/>
 
                         @if (HasFieldEditors(_newSourceConfigurationFields))
@@ -96,8 +99,8 @@ else
                         }
                         else if (!string.IsNullOrWhiteSpace(_newSourceConfigurationJson))
                         {
-                            <FluentLabel>Configuration JSON</FluentLabel>
-                            <textarea class="config-textarea" @bind="_newSourceConfigurationJson"></textarea>
+                            <FluentLabel Class="app-form-label">Configuration JSON</FluentLabel>
+                            <textarea class="config-textarea app-form-control" @bind="_newSourceConfigurationJson"></textarea>
                         }
 
                         @if (HasFieldEditors(_newSourceSecretFields))
@@ -118,24 +121,25 @@ else
                         }
                         else if (!string.IsNullOrWhiteSpace(_newSourceSecretDataJson))
                         {
-                            <FluentLabel>Secret JSON</FluentLabel>
-                            <textarea class="secret-textarea" @bind="_newSourceSecretDataJson"></textarea>
+                            <FluentLabel Class="app-form-label">Secret JSON</FluentLabel>
+                            <textarea class="secret-textarea app-form-control" @bind="_newSourceSecretDataJson"></textarea>
                         }
 
                         @if (!string.IsNullOrWhiteSpace(_selectedPluginOption?.SetupHint))
                         {
-                            <FluentMessageBar Intent="MessageIntent.Info">@_selectedPluginOption.SetupHint</FluentMessageBar>
+                            <FluentMessageBar Intent="MessageIntent.Info" Class="card-message">@_selectedPluginOption.SetupHint</FluentMessageBar>
                         }
 
                         <FluentCheckbox @bind-Value="_newSourceIsEnabled" Label="Enabled"/>
                         <FluentButton Appearance="Appearance.Accent" OnClick="CreateSourceInstanceAsync"
+                                      Class="app-form-button"
                                       Disabled="@(_selectedPluginOption is null || _creatingSourceInstance)">
                             @(_creatingSourceInstance ? "Adding..." : "Add Source")
                         </FluentButton>
 
                         @if (_sourceMessage is not null && _lastActionInstanceId is null)
                         {
-                            <FluentMessageBar Intent="@_sourceMessageIntent">@_sourceMessage</FluentMessageBar>
+                            <FluentMessageBar Intent="@_sourceMessageIntent" Class="card-message">@_sourceMessage</FluentMessageBar>
                         }
                     </FluentStack>
                 </section>
@@ -144,7 +148,7 @@ else
             @* Success message after add (form is now closed) *@
             @if (_sourceMessage is not null && _lastActionInstanceId is null && !_showAddForm)
             {
-                <FluentMessageBar Intent="@_sourceMessageIntent">@_sourceMessage</FluentMessageBar>
+                <FluentMessageBar Intent="@_sourceMessageIntent" Class="card-message">@_sourceMessage</FluentMessageBar>
             }
 
             @if (_sourceInstances.Count > 0)
@@ -174,7 +178,7 @@ else
                             }
 
                             <FluentStack Orientation="Orientation.Vertical" VerticalGap="8" Class="instance-actions-stack">
-                                <FluentTextField @bind-Value="instance.DisplayName" Immediate="true" Label="Display name"/>
+                                <FluentTextField @bind-Value="instance.DisplayName" Immediate="true" Label="Display name" Class="app-form-control" Style="width: 100%; max-width: 100%; min-width: 0;"/>
 
                                 @if (HasFieldEditors(instance.ConfigurationFields))
                                 {
@@ -195,16 +199,14 @@ else
                                 }
                                 else
                                 {
-                                    <FluentLabel>Configuration JSON</FluentLabel>
-                                    <textarea class="config-textarea" @bind="instance.ConfigurationJson"></textarea>
+                                    <FluentLabel Class="app-form-label">Configuration JSON</FluentLabel>
+                                    <textarea class="config-textarea app-form-control" @bind="instance.ConfigurationJson"></textarea>
                                 }
 
                                 @if (HasFieldEditors(instance.SecretFields))
                                 {
                                     <h4 class="section-heading">Secrets</h4>
-                                    <p style="margin: 0 0 0.25rem; font-size: 0.8rem; color: var(--neutral-foreground-hint);">
-                                        Leave blank to keep the existing saved value.
-                                    </p>
+                                     <p class="secret-hint">Leave blank to keep the existing saved value.</p>
                                     @foreach (var field in instance.SecretFields)
                                     {
                                         var f = field;
@@ -220,19 +222,21 @@ else
                                 }
                                 else
                                 {
-                                    <FluentLabel>Secret JSON</FluentLabel>
-                                    <textarea class="secret-textarea" @bind="instance.SecretDataJson"></textarea>
+                                    <FluentLabel Class="app-form-label">Secret JSON</FluentLabel>
+                                    <textarea class="secret-textarea app-form-control" @bind="instance.SecretDataJson"></textarea>
                                 }
 
                                 <FluentCheckbox @bind-Value="instance.IsEnabled" Label="Enabled"/>
 
-                                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
+                                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" Wrap="true" Class="app-form-actions source-instance-action-row">
                                     <FluentButton Appearance="Appearance.Accent"
+                                                  Class="app-form-button"
                                                   OnClick="@(() => UpdateSourceInstanceAsync(instance))"
                                                   Disabled="_updatingSourceInstanceId == instance.Id">
                                         @(_updatingSourceInstanceId == instance.Id ? "Saving..." : "Save")
                                     </FluentButton>
                                     <FluentButton Appearance="Appearance.Outline"
+                                                  Class="app-form-button"
                                                   OnClick="@(() => DeleteSourceInstanceAsync(instance.Id))"
                                                   Disabled="_deletingSourceInstanceId == instance.Id">
                                         @(_deletingSourceInstanceId == instance.Id ? "Deleting..." : "Delete")
@@ -243,6 +247,7 @@ else
                                         var capturedInstance = instance;
                                         var isRunning = _executingActionInstanceId == instance.Id && _executingActionId == action.ActionId;
                                         <FluentButton Appearance="Appearance.Outline"
+                                                      Class="app-form-button"
                                                       Title="@action.Hint"
                                                       OnClick="@(() => InvokePluginActionAsync(capturedInstance, capturedAction))"
                                                       Disabled="@isRunning">
@@ -253,7 +258,7 @@ else
 
                                 @if (_sourceMessage is not null && _lastActionInstanceId == instance.Id)
                                 {
-                                    <FluentMessageBar Intent="@_sourceMessageIntent">@_sourceMessage</FluentMessageBar>
+                                    <FluentMessageBar Intent="@_sourceMessageIntent" Class="card-message">@_sourceMessage</FluentMessageBar>
                                 }
                             </FluentStack>
                         </section>
@@ -280,9 +285,11 @@ else
                         <FluentCheckbox @bind-Value="profile.RemoveAttendees" Label="Remove attendees"/>
                         <FluentCheckbox @bind-Value="profile.RoundTimes" Label="Round times"/>
                         <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8"
-                                     VerticalAlignment="VerticalAlignment.Center">
-                            <FluentLabel>Rounding interval (minutes)</FluentLabel>
-                            <FluentNumberField @bind-Value="profile.RoundingIntervalMinutes" Min="1" Max="60" />
+                                     VerticalAlignment="VerticalAlignment.Center" Wrap="true" Class="profile-rounding-row app-form-row">
+                            <div class="profile-rounding-field app-form-field">
+                                <FluentLabel Class="app-form-label">Rounding interval (minutes)</FluentLabel>
+                                <FluentNumberField @bind-Value="profile.RoundingIntervalMinutes" Min="1" Max="60" Class="app-form-control" Style="width: 100%; max-width: 100%; min-width: 0;" />
+                            </div>
                         </FluentStack>
                         <FluentCheckbox @bind-Value="profile.MergeBlocks" Label="Merge adjacent blocks"/>
                         <FluentButton Appearance="Appearance.Accent" OnClick="@(() => SaveProfileAsync(profile))">
@@ -294,7 +301,7 @@ else
 
             @if (_profileMessage is not null)
             {
-                <FluentMessageBar Intent="MessageIntent.Success">
+                <FluentMessageBar Intent="MessageIntent.Success" Class="card-message">
                     @_profileMessage
                 </FluentMessageBar>
             }

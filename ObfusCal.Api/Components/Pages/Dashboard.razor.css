@@ -1,0 +1,129 @@
+﻿.combined-calendar-card {
+    overflow: hidden;
+}
+
+.combined-calendar-controls {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 0.75rem;
+    align-items: end;
+    justify-items: stretch;
+}
+
+.combined-calendar-field {
+    display: grid;
+    align-content: start;
+    gap: 0.375rem;
+    min-width: 0;
+    justify-items: stretch;
+}
+
+.combined-calendar-label {
+    display: block;
+    line-height: 1.25;
+    min-height: 1.25rem;
+}
+
+.combined-calendar-field--owner {
+    grid-column: span 3;
+}
+
+.combined-calendar-field--from,
+.combined-calendar-field--to {
+    grid-column: span 3;
+}
+
+.combined-calendar-field--timezone {
+    grid-column: span 3;
+}
+
+.combined-calendar-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    min-width: 0;
+    padding-top: 0.25rem;
+}
+
+.combined-calendar-control {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-block-size: 40px;
+    justify-self: stretch;
+}
+
+.combined-calendar-button {
+    min-width: 7rem;
+}
+
+@media (max-width: 1200px) {
+    .combined-calendar-field--owner {
+        grid-column: span 6;
+    }
+
+    .combined-calendar-field--from,
+    .combined-calendar-field--to {
+        grid-column: span 3;
+    }
+
+    .combined-calendar-field--timezone {
+        grid-column: span 6;
+    }
+
+    .combined-calendar-actions {
+        grid-column: span 12;
+    }
+}
+
+@media (max-width: 860px) {
+    .combined-calendar-field--owner,
+    .combined-calendar-field--timezone {
+        grid-column: span 12;
+    }
+
+    .combined-calendar-field--from,
+    .combined-calendar-field--to {
+        grid-column: span 6;
+    }
+
+    .combined-calendar-actions {
+        padding-top: 0;
+    }
+}
+
+@media (max-width: 640px) {
+    .combined-calendar-controls {
+        grid-template-columns: 1fr;
+        gap: 0.875rem;
+    }
+
+    .combined-calendar-field--owner,
+    .combined-calendar-field--from,
+    .combined-calendar-field--to,
+    .combined-calendar-field--timezone,
+    .combined-calendar-actions {
+        grid-column: 1 / -1;
+    }
+
+    .combined-calendar-actions {
+        gap: 0.5rem;
+    }
+
+    .combined-calendar-button {
+        flex: 1 1 100%;
+    }
+}
+
+@media (max-height: 760px) and (min-width: 861px) {
+    .combined-calendar-controls {
+        row-gap: 0.5rem;
+    }
+
+    .combined-calendar-field {
+        gap: 0.25rem;
+    }
+}
+

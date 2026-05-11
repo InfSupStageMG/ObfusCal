@@ -21,7 +21,7 @@
     {
         <section class="card">
             <h3>Calendar Owner Sync Health</h3>
-            <FluentDataGrid Items="_entries.AsQueryable()" TGridItem="CalendarOwnerStatusEntry">
+            <FluentDataGrid Items="_entries.AsQueryable()" TGridItem="CalendarOwnerStatusEntry" Class="app-data-grid">
                 <PropertyColumn Property="@(e => e.DisplayName)" Title="Name" Sortable="true" />
                 <TemplateColumn Title="Graph Consent">
                     @if (context.HasGraphConsent)

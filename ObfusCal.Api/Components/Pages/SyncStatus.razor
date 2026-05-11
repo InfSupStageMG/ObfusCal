@@ -20,7 +20,7 @@
         </FluentStack>
         @if (_syncMessage is not null)
         {
-            <FluentMessageBar Intent="MessageIntent.Success">
+            <FluentMessageBar Intent="MessageIntent.Success" Class="card-message">
                 @_syncMessage
             </FluentMessageBar>
         }
@@ -33,7 +33,7 @@
     else if (_peers is not null)
     {
         <section class="card">
-            <FluentDataGrid Items="_peers.AsQueryable()" TGridItem="PeerSyncStatus">
+            <FluentDataGrid Items="_peers.AsQueryable()" TGridItem="PeerSyncStatus" Class="app-data-grid">
                 <PropertyColumn Property="@(p => p.InstanceId)" Title="Peer Instance" Sortable="true"/>
                 <PropertyColumn Property="@(p => p.BaseAddress)" Title="Base Address"/>
                 <TemplateColumn Title="Status">

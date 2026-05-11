@@ -29,11 +29,18 @@ html, body {
     border: 1px solid var(--neutral-stroke-layer-rest);
     border-radius: 8px;
     padding: 1.25rem;
+    box-sizing: border-box;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
     width: 100%;
+    transition: box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
-.card > fluent-message-bar {
+.card:hover {
+    border-color: var(--neutral-stroke-strong-rest, var(--neutral-stroke-layer-rest));
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+
+.card-message {
     margin-top: var(--message-bar-margin);
 }
 
@@ -55,6 +62,14 @@ textarea {
     resize: vertical;
 }
 
+input[type="text"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+    outline: 2px solid var(--accent-fill-rest);
+    outline-offset: 1px;
+    border-color: var(--accent-fill-rest);
+}
+
 .form-field {
     display: flex;
     flex-direction: column;
@@ -64,6 +79,56 @@ textarea {
 .form-field > label {
     font-size: 0.875rem;
     font-weight: 500;
+}
+
+.app-form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: end;
+}
+
+.app-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    min-width: 0;
+}
+
+.app-form-field,
+.app-form-item {
+    min-width: 0;
+}
+
+.app-form-field {
+    display: grid;
+    align-content: start;
+    gap: 0.375rem;
+    flex: 1 1 240px;
+}
+
+.app-form-item {
+    flex: 1 1 240px;
+    width: auto;
+}
+
+.app-form-label {
+    display: block;
+    line-height: 1.25;
+    min-height: 1.25rem;
+}
+
+.app-form-control {
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.app-form-button {
+    min-width: 7rem;
 }
 
 h1 {
@@ -99,81 +164,10 @@ section.card + section.card {
     flex: 1;
 }
 
-fluent-data-grid-cell {
-    overflow: visible;
-    text-overflow: unset;
-    white-space: normal;
-}
-
-fluent-data-grid-row {
-    min-height: 44px;
-}
-
-fluent-data-grid-row > fluent-data-grid-cell {
-    padding-block: 8px;
-}
-
-.dashboard-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    align-items: flex-start;
-}
-
-.dashboard-filters > * {
-    min-width: 0;
-}
-
-.dashboard-filter-field {
-    min-width: 180px;
-    flex: 1 1 220px;
-}
-
-.dashboard-filter-pair {
-    display: flex;
-    gap: 12px;
-    flex: 2 1 460px;
-    min-width: 300px;
-}
-
-.dashboard-filter-pair .dashboard-filter-field {
-    min-width: 0;
-    flex: 1 1 0;
-}
-
-.dashboard-filter-field--timezone {
-    min-width: 0;
-}
-
-.dashboard-filter-field fluent-select,
-.dashboard-filter-field fluent-date-picker {
+.app-data-grid {
     width: 100%;
-    max-width: 100%;
 }
 
-.dashboard-actions {
-    flex: 1 1 100%;
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 4px;
-}
-
-.dashboard-actions fluent-button {
-    min-width: 110px;
-}
-
-@media (max-width: 900px) {
-    .dashboard-filter-field,
-    .dashboard-filter-pair {
-        flex: 1 1 calc(50% - 12px);
-        min-width: 0;
-    }
-
-    .dashboard-filter-pair .dashboard-filter-field {
-        min-width: 130px;
-    }
-}
 
 @media (max-width: 768px) {
     input[type="text"],
@@ -184,20 +178,15 @@ fluent-data-grid-row > fluent-data-grid-cell {
 }
 
 @media (max-width: 640px) {
-    .dashboard-filter-field,
-    .dashboard-filter-pair {
+    .app-form-field,
+    .app-form-item,
+    .app-form-button {
         flex: 1 1 100%;
+        width: 100%;
     }
 
-    .dashboard-filter-pair {
-        flex-direction: column;
-    }
-
-    .dashboard-actions {
-        justify-content: stretch;
-    }
-
-    .dashboard-actions fluent-button {
-        flex: 1 1 100%;
+    .app-form-actions {
+        width: 100%;
     }
 }
+

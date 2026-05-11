@@ -1,0 +1,25 @@
+﻿.create-owner-row {
+    align-items: end;
+}
+
+.creating-owner-name-input,
+.creating-owner-id-input {
+    flex: 1 1 260px;
+    min-width: 220px;
+}
+
+@media (max-width: 900px) {
+    .create-owner-button {
+        flex: 0 1 auto;
+    }
+}
+
+@media (max-width: 640px) {
+    .creating-owner-name-input,
+    .creating-owner-id-input,
+    .create-owner-button {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+}
+
