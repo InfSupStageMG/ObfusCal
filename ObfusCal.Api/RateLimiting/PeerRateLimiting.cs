@@ -106,13 +106,11 @@ internal static class PeerRateLimiting
                 return true;
             }
         }
-        else if (requestPath.StartsWith("/api/sync/busy-slots", StringComparison.OrdinalIgnoreCase))
+        else if (requestPath.StartsWith("/api/sync/busy-slots", StringComparison.OrdinalIgnoreCase)
+            && !TryAcquirePermit(instanceScope, PullScope, subject, syncOptions.PullBusySlotsRateLimitPermitLimit, syncOptions.PullBusySlotsRateLimitWindowSeconds, out retryAfterSeconds))
         {
-            if (!TryAcquirePermit(instanceScope, PullScope, subject, syncOptions.PullBusySlotsRateLimitPermitLimit, syncOptions.PullBusySlotsRateLimitWindowSeconds, out retryAfterSeconds))
-            {
-                await RejectAsync(context, subject, retryAfterSeconds, cancellationToken: context.RequestAborted);
-                return true;
-            }
+            await RejectAsync(context, subject, retryAfterSeconds, cancellationToken: context.RequestAborted);
+            return true;
         }
 
         return false;
