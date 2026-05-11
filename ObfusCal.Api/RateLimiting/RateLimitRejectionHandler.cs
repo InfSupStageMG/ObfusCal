@@ -11,7 +11,7 @@ internal static class RateLimitRejectionHandler
     {
         var httpContext = context.HttpContext;
         var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("RateLimiting");
-        var subject = PeerRateLimiting.ResolvePeerSubject(httpContext);
+        var subject = RateLimitSubjectResolver.Resolve(httpContext);
         var retryAfterSeconds = GetRetryAfterSeconds(context.Lease);
 
         if (retryAfterSeconds > 0)
