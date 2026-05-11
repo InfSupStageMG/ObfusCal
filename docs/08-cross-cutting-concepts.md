@@ -50,6 +50,11 @@ scope checks per endpoint (`push_shadow_slots` for `POST /api/shadow-slots`, `pu
 `GET /api/sync/busy-slots/{calendarOwnerRef}`). Peer sync requests include `X-Peer-Timestamp` and are accepted only
 within `Sync:PeerRequestTimestampToleranceSeconds` (default 300 seconds) to limit naive replay attacks.
 
+**Rate limiting and payload caps:** Peer sync traffic is rate limited in-process with a peer-ID partition when the
+peer is authenticated and an IP-based backstop for unauthenticated API requests. `POST /api/shadow-slots` and
+`GET /api/sync/busy-slots/{calendarOwnerRef}` use separate configurable fixed windows, and API request bodies are
+capped at `Sync:MaxRequestBodySizeBytes` (default 1 MB) to reduce resource exhaustion risk.
+
 **Credential encryption and key persistence:** Microsoft Graph OAuth refresh tokens and iCloud credentials are encrypted
 at rest using the .NET Data Protection API (DPAPI) before being written to the database. A database breach yields only
 ciphertext.

@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using ObfusCal.Api.Authentication;
+using ObfusCal.Api.RateLimiting;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Application.UseCases.GetBusySlots;
 using ObfusCal.Application.UseCases.PushShadowSlots;
@@ -21,9 +23,11 @@ public sealed class ShadowSlotsController(
 
     [HttpPost]
     [Authorize(AuthenticationSchemes = PeerApiKeyAuthenticationDefaults.SchemeName, Policy = PeerApiAuthorizationPolicies.PushShadowSlots)]
+    [EnableRateLimiting(PeerRateLimiting.PushShadowSlotsPolicyName)]
     [ProducesResponseType(typeof(void), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> PushShadowSlots(
         [FromBody] JsonElement payload,
         CancellationToken ct)
@@ -56,10 +60,12 @@ public sealed class ShadowSlotsController(
 
     [HttpGet("/api/sync/busy-slots/{calendarOwnerRef:guid}")]
     [Authorize(AuthenticationSchemes = PeerApiKeyAuthenticationDefaults.SchemeName, Policy = PeerApiAuthorizationPolicies.PullBusySlots)]
+    [EnableRateLimiting(PeerRateLimiting.PullBusySlotsPolicyName)]
     [ProducesResponseType(typeof(IReadOnlyList<BusySlotResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> PullBusySlotsForPeer(
         Guid calendarOwnerRef,
         [FromQuery] CalendarOwnersController.TimeWindowQuery query,

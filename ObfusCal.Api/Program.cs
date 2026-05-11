@@ -4,13 +4,16 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.FluentUI.AspNetCore.Components;
+using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
 using Microsoft.OpenApi;
 using ObfusCal.Api.Authentication;
 using ObfusCal.Api.Authorization;
 using ObfusCal.Api.Components;
 using ObfusCal.Api.Controllers;
+using ObfusCal.Api.RateLimiting;
 using ObfusCal.Application;
+using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Application.UseCases.Validation;
 using ObfusCal.Infrastructure;
@@ -33,6 +36,12 @@ try
     var authorizationUrl = new Uri($"{azureAdInstance}/{azureAdTenantId}/oauth2/v2.0/authorize");
     var tokenUrl = new Uri($"{azureAdInstance}/{azureAdTenantId}/oauth2/v2.0/token");
 
+    builder.WebHost.ConfigureKestrel((context, options) =>
+    {
+        var syncOptions = context.Configuration.GetSection(SyncOptions.SectionName).Get<SyncOptions>() ?? new SyncOptions();
+        options.Limits.MaxRequestBodySize = syncOptions.MaxRequestBodySizeBytes;
+    });
+
     builder.Host.UseSerilog((context, services, configuration) => configuration
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
@@ -48,6 +57,12 @@ try
             PeerApiKeyAuthenticationDefaults.SchemeName,
             _ => { })
         .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+
+    builder.Services.AddRateLimiter(options =>
+    {
+        var syncOptions = builder.Configuration.GetSection(SyncOptions.SectionName).Get<SyncOptions>() ?? new SyncOptions();
+        PeerRateLimiting.Configure(options, syncOptions);
+    });
 
     builder.Services.AddAuthorization(options =>
     {
@@ -127,7 +142,7 @@ try
 
     app.Services.ValidateRequiredSecrets();
 
-    var peerTransportSecurityOptions = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<ObfusCal.Application.Configuration.PeerTransportSecurityOptions>>().Value;
+    var peerTransportSecurityOptions = app.Services.GetRequiredService<IOptions<PeerTransportSecurityOptions>>().Value;
     if (peerTransportSecurityOptions.AllowSelfSignedCerts)
     {
         Log.Warning(
@@ -207,6 +222,37 @@ try
     }
 
     app.UseAuthentication();
+    app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"), apiApp =>
+    {
+        apiApp.Use(async (context, next) =>
+        {
+            var syncOptions = context.RequestServices.GetRequiredService<IOptions<SyncOptions>>().Value;
+
+            if (syncOptions.MaxRequestBodySizeBytes > 0 &&
+                context.Request.ContentLength is { } contentLength &&
+                contentLength > syncOptions.MaxRequestBodySizeBytes)
+            {
+                context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+                context.Response.ContentType = "application/problem+json";
+
+                await context.Response.WriteAsJsonAsync(new ProblemDetails
+                {
+                    Status = StatusCodes.Status413PayloadTooLarge,
+                    Title = "Request body exceeds the maximum allowed size."
+                });
+                return;
+            }
+
+            await PeerRateLimiting.CapturePeerIdentityForRateLimitingAsync(context);
+
+            if (await PeerRateLimiting.TryEnforceApiRequestRateLimitsAsync(context, syncOptions))
+                return;
+
+            await next();
+        });
+
+        apiApp.UseRateLimiter();
+    });
     app.UseAuthorization();
     app.UseAntiforgery();
     app.MapControllers();

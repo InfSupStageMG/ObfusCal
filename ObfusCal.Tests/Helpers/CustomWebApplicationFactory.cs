@@ -13,7 +13,10 @@ using Testcontainers.PostgreSql;
 
 namespace ObfusCal.Tests.Helpers;
 
-public sealed class CustomWebApplicationFactory(string environmentName, bool useTestAuthentication = false) : WebApplicationFactory<Program>
+public sealed class CustomWebApplicationFactory(
+    string environmentName,
+    bool useTestAuthentication = false,
+    IReadOnlyDictionary<string, string?>? additionalConfiguration = null) : WebApplicationFactory<Program>
 {
     public const string IntegrationTestPeerInstanceId = "peer-a";
     public const string IntegrationTestPeerApiKey = "integration-test-peer-api-key";
@@ -28,9 +31,11 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment(environmentName);
+        var testSyncInstanceId = $"integration-test-local-instance-{Guid.NewGuid():N}";
 
         builder.ConfigureAppConfiguration((_, cfg) =>
-            cfg.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            var configuration = new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = Postgres.GetConnectionString(),
                 ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
@@ -43,12 +48,28 @@ public sealed class CustomWebApplicationFactory(string environmentName, bool use
                 ["GraphConsent:ClientSecret"] = "integration-test-secret",
                 ["Swagger:OAuth:ClientId"] = "22222222-2222-2222-2222-222222222222",
                 ["Swagger:OAuth:Scope"] = "api://22222222-2222-2222-2222-222222222222/access_as_user",
-                ["Sync:InstanceId"] = "integration-test-local-instance",
+                ["Sync:InstanceId"] = testSyncInstanceId,
                 ["Sync:ApiKey"] = "integration-test-outbound-api-key",
                 ["Sync:PeerRequestTimestampToleranceSeconds"] = "300",
                 ["Sync:SyncIntervalSeconds"] = "3600",
-                ["Sync:LookAheadDays"] = "14"
-            }));
+                ["Sync:LookAheadDays"] = "14",
+                ["Sync:PeerRequestRateLimitPermitLimit"] = "240",
+                ["Sync:PeerRequestRateLimitWindowSeconds"] = "60",
+                ["Sync:PushShadowSlotsRateLimitPermitLimit"] = "60",
+                ["Sync:PushShadowSlotsRateLimitWindowSeconds"] = "60",
+                ["Sync:PullBusySlotsRateLimitPermitLimit"] = "120",
+                ["Sync:PullBusySlotsRateLimitWindowSeconds"] = "60",
+                ["Sync:MaxRequestBodySizeBytes"] = "1048576"
+            };
+
+            if (additionalConfiguration is not null)
+            {
+                foreach (var pair in additionalConfiguration)
+                    configuration[pair.Key] = pair.Value;
+            }
+
+            cfg.AddInMemoryCollection(configuration);
+        });
 
         builder.ConfigureServices(services =>
         {

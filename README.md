@@ -17,6 +17,10 @@ validates the upstream certificate chain by default. No raw event data ever cros
 authenticate with their existing company credentials via Entra ID (Azure AD), and the system fetches their calendar
 automatically via the Microsoft Graph API on a configurable schedule.
 
+Peer sync traffic is also rate limited per authenticated peer, with an IP-based backstop for unauthenticated requests.
+The shadow-slot push and busy-slot pull endpoints each use their own configurable window, and API request bodies are
+capped at 1 MB by default to reduce DoS risk.
+
 ---
 
 ## Project structure
@@ -214,6 +218,14 @@ match a redirect URI registered on the Google OAuth client exactly.
 - `GraphConsent:ClientId`
 
 Use `.env.example` as the authoritative placeholder list for local/compose configuration.
+
+### Peer sync hardening
+
+- Peer sync requests are rate limited by authenticated peer ID, with an IP-based backstop for unauthenticated API
+  requests.
+- `POST /api/shadow-slots` and `GET /api/sync/busy-slots/{calendarOwnerRef}` each have their own configurable
+  window/permit settings.
+- API request bodies are capped at 1 MB by default via `Sync__MaxRequestBodySizeBytes`.
 
 ## Sysadmin peer approval
 
