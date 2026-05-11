@@ -30,6 +30,7 @@
 </FluentStack>
 
 @code {
+    private const string GraphStatePrefix = "graph.";
     private static readonly ConcurrentDictionary<string, byte> ProcessedStates = new(StringComparer.Ordinal);
 
     [Parameter, SupplyParameterFromQuery] public string? Code { get; set; }
@@ -66,9 +67,19 @@
 
             shouldReleaseState = true;
 
+            var isGraphConsent = State.StartsWith(GraphStatePrefix, StringComparison.Ordinal);
+
             try
             {
-                await GoogleConsentService.CompleteConsentFromStateAsync(Code, State);
+                if (isGraphConsent)
+                {
+                    await GraphConsentService.CompleteConsentFromStateAsync(Code, State);
+                }
+                else
+                {
+                    await GoogleConsentService.CompleteConsentFromStateAsync(Code, State);
+                }
+
                 shouldReleaseState = false; // keep state locked so duplicate callbacks are no-ops
             }
             catch (InvalidOperationException ex) when (IsStateValidationFailure(ex.Message))
