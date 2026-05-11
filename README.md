@@ -12,9 +12,10 @@ privacy-preserving way to keep everyone in the loop.
 ## How it works
 
 Each organisation runs their own instance of ObfusCal within their own network. Instances exchange only obfuscated busy
-slots over a secured API. No raw event data ever crosses a domain boundary. Consultants authenticate with their existing
-company credentials via Entra ID (Azure AD), and the system fetches their calendar automatically via the Microsoft Graph
-API on a configurable schedule.
+slots over a secured API. Peer endpoints are expected to use HTTPS; the application rejects `http://` peer base URLs and
+validates the upstream certificate chain by default. No raw event data ever crosses a domain boundary. Consultants
+authenticate with their existing company credentials via Entra ID (Azure AD), and the system fetches their calendar
+automatically via the Microsoft Graph API on a configurable schedule.
 
 ---
 
@@ -219,12 +220,33 @@ Use `.env.example` as the authoritative placeholder list for local/compose confi
 - ObfusCal uses an Entra ID app role named `Sysadmin` on the API app registration.
 - Only users assigned this role can call `/api/admin/peer-connections` endpoints.
 - `POST /api/admin/peer-connections/{id}/approve` generates a cryptographically secure API key and returns it once.
+- The same approval call can also store a `PinnedCertificateThumbprint` and an optional `ClientCertificateThumbprint`.
+- Certificate pins should be entered as the leaf certificate thumbprint shown by the operating system or certificate tool.
 - Peer API keys are stored as salted PBKDF2-SHA256 hashes in `PeerConnections.ApiKeyHash` (`210000` iterations).
 - `POST /api/admin/peer-connections/{id}/rotate-key` rotates the key atomically and invalidates the previous key immediately.
 - `POST /api/admin/peer-connections/{id}/revoke` sets `PeerConnections.RevokedAt` and blocks peer authentication immediately.
 - Peer endpoints enforce scope claims from `PeerConnections.Scopes` (`push_shadow_slots`, `pull_busy_slots`).
 - Peer sync requests include `X-Peer-Timestamp` and are rejected when outside `Sync:PeerRequestTimestampToleranceSeconds` (default 300 seconds).
 - `POST /api/admin/peer-connections/{id}/suspend` sets the peer to `Suspended` and sync/auth traffic for that peer is blocked.
+
+### Peer transport security setup
+
+1. **Production / staging with CA-issued certificates**
+   - Keep `PeerTransportSecurity:AllowSelfSignedCerts=false`.
+   - Use a public or privately trusted certificate on each peer endpoint.
+   - Optionally populate `PinnedCertificateThumbprint` to pin the exact leaf certificate.
+   - If you rotate the certificate, update the pin in the same maintenance window.
+
+2. **Development with self-signed certificates**
+   - Set `PeerTransportSecurity:AllowSelfSignedCerts=true`.
+   - Use the local certificate instructions in `certs/README.md`.
+   - Start the compose stack; the API logs a warning whenever self-signed peer certificates are allowed.
+
+3. **Optional mTLS groundwork**
+   - Import the client certificate into the machine or user certificate store that hosts ObfusCal.
+   - Set `ClientCertificateThumbprint` on the peer record.
+   - The application will look up that certificate locally and present it during the TLS handshake.
+   - Certificate issuance, provisioning, and renewal remain an operations responsibility.
 
 ## Input validation and SSRF protections
 

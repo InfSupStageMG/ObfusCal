@@ -5,6 +5,10 @@
 Each participating organisation deploys a single Docker container running the ObfusCal API. There is no shared
 infrastructure between organisations.
 
+Peer-to-peer traffic is sent directly to each peer's HTTPS endpoint. The application enforces `https://` peer base
+URLs, rejects private-network targets, validates upstream certificates by default, and can optionally present a client
+certificate for mTLS groundwork.
+
 ```mermaid
 flowchart TB
 
@@ -38,7 +42,15 @@ Before starting the containers:
 
 1. Ensure certificates exist under `certs/nginx` and `certs/api` (see `certs/README.md`).
 2. Create a `.env` file from `.env.example` with PostgreSQL, API certificate, and application secret placeholders.
-3. Ensure the Entra ID app role `Sysadmin` exists on the API app registration and is assigned to designated
+3. Decide how peer transport should be handled in the current environment:
+   - **Production / staging:** keep `PeerTransportSecurity__AllowSelfSignedCerts=false` and use CA-issued peer certs.
+   - **Development / local compose:** set `PeerTransportSecurity__AllowSelfSignedCerts=true` so self-signed peer
+     certificates are accepted.
+   - **Optional pinning:** populate `PeerConnections.PinnedCertificateThumbprint` for each peer if you want the peer
+     TLS certificate to be fixed to a known leaf certificate.
+   - **Optional mTLS groundwork:** store `PeerConnections.ClientCertificateThumbprint` for peers that should present a
+     client certificate, and make sure the certificate is available in the local machine/user certificate store.
+4. Ensure the Entra ID app role `Sysadmin` exists on the API app registration and is assigned to designated
    administrators.
 
 Bring up a full instance (reverse proxy + API + PostgreSQL):
@@ -85,6 +97,9 @@ containers.
 | `Sync__SyncIntervalSeconds`                           | How often the background sync runs (default: `900` = 15 minutes)                               |
 | `Sync__MaxQueryWindowDays`                            | Maximum allowed inbound query window in days for busy/free-busy endpoints (default `90`)       |
 | `Sync__MaxShadowSlotsPerRequest`                      | Maximum allowed shadow slots in one push payload (default `500`)                               |
+| `PeerTransportSecurity__AllowSelfSignedCerts`         | Accept self-signed peer certificates when `true` (default `false`)                             |
+| `PeerConnections.PinnedCertificateThumbprint`         | Optional peer leaf certificate thumbprint used to pin the expected server certificate           |
+| `PeerConnections.ClientCertificateThumbprint`         | Optional peer client certificate thumbprint used as mTLS groundwork                             |
 | `Secrets__Provider`                                   | Secret provider mode (`Environment` default, `External` stub)                                  |
 
 At startup, ObfusCal validates required secrets and fails fast with a descriptive error when one is missing.
@@ -132,3 +147,15 @@ docker compose up -d --build
 | TLS     | Terminated at nginx sidecar (self-signed)                 | Terminated at reverse proxy with valid cert          |
 | Auth    | API key + scope + timestamp replay checks + Entra ID OIDC | Strong peer auth + Entra ID OIDC                     |
 | Secrets | `ISecretProvider` using env/config placeholders           | `ISecretProvider` with external secret store backend |
+
+### Peer transport security operations checklist
+
+- Ensure every peer base URL is `https://`.
+- Keep `PeerTransportSecurity__AllowSelfSignedCerts=false` in production.
+- Use `PeerConnections.PinnedCertificateThumbprint` if you need to fail closed on certificate rotation.
+- Use `PeerConnections.ClientCertificateThumbprint` only when the remote peer is ready for mTLS.
+- Remember that the client certificate must be installed on the host running ObfusCal; the application only selects it
+  by thumbprint.
+- If you are fronting ObfusCal with nginx or another reverse proxy, ensure it forwards `X-Forwarded-Proto` so the API
+  can apply HTTPS redirection without looping.
+

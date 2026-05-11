@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
+using ObfusCal.Infrastructure.Security;
 
 namespace ObfusCal.Infrastructure.Sync;
 
@@ -78,7 +79,9 @@ public sealed class OutboundPeerSyncService(
                 mapping.PeerConnectionId,
                 mapping.CalendarOwnerRef,
                 mapping.PeerConnection.InstanceId,
-                mapping.PeerConnection.BaseAddress))
+                mapping.PeerConnection.BaseAddress,
+                mapping.PeerConnection.PinnedCertificateThumbprint,
+                mapping.PeerConnection.ClientCertificateThumbprint))
             .ToListAsync(ct);
 
         if (mappings.Count == 0)
@@ -111,6 +114,15 @@ public sealed class OutboundPeerSyncService(
             return;
         }
 
+        if (!string.Equals(baseUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning(
+                "Skipping outbound peer sync for peer {PeerId} because BaseAddress does not use HTTPS.",
+                mapping.PeerInstanceId);
+            await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
+            return;
+        }
+
         var endpoint = new Uri(baseUri, ShadowSlotsRelativePath);
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         request.Content = JsonContent.Create(new PeerShadowSlotsPushRequest(
@@ -126,6 +138,12 @@ public sealed class OutboundPeerSyncService(
         request.Headers.Authorization = new AuthenticationHeaderValue(PeerApiKeyScheme, apiKey);
         request.Headers.Add(PeerIdHeaderName, instanceId);
         request.Headers.Add(PeerTimestampHeaderName, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+        request.Options.Set(PeerTransportRequestOptions.PeerConnectionId, mapping.PeerConnectionId);
+        request.Options.Set(PeerTransportRequestOptions.PeerInstanceId, mapping.PeerInstanceId);
+        if (!string.IsNullOrWhiteSpace(mapping.PinnedCertificateThumbprint))
+            request.Options.Set(PeerTransportRequestOptions.PinnedCertificateThumbprint, mapping.PinnedCertificateThumbprint);
+        if (!string.IsNullOrWhiteSpace(mapping.ClientCertificateThumbprint))
+            request.Options.Set(PeerTransportRequestOptions.ClientCertificateThumbprint, mapping.ClientCertificateThumbprint);
 
         var client = httpClientFactory.CreateClient(nameof(OutboundPeerSyncService));
 
@@ -187,7 +205,13 @@ public sealed class OutboundPeerSyncService(
         }
     }
 
-    private sealed record PeerMappingTarget(Guid PeerConnectionId, Guid CalendarOwnerRef, string PeerInstanceId, string BaseAddress);
+    private sealed record PeerMappingTarget(
+        Guid PeerConnectionId,
+        Guid CalendarOwnerRef,
+        string PeerInstanceId,
+        string BaseAddress,
+        string? PinnedCertificateThumbprint,
+        string? ClientCertificateThumbprint);
 
     private sealed record PeerShadowSlotsPushRequest(Guid CalendarOwnerRef, IReadOnlyList<PeerShadowSlot> Slots);
 

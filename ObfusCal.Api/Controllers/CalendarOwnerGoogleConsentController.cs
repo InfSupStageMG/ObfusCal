@@ -72,7 +72,11 @@ public sealed class CalendarOwnerGoogleConsentController(
             return accessResult;
 
         if (string.IsNullOrWhiteSpace(redirectUri))
-            return BadRequest(ValidRedirectReq);
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = ValidRedirectReq
+            });
 
         try
         {
@@ -107,7 +111,11 @@ public sealed class CalendarOwnerGoogleConsentController(
             return accessResult;
 
         if (string.IsNullOrWhiteSpace(redirectUri))
-            return BadRequest(ValidRedirectReq);
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = ValidRedirectReq
+            });
 
         try
         {
@@ -141,13 +149,13 @@ public sealed class CalendarOwnerGoogleConsentController(
             return accessResult;
 
         if (string.IsNullOrWhiteSpace(request.AuthorizationCode))
-            return BadRequest(AuthorizationCodeIsRequired);
+            return BadRequest(new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = AuthorizationCodeIsRequired });
 
         if (string.IsNullOrWhiteSpace(request.State))
-            return BadRequest("'state' is required.");
+            return BadRequest(new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "'state' is required." });
 
         if (string.IsNullOrWhiteSpace(request.RedirectUri) || !Uri.TryCreate(request.RedirectUri, UriKind.Absolute, out _))
-            return BadRequest(ValidRedirectReq);
+            return BadRequest(new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = ValidRedirectReq });
 
         try
         {
@@ -182,13 +190,13 @@ public sealed class CalendarOwnerGoogleConsentController(
             return accessResult;
 
         if (string.IsNullOrWhiteSpace(request.AuthorizationCode))
-            return BadRequest(AuthorizationCodeIsRequired);
+            return BadRequest(new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = AuthorizationCodeIsRequired });
 
         if (string.IsNullOrWhiteSpace(request.State))
-            return BadRequest("'state' is required.");
+            return BadRequest(new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "'state' is required." });
 
         if (string.IsNullOrWhiteSpace(request.RedirectUri) || !Uri.TryCreate(request.RedirectUri, UriKind.Absolute, out _))
-            return BadRequest(ValidRedirectReq);
+            return BadRequest(new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = ValidRedirectReq });
 
         try
         {

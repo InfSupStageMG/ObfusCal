@@ -27,6 +27,19 @@ are verified against hashed `PeerConnection.ApiKeyHash` values, and outbound pus
 and `X-Peer-Id` headers so the receiving instance can authenticate and correlate the sender without trusting the
 peer ID header by itself.
 
+**Inter-peer transport security:** Peer base URLs must use `https://` and are rejected otherwise. The sync services
+fail closed when a peer record points to a non-HTTPS endpoint, and outbound `HttpClient` requests validate the peer
+certificate chain by default. When `PeerTransportSecurity:AllowSelfSignedCerts=true` is enabled for development or
+staging, self-signed peer certificates are accepted, but the API logs a startup warning so the operator knows the trust
+boundary has been relaxed. Operators can additionally set `PeerConnection.PinnedCertificateThumbprint` to pin the
+expected server certificate, which makes certificate rotation an explicit operational step instead of an implicit trust
+change.
+
+**mTLS groundwork:** `PeerConnection.ClientCertificateThumbprint` stores the thumbprint of a client certificate that
+should be presented when connecting to that peer. The application only selects the certificate from the local user or
+machine certificate store; provisioning, renewal, and rollout remain an operations task. If the certificate is missing,
+the client handshake falls back to standard TLS without client auth.
+
 **Peer credential lifecycle:** Sysadmins approve pending peer requests by setting the peer base URL and generating a
 cryptographically secure API key. Keys are stored as salted PBKDF2-SHA256 hashes (210000 iterations); plaintext is
 returned once in the approval/rotation response and is never logged. Revoking a peer sets `PeerConnection.RevokedAt`

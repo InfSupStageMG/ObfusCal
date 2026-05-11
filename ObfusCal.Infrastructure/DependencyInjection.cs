@@ -1,10 +1,12 @@
 ﻿using System.Runtime.Loader;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Calendars;
@@ -72,6 +74,7 @@ public static class DependencyInjection
         services.Configure<CalendarSourceOptions>(config.GetSection(CalendarSourceOptions.SectionName));
         services.Configure<ICloudCalendarOptions>(config.GetSection(ICloudCalendarOptions.SectionName));
         services.Configure<SyncOptions>(config.GetSection(SyncOptions.SectionName));
+        services.Configure<PeerTransportSecurityOptions>(config.GetSection(PeerTransportSecurityOptions.SectionName));
 
         // Configure DataProtection with persistent key storage for credential encryption
         // Keys are stored in /dataprotection/keys (must be mounted as a persistent volume in containers)
@@ -99,7 +102,7 @@ public static class DependencyInjection
             dataProtectionBuilder.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeyPath));
 
             Log.ForContext("DataProtectionKeyPath", dataProtectionKeyPath)
-                .Warning("DataProtection keys will be persisted to {Path}. Ensure this directory is mounted as a persistent volume in containers.", dataProtectionKeyPath);
+                .Information("DataProtection keys will be persisted to {Path}. Ensure this directory is mounted as a persistent volume in containers.", dataProtectionKeyPath);
         }
         catch (Exception ex)
         {
@@ -125,8 +128,75 @@ public static class DependencyInjection
         services.AddHttpClient<IcalFeedCalendarSource>();
         services.AddHttpClient<GoogleCalendarSourceCore>();
         services.AddHttpClient<ICloudCalendarSourceCore>();
-        services.AddHttpClient(nameof(OutboundPeerSyncService));
-        services.AddHttpClient(nameof(InboundPeerPullSyncService));
+        services.AddHttpClient(nameof(OutboundPeerSyncService))
+            .ConfigurePrimaryHttpMessageHandler(CreatePeerTransportHandler);
+        services.AddHttpClient(nameof(InboundPeerPullSyncService))
+            .ConfigurePrimaryHttpMessageHandler(CreatePeerTransportHandler);
+    }
+
+    private static HttpMessageHandler CreatePeerTransportHandler(IServiceProvider provider)
+    {
+        var options = provider.GetRequiredService<IOptions<PeerTransportSecurityOptions>>().Value;
+        var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("PeerTransportHttpClient");
+
+        var handler = new SocketsHttpHandler();
+        handler.SslOptions.RemoteCertificateValidationCallback =
+            (sender, cert, chain, errors) => ValidatePeerRemoteCertificate(sender, cert as X509Certificate2, chain, errors, options, logger);
+        handler.SslOptions.LocalCertificateSelectionCallback =
+            (sender, targetHost, localCerts, remoteCert, issuers) =>
+            SelectPeerLocalCertificate(sender, targetHost, localCerts, remoteCert, issuers, logger);
+
+        return handler;
+    }
+
+    private static bool ValidatePeerRemoteCertificate(
+        object sender,
+        X509Certificate2? certificate,
+        X509Chain? chain,
+        System.Net.Security.SslPolicyErrors sslPolicyErrors,
+        PeerTransportSecurityOptions options,
+        Microsoft.Extensions.Logging.ILogger logger)
+    {
+        if (certificate == null)
+            return false;
+
+        var request = sender as HttpRequestMessage;
+        var pinnedThumbprint = request?.Options.TryGetValue(PeerTransportRequestOptions.PinnedCertificateThumbprint, out var pinned) == true
+            ? pinned
+            : null;
+
+        var result = PeerTransportSecurity.ValidateRemoteCertificate(
+            certificate,
+            sslPolicyErrors,
+            pinnedThumbprint,
+            options.AllowSelfSignedCerts);
+
+        if (!result.IsTrusted)
+        {
+            logger.LogWarning(
+                "Rejected peer certificate for {PeerId}: {Reason}",
+                request?.Options.TryGetValue(PeerTransportRequestOptions.PeerInstanceId, out var peerId) == true ? peerId : "<unknown>",
+                result.FailureReason);
+        }
+
+        return result.IsTrusted;
+    }
+
+    private static X509Certificate? SelectPeerLocalCertificate(
+        object sender,
+        string targetHost,
+        X509CertificateCollection localCertificates,
+        X509Certificate? remoteCertificate,
+        string[] acceptableIssuers,
+        Microsoft.Extensions.Logging.ILogger logger)
+    {
+        var request = sender as HttpRequestMessage;
+        var clientThumbprint = request?.Options.TryGetValue(PeerTransportRequestOptions.ClientCertificateThumbprint, out var thumbprint) == true
+            ? thumbprint
+            : null;
+        var peerId = request?.Options.TryGetValue(PeerTransportRequestOptions.PeerInstanceId, out var id) == true ? id : null;
+
+        return PeerTransportSecurity.TryResolveClientCertificate(clientThumbprint, logger, peerId);
     }
 
      private static void RegisterDomainServices(IServiceCollection services)
@@ -162,7 +232,9 @@ public static class DependencyInjection
         services.AddScoped<IStatusService, StatusService>();
         services.AddScoped<IOutboundPeerSyncService, OutboundPeerSyncService>();
         services.AddScoped<IInboundPeerPullSyncService, InboundPeerPullSyncService>();
+        services.AddScoped<IPeerApiKeyAuthenticator, EfCorePeerApiKeyAuthenticator>();
         services.AddScoped<IShadowSlotStore, EfCoreShadowSlotStore>();
+        services.AddScoped<IPeerCalendarOwnerResolver, EfCorePeerCalendarOwnerResolver>();
         services.AddScoped<ICalendarOwnerAvailabilitySlotStore, EfCoreCalendarOwnerAvailabilitySlotStore>();
         services.AddScoped<MockCalendarSource>();
         services.AddScoped<IcalFeedCalendarSource>();

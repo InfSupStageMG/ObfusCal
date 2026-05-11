@@ -25,7 +25,9 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
             peer.ClientOrganisationName,
             peer.RequestedByCalendarOwnerId,
             peer.RequestedByCalendarOwnerName,
-            peer.MappingCount)));
+            peer.MappingCount,
+            peer.PinnedCertificateThumbprint,
+            peer.ClientCertificateThumbprint)));
     }
 
     [HttpPost("{id:guid}/approve")]
@@ -37,7 +39,13 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Approve(Guid id, [FromBody] ApprovePeerConnectionRequest request, CancellationToken ct)
     {
-        var result = await peerConnectionService.ApproveAsync(id, request.PeerBaseUrl, request.Scopes, ct);
+        var result = await peerConnectionService.ApproveAsync(
+            id,
+            request.PeerBaseUrl,
+            request.Scopes,
+            request.PinnedCertificateThumbprint,
+            request.ClientCertificateThumbprint,
+            ct);
         return result.Outcome switch
         {
             ApprovePeerConnectionOutcome.Approved => Ok(new ApprovePeerConnectionResponse(result.PlaintextApiKey!)),
@@ -126,11 +134,15 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
         string? ClientOrganisationName,
         Guid? RequestedByCalendarOwnerId,
         string? RequestedByCalendarOwnerName,
-        int MappingCount);
+        int MappingCount,
+        string? PinnedCertificateThumbprint,
+        string? ClientCertificateThumbprint);
 
     public sealed record ApprovePeerConnectionRequest(
         [param: Required, MaxLength(2048)] string PeerBaseUrl,
-        IReadOnlyList<string>? Scopes = null);
+        IReadOnlyList<string>? Scopes = null,
+        [param: MaxLength(128)] string? PinnedCertificateThumbprint = null,
+        [param: MaxLength(128)] string? ClientCertificateThumbprint = null);
 
     private sealed record ApprovePeerConnectionResponse(string ApiKey);
     private sealed record RotatePeerConnectionApiKeyResponse(string ApiKey);

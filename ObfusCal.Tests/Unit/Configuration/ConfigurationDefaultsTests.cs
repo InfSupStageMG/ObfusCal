@@ -20,6 +20,14 @@ public class ConfigurationDefaultsTests
     }
 
     [TestMethod]
+    public void PeerTransportSecurityOptions_DefaultsToRejectingSelfSignedCertificates()
+    {
+        var options = new PeerTransportSecurityOptions();
+
+        Assert.IsFalse(options.AllowSelfSignedCerts);
+    }
+
+    [TestMethod]
     public void GraphConsentOptions_HasExpectedDefaults()
     {
         var options = new GraphConsentOptions();
@@ -38,6 +46,8 @@ public class ConfigurationDefaultsTests
 
         Assert.AreEqual(string.Empty, peer.ApiKeyHash);
         Assert.AreEqual(PeerApiScopes.DefaultSerializedScopes, peer.Scopes);
+        Assert.IsNull(peer.PinnedCertificateThumbprint);
+        Assert.IsNull(peer.ClientCertificateThumbprint);
     }
 }
 

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
+using ObfusCal.Infrastructure.Security;
 using CoreBusySlot = ObfusCal.Domain.Models.BusySlot;
 
 namespace ObfusCal.Infrastructure.Sync;
@@ -49,7 +50,9 @@ public sealed class InboundPeerPullSyncService(
                 mapping.CalendarOwnerId,
                 mapping.CalendarOwnerRef,
                 mapping.PeerConnection.InstanceId,
-                mapping.PeerConnection.BaseAddress))
+                mapping.PeerConnection.BaseAddress,
+                mapping.PeerConnection.PinnedCertificateThumbprint,
+                mapping.PeerConnection.ClientCertificateThumbprint))
             .ToListAsync(ct);
 
         foreach (var mapping in mappings)
@@ -91,11 +94,26 @@ public sealed class InboundPeerPullSyncService(
             return;
         }
 
+        if (!string.Equals(baseUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning(
+                "Skipping inbound peer pull for peer {PeerId} because BaseAddress does not use HTTPS.",
+                mapping.PeerInstanceId);
+            await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
+            return;
+        }
+
         var endpoint = BuildPullUri(baseUri, mapping.CalendarOwnerRef, from, to);
         using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
         request.Headers.Authorization = new AuthenticationHeaderValue(PeerApiKeyScheme, apiKey);
         request.Headers.Add(PeerIdHeaderName, instanceId);
         request.Headers.Add(PeerTimestampHeaderName, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+        request.Options.Set(PeerTransportRequestOptions.PeerConnectionId, mapping.PeerConnectionId);
+        request.Options.Set(PeerTransportRequestOptions.PeerInstanceId, mapping.PeerInstanceId);
+        if (!string.IsNullOrWhiteSpace(mapping.PinnedCertificateThumbprint))
+            request.Options.Set(PeerTransportRequestOptions.PinnedCertificateThumbprint, mapping.PinnedCertificateThumbprint);
+        if (!string.IsNullOrWhiteSpace(mapping.ClientCertificateThumbprint))
+            request.Options.Set(PeerTransportRequestOptions.ClientCertificateThumbprint, mapping.ClientCertificateThumbprint);
 
         var client = httpClientFactory.CreateClient(nameof(InboundPeerPullSyncService));
 
@@ -181,7 +199,9 @@ public sealed class InboundPeerPullSyncService(
         Guid CalendarOwnerId,
         Guid CalendarOwnerRef,
         string PeerInstanceId,
-        string BaseAddress);
+        string BaseAddress,
+        string? PinnedCertificateThumbprint,
+        string? ClientCertificateThumbprint);
 
     private sealed record PulledBusySlot(DateTimeOffset Start, DateTimeOffset End);
 }
