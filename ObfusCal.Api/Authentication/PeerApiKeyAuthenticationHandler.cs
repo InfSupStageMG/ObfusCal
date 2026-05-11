@@ -1,12 +1,9 @@
 ﻿using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
-using ObfusCal.Infrastructure.Persistence;
-using ObfusCal.Infrastructure.Security;
 
 namespace ObfusCal.Api.Authentication;
 
@@ -14,7 +11,7 @@ public sealed class PeerApiKeyAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,
     ILoggerFactory logger,
     UrlEncoder encoder,
-    AppDbContext dbContext,
+    IPeerApiKeyAuthenticator peerApiKeyAuthenticator,
     ISyncRuntimeOptionsProvider syncRuntimeOptionsProvider)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
@@ -36,28 +33,23 @@ public sealed class PeerApiKeyAuthenticationHandler(
             return AuthenticateResult.Fail("Missing API key.");
 
         if (RequiresReplayTimestampValidation(Request.Path)
-            && !IsRequestTimestampWithinTolerance(syncRuntimeOptionsProvider.Get(), out _))
+            && !IsRequestTimestampWithinTolerance(syncRuntimeOptionsProvider.Get()))
         {
             return AuthenticateResult.Fail("Invalid API key.");
         }
 
-        var peers = await dbContext.PeerConnections
-            .AsNoTracking()
-            .Where(connection => connection.Status == PeerConnectionStatus.Active && connection.RevokedAt == null)
-            .ToListAsync(Context.RequestAborted);
-
-        var peer = peers.FirstOrDefault(connection => PeerApiKeySecurity.Verify(providedApiKey, connection.ApiKeyHash));
+        var peer = await peerApiKeyAuthenticator.AuthenticateAsync(providedApiKey, Context.RequestAborted);
 
         if (peer is null)
             return AuthenticateResult.Fail("Invalid API key.");
 
         var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.NameIdentifier, peer.Id.ToString()),
-            new Claim(PeerApiKeyClaimTypes.PeerInstanceId, peer.InstanceId)
+            new Claim(ClaimTypes.NameIdentifier, peer.PeerConnectionId.ToString()),
+            new Claim(PeerApiKeyClaimTypes.PeerInstanceId, peer.PeerInstanceId)
         };
 
-        foreach (var scope in peer.Scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var scope in peer.Scopes)
             claims.Add(new Claim(PeerApiKeyClaimTypes.Scope, scope));
 
         var identity = new ClaimsIdentity(claims, PeerApiKeyAuthenticationDefaults.SchemeName);
@@ -66,15 +58,15 @@ public sealed class PeerApiKeyAuthenticationHandler(
         return AuthenticateResult.Success(ticket);
     }
 
-    private bool IsRequestTimestampWithinTolerance(SyncOptions options, out DateTimeOffset parsedTimestamp)
+    private bool IsRequestTimestampWithinTolerance(SyncOptions options)
     {
-        parsedTimestamp = default;
-
         if (!Request.Headers.TryGetValue(PeerTimestampHeaderName, out var headerValues))
             return false;
 
         if (!long.TryParse(headerValues.ToString(), out var unixSeconds))
             return false;
+
+        DateTimeOffset parsedTimestamp;
 
         try
         {

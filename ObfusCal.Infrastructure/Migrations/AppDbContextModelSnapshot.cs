@@ -319,6 +319,10 @@ namespace ObfusCal.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("ClientCertificateThumbprint")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.Property<string>("ClientOrganisationName")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -342,6 +346,10 @@ namespace ObfusCal.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset?>("RevokedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PinnedCertificateThumbprint")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<string>("Scopes")
                         .IsRequired()

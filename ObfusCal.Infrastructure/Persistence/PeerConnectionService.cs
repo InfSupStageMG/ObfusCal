@@ -51,7 +51,9 @@ internal sealed class PeerConnectionService(
                 p.ClientOrganisationName,
                 p.RequestedByCalendarOwnerId,
                 p.RequestedByCalendarOwner == null ? null : p.RequestedByCalendarOwner.Name,
-                p.CalendarOwnerMappings.Count))
+                p.CalendarOwnerMappings.Count,
+                p.PinnedCertificateThumbprint,
+                p.ClientCertificateThumbprint))
             .ToListAsync(ct);
     }
 
@@ -136,7 +138,13 @@ internal sealed class PeerConnectionService(
         return new CreatePeerConnectionRequestResult(CreatePeerConnectionRequestOutcome.Created, peer.Id);
     }
 
-    public async Task<ApprovePeerConnectionResult> ApproveAsync(Guid id, string peerBaseUrl, IEnumerable<string>? scopes = null, CancellationToken ct = default)
+    public async Task<ApprovePeerConnectionResult> ApproveAsync(
+        Guid id,
+        string peerBaseUrl,
+        IEnumerable<string>? scopes = null,
+        string? pinnedCertificateThumbprint = null,
+        string? clientCertificateThumbprint = null,
+        CancellationToken ct = default)
     {
         var validation = await urlSafetyValidator.ValidateAsync(peerBaseUrl, ct);
         if (!validation.IsValid)
@@ -152,6 +160,8 @@ internal sealed class PeerConnectionService(
         var apiKey = PeerApiKeySecurity.GenerateApiKey();
 
         peer.BaseAddress = NormalizeAbsoluteUrl(peerBaseUrl);
+        peer.PinnedCertificateThumbprint = NormalizeThumbprint(pinnedCertificateThumbprint);
+        peer.ClientCertificateThumbprint = NormalizeThumbprint(clientCertificateThumbprint);
         peer.ApiKeyHash = PeerApiKeySecurity.Hash(apiKey);
         peer.Scopes = PeerApiScopes.Normalize(scopes ?? PeerApiScopes.DefaultScopes);
         peer.RevokedAt = null;
@@ -244,6 +254,15 @@ internal sealed class PeerConnectionService(
     }
 
     private static string NormalizeClientOrganisationName(string value) => value.Trim().ToUpperInvariant();
+
+    private static string? NormalizeThumbprint(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        var normalized = new string(value.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
 
     private static string NormalizeAbsoluteUrl(string url) =>
         new Uri(url.Trim(), UriKind.Absolute).AbsoluteUri.TrimEnd('/');

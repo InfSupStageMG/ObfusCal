@@ -7,6 +7,7 @@ using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
 using ObfusCal.Infrastructure.Storage;
+using ObfusCal.Infrastructure.Security;
 using ObfusCal.Infrastructure.Sync;
 using CoreBusySlot = ObfusCal.Domain.Models.BusySlot;
 
@@ -58,6 +59,8 @@ public class InboundPeerPullSyncServiceTests
         Assert.StartsWith($"https://peer-a.local/api/sync/busy-slots/{calendarOwnerRef}?", capturedRequest.RequestUri);
         Assert.Contains("from=", capturedRequest.RequestUri);
         Assert.Contains("to=", capturedRequest.RequestUri);
+        Assert.IsNull(capturedRequest.PinnedCertificateThumbprint);
+        Assert.IsNull(capturedRequest.ClientCertificateThumbprint);
 
         var storedSlots = await store.GetSlotsAsync("peer-a", calendarOwnerId);
         Assert.HasCount(2, storedSlots);
@@ -298,7 +301,7 @@ public class InboundPeerPullSyncServiceTests
         await using var dbContext = CreateDbContext();
         var calendarOwnerId = Guid.NewGuid();
         var calendarOwnerRef = Guid.NewGuid();
-        var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-bad", "not a valid url");
+        var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-bad", "http://peer-bad.local/");
 
         var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
         var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
@@ -311,6 +314,37 @@ public class InboundPeerPullSyncServiceTests
         var peer = await dbContext.PeerConnections.FindAsync([peerConnectionId]);
         Assert.IsNotNull(peer);
         Assert.IsFalse(peer.LastSyncSucceeded, "Invalid base address should record failure");
+    }
+
+    [TestMethod]
+    public async Task RunSyncCycleAsync_PropagatesPeerThumbprintsOnOutgoingRequest()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        var calendarOwnerRef = Guid.NewGuid();
+        var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-pin", "https://peer-pin.local/");
+
+        var peer = await dbContext.PeerConnections.FindAsync([peerConnectionId]);
+        Assert.IsNotNull(peer);
+        peer.PinnedCertificateThumbprint = "aa bb cc dd";
+        peer.ClientCertificateThumbprint = "11 22 33 44";
+        await dbContext.SaveChangesAsync();
+
+        CapturedRequest? capturedRequest = null;
+        var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(async request =>
+        {
+            capturedRequest = await CapturedRequest.FromAsync(request);
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
+        })));
+
+        var service = CreateService(dbContext, store, httpClientFactory);
+
+        await service.RunSyncCycleAsync();
+
+        Assert.IsNotNull(capturedRequest);
+        Assert.AreEqual("AABBCCDD", capturedRequest.PinnedCertificateThumbprint);
+        Assert.AreEqual("11223344", capturedRequest.ClientCertificateThumbprint);
     }
 
     private static InboundPeerPullSyncService CreateService(
@@ -355,7 +389,9 @@ public class InboundPeerPullSyncServiceTests
         string? AuthorizationScheme,
         string? AuthorizationParameter,
         string? PeerIdHeader,
-        string? PeerTimestampHeader)
+        string? PeerTimestampHeader,
+        string? PinnedCertificateThumbprint,
+        string? ClientCertificateThumbprint)
     {
         public static Task<CapturedRequest> FromAsync(HttpRequestMessage request)
         {
@@ -367,13 +403,23 @@ public class InboundPeerPullSyncServiceTests
                 ? timestampValues.SingleOrDefault()
                 : null;
 
+            var pinnedThumbprint = request.Options.TryGetValue(PeerTransportRequestOptions.PinnedCertificateThumbprint, out var pinned)
+                ? PeerTransportSecurity.NormalizeThumbprint(pinned)
+                : null;
+
+            var clientThumbprint = request.Options.TryGetValue(PeerTransportRequestOptions.ClientCertificateThumbprint, out var client)
+                ? PeerTransportSecurity.NormalizeThumbprint(client)
+                : null;
+
             return Task.FromResult(new CapturedRequest(
                 request.Method,
                 request.RequestUri!.ToString(),
                 request.Headers.Authorization?.Scheme,
                 request.Headers.Authorization?.Parameter,
                 peerIdHeader,
-                peerTimestampHeader));
+                peerTimestampHeader,
+                pinnedThumbprint,
+                clientThumbprint));
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.FluentUI.AspNetCore.Components;
 using Microsoft.Identity.Web;
@@ -126,6 +127,21 @@ try
 
     app.Services.ValidateRequiredSecrets();
 
+    var peerTransportSecurityOptions = app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<ObfusCal.Application.Configuration.PeerTransportSecurityOptions>>().Value;
+    if (peerTransportSecurityOptions.AllowSelfSignedCerts)
+    {
+        Log.Warning(
+            "Peer transport security is configured to allow self-signed certificates. Use this only for development or staging environments.");
+    }
+
+    var forwardedHeadersOptions = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto
+    };
+    forwardedHeadersOptions.KnownIPNetworks.Clear();
+    forwardedHeadersOptions.KnownProxies.Clear();
+    app.UseForwardedHeaders(forwardedHeadersOptions);
+
     app.UseSerilogRequestLogging();
     app.UseStaticFiles();
 
@@ -183,6 +199,11 @@ try
             options.OAuthUsePkce();
             options.OAuthScopes(swaggerOAuthScope);
         });
+    }
+    else
+    {
+        app.UseHsts();
+        app.UseHttpsRedirection();
     }
 
     app.UseAuthentication();

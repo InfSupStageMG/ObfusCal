@@ -8,7 +8,13 @@ public interface IPeerConnectionService
     Task<IReadOnlyList<PeerSyncStatus>> ListSyncStatusAsync(CancellationToken ct = default);
     Task<PeerConnectionSummary> CreateAsync(string instanceId, string baseAddress, string apiKey, IEnumerable<string>? scopes = null, CancellationToken ct = default);
     Task<CreatePeerConnectionRequestResult> CreateRequestAsync(Guid calendarOwnerId, string clientOrganisationName, CancellationToken ct = default);
-    Task<ApprovePeerConnectionResult> ApproveAsync(Guid id, string peerBaseUrl, IEnumerable<string>? scopes = null, CancellationToken ct = default);
+    Task<ApprovePeerConnectionResult> ApproveAsync(
+        Guid id,
+        string peerBaseUrl,
+        IEnumerable<string>? scopes = null,
+        string? pinnedCertificateThumbprint = null,
+        string? clientCertificateThumbprint = null,
+        CancellationToken ct = default);
     Task<RotatePeerApiKeyResult> RotateApiKeyAsync(Guid id, CancellationToken ct = default);
     Task<RevokePeerConnectionResult> RevokeAsync(Guid id, CancellationToken ct = default);
     Task<bool> SuspendAsync(Guid id, CancellationToken ct = default);
@@ -26,7 +32,9 @@ public sealed record AdminPeerConnectionSummary(
     string? ClientOrganisationName,
     Guid? RequestedByCalendarOwnerId,
     string? RequestedByCalendarOwnerName,
-    int MappingCount);
+    int MappingCount,
+    string? PinnedCertificateThumbprint,
+    string? ClientCertificateThumbprint);
 public sealed record PeerSyncStatus(string InstanceId, string BaseAddress, DateTimeOffset? LastSyncedAt, bool? LastSyncSucceeded);
 
 public enum CreatePeerConnectionRequestOutcome

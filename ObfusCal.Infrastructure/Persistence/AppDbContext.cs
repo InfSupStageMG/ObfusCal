@@ -86,6 +86,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(p => p.Id);
             e.Property(p => p.InstanceId).IsRequired();
             e.Property(p => p.BaseAddress).IsRequired();
+            e.Property(p => p.PinnedCertificateThumbprint)
+                .HasMaxLength(128);
+            e.Property(p => p.ClientCertificateThumbprint)
+                .HasMaxLength(128);
             e.Property(p => p.ApiKeyHash)
                 .IsRequired()
                 .HasMaxLength(512);

@@ -45,10 +45,18 @@ public sealed class CalendarOwnerObfuscationProfilesController(
             return accessResult;
 
         if (!Enum.TryParse<ObfuscationAuditContext>(context, true, out var parsedContext))
-            return BadRequest("Context must be one of: Internal, Client.");
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Context must be one of: Internal, Client."
+            });
 
         if (request.RoundingIntervalMinutes <= 0)
-            return BadRequest("'roundingIntervalMinutes' must be greater than zero.");
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "'roundingIntervalMinutes' must be greater than zero."
+            });
 
         var updated = await obfuscationProfileService.SetProfileAsync(
             id,

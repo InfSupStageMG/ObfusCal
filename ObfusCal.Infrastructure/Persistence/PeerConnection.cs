@@ -7,6 +7,8 @@ public class PeerConnection
     public Guid Id { get; set; }
     public required string InstanceId { get; set; }
     public required string BaseAddress { get; set; }
+    public string? PinnedCertificateThumbprint { get; set; }
+    public string? ClientCertificateThumbprint { get; set; }
     public string ApiKeyHash { get; set; } = string.Empty;
     public string Scopes { get; set; } = PeerApiScopes.DefaultSerializedScopes;
     public DateTimeOffset? RevokedAt { get; set; }
