@@ -1,0 +1,27 @@
+﻿.peer-instance-input {
+    width: 250px;
+}
+
+.peer-base-address-input {
+    width: 300px;
+}
+
+.peer-api-key-input {
+    width: 250px;
+}
+
+.peer-owner-select,
+.peer-peer-select {
+    min-width: 220px;
+}
+
+@media (max-width: 768px) {
+    .peer-instance-input,
+    .peer-base-address-input,
+    .peer-api-key-input,
+    .peer-owner-select,
+    .peer-peer-select {
+        width: 100%;
+    }
+}
+

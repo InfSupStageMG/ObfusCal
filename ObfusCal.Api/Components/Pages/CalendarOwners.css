@@ -1,0 +1,15 @@
+﻿.creating-owner-name-input {
+    width: 300px;
+}
+
+.creating-owner-id-input {
+    width: 320px;
+}
+
+@media (max-width: 768px) {
+    .creating-owner-name-input,
+    .creating-owner-id-input {
+        width: 100%;
+    }
+}
+

@@ -1,15 +1,13 @@
 ﻿@inherits LayoutComponentBase
 @using FluentIcons = Microsoft.FluentUI.AspNetCore.Components.Icons
 
-<FluentDesignTheme Mode="DesignThemeModes.Light" CustomColor="#0078d4" />
-
 <FluentLayout>
     <FluentHeader>
         ObfusCal
     </FluentHeader>
 
-    <FluentStack Orientation="Orientation.Horizontal" Style="height: calc(100vh - 50px);">
-        <FluentNavMenu Width="250" Title="Navigation" Style="background: var(--neutral-layer-2); border-right: 1px solid var(--neutral-stroke-divider-rest);">
+    <FluentStack Orientation="Orientation.Horizontal">
+        <FluentNavMenu Width="250" Title="Navigation">
             <FluentNavLink Href="/" Icon="@(new FluentIcons.Regular.Size20.CalendarLtr())" Match="NavLinkMatch.All">
                 Dashboard
             </FluentNavLink>
@@ -27,7 +25,7 @@
             </FluentNavLink>
         </FluentNavMenu>
 
-        <FluentBodyContent Style="padding: 1.5rem; overflow-y: auto; flex: 1;">
+        <FluentBodyContent>
             @Body
         </FluentBodyContent>
     </FluentStack>

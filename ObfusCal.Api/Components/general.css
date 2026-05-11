@@ -1,0 +1,98 @@
+:root {
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+
+    --radius: 4px;
+    --radius-md: 6px;
+
+    --form-input-padding: 5px 8px;
+    --form-input-width: 100%;
+
+    --message-bar-margin: 0.5rem 0 0 0;
+    --card-margin-top: 1rem;
+}
+
+.card {
+    padding: var(--spacing-lg);
+    background: var(--neutral-fill-rest);
+    border-radius: var(--radius);
+    border: 1px solid var(--neutral-stroke-rest);
+}
+
+.card > fluent-message-bar {
+    margin-top: var(--message-bar-margin);
+}
+
+input[type="text"],
+input[type="password"],
+textarea {
+    width: var(--form-input-width);
+    padding: var(--form-input-padding);
+    border: 1px solid var(--neutral-stroke-rest);
+    border-radius: var(--radius);
+    font: inherit;
+    box-sizing: border-box;
+    background: var(--neutral-fill-input-rest, #fff);
+    color: inherit;
+}
+
+textarea {
+    min-height: 90px;
+    resize: vertical;
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.form-field > label {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+h1 {
+    margin: 0 0 var(--spacing-lg) 0;
+}
+
+h3 {
+    margin: 0 0 var(--spacing-md) 0;
+}
+
+h4 {
+    margin: 0.25rem 0 0 0;
+}
+
+p {
+    margin: 0;
+}
+
+section.card + section.card {
+    margin-top: var(--card-margin-top);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 0 var(--spacing-md) 0;
+    flex-wrap: wrap;
+}
+
+.section-header > h3 {
+    margin: 0;
+    flex: 1;
+}
+
+@media (max-width: 768px) {
+    input[type="text"],
+    input[type="password"],
+    textarea {
+        font-size: 16px;
+    }
+}
+

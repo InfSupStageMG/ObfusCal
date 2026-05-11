@@ -57,20 +57,20 @@
                     {
                         @foreach (var peer in context.PeerConnections)
                         {
-                            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="4" VerticalAlignment="VerticalAlignment.Center" Style="margin-bottom: 2px;">
+                            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="4" VerticalAlignment="VerticalAlignment.Center" Class="peer-row">
                                 @if (peer.LastSyncSucceeded == true)
                                 {
-                                    <FluentBadge Appearance="Appearance.Accent" Color="Color.Success" Style="font-size: 0.75rem;">@peer.InstanceId</FluentBadge>
+                                    <FluentBadge Appearance="Appearance.Accent" Color="Color.Success" Class="peer-badge">@peer.InstanceId</FluentBadge>
                                 }
                                 else if (peer.LastSyncSucceeded == false)
                                 {
-                                    <FluentBadge Appearance="Appearance.Accent" Color="Color.Error" Style="font-size: 0.75rem;">@peer.InstanceId</FluentBadge>
+                                    <FluentBadge Appearance="Appearance.Accent" Color="Color.Error" Class="peer-badge">@peer.InstanceId</FluentBadge>
                                 }
                                 else
                                 {
-                                    <FluentBadge Appearance="Appearance.Neutral" Style="font-size: 0.75rem;">@peer.InstanceId</FluentBadge>
+                                    <FluentBadge Appearance="Appearance.Neutral" Class="peer-badge">@peer.InstanceId</FluentBadge>
                                 }
-                                <span style="font-size: 0.75rem;">
+                                <span class="peer-timestamp">
                                     @(peer.LastSyncedAt?.ToString("MM-dd HH:mm") ?? "never")
                                 </span>
                             </FluentStack>

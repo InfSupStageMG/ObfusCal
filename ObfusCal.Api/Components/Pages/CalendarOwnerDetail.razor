@@ -27,7 +27,6 @@ else
 {
     <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
 
-        @* ─── Availability Sync ─── *@
         <section class="card">
             <h3>Availability Sync</h3>
             <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8"
@@ -39,16 +38,15 @@ else
             </FluentStack>
             @if (_ownerSyncMessage is not null)
             {
-                <FluentMessageBar Intent="@_ownerSyncMessageIntent" Style="margin-top: 0.5rem;">
+                <FluentMessageBar Intent="@_ownerSyncMessageIntent">
                     @_ownerSyncMessage
                 </FluentMessageBar>
             }
         </section>
 
-        @* ─── Calendar Sources ─── *@
         <section class="card">
-            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center">
-                <h3 style="margin: 0; flex: 1;">Calendar Sources</h3>
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center" Class="section-header-box">
+                <h3 class="header-title-flex">Calendar Sources</h3>
                 @if (_pluginOptions.Count > 0)
                 {
                     <FluentButton Appearance="@(_showAddForm ? Appearance.Outline : Appearance.Accent)"
@@ -60,15 +58,15 @@ else
 
             @if (_pluginOptions.Count == 0)
             {
-                <FluentMessageBar Intent="MessageIntent.Warning" Style="margin-top: 0.75rem;">
+                <FluentMessageBar Intent="MessageIntent.Warning">
                     No calendar source plugins were discovered. Drop plugin assemblies in the <code>plugins</code> folder and restart.
                 </FluentMessageBar>
             }
 
             @if (_showAddForm)
             {
-                <section class="card" style="margin-top: 1rem; background-color: var(--neutral-fill-subtle);">
-                    <h4 style="margin: 0 0 0.75rem 0;">New Calendar Source</h4>
+                <section class="card source-form-container">
+                    <h4 class="source-form-title">New Calendar Source</h4>
                     <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
                         <FluentSelect TOption="PluginOption"
                                       Items="_pluginOptions"
@@ -81,15 +79,15 @@ else
 
                         @if (HasFieldEditors(_newSourceConfigurationFields))
                         {
-                            <h4 style="margin: 0.25rem 0 0 0;">Configuration</h4>
+                            <h4 class="section-heading">Configuration</h4>
                             @foreach (var field in _newSourceConfigurationFields)
                             {
                                 var f = field;
-                                <div @key="f.Key" style="display:flex;flex-direction:column;gap:2px;">
-                                    <label style="font-size:0.875rem;font-weight:500;">@f.Label</label>
+                                <div @key="f.Key" class="config-field">
+                                    <label>@f.Label</label>
                                     <input type="text"
                                            @key="@($"cfg-new-{f.Key}")"
-                                           style="width:100%;padding:5px 8px;border:1px solid var(--neutral-stroke-rest);border-radius:4px;font:inherit;box-sizing:border-box;background:var(--neutral-fill-input-rest,#fff);color:inherit;"
+                                           class="form-input"
                                            placeholder="@(f.Placeholder ?? "")"
                                            value="@f.Value"
                                            @oninput="@(e => f.Value = e.Value?.ToString())"/>
@@ -99,20 +97,20 @@ else
                         else if (!string.IsNullOrWhiteSpace(_newSourceConfigurationJson))
                         {
                             <FluentLabel>Configuration JSON</FluentLabel>
-                            <textarea style="width:100%;min-height:90px;" @bind="_newSourceConfigurationJson"></textarea>
+                            <textarea class="config-textarea" @bind="_newSourceConfigurationJson"></textarea>
                         }
 
                         @if (HasFieldEditors(_newSourceSecretFields))
                         {
-                            <h4 style="margin: 0.25rem 0 0 0;">Secrets</h4>
+                            <h4 class="section-heading">Secrets</h4>
                             @foreach (var field in _newSourceSecretFields)
                             {
                                 var f = field;
-                                <div @key="f.Key" style="display:flex;flex-direction:column;gap:2px;">
-                                    <label style="font-size:0.875rem;font-weight:500;">@f.Label</label>
+                                <div @key="f.Key" class="secret-field">
+                                    <label>@f.Label</label>
                                     <input type="password"
                                            @key="@($"sec-new-{f.Key}")"
-                                           style="width:100%;padding:5px 8px;border:1px solid var(--neutral-stroke-rest);border-radius:4px;font:inherit;box-sizing:border-box;background:var(--neutral-fill-input-rest,#fff);color:inherit;"
+                                           class="form-input"
                                            placeholder="@(f.Placeholder ?? "")"
                                            @oninput="@(e => f.Value = e.Value?.ToString())"/>
                                 </div>
@@ -121,7 +119,7 @@ else
                         else if (!string.IsNullOrWhiteSpace(_newSourceSecretDataJson))
                         {
                             <FluentLabel>Secret JSON</FluentLabel>
-                            <textarea style="width:100%;min-height:90px;" @bind="_newSourceSecretDataJson"></textarea>
+                            <textarea class="secret-textarea" @bind="_newSourceSecretDataJson"></textarea>
                         }
 
                         @if (!string.IsNullOrWhiteSpace(_selectedPluginOption?.SetupHint))
@@ -146,18 +144,18 @@ else
             @* Success message after add (form is now closed) *@
             @if (_sourceMessage is not null && _lastActionInstanceId is null && !_showAddForm)
             {
-                <FluentMessageBar Intent="@_sourceMessageIntent" Style="margin-top: 0.75rem;">@_sourceMessage</FluentMessageBar>
+                <FluentMessageBar Intent="@_sourceMessageIntent">@_sourceMessage</FluentMessageBar>
             }
 
             @if (_sourceInstances.Count > 0)
             {
-                <FluentStack Orientation="Orientation.Vertical" VerticalGap="12" Style="margin-top: 1rem;">
+                <FluentStack Orientation="Orientation.Vertical" VerticalGap="12" Class="source-section-margin">
                     @foreach (var instance in _sourceInstances)
                     {
-                        <section class="card" style="margin-bottom: 0;" @key="instance.Id">
+                        <section class="card source-instance-container" @key="instance.Id">
                             <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8"
                                          VerticalAlignment="VerticalAlignment.Center">
-                                <h4 style="margin: 0;">@instance.DisplayName</h4>
+                                <h4 class="source-instance-title">@instance.DisplayName</h4>
                                 <FluentBadge Appearance="Appearance.Neutral">@instance.PluginDisplayName</FluentBadge>
                                 @if (instance.IsReady)
                                 {
@@ -169,26 +167,26 @@ else
                                 }
                             </FluentStack>
 
-                            <p style="margin-top: 0.5rem; margin-bottom: 0.25rem;"><strong>@instance.Title</strong></p>
+                            <p class="instance-info-paragraph"><strong>@instance.Title</strong></p>
                             @if (!string.IsNullOrWhiteSpace(instance.Detail))
                             {
-                                <p style="margin-top: 0;">@instance.Detail</p>
+                                <p class="instance-detail-paragraph">@instance.Detail</p>
                             }
 
-                            <FluentStack Orientation="Orientation.Vertical" VerticalGap="8" Style="margin-top: 0.5rem;">
+                            <FluentStack Orientation="Orientation.Vertical" VerticalGap="8" Class="instance-actions-stack">
                                 <FluentTextField @bind-Value="instance.DisplayName" Immediate="true" Label="Display name"/>
 
                                 @if (HasFieldEditors(instance.ConfigurationFields))
                                 {
-                                    <h4 style="margin: 0.25rem 0 0 0;">Configuration</h4>
+                                    <h4 class="section-heading">Configuration</h4>
                                     @foreach (var field in instance.ConfigurationFields)
                                     {
                                         var f = field;
-                                        <div @key="f.Key" style="display:flex;flex-direction:column;gap:2px;">
-                                            <label style="font-size:0.875rem;font-weight:500;">@f.Label</label>
+                                        <div @key="f.Key" class="config-field">
+                                            <label>@f.Label</label>
                                             <input type="text"
                                                    @key="@($"cfg-{instance.Id}-{f.Key}")"
-                                                   style="width:100%;padding:5px 8px;border:1px solid var(--neutral-stroke-rest);border-radius:4px;font:inherit;box-sizing:border-box;background:var(--neutral-fill-input-rest,#fff);color:inherit;"
+                                                   class="form-input"
                                                    placeholder="@(f.Placeholder ?? "")"
                                                    value="@f.Value"
                                                    @oninput="@(e => f.Value = e.Value?.ToString())"/>
@@ -198,23 +196,23 @@ else
                                 else
                                 {
                                     <FluentLabel>Configuration JSON</FluentLabel>
-                                    <textarea style="width:100%;min-height:90px;" @bind="instance.ConfigurationJson"></textarea>
+                                    <textarea class="config-textarea" @bind="instance.ConfigurationJson"></textarea>
                                 }
 
                                 @if (HasFieldEditors(instance.SecretFields))
                                 {
-                                    <h4 style="margin: 0.25rem 0 0 0;">Secrets</h4>
+                                    <h4 class="section-heading">Secrets</h4>
                                     <p style="margin: 0 0 0.25rem; font-size: 0.8rem; color: var(--neutral-foreground-hint);">
                                         Leave blank to keep the existing saved value.
                                     </p>
                                     @foreach (var field in instance.SecretFields)
                                     {
                                         var f = field;
-                                        <div @key="f.Key" style="display:flex;flex-direction:column;gap:2px;">
-                                            <label style="font-size:0.875rem;font-weight:500;">@f.Label</label>
+                                        <div @key="f.Key" class="secret-field">
+                                            <label>@f.Label</label>
                                             <input type="password"
                                                    @key="@($"sec-{instance.Id}-{f.Key}")"
-                                                   style="width:100%;padding:5px 8px;border:1px solid var(--neutral-stroke-rest);border-radius:4px;font:inherit;box-sizing:border-box;background:var(--neutral-fill-input-rest,#fff);color:inherit;"
+                                                   class="form-input"
                                                    placeholder="Enter new value to update"
                                                    @oninput="@(e => f.Value = e.Value?.ToString())"/>
                                         </div>
@@ -223,12 +221,12 @@ else
                                 else
                                 {
                                     <FluentLabel>Secret JSON</FluentLabel>
-                                    <textarea style="width:100%;min-height:90px;" @bind="instance.SecretDataJson"></textarea>
+                                    <textarea class="secret-textarea" @bind="instance.SecretDataJson"></textarea>
                                 }
 
                                 <FluentCheckbox @bind-Value="instance.IsEnabled" Label="Enabled"/>
 
-                                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" Style="flex-wrap: wrap;">
+                                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
                                     <FluentButton Appearance="Appearance.Accent"
                                                   OnClick="@(() => UpdateSourceInstanceAsync(instance))"
                                                   Disabled="_updatingSourceInstanceId == instance.Id">
@@ -264,17 +262,16 @@ else
             }
             else if (!_showAddForm)
             {
-                <p style="margin-top: 1rem;">No calendar sources configured yet. Click <strong>+ Add Source</strong> to get started.</p>
+                <p>No calendar sources configured yet. Click <strong>+ Add Source</strong> to get started.</p>
             }
         </section>
 
-        @* ─── Obfuscation Profiles ─── *@
         <section class="card">
             <h3>Obfuscation Profiles</h3>
 
             @foreach (var profile in _profiles)
             {
-                <section class="card" style="margin-bottom: 1rem;">
+                <section class="card">
                     <h4>@profile.Context</h4>
                     <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
                         <FluentCheckbox @bind-Value="profile.RemoveTitle" Label="Remove title"/>
@@ -285,8 +282,7 @@ else
                         <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8"
                                      VerticalAlignment="VerticalAlignment.Center">
                             <FluentLabel>Rounding interval (minutes)</FluentLabel>
-                            <FluentNumberField @bind-Value="profile.RoundingIntervalMinutes" Min="1" Max="60"
-                                               Style="width: 100px;"/>
+                            <FluentNumberField @bind-Value="profile.RoundingIntervalMinutes" Min="1" Max="60" />
                         </FluentStack>
                         <FluentCheckbox @bind-Value="profile.MergeBlocks" Label="Merge adjacent blocks"/>
                         <FluentButton Appearance="Appearance.Accent" OnClick="@(() => SaveProfileAsync(profile))">
@@ -298,7 +294,7 @@ else
 
             @if (_profileMessage is not null)
             {
-                <FluentMessageBar Intent="MessageIntent.Success" Style="margin-top: 0.5rem;">
+                <FluentMessageBar Intent="MessageIntent.Success">
                     @_profileMessage
                 </FluentMessageBar>
             }

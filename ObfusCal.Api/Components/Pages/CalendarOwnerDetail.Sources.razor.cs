@@ -35,7 +35,8 @@ public partial class CalendarOwnerDetail
                 string.Equals(option.Id, instance.PluginId, StringComparison.OrdinalIgnoreCase));
 
             var actions = CalendarSourceCatalog.GetPlugin(instance.PluginId)?.Ui?.Actions ?? [];
-            var configurationFields = BuildFieldEditorsFromTemplate(plugin?.ConfigurationJsonTemplate, instance.ConfigurationJson);
+            var configurationFields =
+                BuildFieldEditorsFromTemplate(plugin?.ConfigurationJsonTemplate, instance.ConfigurationJson);
             var secretFields = BuildFieldEditorsFromTemplate(plugin?.SecretDataJsonTemplate);
 
             _sourceInstances.Add(new SourceInstanceEditor
@@ -85,7 +86,8 @@ public partial class CalendarOwnerDetail
             return;
 
         if (!_selectedPluginOption.SupportsMultipleInstances
-            && _sourceInstances.Any(instance => string.Equals(instance.PluginId, _selectedPluginOption.Id, StringComparison.OrdinalIgnoreCase)))
+            && _sourceInstances.Any(instance =>
+                string.Equals(instance.PluginId, _selectedPluginOption.Id, StringComparison.OrdinalIgnoreCase)))
         {
             _sourceMessage = $"{_selectedPluginOption.DisplayName} supports only one source instance.";
             _sourceMessageIntent = MessageIntent.Warning;
@@ -106,7 +108,9 @@ public partial class CalendarOwnerDetail
                 Id,
                 new CreateCalendarSourceInstanceInput(
                     _selectedPluginOption.Id,
-                    string.IsNullOrWhiteSpace(_newSourceDisplayName) ? _selectedPluginOption.DisplayName : _newSourceDisplayName,
+                    string.IsNullOrWhiteSpace(_newSourceDisplayName)
+                        ? _selectedPluginOption.DisplayName
+                        : _newSourceDisplayName,
                     configurationJson,
                     secretDataJson,
                     _newSourceIsEnabled));
@@ -118,11 +122,21 @@ public partial class CalendarOwnerDetail
                 return;
             }
 
-            _sourceMessage = $"Added source instance '{created.DisplayName}'.";
+            _sourceMessage = $"Added source instance '{created.DisplayName}'. Triggering sync...";
             _sourceMessageIntent = MessageIntent.Success;
             _showAddForm = false;
             await LoadSourceInstancesAsync();
             ApplyPluginDefaults();
+
+            try
+            {
+                await AvailabilitySyncService.RunSyncForOwnerAsync(Id, CancellationToken.None);
+                _sourceMessage = $"Added source instance '{created.DisplayName}' and synced availability.";
+            }
+            catch (Exception syncEx)
+            {
+                _sourceMessage = $"Added source instance '{created.DisplayName}', but sync failed: {syncEx.Message}";
+            }
         }
         catch (Exception ex)
         {
@@ -165,9 +179,19 @@ public partial class CalendarOwnerDetail
                 return;
             }
 
-            _sourceMessage = $"Updated source instance '{updated.DisplayName}'.";
+            _sourceMessage = $"Updated source instance '{updated.DisplayName}'. Triggering sync...";
             _sourceMessageIntent = MessageIntent.Success;
             await LoadSourceInstancesAsync();
+
+            try
+            {
+                await AvailabilitySyncService.RunSyncForOwnerAsync(Id, CancellationToken.None);
+                _sourceMessage = $"Updated source instance '{updated.DisplayName}' and synced availability.";
+            }
+            catch (Exception syncEx)
+            {
+                _sourceMessage = $"Updated source instance '{updated.DisplayName}', but sync failed: {syncEx.Message}";
+            }
         }
         catch (Exception ex)
         {
@@ -207,7 +231,8 @@ public partial class CalendarOwnerDetail
 
     private static string? NormalizeJsonInput(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private async Task InvokePluginActionAsync(SourceInstanceEditor instance, CalendarSourcePluginActionDescriptor action)
+    private async Task InvokePluginActionAsync(SourceInstanceEditor instance,
+        CalendarSourcePluginActionDescriptor action)
     {
         _sourceMessage = null;
         _lastActionInstanceId = instance.Id;
