@@ -196,7 +196,7 @@ public static class DependencyInjection
             : null;
         var peerId = request?.Options.TryGetValue(PeerTransportRequestOptions.PeerInstanceId, out var id) == true ? id : null;
 
-        return PeerTransportSecurity.TryResolveClientCertificate(clientThumbprint, logger, peerId) ?? remoteCertificate;
+        return PeerTransportSecurity.TryResolveClientCertificate(clientThumbprint, logger, peerId);
     }
 
      private static void RegisterDomainServices(IServiceCollection services)
