@@ -6,7 +6,7 @@
     "packageRules": [
         {
             "matchPackageNames": ["Microsoft.OpenApi"],
-            "versioning": "same-major"
+            "allowedVersions": "^2.0.0"
         }
     ]
 }
