@@ -65,7 +65,19 @@ internal static class DotEnvLoader
         {
             safePath = Path.GetFullPath(filePath);
         }
-        catch
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (NotSupportedException)
+        {
+            return false;
+        }
+        catch (System.Security.SecurityException)
+        {
+            return false;
+        }
+        catch (PathTooLongException)
         {
             return false;
         }
