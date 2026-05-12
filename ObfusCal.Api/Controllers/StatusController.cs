@@ -1,11 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ObfusCal.Api.Authorization;
 using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = AppAuthorizationPolicies.Sysadmin)]
 [Route("api/status")]
 public sealed class StatusController(IStatusService statusService) : ControllerBase
 {

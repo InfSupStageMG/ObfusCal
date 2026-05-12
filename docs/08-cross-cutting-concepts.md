@@ -27,8 +27,9 @@ Entra object ID, using that object ID as the durable identity boundary. The head
 which re-challenges Entra with `prompt=select_account` so users can change identities without first performing a full
 local sign-out.
 
-**Sysadmin authorization:** Administrative peer-management endpoints under `/api/admin/*` require the Entra ID app role
-`Sysadmin`. Authenticated users without that role receive `403 Forbidden`.
+**Sysadmin authorization:** Administrative peer-management endpoints under `/api/admin/*`, instance-wide status under
+`/api/status`, and sync operations under `/api/sync/*` require the Entra ID app role `Sysadmin`. Authenticated users
+without that role receive `403 Forbidden`.
 
 **Machine-to-machine authentication:** Peer sync endpoints require `Authorization: ApiKey ...`. Incoming credentials
 are verified against hashed `PeerConnection.ApiKeyHash` values, and outbound pushes include both `Authorization`
@@ -96,7 +97,10 @@ not accept them for this flow.
 **Data scoping:** After authentication, the user's Entra ID Object ID is extracted from the bearer token or browser
 principal and used as a strict data boundary. Non-admin users are scoped to their own calendar owner in both the API
 and the Blazor UI. If no calendar owner exists yet for that object ID, one is created automatically on first access.
-Administrative pages remain behind the `Sysadmin` role.
+
+In the frontend, normal users are intentionally limited to self-service views: dashboard, their own calendar-owner
+settings, and a read-only peer-status view. Instance-wide operations such as calendar-owner creation, peer management,
+sync triggering, and health visibility remain behind the `Sysadmin` role.
 
 **Inbound payload validation:** API request models use DataAnnotations and ASP.NET Core global model-state handling.
 Validation failures return uniform `400` `ValidationProblemDetails` responses (without stack traces).

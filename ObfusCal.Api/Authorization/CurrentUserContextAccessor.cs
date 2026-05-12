@@ -8,7 +8,30 @@ public sealed class CurrentUserContextAccessor(
     AuthenticationStateProvider authenticationStateProvider,
     ICalendarOwnerProvisioningService calendarOwnerProvisioningService)
 {
+    private readonly SemaphoreSlim _resolutionLock = new(1, 1);
+    private CurrentUserContext? _cachedContext;
+
     public async Task<CurrentUserContext> GetCurrentAsync(CancellationToken ct = default)
+    {
+        if (_cachedContext is not null)
+            return _cachedContext;
+
+        await _resolutionLock.WaitAsync(ct);
+        try
+        {
+            if (_cachedContext is not null)
+                return _cachedContext;
+
+            _cachedContext = await ResolveCurrentAsync(ct);
+            return _cachedContext;
+        }
+        finally
+        {
+            _resolutionLock.Release();
+        }
+    }
+
+    private async Task<CurrentUserContext> ResolveCurrentAsync(CancellationToken ct)
     {
         var authenticationState = await authenticationStateProvider.GetAuthenticationStateAsync();
         var user = authenticationState.User;
@@ -20,7 +43,7 @@ public sealed class CurrentUserContextAccessor(
         var isSysadmin = AppAuthorizationPolicies.HasSysadminRole(user);
         var displayName = user.GetPreferredDisplayName();
 
-        if (string.IsNullOrWhiteSpace(entraObjectId))
+        if (string.IsNullOrWhiteSpace(entraObjectId) || isSysadmin)
             return new CurrentUserContext(true, isSysadmin, null, null, null, displayName);
 
         var scope = await calendarOwnerProvisioningService.EnsureForEntraUserAsync(entraObjectId, displayName, ct);
@@ -28,8 +51,8 @@ public sealed class CurrentUserContextAccessor(
             true,
             isSysadmin,
             entraObjectId,
-            scope?.CalendarOwnerId,
-            scope?.Name,
+            scope.CalendarOwnerId,
+            scope.Name,
             displayName);
     }
 }

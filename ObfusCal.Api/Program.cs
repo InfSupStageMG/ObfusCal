@@ -1,9 +1,7 @@
-﻿using System.Net.Http.Headers;
-using Microsoft.AspNetCore.Authentication;
+﻿using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
-using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.FluentUI.AspNetCore.Components;
@@ -11,6 +9,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.OpenApi;
+using ObfusCal.Api;
 using ObfusCal.Api.Authentication;
 using ObfusCal.Api.Authorization;
 using ObfusCal.Api.Components;
@@ -19,7 +18,6 @@ using ObfusCal.Api.RateLimiting;
 using ObfusCal.Application;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
-using ObfusCal.Application.UseCases.Validation;
 using ObfusCal.Infrastructure;
 using ObfusCal.Infrastructure.Security;
 using Serilog;
@@ -45,7 +43,8 @@ try
 
     builder.WebHost.ConfigureKestrel((context, options) =>
     {
-        var syncOptions = context.Configuration.GetSection(SyncOptions.SectionName).Get<SyncOptions>() ?? new SyncOptions();
+        var syncOptions = context.Configuration.GetSection(SyncOptions.SectionName).Get<SyncOptions>() ??
+                          new SyncOptions();
         options.Limits.MaxRequestBodySize = syncOptions.MaxRequestBodySizeBytes;
     });
 
@@ -67,22 +66,8 @@ try
             options.DefaultAuthenticateScheme = appAuthenticationScheme;
             options.DefaultChallengeScheme = appAuthenticationScheme;
         })
-        .AddPolicyScheme(appAuthenticationScheme, "ObfusCal application authentication", options =>
-        {
-            options.ForwardDefaultSelector = context =>
-            {
-                if (!context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
-                    return CookieAuthenticationDefaults.AuthenticationScheme;
-                if (AuthenticationHeaderValue.TryParse(context.Request.Headers.Authorization, out var authorizationHeader)
-                    && string.Equals(authorizationHeader.Scheme, PeerApiKeyAuthenticationDefaults.SchemeName, StringComparison.OrdinalIgnoreCase))
-                {
-                    return PeerApiKeyAuthenticationDefaults.SchemeName;
-                }
-
-                return JwtBearerDefaults.AuthenticationScheme;
-
-            };
-        })
+        .AddPolicyScheme(appAuthenticationScheme, "ObfusCal application authentication",
+            options => { options.ForwardDefaultSelector = ProgramSetup.SelectAuthenticationScheme; })
         .AddScheme<AuthenticationSchemeOptions, PeerApiKeyAuthenticationHandler>(
             PeerApiKeyAuthenticationDefaults.SchemeName,
             _ => { });
@@ -96,13 +81,14 @@ try
         openIdConnectScheme: OpenIdConnectDefaults.AuthenticationScheme,
         cookieScheme: CookieAuthenticationDefaults.AuthenticationScheme);
 
-    builder.Services.Configure<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme, options =>
-    {
-        options.LoginPath = "/account/login";
-        options.LogoutPath = "/account/logout";
-        options.AccessDeniedPath = "/account/access-denied";
-        options.SlidingExpiration = true;
-    });
+    builder.Services.Configure<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme,
+        options =>
+        {
+            options.LoginPath = "/account/login";
+            options.LogoutPath = "/account/logout";
+            options.AccessDeniedPath = "/account/access-denied";
+            options.SlidingExpiration = true;
+        });
 
     builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
     {
@@ -113,7 +99,8 @@ try
 
     builder.Services.AddRateLimiter(options =>
     {
-        var syncOptions = builder.Configuration.GetSection(SyncOptions.SectionName).Get<SyncOptions>() ?? new SyncOptions();
+        var syncOptions = builder.Configuration.GetSection(SyncOptions.SectionName).Get<SyncOptions>() ??
+                          new SyncOptions();
         PeerRateLimiting.Configure(options, syncOptions);
     });
 
@@ -123,26 +110,7 @@ try
         return new RateLimitBucketEvictionService(evictionInterval);
     });
 
-    builder.Services.AddAuthorization(options =>
-    {
-        options.AddPolicy(AppAuthorizationPolicies.Sysadmin, policy =>
-        {
-            policy.RequireAuthenticatedUser();
-            policy.RequireAssertion(context => AppAuthorizationPolicies.HasSysadminRole(context.User));
-        });
-
-        options.AddPolicy(PeerApiAuthorizationPolicies.PushShadowSlots, policy =>
-        {
-            policy.AddAuthenticationSchemes(PeerApiKeyAuthenticationDefaults.SchemeName);
-            policy.RequireClaim(PeerApiKeyClaimTypes.Scope, PeerApiScopes.PushShadowSlots);
-        });
-
-        options.AddPolicy(PeerApiAuthorizationPolicies.PullBusySlots, policy =>
-        {
-            policy.AddAuthenticationSchemes(PeerApiKeyAuthenticationDefaults.SchemeName);
-            policy.RequireClaim(PeerApiKeyClaimTypes.Scope, PeerApiScopes.PullBusySlots);
-        });
-    });
+    builder.Services.AddAuthorization(ProgramSetup.ConfigureAuthorizationPolicies);
     builder.Services.AddScoped<CalendarOwnerAccessEvaluator>();
     builder.Services.AddScoped<CurrentUserContextAccessor>();
     builder.Services.AddScoped(provider => new CalendarConsentServices(
@@ -218,7 +186,8 @@ try
 
     var forwardedHeadersOptions = new ForwardedHeadersOptions
     {
-        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedHost |
+                           ForwardedHeaders.XForwardedProto
     };
     forwardedHeadersOptions.KnownIPNetworks.Clear();
     forwardedHeadersOptions.KnownProxies.Clear();
@@ -227,50 +196,7 @@ try
     app.UseSerilogRequestLogging();
     app.UseStaticFiles();
 
-    app.UseExceptionHandler(exceptionApp =>
-    {
-        exceptionApp.Run(async context =>
-        {
-            var exceptionFeature = context.Features.Get<IExceptionHandlerPathFeature>();
-            if (exceptionFeature?.Error is RequestValidationException requestValidationException)
-            {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                context.Response.ContentType = "application/problem+json";
-
-                var validationProblem = new ValidationProblemDetails(requestValidationException.Errors.ToDictionary(kvp => kvp.Key, kvp => kvp.Value))
-                {
-                    Status = StatusCodes.Status400BadRequest,
-                    Title = "One or more validation errors occurred."
-                };
-                validationProblem.Extensions["traceId"] = context.TraceIdentifier;
-
-                await context.Response.WriteAsJsonAsync(validationProblem);
-                return;
-            }
-
-            var redactor = context.RequestServices.GetRequiredService<ILogRedactor>();
-            var exception = exceptionFeature?.Error;
-            var redactedMessage = redactor.Redact(exception?.Message ?? "Unhandled exception");
-
-            Log.ForContext("RequestMethod", context.Request.Method)
-                .ForContext("RequestPath", exceptionFeature?.Path ?? context.Request.Path.Value)
-                .ForContext("TraceId", context.TraceIdentifier)
-                .Error(exception, "Unhandled exception while processing HTTP request: {RedactedMessage}", redactedMessage);
-
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            context.Response.ContentType = "application/problem+json";
-
-            await context.Response.WriteAsJsonAsync(new ProblemDetails
-            {
-                Status = StatusCodes.Status500InternalServerError,
-                Title = "An unexpected error occurred.",
-                Extensions =
-                {
-                    ["traceId"] = context.TraceIdentifier
-                }
-            });
-        });
-    });
+    app.UseExceptionHandler(exceptionApp => exceptionApp.Run(ProgramSetup.HandleExceptionAsync));
 
     if (app.Environment.IsDevelopment())
     {
@@ -280,8 +206,7 @@ try
             options.OAuthClientId(swaggerOAuthClientId);
             options.OAuthUsePkce();
             options.OAuthScopes(swaggerOAuthScope);
-            if (!string.IsNullOrWhiteSpace(swaggerOAuthRedirectUri))
-                options.OAuth2RedirectUrl(swaggerOAuthRedirectUri);
+            ProgramSetup.ConfigureSwaggerUi(options, swaggerOAuthRedirectUri);
         });
     }
     else
@@ -293,32 +218,7 @@ try
     app.UseAuthentication();
     app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"), apiApp =>
     {
-        apiApp.Use(async (context, next) =>
-        {
-            var syncOptions = context.RequestServices.GetRequiredService<IOptions<SyncOptions>>().Value;
-
-            if (syncOptions.MaxRequestBodySizeBytes > 0 &&
-                context.Request.ContentLength is { } contentLength &&
-                contentLength > syncOptions.MaxRequestBodySizeBytes)
-            {
-                context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
-                context.Response.ContentType = "application/problem+json";
-
-                await context.Response.WriteAsJsonAsync(new ProblemDetails
-                {
-                    Status = StatusCodes.Status413PayloadTooLarge,
-                    Title = "Request body exceeds the maximum allowed size."
-                });
-                return;
-            }
-
-            await PeerRateLimiting.CapturePeerIdentityForRateLimitingAsync(context);
-
-            if (await PeerRateLimiting.TryEnforceApiRequestRateLimitsAsync(context, syncOptions))
-                return;
-
-            await next();
-        });
+        apiApp.Use(ProgramSetup.HandleApiRequestAsync);
 
         apiApp.UseRateLimiter();
     });
@@ -342,3 +242,4 @@ finally
 {
     await Log.CloseAndFlushAsync();
 }
+

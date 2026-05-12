@@ -10,6 +10,7 @@
 @inject ICalendarOwnerAvailabilitySyncService AvailabilitySyncService
 @inject CurrentUserContextAccessor CurrentUserContextAccessor
 @inject IJSRuntime Js
+@inject NavigationManager Navigation
 
 <PageTitle>Dashboard - ObfusCal</PageTitle>
 
@@ -22,6 +23,43 @@
             @_accessMessage
         </FluentMessageBar>
     }
+
+    <section class="card dashboard-role-card">
+        <h3>@(_isSysadmin ? "Admin workspace" : "My workspace")</h3>
+        <p class="dashboard-role-description">
+            @if (_isSysadmin)
+            {
+                <span>Administrators manage calendar owners, peer connectivity, sync operations, and health visibility for the whole instance.</span>
+            }
+            else
+            {
+                <span>Normal users work inside their own calendar owner: manage calendar sources, maintain obfuscation settings, and review their peer status.</span>
+            }
+        </p>
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" Wrap="true" Class="dashboard-role-actions">
+            @if (_isSysadmin)
+            {
+                <FluentButton Appearance="Appearance.Accent" OnClick="NavigateToCalendarOwners">
+                    Manage Calendar Owners
+                </FluentButton>
+                <FluentButton Appearance="Appearance.Outline" OnClick="NavigateToPeers">
+                    Manage Peer Connections
+                </FluentButton>
+                <FluentButton Appearance="Appearance.Outline" OnClick="NavigateToSyncStatus">
+                    View Sync Status
+                </FluentButton>
+            }
+            else if (_selectedOwner is not null)
+            {
+                <FluentButton Appearance="Appearance.Accent" OnClick="NavigateToMySettings">
+                    Open My Calendar Settings
+                </FluentButton>
+                <FluentButton Appearance="Appearance.Outline" OnClick="NavigateToPeers">
+                    View My Peers
+                </FluentButton>
+            }
+        </FluentStack>
+    </section>
 
     <section class="card combined-calendar-card">
         <h3>Combined Calendar</h3>
@@ -271,6 +309,23 @@
         var utc = TimeZoneInfo.ConvertTimeToUtc(local, timeZone);
         return new DateTimeOffset(utc, TimeSpan.Zero);
     }
+
+    private void NavigateToCalendarOwners()
+        => Navigation.NavigateTo("/calendar-owners");
+
+    private void NavigateToMySettings()
+    {
+        if (_selectedOwner is null)
+            return;
+
+        Navigation.NavigateTo($"/calendar-owners/{_selectedOwner.Id}");
+    }
+
+    private void NavigateToPeers()
+        => Navigation.NavigateTo("/peers");
+
+    private void NavigateToSyncStatus()
+        => Navigation.NavigateTo("/sync-status");
 
 
     private sealed record CalendarOwnerOption(Guid Id, string Name);

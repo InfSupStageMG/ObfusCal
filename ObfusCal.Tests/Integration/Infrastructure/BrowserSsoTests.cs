@@ -133,6 +133,32 @@ public class BrowserSsoTests
     }
 
     [TestMethod]
+    public async Task PeerConnectionsPage_LoadsReadOnlyView_ForNonSysadminUser()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        using var client = factory.CreateAuthenticatedClient();
+
+        var html = await client.GetStringAsync("/peers", TestContext.CancellationToken);
+
+        Assert.Contains("My Peers", html);
+        Assert.Contains("Peer onboarding is handled by administrators", html);
+        Assert.DoesNotContain("Add Peer Connection", html);
+    }
+
+    [TestMethod]
+    public async Task PeerConnectionsPage_LoadsAdminView_ForSysadminUser()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        using var client = factory.CreateAuthenticatedClientWithRoles(TestAuthHandler.DefaultObjectId, "Sysadmin");
+
+        var html = await client.GetStringAsync("/peers", TestContext.CancellationToken);
+
+        Assert.Contains("Peer Connections", html);
+        Assert.Contains("Add Peer Connection", html);
+        Assert.DoesNotContain("Peer onboarding is handled by administrators", html);
+    }
+
+    [TestMethod]
     public async Task CalendarOwnerDetail_DeniesAccessToDifferentOwner_ForNonSysadminUser()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);

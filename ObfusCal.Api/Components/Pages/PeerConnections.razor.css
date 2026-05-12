@@ -3,6 +3,11 @@
     align-items: end;
 }
 
+.peer-section-description {
+    margin: 0;
+    color: var(--neutral-foreground-hint);
+}
+
 .peer-instance-input,
 .peer-base-address-input,
 .peer-api-key-input {

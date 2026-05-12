@@ -1,0 +1,44 @@
+﻿@using FluentIcons = Microsoft.FluentUI.AspNetCore.Components.Icons
+@inject CurrentUserContextAccessor CurrentUserContextAccessor
+
+@if (_currentUser?.IsAuthenticated == true)
+{
+    if (_currentUser.IsSysadmin)
+    {
+        <FluentNavLink Href="/calendar-owners" Icon="@(new FluentIcons.Regular.Size20.People())">
+            Calendar Owners
+        </FluentNavLink>
+        <FluentNavLink Href="/peers" Icon="@(new FluentIcons.Regular.Size20.Globe())">
+            Peer Connections
+        </FluentNavLink>
+        <FluentNavLink Href="/sync-status" Icon="@(new FluentIcons.Regular.Size20.ArrowSync())">
+            Sync Status
+        </FluentNavLink>
+        <FluentNavLink Href="/health-status" Icon="@(new FluentIcons.Regular.Size20.HeartPulse())">
+            Health Status
+        </FluentNavLink>
+    }
+    else
+    {
+        if (_currentUser.CalendarOwnerId is Guid calendarOwnerId)
+        {
+            <FluentNavLink Href="@($"/calendar-owners/{calendarOwnerId}")" Icon="@(new FluentIcons.Regular.Size20.PersonCircle())">
+                Calendar Settings
+            </FluentNavLink>
+        }
+
+        <FluentNavLink Href="/peers" Icon="@(new FluentIcons.Regular.Size20.Globe())">
+            My Peers
+        </FluentNavLink>
+    }
+}
+
+@code {
+    private CurrentUserContext? _currentUser;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _currentUser = await CurrentUserContextAccessor.GetCurrentAsync();
+    }
+}
+

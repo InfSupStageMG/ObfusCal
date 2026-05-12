@@ -97,6 +97,12 @@ openssl pkcs12 -export `
    user's Entra object ID. After you are signed in, the header also exposes a **Switch user** action that reopens the
    Entra account picker without requiring a manual sign-out first.
 
+   The Blazor UI is role-aware:
+
+   - normal users see the dashboard, their own calendar-owner settings, and a read-only **My Peers** view for their
+     peer request / approval status
+   - sysadmins see global **Calendar Owners**, **Peer Connections**, **Sync Status**, and **Health Status** views
+
    For Google Calendar OAuth, set `GOOGLECONSENT__REDIRECTURI` to a Google-registered callback such as
    `https://localhost/consent-callback` or a public HTTPS URI. Do not use `https://obfuscal.local/consent-callback`
    for Google OAuth — Google rejects `.local` redirect domains.

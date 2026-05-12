@@ -33,20 +33,9 @@
             <FluentNavLink Href="/" Icon="@(new FluentIcons.Regular.Size20.CalendarLtr())" Match="NavLinkMatch.All">
                 Dashboard
             </FluentNavLink>
-            <AuthorizeView Policy="@AppAuthorizationPolicies.Sysadmin">
+            <AuthorizeView>
                 <Authorized>
-                    <FluentNavLink Href="/calendar-owners" Icon="@(new FluentIcons.Regular.Size20.People())">
-                        Calendar Owners
-                    </FluentNavLink>
-                    <FluentNavLink Href="/peers" Icon="@(new FluentIcons.Regular.Size20.Globe())">
-                        Peer Connections
-                    </FluentNavLink>
-                    <FluentNavLink Href="/sync-status" Icon="@(new FluentIcons.Regular.Size20.ArrowSync())">
-                        Sync Status
-                    </FluentNavLink>
-                    <FluentNavLink Href="/health-status" Icon="@(new FluentIcons.Regular.Size20.HeartPulse())">
-                        Health Status
-                    </FluentNavLink>
+                    <UserNavigationLinks />
                 </Authorized>
             </AuthorizeView>
         </FluentNavMenu>

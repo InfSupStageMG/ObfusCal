@@ -1,4 +1,18 @@
-﻿.combined-calendar-card {
+﻿.dashboard-role-card {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.dashboard-role-description {
+    margin: 0;
+    color: var(--neutral-foreground-hint);
+}
+
+.dashboard-role-actions {
+    align-items: center;
+}
+
+.combined-calendar-card {
     overflow: hidden;
 }
 
@@ -95,6 +109,14 @@
 }
 
 @media (max-width: 640px) {
+    .dashboard-role-actions {
+        width: 100%;
+    }
+
+    .dashboard-role-actions > * {
+        flex: 1 1 100%;
+    }
+
     .combined-calendar-controls {
         grid-template-columns: 1fr;
         gap: 0.875rem;

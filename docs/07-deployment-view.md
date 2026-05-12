@@ -50,8 +50,9 @@ Before starting the containers:
       TLS certificate to be fixed to a known leaf certificate.
     - **Optional mTLS groundwork:** store `PeerConnections.ClientCertificateThumbprint` for peers that should present a
       client certificate, and make sure the certificate is available in the local machine/user certificate store.
-4. Ensure the Entra ID app role `Sysadmin` exists on the API app registration and is assigned to designated
-   administrators.
+4. Ensure the Entra ID app role `Sysadmin` exists on the API app registration and is assigned only to designated
+   operators/administrators. That role gates the global Calendar Owners, Peer Connections, Sync Status, Health Status,
+   `/api/status`, and `/api/sync/*` surfaces.
 5. Ensure the Entra app registration used by ObfusCal includes a web redirect URI for the browser UI callback
    (`https://<host>/signin-oidc`) in addition to any Swagger OAuth redirect URI used for API testing.
 6. Expect the first successful browser sign-in for a non-sysadmin user to auto-create a `CalendarOwner` row bound to
