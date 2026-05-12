@@ -21,7 +21,7 @@ We use **MSTest** as the test framework and **Testcontainers** for integration t
 
 ## Decision rationale
 
-MSTest aligns with Microsoft and internship company company standards. Testcontainers allows integration tests to spin up
+MSTest aligns with Microsoft and internship company standards. Testcontainers allows integration tests to spin up
 ephemeral PostgreSQL containers automatically, giving confidence that database logic works correctly without relying on
 in-memory approximations that may not reflect real behaviour.
 

@@ -10,15 +10,15 @@ boundary.
 
 ## External Interfaces
 
-| External System                 | Direction        | Protocol                                   | Purpose                                                               |
-|---------------------------------|------------------|--------------------------------------------|-----------------------------------------------------------------------|
-| Microsoft 365 / Exchange Online | Inbound (read)   | MS Graph API over HTTPS (OAuth 2.0)        | Fetch raw calendar events for a registered user                       |
-| Exchange On-Premise             | Inbound (read)   | Exchange Web Services (SOAP/HTTPS)         | Fetch raw calendar events in legacy environments                      |
-| Google Workspace                | Inbound (read)   | Google Calendar API over HTTPS (OAuth 2.0) | Fetch raw calendar events                                             |
-| iCal Feed (`.ics` URL)          | Inbound (read)   | HTTP GET                                   | Fallback ingestion for restrictive client environments                |
-| Peer ObfusCal Instance          | Bidirectional    | REST over HTTPS (`X-Peer-Id` validation)   | Exchange obfuscated busy slots between domain instances               |
-| Entra ID (Azure AD)             | Inbound (auth)   | OpenID Connect                             | Authenticate human users (calendar owners and sysadmins)              |
-| User's Calendar (write-back)    | Outbound (write) | MS Graph / CalDAV                          | Write obfuscated shadow slots back into the user's connected calendar |
+| External System                    | Direction        | Protocol                                   | Purpose                                                                                                   |
+|------------------------------------|------------------|--------------------------------------------|-----------------------------------------------------------------------------------------------------------|
+| Microsoft 365 / Exchange Online    | Inbound (read)   | MS Graph API over HTTPS (OAuth 2.0)        | Fetch raw calendar events for a registered user                                                           |
+| Exchange On-Premise *(deprecated)* | Inbound (read)   | Exchange Web Services (SOAP/HTTPS)         | Fetch raw calendar events in legacy environments (library selected in ADR 0005; adapter won't be shipped) |
+| Google Workspace                   | Inbound (read)   | Google Calendar API over HTTPS (OAuth 2.0) | Fetch raw calendar events                                                                                 |
+| iCal Feed (`.ics` URL)             | Inbound (read)   | HTTP GET                                   | Fallback ingestion for restrictive client environments                                                    |
+| Peer ObfusCal Instance             | Bidirectional    | REST over HTTPS (`X-Peer-Id` validation)   | Exchange obfuscated busy slots between domain instances                                                   |
+| Entra ID (Azure AD)                | Inbound (auth)   | OpenID Connect                             | Authenticate human users (calendar owners and sysadmins)                                                  |
+| User's Calendar (write-back)       | Outbound (write) | MS Graph / CalDAV                          | Write obfuscated shadow slots back into the user's connected calendar                                     |
 
 ## Scope Boundaries
 

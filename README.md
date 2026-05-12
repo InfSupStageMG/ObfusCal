@@ -15,7 +15,8 @@ Each organisation runs their own instance of ObfusCal within their own network. 
 slots over a secured API. Peer endpoints are expected to use HTTPS; the application rejects `http://` peer base URLs and
 validates the upstream certificate chain by default. No raw event data ever crosses a domain boundary. Consultants
 authenticate with their existing company credentials via Entra ID (Azure AD), and the system fetches their calendar
-automatically via the Microsoft Graph API on a configurable schedule.
+automatically on a configurable schedule. Supported calendar sources include Microsoft Graph (Microsoft 365), Google
+Calendar, iCloud CalDAV, and read-only iCal (`.ics`) feeds.
 
 Peer sync traffic is also rate limited per authenticated peer, with an IP-based backstop for unauthenticated requests.
 The shadow-slot push and busy-slot pull endpoints each use their own configurable window, and API request bodies are
@@ -27,16 +28,19 @@ capped at 1 MB by default to reduce DoS risk.
 
 ```
 ObfusCal/
-├── ObfusCal.Domain/         # Core business rules, domain models, obfuscation transformers
-├── ObfusCal.Application/    # Use cases (CQRS), interfaces, obfuscation pipeline
-├── ObfusCal.Infrastructure/ # Calendar adapters, EF Core persistence, storage implementations
-├── ObfusCal.Api/            # ASP.NET Core entry point, controllers, DI composition root
-├── ObfusCal.Tests/          # Unit and integration tests
-├── docs/                    # arc42 architecture documentation (served via MkDocs)
+├── ObfusCal.Domain/                  # Core business rules, domain models, obfuscation transformers
+├── ObfusCal.Application/             # Use cases (CQRS), interfaces, obfuscation pipeline
+├── ObfusCal.Infrastructure/          # Calendar adapters, EF Core persistence, storage implementations
+├── ObfusCal.Api/                     # ASP.NET Core entry point, controllers, DI composition root
+├── ObfusCal.Plugins.GoogleCalendar/  # Google Calendar source plugin (built alongside Api, output to plugins/)
+├── ObfusCal.Plugins.ICloudCalendar/  # iCloud CalDAV source plugin (built alongside Api, output to plugins/)
+├── ObfusCal.Tests/                   # Unit and integration tests
+├── docs/                             # arc42 architecture documentation (served via MkDocs)
+├── plugins/                          # Plugin DLL drop folder scanned at startup
 ├── docker-compose.yaml
 ├── Dockerfile
 ├── nginx.conf
-├── certs/                   # Local TLS material (gitignored except README)
+├── certs/                            # Local TLS material (gitignored except README)
 └── ObfusCal.slnx
 ```
 
@@ -51,8 +55,8 @@ ObfusCal.Api
     └── ObfusCal.Domain
 ```
 
-`ObfusCal.Domain` has zero external dependencies. The composition root in `Program.cs` is the only place where
-`ObfusCal.Api` and `ObfusCal.Infrastructure` meet.
+`ObfusCal.Domain` has zero external dependencies. Only the composition root in `Program.cs` contains feature code
+that bridges `ObfusCal.Api` and `ObfusCal.Infrastructure`.
 
 ---
 
@@ -106,9 +110,9 @@ docker compose up -d --build
 ```
 
 5. Verify:
-   - `https://obfuscal.local/health`
-   - `https://obfuscal.local/swagger` (Development mode only)
-   - `http://obfuscal.local` redirects to HTTPS
+    - `https://obfuscal.local/health`
+    - `https://obfuscal.local/swagger` (Development mode only)
+    - `http://obfuscal.local` redirects to HTTPS
 
 ### Option 2: Run API with .NET CLI (requires PostgreSQL first)
 
@@ -137,11 +141,12 @@ dotnet run --project ObfusCal.Api
 ## iCloud setup quick guide
 
 If you configure iCloud as a calendar source, you need:
+
 - Your Apple ID email
 - An Apple app-specific password
 - The full iCloud CalDAV calendar URL
 
-For a full walkthrough, see `docs/13-icloud-caldav-setup.md`.
+For a full walkthrough, see `docs/icloud-caldav-setup.md`.
 
 ### 1) Generate an app-specific password
 
@@ -159,9 +164,9 @@ Important: Apple only shows this password once. You cannot view the same passwor
 3. Filter/search for `collections`.
 4. In the calendar UI, deselect/reselect the target calendar to trigger requests.
 5. From matching requests, collect:
-   - The `p` shard code from the host (for example `p123` from `p123-caldav.icloud.com`)
-   - The `dsid` segment in the URL path
-   - The calendar identifier in the path (GUID-like, for example `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`)
+    - The `p` shard code from the host (for example `p123` from `p123-caldav.icloud.com`)
+    - The `dsid` segment in the URL path
+    - The calendar identifier in the path (GUID-like, for example `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`)
 
 ### 3) Build the URL used by ObfusCal
 
@@ -170,6 +175,7 @@ Use:
 `https://p***-caldav.icloud.com/<dsid>/calendars/<calendar-id>/`
 
 Then configure ObfusCal with:
+
 - Calendar URL: the URL above
 - Apple ID: your Apple ID email
 - App-specific password: the password from step 1
@@ -233,39 +239,44 @@ Use `.env.example` as the authoritative placeholder list for local/compose confi
 - Only users assigned this role can call `/api/admin/peer-connections` endpoints.
 - `POST /api/admin/peer-connections/{id}/approve` generates a cryptographically secure API key and returns it once.
 - The same approval call can also store a `PinnedCertificateThumbprint` and an optional `ClientCertificateThumbprint`.
-- Certificate pins should be entered as the leaf certificate thumbprint shown by the operating system or certificate tool.
+- Certificate pins should be entered as the leaf certificate thumbprint shown by the operating system or certificate
+  tool.
 - Peer API keys are stored as salted PBKDF2-SHA256 hashes in `PeerConnections.ApiKeyHash` (`210000` iterations).
-- `POST /api/admin/peer-connections/{id}/rotate-key` rotates the key atomically and invalidates the previous key immediately.
-- `POST /api/admin/peer-connections/{id}/revoke` sets `PeerConnections.RevokedAt` and blocks peer authentication immediately.
+- `POST /api/admin/peer-connections/{id}/rotate-key` rotates the key atomically and invalidates the previous key
+  immediately.
+- `POST /api/admin/peer-connections/{id}/revoke` sets `PeerConnections.RevokedAt` and blocks peer authentication
+  immediately.
 - Peer endpoints enforce scope claims from `PeerConnections.Scopes` (`push_shadow_slots`, `pull_busy_slots`).
-- Peer sync requests include `X-Peer-Timestamp` and are rejected when outside `Sync:PeerRequestTimestampToleranceSeconds` (default 300 seconds).
-- `POST /api/admin/peer-connections/{id}/suspend` sets the peer to `Suspended` and sync/auth traffic for that peer is blocked.
+- Peer sync requests include `X-Peer-Timestamp` and are rejected when outside
+  `Sync:PeerRequestTimestampToleranceSeconds` (default 300 seconds).
+- `POST /api/admin/peer-connections/{id}/suspend` sets the peer to `Suspended` and sync/auth traffic for that peer is
+  blocked.
 
 ### Peer transport security setup
 
 1. **Production / staging with CA-issued certificates**
-   - Keep `PeerTransportSecurity:AllowSelfSignedCerts=false`.
-   - Use a public or privately trusted certificate on each peer endpoint.
-   - Optionally populate `PinnedCertificateThumbprint` to pin the exact leaf certificate.
-   - If you rotate the certificate, update the pin in the same maintenance window.
+    - Keep `PeerTransportSecurity:AllowSelfSignedCerts=false`.
+    - Use a public or privately trusted certificate on each peer endpoint.
+    - Optionally populate `PinnedCertificateThumbprint` to pin the exact leaf certificate.
+    - If you rotate the certificate, update the pin in the same maintenance window.
 
 2. **Development with self-signed certificates**
-   - Set `PeerTransportSecurity:AllowSelfSignedCerts=true`.
-   - Use the local certificate instructions in `certs/README.md`.
-   - Start the compose stack; the API logs a warning whenever self-signed peer certificates are allowed.
+    - Set `PeerTransportSecurity:AllowSelfSignedCerts=true`.
+    - Use the local certificate instructions in `certs/README.md`.
+    - Start the compose stack; the API logs a warning whenever self-signed peer certificates are allowed.
 
 3. **Optional mTLS groundwork**
-   - Import the client certificate into the machine or user certificate store that hosts ObfusCal.
-   - Set `ClientCertificateThumbprint` on the peer record.
-   - The application will look up that certificate locally and present it during the TLS handshake.
-   - Certificate issuance, provisioning, and renewal remain an operations responsibility.
+    - Import the client certificate into the machine or user certificate store that hosts ObfusCal.
+    - Set `ClientCertificateThumbprint` on the peer record.
+    - The application will look up that certificate locally and present it during the TLS handshake.
+    - Certificate issuance, provisioning, and renewal remain an operations responsibility.
 
 ## Input validation and SSRF protections
 
 - Request DTOs use DataAnnotations and invalid payloads are returned as `400` `ValidationProblemDetails`.
 - iCal feed URLs and peer base URLs are validated with a shared URL safety policy:
-  - only `https` scheme is accepted
-  - hosts resolving to private, loopback, or link-local IP ranges are rejected
+    - only `https` scheme is accepted
+    - hosts resolving to private, loopback, or link-local IP ranges are rejected
 - Query windows for `busy-slots` and `merged-freebusy` are bounded by `Sync:MaxQueryWindowDays` (default `90`).
 - Shadow-slot push payloads are bounded by `Sync:MaxShadowSlotsPerRequest` (default `500`).
 
@@ -283,6 +294,8 @@ The configured mutation gate is 75% (`thresholds.low` and `thresholds.break` in 
 
 ## Documentation
 
+Public docs site: https://infsupstagemg.github.io/ObfusCal/
+
 Architecture documentation is written in arc42 format and served via MkDocs:
 
 ```powershell
@@ -299,13 +312,26 @@ Then open `http://localhost:8000`.
 **Sprint 1 (complete):** Project scaffolding, Docker/Podman setup, CI/CD pipeline, pluggable calendar adapter
 interface, core obfuscation pipeline (strip title, description, attendees, location, round times, merge blocks),
 in-memory busy slot storage, REST API with OpenAPI/Swagger, push/pull shadow slots endpoints, structured Serilog
-logging, nginx reverse proxy with HTTPS.
+logging, nginx reverse proxy with HTTPS, EF Core + PostgreSQL persistence.
 
-**Sprint 2 (in progress):** Entra ID login, per-owner data scoping, API key authentication for peer instances,
-Microsoft Graph OAuth consent flow and calendar fetch, EF Core + PostgreSQL persistence, configurable periodic
-re-sync scheduler, iCal feed import, outbound/inbound peer sync transport, sync resilience.
+**Sprint 2 (complete):** Entra ID login for calendar owners, per-owner data scoping, peer API key authentication,
+Microsoft Graph OAuth consent flow and calendar fetch, configurable periodic re-sync scheduler, per-owner configurable
+obfuscation rules, obfuscation audit log, iCal feed import, outbound/inbound peer sync transport, sync resilience and
+per-peer isolation, status and health endpoint, manual sync trigger, Blazor Server web UI with FluentUI, mutation
+testing setup (Stryker), test coverage improvements, Plugin architecture end-to-end.
 
-**Later sprints:** Booking link feature, mTLS for inter-peer communication.
+**Sprint 3 (complete):** Google Calendar plugin, iCloud CalDAV plugin, centralised secrets and log redaction, end-to-end
+peer trust hardening, input validation and SSRF protection, CI/CD and dependency security automation, Centralized
+Secrets and Cryptographic Key Management, peer connection request and fallback, sysadmin peer approval and credential
+configuration.
+
+**Sprint 4 (in progress):** API authorisation and tenant boundary enforcement, data protection and privacy controls,
+rate limiting and sync endpoint DoS protection, plugin supply-chain hardening, container and host runtime hardening,
+inter-peer transport security, dashboard calendar view, Entra ID tenant integration and sysadmin role, automated
+deployment to host server, Proton Calendar plugin, two-way sync, security logging and auditing.
+
+**Sprint 5 (planned):** Booking link generation, continuous security verification program, public availability view via
+booking link, appointment proposal and calendar write-back, booking link revocation
 
 ---
 
@@ -318,4 +344,4 @@ feedback are welcome. Please open an issue before submitting a pull request.
 
 ## License
 
-GNU GPL v3.0. See [LICENSE](LICENSE) for details.
+GNU GPL v3.0. See [LICENSE](LICENSE.md) for details.
