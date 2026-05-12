@@ -4,7 +4,7 @@ using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Authorization;
 
-public sealed class CalendarOwnerAccessEvaluator(ICalendarOwnerScopeResolver scopeResolver)
+public sealed class CalendarOwnerAccessEvaluator(ICalendarOwnerProvisioningService provisioningService)
 {
     public async Task<CalendarOwnerAccessResult> EvaluateAsync(
         ClaimsPrincipal user,
@@ -15,9 +15,7 @@ public sealed class CalendarOwnerAccessEvaluator(ICalendarOwnerScopeResolver sco
         if (string.IsNullOrWhiteSpace(entraObjectId))
             return CalendarOwnerAccessResult.Unauthorized();
 
-        var scope = await scopeResolver.FindByEntraObjectIdAsync(entraObjectId, ct);
-        if (scope is null)
-            return CalendarOwnerAccessResult.NotFound();
+        var scope = await provisioningService.EnsureForEntraUserAsync(entraObjectId, user.GetPreferredDisplayName(), ct);
 
         return scope.CalendarOwnerId != requestedCalendarOwnerId ? CalendarOwnerAccessResult.Forbidden(scope.CalendarOwnerId) : CalendarOwnerAccessResult.Allowed(scope.CalendarOwnerId);
     }

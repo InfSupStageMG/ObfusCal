@@ -1,0 +1,42 @@
+﻿@inject NavigationManager Navigation
+
+@if (_isAuthenticated == true)
+{
+    <p role="alert">You are not authorized to view this page.</p>
+}
+else if (_loginUrl is not null)
+{
+    <p role="alert">
+        Redirecting to sign in…
+        <a href="@_loginUrl">Click here if you are not redirected.</a>
+    </p>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private bool? _isAuthenticated;
+    private string? _loginUrl;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var authenticationState = AuthenticationStateTask is null
+            ? null
+            : await AuthenticationStateTask;
+
+        _isAuthenticated = authenticationState?.User.Identity?.IsAuthenticated == true;
+
+        var currentUri = new Uri(Navigation.Uri);
+        var returnUrl = string.IsNullOrWhiteSpace(currentUri.PathAndQuery)
+            ? "/"
+            : currentUri.PathAndQuery;
+        _loginUrl = $"/account/login?returnUrl={Uri.EscapeDataString(returnUrl)}";
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && _isAuthenticated == false && !string.IsNullOrWhiteSpace(_loginUrl))
+            Navigation.NavigateTo(_loginUrl, forceLoad: true);
+    }
+}
+

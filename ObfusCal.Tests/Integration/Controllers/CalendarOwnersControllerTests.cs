@@ -451,7 +451,7 @@ public class CalendarOwnersControllerTests
     }
 
     [TestMethod]
-    public async Task GetBusySlots_ReturnsNotFound_WhenAuthenticatedCalendarOwnerHasNoMatchingRecord()
+    public async Task GetBusySlots_ReturnsForbidden_WhenAuthenticatedCalendarOwnerIsAutoProvisionedButRequestsDifferentId()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
         using var client = factory.CreateAuthenticatedClient(Guid.NewGuid().ToString());
@@ -460,11 +460,11 @@ public class CalendarOwnersControllerTests
             $"/api/calendar-owners/{Guid.NewGuid()}/busy-slots?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
             TestContext.CancellationToken);
 
-        Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [TestMethod]
-    public async Task GetMergedFreeBusy_ReturnsNotFound_WhenAuthenticatedCalendarOwnerHasNoMatchingRecord()
+    public async Task GetMergedFreeBusy_ReturnsForbidden_WhenAuthenticatedCalendarOwnerIsAutoProvisionedButRequestsDifferentId()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
         using var client = factory.CreateAuthenticatedClient(Guid.NewGuid().ToString());
@@ -473,7 +473,7 @@ public class CalendarOwnersControllerTests
             $"/api/calendar-owners/{Guid.NewGuid()}/merged-freebusy?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
             TestContext.CancellationToken);
 
-        Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [TestMethod]

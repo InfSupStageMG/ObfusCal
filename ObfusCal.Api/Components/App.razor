@@ -14,7 +14,9 @@
 </head>
 
 <body>
-    <Routes @rendermode="RenderMode.InteractiveServer" />
+    <CascadingAuthenticationState>
+        <Routes @rendermode="RenderMode.InteractiveServer" />
+    </CascadingAuthenticationState>
     <script src="js/timezone.js"></script>
     <script src="_framework/blazor.web.js"></script>
 </body>

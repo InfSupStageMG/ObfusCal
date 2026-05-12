@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
 using System.ComponentModel.DataAnnotations;
+using ObfusCal.Api.Authorization;
 using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Controllers;
@@ -24,7 +25,7 @@ public sealed class SyncController(
     }
 
     [HttpPost("trigger")]
-    [Authorize(Roles = "Sysadmin")]
+    [Authorize(Policy = AppAuthorizationPolicies.Sysadmin)]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

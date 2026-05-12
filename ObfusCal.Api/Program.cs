@@ -1,11 +1,15 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.FluentUI.AspNetCore.Components;
 using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.OpenApi;
 using ObfusCal.Api.Authentication;
 using ObfusCal.Api.Authorization;
@@ -26,6 +30,8 @@ Log.Logger = new LoggerConfiguration()
 
 try
 {
+    const string appAuthenticationScheme = "AppAuthentication";
+
     var builder = WebApplication.CreateBuilder(args);
     var azureAdSection = builder.Configuration.GetSection("AzureAd");
     var azureAdInstance = (azureAdSection["Instance"] ?? "https://login.microsoftonline.com/").TrimEnd('/');
@@ -33,6 +39,7 @@ try
     var azureAdClientId = azureAdSection["ClientId"] ?? "00000000-0000-0000-0000-000000000000";
     var swaggerOAuthClientId = builder.Configuration["Swagger:OAuth:ClientId"] ?? azureAdClientId;
     var swaggerOAuthScope = builder.Configuration["Swagger:OAuth:Scope"] ?? $"api://{azureAdClientId}/access_as_user";
+    var swaggerOAuthRedirectUri = builder.Configuration["Swagger:OAuth:RedirectUri"];
     var authorizationUrl = new Uri($"{azureAdInstance}/{azureAdTenantId}/oauth2/v2.0/authorize");
     var tokenUrl = new Uri($"{azureAdInstance}/{azureAdTenantId}/oauth2/v2.0/token");
 
@@ -51,12 +58,58 @@ try
         .AddInfrastructure(builder.Configuration)
         .AddApplication();
 
-    builder.Services
-        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    builder.Services.AddHttpContextAccessor();
+
+    var authenticationBuilder = builder.Services
+        .AddAuthentication(options =>
+        {
+            options.DefaultScheme = appAuthenticationScheme;
+            options.DefaultAuthenticateScheme = appAuthenticationScheme;
+            options.DefaultChallengeScheme = appAuthenticationScheme;
+        })
+        .AddPolicyScheme(appAuthenticationScheme, "ObfusCal application authentication", options =>
+        {
+            options.ForwardDefaultSelector = context =>
+            {
+                if (!context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
+                    return CookieAuthenticationDefaults.AuthenticationScheme;
+                if (AuthenticationHeaderValue.TryParse(context.Request.Headers.Authorization, out var authorizationHeader)
+                    && string.Equals(authorizationHeader.Scheme, PeerApiKeyAuthenticationDefaults.SchemeName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return PeerApiKeyAuthenticationDefaults.SchemeName;
+                }
+
+                return JwtBearerDefaults.AuthenticationScheme;
+
+            };
+        })
         .AddScheme<AuthenticationSchemeOptions, PeerApiKeyAuthenticationHandler>(
             PeerApiKeyAuthenticationDefaults.SchemeName,
-            _ => { })
-        .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+            _ => { });
+
+    authenticationBuilder.AddMicrosoftIdentityWebApi(
+        builder.Configuration.GetSection("AzureAd"),
+        jwtBearerScheme: JwtBearerDefaults.AuthenticationScheme);
+
+    authenticationBuilder.AddMicrosoftIdentityWebApp(
+        builder.Configuration.GetSection("AzureAd"),
+        openIdConnectScheme: OpenIdConnectDefaults.AuthenticationScheme,
+        cookieScheme: CookieAuthenticationDefaults.AuthenticationScheme);
+
+    builder.Services.Configure<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme, options =>
+    {
+        options.LoginPath = "/account/login";
+        options.LogoutPath = "/account/logout";
+        options.AccessDeniedPath = "/account/access-denied";
+        options.SlidingExpiration = true;
+    });
+
+    builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+    {
+        options.UsePkce = true;
+        options.ResponseType = OpenIdConnectResponseType.Code;
+        options.SaveTokens = false;
+    });
 
     builder.Services.AddRateLimiter(options =>
     {
@@ -64,7 +117,7 @@ try
         PeerRateLimiting.Configure(options, syncOptions);
     });
 
-    builder.Services.AddHostedService(provider =>
+    builder.Services.AddHostedService(_ =>
     {
         var evictionInterval = TimeSpan.FromMinutes(1);
         return new RateLimitBucketEvictionService(evictionInterval);
@@ -72,6 +125,12 @@ try
 
     builder.Services.AddAuthorization(options =>
     {
+        options.AddPolicy(AppAuthorizationPolicies.Sysadmin, policy =>
+        {
+            policy.RequireAuthenticatedUser();
+            policy.RequireAssertion(context => AppAuthorizationPolicies.HasSysadminRole(context.User));
+        });
+
         options.AddPolicy(PeerApiAuthorizationPolicies.PushShadowSlots, policy =>
         {
             policy.AddAuthenticationSchemes(PeerApiKeyAuthenticationDefaults.SchemeName);
@@ -85,6 +144,7 @@ try
         });
     });
     builder.Services.AddScoped<CalendarOwnerAccessEvaluator>();
+    builder.Services.AddScoped<CurrentUserContextAccessor>();
     builder.Services.AddScoped(provider => new CalendarConsentServices(
         provider.GetRequiredService<ICalendarOwnerGraphConsentService>(),
         provider.GetRequiredService<ICalendarOwnerGoogleConsentService>()));
@@ -139,6 +199,7 @@ try
         });
     });
     builder.Services.AddHealthChecks();
+    builder.Services.AddCascadingAuthenticationState();
 
     builder.Services.AddRazorComponents()
         .AddInteractiveServerComponents();
@@ -219,6 +280,8 @@ try
             options.OAuthClientId(swaggerOAuthClientId);
             options.OAuthUsePkce();
             options.OAuthScopes(swaggerOAuthScope);
+            if (!string.IsNullOrWhiteSpace(swaggerOAuthRedirectUri))
+                options.OAuth2RedirectUrl(swaggerOAuthRedirectUri);
         });
     }
     else

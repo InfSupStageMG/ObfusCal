@@ -52,6 +52,7 @@ public static class DependencyInjection
             options.RequiredSecretKeys.Add(SecretKeys.DefaultConnectionString);
             options.RequiredSecretKeys.Add(SecretKeys.AzureAdTenantId);
             options.RequiredSecretKeys.Add(SecretKeys.AzureAdClientId);
+            options.RequiredSecretKeys.Add(SecretKeys.AzureAdClientSecret);
             options.RequiredSecretKeys.Add(SecretKeys.GraphConsentClientId);
         });
 
@@ -216,6 +217,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<ICalendarOwnerScopeResolver, EfCoreCalendarOwnerScopeResolver>();
+        services.AddScoped<ICalendarOwnerProvisioningService, CalendarOwnerProvisioningService>();
         services.AddScoped<ICalendarOwnerService, CalendarOwnerService>();
         services.AddScoped<ICalendarOwnerGraphConsentService, CalendarOwnerGraphConsentService>();
         services.AddScoped<ICalendarOwnerGoogleConsentService, CalendarOwnerGoogleConsentService>();

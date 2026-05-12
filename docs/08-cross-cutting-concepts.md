@@ -16,8 +16,16 @@ output (`BusySlot`) is persisted.
 
 ## Security
 
-**Human authentication:** All user-facing access is secured via Single Sign-On through internship company's Entra ID (
-Azure AD) using OpenID Connect. This automatically inherits existing conditional access policies including MFA.
+**Human authentication:** All user-facing Blazor access is secured via Single Sign-On through internship company's Entra
+ID (Azure AD) using OpenID Connect with a server-side cookie session. Unauthenticated browser requests are redirected to
+`/account/login`, which challenges Entra ID and returns to the local Blazor route after sign-in. This automatically
+inherits existing conditional access policies including MFA. Development-time manual API testing in Swagger remains a
+separate OAuth2 authorization-code flow with PKCE and its own registered HTTPS redirect URI.
+
+ObfusCal now auto-provisions a `CalendarOwner` record the first time a non-sysadmin browser user signs in with a valid
+Entra object ID, using that object ID as the durable identity boundary. The header also exposes `/account/switch`,
+which re-challenges Entra with `prompt=select_account` so users can change identities without first performing a full
+local sign-out.
 
 **Sysadmin authorization:** Administrative peer-management endpoints under `/api/admin/*` require the Entra ID app role
 `Sysadmin`. Authenticated users without that role receive `403 Forbidden`.
@@ -26,6 +34,10 @@ Azure AD) using OpenID Connect. This automatically inherits existing conditional
 are verified against hashed `PeerConnection.ApiKeyHash` values, and outbound pushes include both `Authorization`
 and `X-Peer-Id` headers so the receiving instance can authenticate and correlate the sender without trusting the
 peer ID header by itself.
+
+**API authentication split:** Requests under `/api/*` continue to use bearer-token or peer-API-key authentication and do
+not accept the Blazor browser cookie as an API credential. This keeps server-rendered UI access separate from explicit
+API authorization semantics.
 
 **Inter-peer transport security:** Peer base URLs must use `https://` and are rejected otherwise. The sync services
 fail closed when a peer record points to a non-HTTPS endpoint, and outbound `HttpClient` requests validate the peer
@@ -81,8 +93,10 @@ runtime callback origin via `GoogleConsent:RedirectUri` / `GOOGLECONSENT__REDIRE
 debugging setups can use a single registered callback. `.local` redirect domains are rejected early because Google does
 not accept them for this flow.
 
-**Data scoping:** After authentication, the user's Entra ID Object ID is extracted from the JWT token and used as a
-strict data boundary at the repository layer. A user can only access their own events, slots, and configuration.
+**Data scoping:** After authentication, the user's Entra ID Object ID is extracted from the bearer token or browser
+principal and used as a strict data boundary. Non-admin users are scoped to their own calendar owner in both the API
+and the Blazor UI. If no calendar owner exists yet for that object ID, one is created automatically on first access.
+Administrative pages remain behind the `Sysadmin` role.
 
 **Inbound payload validation:** API request models use DataAnnotations and ASP.NET Core global model-state handling.
 Validation failures return uniform `400` `ValidationProblemDetails` responses (without stack traces).

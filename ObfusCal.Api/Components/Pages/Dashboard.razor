@@ -1,11 +1,14 @@
 ﻿@page "/"
+@attribute [Authorize]
 @using Microsoft.JSInterop
 @using ObfusCal.Application.Interfaces
 @using ObfusCal.Application.UseCases.GetMergedFreeBusy
+@using ObfusCal.Api.Authorization
 @using ObfusCal.Api.Components.Shared
 @inject IGetMergedFreeBusyUseCase GetMergedFreeBusyUseCase
 @inject ICalendarOwnerService CalendarOwnerService
 @inject ICalendarOwnerAvailabilitySyncService AvailabilitySyncService
+@inject CurrentUserContextAccessor CurrentUserContextAccessor
 @inject IJSRuntime Js
 
 <PageTitle>Dashboard - ObfusCal</PageTitle>
@@ -13,19 +16,36 @@
 <h1>Dashboard</h1>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+    @if (_accessMessage is not null)
+    {
+        <FluentMessageBar Intent="MessageIntent.Warning" Title="Calendar owner access required">
+            @_accessMessage
+        </FluentMessageBar>
+    }
+
     <section class="card combined-calendar-card">
         <h3>Combined Calendar</h3>
 
         <div class="combined-calendar-controls" role="group" aria-label="Combined calendar filters">
             <div class="combined-calendar-field combined-calendar-field--owner app-form-field">
                 <FluentLabel Class="combined-calendar-label app-form-label">Calendar Owner</FluentLabel>
-                <FluentSelect TOption="CalendarOwnerOption"
-                              Items="_calendarOwners"
-                              OptionValue="@(o => o.Id.ToString())"
-                              OptionText="@(o => o.Name)"
-                              Class="combined-calendar-control app-form-control"
-                              Style="width: 100%; max-width: 100%; min-width: 0;"
-                              @bind-SelectedOption="_selectedOwner" />
+                @if (_isSysadmin)
+                {
+                    <FluentSelect TOption="CalendarOwnerOption"
+                                  Items="_calendarOwners"
+                                  OptionValue="@(o => o.Id.ToString())"
+                                  OptionText="@(o => o.Name)"
+                                  Class="combined-calendar-control app-form-control"
+                                  Style="width: 100%; max-width: 100%; min-width: 0;"
+                                  @bind-SelectedOption="_selectedOwner" />
+                }
+                else
+                {
+                    <FluentTextField Value="@(_selectedOwner?.Name ?? "No mapped calendar owner")"
+                                     ReadOnly="true"
+                                     Class="combined-calendar-control app-form-control"
+                                     Style="width: 100%; max-width: 100%; min-width: 0;" />
+                }
             </div>
 
             <div class="combined-calendar-field combined-calendar-field--from app-form-field">
@@ -88,6 +108,8 @@
     private bool _loading;
     private bool _loaded;
     private bool _refreshing;
+    private bool _isSysadmin;
+    private string? _accessMessage;
 
     private List<TimeZoneOption> _timeZones = [];
     private TimeZoneOption? _selectedTimeZone;
@@ -96,8 +118,33 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var owners = await CalendarOwnerService.ListAsync();
-        _calendarOwners = owners.Select(o => new CalendarOwnerOption(o.Id, o.Name)).ToList();
+        _loading = true;
+
+        var currentUser = await CurrentUserContextAccessor.GetCurrentAsync();
+        _isSysadmin = currentUser.IsSysadmin;
+
+        if (_isSysadmin)
+        {
+            var owners = await CalendarOwnerService.ListAsync();
+            _calendarOwners = owners.Select(o => new CalendarOwnerOption(o.Id, o.Name)).ToList();
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(currentUser.EntraObjectId))
+            {
+                _calendarOwners = [];
+                _accessMessage = "Your signed-in session did not contain an Entra object ID.";
+            }
+            else if (currentUser.CalendarOwnerId is null || string.IsNullOrWhiteSpace(currentUser.CalendarOwnerName))
+            {
+                _calendarOwners = [];
+                _accessMessage = "A calendar owner could not be provisioned for your signed-in account.";
+            }
+            else
+            {
+                _calendarOwners = [new CalendarOwnerOption(currentUser.CalendarOwnerId.Value, currentUser.CalendarOwnerName)];
+            }
+        }
 
         if (_calendarOwners.Count > 0)
             _selectedOwner = _calendarOwners[0];
@@ -111,6 +158,8 @@
                                 tz.Id.Equals(_sCachedTimeZoneId, StringComparison.OrdinalIgnoreCase))
                             ?? _timeZones.FirstOrDefault(tz => tz.Id == "UTC")
                             ?? _timeZones.FirstOrDefault();
+
+        _loading = false;
     }
 
     protected override Task OnAfterRenderAsync(bool firstRender)

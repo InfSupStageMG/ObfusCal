@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
 using System.ComponentModel.DataAnnotations;
+using ObfusCal.Api.Authorization;
 using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Controllers;
@@ -10,7 +11,7 @@ namespace ObfusCal.Api.Controllers;
 [Authorize]
 [Route("api/peer-connections")]
 public sealed class PeerConnectionsController(
-    ICalendarOwnerScopeResolver calendarOwnerScopeResolver,
+    ICalendarOwnerProvisioningService calendarOwnerProvisioningService,
     IPeerConnectionService peerConnectionService) : ControllerBase
 {
     [HttpPost("request")]
@@ -68,7 +69,10 @@ public sealed class PeerConnectionsController(
         if (string.IsNullOrWhiteSpace(objectId))
             return null;
 
-        return await calendarOwnerScopeResolver.FindByEntraObjectIdAsync(objectId, ct);
+        return await calendarOwnerProvisioningService.EnsureForEntraUserAsync(
+            objectId,
+            User.GetPreferredDisplayName(),
+            ct);
     }
 
     public sealed record RequestPeerConnectionRequest(
