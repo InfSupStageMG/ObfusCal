@@ -21,10 +21,8 @@ internal static class DotEnvLoader
         if (!File.Exists(safePath))
             return;
 
-        foreach (var rawLine in File.ReadLines(safePath))
+        foreach (var line in File.ReadLines(filePath).Select(rawLine => rawLine.Trim()))
         {
-            var line = rawLine.Trim();
-
             if (line.Length == 0 || line.StartsWith('#'))
                 continue;
 
