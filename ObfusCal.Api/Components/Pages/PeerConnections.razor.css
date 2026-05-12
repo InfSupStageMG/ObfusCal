@@ -1,0 +1,39 @@
+﻿.peer-add-row,
+.peer-link-row {
+    align-items: end;
+}
+
+.peer-instance-input,
+.peer-base-address-input,
+.peer-api-key-input {
+    flex: 1 1 240px;
+    min-width: 220px;
+}
+
+.peer-select-field {
+    flex: 1 1 240px;
+    min-width: 220px;
+}
+
+.peer-owner-select,
+.peer-peer-select {
+    width: 100%;
+}
+
+.link-section-description {
+    margin: 0 0 0.625rem;
+    color: var(--neutral-foreground-hint);
+}
+
+@media (max-width: 640px) {
+    .peer-instance-input,
+    .peer-base-address-input,
+    .peer-api-key-input,
+    .peer-select-field,
+    .peer-add-button,
+    .peer-link-button {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+}
+

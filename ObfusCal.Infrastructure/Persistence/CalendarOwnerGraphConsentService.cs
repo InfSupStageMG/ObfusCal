@@ -19,9 +19,13 @@ internal sealed class CalendarOwnerGraphConsentService(
     : ICalendarOwnerGraphConsentService
 {
     private const string GraphPluginId = "graph";
+    private const string StatePrefix = "graph.";
 
     private readonly IDataProtector _tokenProtector = dataProtectionProvider
         .CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
+
+    private readonly IDataProtector _stateProtector = dataProtectionProvider
+        .CreateProtector("ObfusCal.GraphConsent.State.v1");
 
     public async Task<CalendarOwnerGraphConsentStatus?> GetStatusAsync(Guid calendarOwnerId, CancellationToken ct = default)
     {
@@ -79,7 +83,7 @@ internal sealed class CalendarOwnerGraphConsentService(
     }
 
     public string BuildAuthorizationUrl(string redirectUri)
-        => BuildAuthorizationUrlCore(redirectUri);
+        => BuildAuthorizationUrlCore(redirectUri, Guid.Empty, Guid.Empty);
 
     public async Task<string> BuildAuthorizationUrlAsync(
         Guid calendarOwnerId,
@@ -91,10 +95,10 @@ internal sealed class CalendarOwnerGraphConsentService(
         if (instance is null || !string.Equals(instance.PluginId, GraphPluginId, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Graph calendar source instance was not found.");
 
-        return BuildAuthorizationUrlCore(redirectUri);
+        return BuildAuthorizationUrlCore(redirectUri, calendarOwnerId, calendarSourceInstanceId);
     }
 
-    private string BuildAuthorizationUrlCore(string redirectUri)
+    private string BuildAuthorizationUrlCore(string redirectUri, Guid calendarOwnerId, Guid calendarSourceInstanceId)
     {
         // Validate that redirectUri is an absolute URI
         try
@@ -127,9 +131,75 @@ internal sealed class CalendarOwnerGraphConsentService(
             $"redirect_uri={Uri.EscapeDataString(redirectUri)}",
             "response_mode=query",
             $"scope={Uri.EscapeDataString(scope)}",
-            "prompt=consent");
+            "prompt=consent",
+            $"state={Uri.EscapeDataString(BuildStateToken(calendarOwnerId, calendarSourceInstanceId, redirectUri))}");
 
         return $"{instance}/{tenantId}/oauth2/v2.0/authorize?{query}";
+    }
+
+    public async Task CompleteConsentFromStateAsync(
+        string authorizationCode,
+        string state,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(state))
+            throw new InvalidOperationException("State is required to complete Graph consent.");
+
+        if (!state.StartsWith(StatePrefix, StringComparison.Ordinal))
+            throw new InvalidOperationException("Graph consent state is invalid.");
+
+        var payload = UnprotectState(state);
+
+        if (payload.ExpiresAtUtc < DateTimeOffset.UtcNow)
+            throw new InvalidOperationException("Graph consent state has expired. Start consent again.");
+
+        if (payload.CalendarOwnerId == Guid.Empty)
+            throw new InvalidOperationException(
+                "Graph consent state does not contain owner context. Use the instance-specific consent flow.");
+
+        if (payload.CalendarSourceInstanceId != Guid.Empty)
+        {
+            await CompleteConsentAsync(
+                payload.CalendarOwnerId,
+                payload.CalendarSourceInstanceId,
+                authorizationCode,
+                payload.RedirectUri,
+                ct);
+        }
+        else
+        {
+            await CompleteConsentAsync(
+                payload.CalendarOwnerId,
+                authorizationCode,
+                payload.RedirectUri,
+                ct);
+        }
+    }
+
+    private string BuildStateToken(Guid calendarOwnerId, Guid calendarSourceInstanceId, string redirectUri)
+    {
+        var payload = new GraphConsentStatePayload(
+            calendarOwnerId,
+            calendarSourceInstanceId,
+            redirectUri,
+            DateTimeOffset.UtcNow.AddMinutes(10));
+
+        return StatePrefix + _stateProtector.Protect(JsonSerializer.Serialize(payload));
+    }
+
+    private GraphConsentStatePayload UnprotectState(string state)
+    {
+        var encrypted = state[StatePrefix.Length..];
+        try
+        {
+            var json = _stateProtector.Unprotect(encrypted);
+            return JsonSerializer.Deserialize<GraphConsentStatePayload>(json)
+                ?? throw new InvalidOperationException("Graph consent state is invalid.");
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            throw new InvalidOperationException("Graph consent state is invalid or expired.", ex);
+        }
     }
 
     public async Task CompleteConsentAsync(
@@ -240,5 +310,10 @@ internal sealed class CalendarOwnerGraphConsentService(
 
     private static string SerializeSecretData(GraphCalendarSource.GraphSourceSecretData secretData)
         => JsonSerializer.Serialize(secretData);
-}
 
+    private sealed record GraphConsentStatePayload(
+        Guid CalendarOwnerId,
+        Guid CalendarSourceInstanceId,
+        string RedirectUri,
+        DateTimeOffset ExpiresAtUtc);
+}

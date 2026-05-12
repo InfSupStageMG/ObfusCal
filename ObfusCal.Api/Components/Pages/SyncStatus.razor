@@ -20,7 +20,7 @@
         </FluentStack>
         @if (_syncMessage is not null)
         {
-            <FluentMessageBar Intent="MessageIntent.Success" Style="margin-top: 0.5rem;">
+            <FluentMessageBar Intent="MessageIntent.Success" Class="card-message">
                 @_syncMessage
             </FluentMessageBar>
         }
@@ -28,29 +28,29 @@
 
     @if (_loading)
     {
-        <FluentProgress />
+        <FluentProgress/>
     }
     else if (_peers is not null)
     {
         <section class="card">
-            <FluentDataGrid Items="_peers.AsQueryable()" TGridItem="PeerSyncStatus">
-                <PropertyColumn Property="@(p => p.InstanceId)" Title="Peer Instance" Sortable="true" />
-                <PropertyColumn Property="@(p => p.BaseAddress)" Title="Base Address" />
+            <FluentDataGrid Items="_peers.AsQueryable()" TGridItem="PeerSyncStatus" Class="app-data-grid">
+                <PropertyColumn Property="@(p => p.InstanceId)" Title="Peer Instance" Sortable="true"/>
+                <PropertyColumn Property="@(p => p.BaseAddress)" Title="Base Address"/>
                 <TemplateColumn Title="Status">
-                    @if (context.LastSyncSucceeded == true)
+                    @switch (context.LastSyncSucceeded)
                     {
-                        <FluentBadge Appearance="Appearance.Accent" Color="Color.Success">Healthy</FluentBadge>
-                    }
-                    else if (context.LastSyncSucceeded == false)
-                    {
-                        <FluentBadge Appearance="Appearance.Accent" Color="Color.Error">Failed</FluentBadge>
-                    }
-                    else
-                    {
-                        <FluentBadge Appearance="Appearance.Neutral">Never synced</FluentBadge>
+                        case true:
+                            <FluentBadge Appearance="Appearance.Accent" Color="Color.Success">Healthy</FluentBadge>
+                            break;
+                        case false:
+                            <FluentBadge Appearance="Appearance.Accent" Color="Color.Error">Failed</FluentBadge>
+                            break;
+                        default:
+                            <FluentBadge Appearance="Appearance.Neutral">Never synced</FluentBadge>
+                            break;
                     }
                 </TemplateColumn>
-                <PropertyColumn Property="@(p => p.LastSyncedAt)" Title="Last Synced" Format="yyyy-MM-dd HH:mm:ss" />
+                <PropertyColumn Property="@(p => p.LastSyncedAt)" Title="Last Synced" Format="yyyy-MM-dd HH:mm:ss"/>
             </FluentDataGrid>
         </section>
     }

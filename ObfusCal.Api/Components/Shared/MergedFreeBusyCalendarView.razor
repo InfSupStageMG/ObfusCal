@@ -4,7 +4,16 @@
 <section class="card calendar-view">
     <div class="calendar-grid">
         <div class="calendar-header">
-            <h3>@_monthYear</h3>
+            <div class="calendar-header-row">
+                <h3>@_monthYear</h3>
+                @if (DisplayDate.HasValue)
+                {
+                    <div class="calendar-date-range">
+                        <span class="date-range-label">Viewing:</span>
+                        <span class="date-range-value">@GetDisplayDateRange()</span>
+                    </div>
+                }
+            </div>
         </div>
 
         <div class="calendar-weekdays">
@@ -49,11 +58,15 @@
 
 @if (_showModal && _selectedDate.HasValue && _selectedDayEvents.Count > 0)
 {
+    var selectedDate = _selectedDate.GetValueOrDefault();
     <div class="modal-backdrop" @onclick="CloseModal"></div>
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>@_selectedDate.Value.ToString("dddd, dd MMMM yyyy", CultureInfo.CurrentCulture)</h2>
+                <div class="modal-header-content">
+                    <h2>@selectedDate.ToString("dddd, dd MMMM yyyy", CultureInfo.CurrentCulture)</h2>
+                    <span class="modal-event-count">@_selectedDayEvents.Count @(_selectedDayEvents.Count == 1 ? "event" : "events")</span>
+                </div>
                 <button class="modal-close" @onclick="CloseModal" aria-label="Close">
                     <span>×</span>
                 </button>
@@ -63,23 +76,38 @@
                     @foreach (var evt in _selectedDayEvents)
                     {
                         <div class="event-item">
-                            <div class="event-time-range">
-                                <strong>@FormatInTimeZone(evt.Start, "HH:mm")</strong> – <strong>@FormatInTimeZone(evt.End, "HH:mm")</strong>
+                            <div class="event-item-header">
+                                <div class="event-time-range">
+                                    <strong>@FormatInTimeZone(evt.Start, "HH:mm")</strong>
+                                    <span class="event-separator">–</span>
+                                    <strong>@FormatInTimeZone(evt.End, "HH:mm")</strong>
+                                    <span class="event-duration">(@CalculateDuration(evt))</span>
+                                </div>
                             </div>
                             @if (!string.IsNullOrWhiteSpace(evt.Title))
                             {
                                 <div class="event-title">@evt.Title</div>
                             }
-                            @if (!string.IsNullOrWhiteSpace(evt.Location))
+                            else
                             {
-                                <div class="event-location">📍 @evt.Location</div>
+                                <div class="event-title event-title--empty">(Busy)</div>
                             }
-                            @if (evt.AttendeeEmails?.Count > 0)
-                            {
-                                <div class="event-attendees">
-                                    👥 @string.Join(", ", evt.AttendeeEmails)
-                                </div>
-                            }
+                            <div class="event-meta">
+                                @if (!string.IsNullOrWhiteSpace(evt.Location))
+                                {
+                                    <div class="event-detail">
+                                        <span class="event-detail-icon">📍</span>
+                                        <span class="event-detail-text">@evt.Location</span>
+                                    </div>
+                                }
+                                @if (evt.AttendeeEmails?.Count > 0)
+                                {
+                                    <div class="event-detail">
+                                        <span class="event-detail-icon">👥</span>
+                                        <span class="event-detail-text event-detail-text--attendees">@string.Join(", ", evt.AttendeeEmails)</span>
+                                    </div>
+                                }
+                            </div>
                             @if (!string.IsNullOrWhiteSpace(evt.Description))
                             {
                                 <div class="event-description">@evt.Description</div>
@@ -142,9 +170,8 @@
 
         // Add days from previous month
         var startDayOfWeek = (int)firstDay.DayOfWeek;
-        var daysInPreviousMonth = new DateTime(firstDay.Year, firstDay.Month, 1).AddDays(-1).Day;
 
-        for (int i = startDayOfWeek - 1; i >= 0; i--)
+        for (var i = startDayOfWeek - 1; i >= 0; i--)
         {
             var date = new DateTime(firstDay.Year, firstDay.Month, 1).AddDays(-i - 1);
             _calendarDays.Add((date, false, []));
@@ -152,7 +179,7 @@
 
         // Add days of current month
         var daysInMonth = DateTime.DaysInMonth(firstDay.Year, firstDay.Month);
-        for (int day = 1; day <= daysInMonth; day++)
+        for (var day = 1; day <= daysInMonth; day++)
         {
             var date = new DateTime(firstDay.Year, firstDay.Month, day);
             var eventsOnDay = GetEventsForDate(date);
@@ -161,7 +188,7 @@
 
         // Add days from next month to fill grid
         var remainingCells = 42 - _calendarDays.Count; // 6 weeks * 7 days
-        for (int i = 1; i <= remainingCells; i++)
+        for (var i = 1; i <= remainingCells; i++)
         {
             var date = new DateTime(firstDay.Year, firstDay.Month, daysInMonth).AddDays(i);
             _calendarDays.Add((date, false, []));
@@ -170,7 +197,7 @@
 
     private List<MergedFreeBusyResponse> GetEventsForDate(DateTime date)
     {
-        if (Slots is null || Slots.Count == 0)
+        if (Slots.Count == 0)
             return [];
 
         return Slots
@@ -206,6 +233,30 @@
         var local = TimeZoneInfo.ConvertTime(value, TimeZone);
         return local.ToString(format, CultureInfo.CurrentCulture);
     }
+
+    private string GetDisplayDateRange()
+    {
+        if (Slots.Count == 0)
+            return "No data";
+
+        var minDate = Slots.Min(s => TimeZoneInfo.ConvertTime(s.Start, TimeZone).Date);
+        var maxDate = Slots.Max(s => TimeZoneInfo.ConvertTime(s.End, TimeZone).Date);
+
+        return $"{minDate:d MMM yyyy} – {maxDate:d MMM yyyy}";
+    }
+
+    private string CalculateDuration(MergedFreeBusyResponse evt)
+    {
+        var duration = evt.End - evt.Start;
+        if (duration.TotalHours >= 1)
+        {
+            var hours = (int)duration.TotalHours;
+            var minutes = duration.Minutes;
+            return minutes > 0 ? $"{hours}h {minutes}m" : $"{hours}h";
+        }
+        else
+        {
+            return $"{duration.Minutes}m";
+        }
+    }
 }
-
-

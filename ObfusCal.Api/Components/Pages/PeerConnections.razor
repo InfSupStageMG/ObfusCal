@@ -9,27 +9,25 @@
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
 
-    @* ─── Add peer ─── *@
     <section class="card">
         <h3>Add Peer Connection</h3>
-        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Bottom" Wrap="true">
-            <FluentTextField @bind-Value="_newInstanceId" Immediate="true" Placeholder="Instance ID (e.g. obfuscal-partner)" Style="width: 250px;" />
-            <FluentTextField @bind-Value="_newBaseAddress" Immediate="true" Placeholder="https://partner.example.com" Style="width: 300px;" />
-            <FluentTextField @bind-Value="_newApiKey" Immediate="true" Placeholder="API Key" Style="width: 250px;" />
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Bottom" Wrap="true" Class="peer-add-row app-form-row">
+            <FluentTextField @bind-Value="_newInstanceId" Immediate="true" Placeholder="Instance ID (e.g. obfuscal-partner)" Class="peer-instance-input app-form-item app-form-control" Style="width: 100%; max-width: 100%; min-width: 0;" />
+            <FluentTextField @bind-Value="_newBaseAddress" Immediate="true" Placeholder="https://partner.example.com" Class="peer-base-address-input app-form-item app-form-control" Style="width: 100%; max-width: 100%; min-width: 0;" />
+            <FluentTextField @bind-Value="_newApiKey" Immediate="true" Placeholder="API Key" Class="peer-api-key-input app-form-item app-form-control" Style="width: 100%; max-width: 100%; min-width: 0;" />
             <FluentButton Appearance="Appearance.Accent" OnClick="AddPeerAsync"
-                          Disabled="@(string.IsNullOrWhiteSpace(_newInstanceId) || string.IsNullOrWhiteSpace(_newBaseAddress) || string.IsNullOrWhiteSpace(_newApiKey))">
+                          Disabled="@(string.IsNullOrWhiteSpace(_newInstanceId) || string.IsNullOrWhiteSpace(_newBaseAddress) || string.IsNullOrWhiteSpace(_newApiKey))" Class="peer-add-button app-form-button">
                 Add Peer
             </FluentButton>
         </FluentStack>
         @if (_message is not null)
         {
-            <FluentMessageBar Intent="@_messageIntent" Style="margin-top: 0.5rem;">
+            <FluentMessageBar Intent="@_messageIntent" Class="card-message">
                 @_message
             </FluentMessageBar>
         }
     </section>
 
-    @* ─── Peer list ─── *@
     @if (_loading)
     {
         <FluentProgress />
@@ -44,7 +42,7 @@
             }
             else
             {
-                <FluentDataGrid Items="_peers.AsQueryable()" TGridItem="PeerConnectionSummary">
+                <FluentDataGrid Items="_peers.AsQueryable()" TGridItem="PeerConnectionSummary" Class="app-data-grid">
                     <PropertyColumn Property="@(p => p.InstanceId)" Title="Instance ID" Sortable="true" />
                     <PropertyColumn Property="@(p => p.BaseAddress)" Title="Base Address" />
                     <PropertyColumn Property="@(p => p.MappingCount)" Title="Owner Mappings" />
@@ -57,35 +55,38 @@
             }
         </section>
 
-        @* ─── Peer-Owner Mappings ─── *@
         <section class="card">
             <h3>Link Owner to Peer</h3>
-            <p>Map a calendar owner to a peer so their busy slots are synced to that peer.</p>
-            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Bottom" Wrap="true">
-                <div>
-                    <FluentLabel>Calendar Owner</FluentLabel>
+            <p class="link-section-description">Map a calendar owner to a peer so their busy slots are synced to that peer.</p>
+            <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Bottom" Wrap="true" Class="peer-link-row app-form-row">
+                <div class="peer-select-field app-form-field">
+                    <FluentLabel Class="app-form-label">Calendar Owner</FluentLabel>
                     <FluentSelect TOption="OwnerOption"
                                   Items="_owners"
                                   OptionValue="@(o => o.Id.ToString())"
                                   OptionText="@(o => o.Name)"
+                                  Class="peer-owner-select app-form-control"
+                                  Style="width: 100%; max-width: 100%; min-width: 0;"
                                   @bind-SelectedOption="_selectedOwner" />
                 </div>
-                <div>
-                    <FluentLabel>Peer</FluentLabel>
+                <div class="peer-select-field app-form-field">
+                    <FluentLabel Class="app-form-label">Peer</FluentLabel>
                     <FluentSelect TOption="PeerOption"
                                   Items="_peerOptions"
                                   OptionValue="@(p => p.Id.ToString())"
                                   OptionText="@(p => p.InstanceId)"
+                                  Class="peer-peer-select app-form-control"
+                                  Style="width: 100%; max-width: 100%; min-width: 0;"
                                   @bind-SelectedOption="_selectedPeer" />
                 </div>
                 <FluentButton Appearance="Appearance.Accent" OnClick="LinkOwnerToPeerAsync"
-                              Disabled="@(_selectedOwner is null || _selectedPeer is null)">
+                              Disabled="@(_selectedOwner is null || _selectedPeer is null)" Class="peer-link-button app-form-button">
                     Link
                 </FluentButton>
             </FluentStack>
             @if (_linkMessage is not null)
             {
-                <FluentMessageBar Intent="@_linkMessageIntent" Style="margin-top: 0.5rem;">
+                <FluentMessageBar Intent="@_linkMessageIntent" Class="card-message">
                     @_linkMessage
                 </FluentMessageBar>
             }

@@ -26,6 +26,16 @@ public interface ICalendarOwnerGraphConsentService
         string authorizationCode,
         string redirectUri,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Completes Microsoft Graph consent by extracting the calendar owner, instance IDs, and redirect URI
+    /// from the encrypted state parameter. The redirect URI used at authorization start is embedded
+    /// in the state token, so callers do not need to supply it.
+    /// </summary>
+    Task CompleteConsentFromStateAsync(
+        string authorizationCode,
+        string state,
+        CancellationToken ct = default);
 }
 
 public sealed record CalendarOwnerGraphConsentStatus(

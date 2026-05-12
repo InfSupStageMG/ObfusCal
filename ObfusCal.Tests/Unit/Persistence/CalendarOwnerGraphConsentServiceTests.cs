@@ -129,14 +129,15 @@ public class CalendarOwnerGraphConsentServiceTests
 
         var url = svc.BuildAuthorizationUrl("https://localhost/swagger/oauth2-redirect.html");
 
-        Assert.IsTrue(url.StartsWith("https://login.microsoftonline.com/"),
+        Assert.StartsWith("https://login.microsoftonline.com/", url,
             "URL should start with the configured Azure AD instance");
-        Assert.IsTrue(url.Contains("tenant-id-123"), "URL should contain tenant ID");
-        Assert.IsTrue(url.Contains("oauth2/v2.0/authorize"), "URL should point to authorize endpoint");
-        Assert.IsTrue(url.Contains("client_id="), "URL should contain client_id parameter");
-        Assert.IsTrue(url.Contains("redirect_uri="), "URL should contain redirect_uri parameter");
-        Assert.IsTrue(url.Contains("scope="), "URL should contain scope parameter");
-        Assert.IsTrue(url.Contains("response_type=code"), "URL should request authorization code");
+        Assert.Contains("tenant-id-123", url, "URL should contain tenant ID");
+        Assert.Contains("oauth2/v2.0/authorize", url, "URL should point to authorize endpoint");
+        Assert.Contains("client_id=", url, "URL should contain client_id parameter");
+        Assert.Contains("redirect_uri=", url, "URL should contain redirect_uri parameter");
+        Assert.Contains("scope=", url, "URL should contain scope parameter");
+        Assert.Contains("response_type=code", url, "URL should request authorization code");
+        Assert.Contains("state=", url, "URL should contain a state parameter for CSRF protection");
     }
 
     [TestMethod]
@@ -297,6 +298,114 @@ public class CalendarOwnerGraphConsentServiceTests
 
         Assert.Contains("response_mode=query", url, "URL should contain response_mode=query");
         Assert.Contains("response_type=code", url, "URL should contain response_type=code");
+    }
+
+    [TestMethod]
+    public async Task BuildAuthorizationUrlAsync_IncludesStatePrefixedWithGraph()
+    {
+        var db = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        db.CalendarOwners.Add(new CalendarOwner { Id = ownerId, Name = "Test" });
+        await db.SaveChangesAsync();
+
+        var instanceSvc = new FakeCalendarSourceInstanceService(id => db.CalendarOwners.Any(o => o.Id == id));
+        var dpProvider = DataProtectionProvider.Create("state-prefix-test");
+        var consoleSvc = new CalendarOwnerGraphConsentService(
+            db, dpProvider,
+            CreateSecretProvider("https://login.microsoftonline.com/", "tenant-x", "client-x"),
+            Options.Create(new GraphConsentOptions { Scope = "openid", ClientId = "client-x" }),
+            instanceSvc, instanceSvc, new FakeGraphOAuthTokenClient());
+
+        var created = await instanceSvc.CreateAsync(ownerId, new CreateCalendarSourceInstanceInput("graph", "Microsoft Graph"));
+        var instanceId = created!.Id;
+
+        var url = await consoleSvc.BuildAuthorizationUrlAsync(ownerId, instanceId, "https://localhost/consent-callback");
+
+        // The state is URI-escaped in the URL; the "graph." prefix survives escaping as-is
+        Assert.Contains("state=graph.", url,
+            "Graph authorization URL must include a 'graph.'-prefixed state token");
+    }
+
+    [TestMethod]
+    public async Task CompleteConsentFromStateAsync_RoundTrip_CompletesConsent()
+    {
+        var db = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        db.CalendarOwners.Add(new CalendarOwner { Id = ownerId, Name = "Test" });
+        await db.SaveChangesAsync();
+
+        var instanceSvc = new FakeCalendarSourceInstanceService(id => db.CalendarOwners.Any(o => o.Id == id));
+        var dpProvider = DataProtectionProvider.Create("roundtrip-test");
+        var consoleSvc = new CalendarOwnerGraphConsentService(
+            db, dpProvider,
+            CreateSecretProvider("https://login.microsoftonline.com/", "t", "c"),
+            Options.Create(new GraphConsentOptions { Scope = "openid", ClientId = "c" }),
+            instanceSvc, instanceSvc, new FakeGraphOAuthTokenClient());
+
+        // Create the graph source instance
+        var created = await instanceSvc.CreateAsync(ownerId, new CreateCalendarSourceInstanceInput("graph", "Microsoft Graph"));
+        var instanceId = created!.Id;
+
+        // Build the authorization URL (which embeds calendarOwnerId + instanceId in the state)
+        var url = await consoleSvc.BuildAuthorizationUrlAsync(ownerId, instanceId, "https://localhost/consent-callback");
+
+        // Extract the raw state value from the URL
+        var rawState = url.Split("state=")[1].Split('&')[0];
+        var state = Uri.UnescapeDataString(rawState);
+
+        Assert.IsTrue(state.StartsWith("graph.", StringComparison.Ordinal),
+            "State must start with 'graph.' prefix");
+
+        // Complete consent using the state — no owner/instance IDs needed by the caller
+        await consoleSvc.CompleteConsentFromStateAsync(FakeGraphOAuthTokenClient.ValidAuthorizationCode, state);
+
+        // Verify the token was stored in the source instance
+        var stored = await instanceSvc.GetAsync(ownerId, instanceId);
+        Assert.IsNotNull(stored?.SecretDataJson, "Secret data should be stored after consent completion");
+    }
+
+    [TestMethod]
+    public async Task CompleteConsentFromStateAsync_WithInvalidToken_Throws()
+    {
+        var (svc, _, _) = Setup();
+
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            svc.CompleteConsentFromStateAsync("code", "graph.this-is-not-a-valid-encrypted-payload"));
+    }
+
+    [TestMethod]
+    public async Task CompleteConsentFromStateAsync_WithoutGraphPrefix_Throws()
+    {
+        var (svc, _, _) = Setup();
+
+        // A state without "graph." prefix must be rejected by the Graph service
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            svc.CompleteConsentFromStateAsync("code", "google-or-other-provider-state-token"));
+    }
+
+    [TestMethod]
+    public async Task CompleteConsentFromStateAsync_WithLegacyNonOwnerState_Throws()
+    {
+        // The non-async BuildAuthorizationUrl produces a state with Guid.Empty owner.
+        // CompleteConsentFromStateAsync must reject it with a clear message.
+        var db = TestDbContextFactory.CreateInMemory();
+        var dpProvider = DataProtectionProvider.Create("empty-owner-test");
+        var options = Options.Create(new GraphConsentOptions { Scope = "openid", ClientId = "c" });
+        var instanceService = new FakeCalendarSourceInstanceService();
+        var consoleSvc = new CalendarOwnerGraphConsentService(
+            db, dpProvider,
+            CreateSecretProvider("https://login.microsoftonline.com/", "t", "c"),
+            options, instanceService, instanceService, new FakeGraphOAuthTokenClient());
+
+        var url = consoleSvc.BuildAuthorizationUrl("https://localhost/consent-callback");
+        var rawState = url.Split("state=")[1].Split('&')[0];
+        var state = Uri.UnescapeDataString(rawState);
+
+        var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            consoleSvc.CompleteConsentFromStateAsync("code", state));
+
+        Assert.IsTrue(ex.Message.Contains("owner context", StringComparison.OrdinalIgnoreCase),
+            "Error should explain that the legacy flow lacks owner context");
     }
 
     [TestMethod]

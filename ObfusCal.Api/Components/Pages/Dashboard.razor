@@ -1,5 +1,4 @@
 ﻿@page "/"
-@using System.Globalization
 @using Microsoft.JSInterop
 @using ObfusCal.Application.Interfaces
 @using ObfusCal.Application.UseCases.GetMergedFreeBusy
@@ -14,44 +13,47 @@
 <h1>Dashboard</h1>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-    <section class="card">
+    <section class="card combined-calendar-card">
         <h3>Combined Calendar</h3>
 
-        <div class="dashboard-filters">
-            <div class="dashboard-filter-field">
-                <FluentLabel>Calendar Owner</FluentLabel>
+        <div class="combined-calendar-controls" role="group" aria-label="Combined calendar filters">
+            <div class="combined-calendar-field combined-calendar-field--owner app-form-field">
+                <FluentLabel Class="combined-calendar-label app-form-label">Calendar Owner</FluentLabel>
                 <FluentSelect TOption="CalendarOwnerOption"
                               Items="_calendarOwners"
                               OptionValue="@(o => o.Id.ToString())"
                               OptionText="@(o => o.Name)"
+                              Class="combined-calendar-control app-form-control"
+                              Style="width: 100%; max-width: 100%; min-width: 0;"
                               @bind-SelectedOption="_selectedOwner" />
             </div>
 
-            <div class="dashboard-filter-pair" role="group" aria-label="Date range">
-                <div class="dashboard-filter-field dashboard-filter-field--date">
-                    <FluentLabel>From</FluentLabel>
-                    <FluentDatePicker @bind-Value="_fromDate" />
-                </div>
-                <div class="dashboard-filter-field dashboard-filter-field--date">
-                    <FluentLabel>To</FluentLabel>
-                    <FluentDatePicker @bind-Value="_toDate" />
-                </div>
+            <div class="combined-calendar-field combined-calendar-field--from app-form-field">
+                <FluentLabel Class="combined-calendar-label app-form-label">From</FluentLabel>
+                <FluentDatePicker @bind-Value="_fromDate" Class="combined-calendar-control app-form-control" Style="width: 100%; max-width: 100%; min-width: 0;" />
             </div>
 
-            <div class="dashboard-filter-field dashboard-filter-field--timezone">
-                <FluentLabel>Time zone</FluentLabel>
+            <div class="combined-calendar-field combined-calendar-field--to app-form-field">
+                <FluentLabel Class="combined-calendar-label app-form-label">To</FluentLabel>
+                <FluentDatePicker @bind-Value="_toDate" Class="combined-calendar-control app-form-control" Style="width: 100%; max-width: 100%; min-width: 0;" />
+            </div>
+
+            <div class="combined-calendar-field combined-calendar-field--timezone app-form-field">
+                <FluentLabel Class="combined-calendar-label app-form-label">Time zone</FluentLabel>
                 <FluentSelect TOption="TimeZoneOption"
                               Items="_timeZones"
                               OptionValue="@(tz => tz.Id)"
                               OptionText="@(tz => tz.DisplayName)"
+                              Class="combined-calendar-control app-form-control"
+                              Style="width: 100%; max-width: 100%; min-width: 0;"
                               @bind-SelectedOption="_selectedTimeZone" />
             </div>
 
-            <div class="dashboard-actions">
-                <FluentButton Appearance="Appearance.Accent" OnClick="LoadFreeBusyAsync" Disabled="_selectedOwner is null">
+            <div class="combined-calendar-actions app-form-actions">
+                <FluentButton Appearance="Appearance.Accent" OnClick="LoadFreeBusyAsync" Disabled="_selectedOwner is null" Class="combined-calendar-button app-form-button">
                     Load
                 </FluentButton>
-                <FluentButton OnClick="RefreshAndLoadAsync" Disabled="_selectedOwner is null || _refreshing">
+                <FluentButton OnClick="RefreshAndLoadAsync" Disabled="_selectedOwner is null || _refreshing" Class="combined-calendar-button app-form-button">
                     @(_refreshing ? "Refreshing..." : "Refresh")
                 </FluentButton>
             </div>

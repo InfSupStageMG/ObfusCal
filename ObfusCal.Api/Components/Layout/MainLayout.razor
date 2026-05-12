@@ -8,8 +8,8 @@
         ObfusCal
     </FluentHeader>
 
-    <FluentStack Orientation="Orientation.Horizontal" Style="height: calc(100vh - 50px);">
-        <FluentNavMenu Width="250" Title="Navigation" Style="background: var(--neutral-layer-2); border-right: 1px solid var(--neutral-stroke-divider-rest);">
+    <FluentStack Orientation="Orientation.Horizontal" Class="layout-body">
+        <FluentNavMenu Width="250" Title="Navigation" Class="layout-nav">
             <FluentNavLink Href="/" Icon="@(new FluentIcons.Regular.Size20.CalendarLtr())" Match="NavLinkMatch.All">
                 Dashboard
             </FluentNavLink>
@@ -27,8 +27,10 @@
             </FluentNavLink>
         </FluentNavMenu>
 
-        <FluentBodyContent Style="padding: 1.5rem; overflow-y: auto; flex: 1;">
-            @Body
+        <FluentBodyContent Class="layout-content-host">
+            <div class="layout-content-shell">
+                @Body
+            </div>
         </FluentBodyContent>
     </FluentStack>
 </FluentLayout>
