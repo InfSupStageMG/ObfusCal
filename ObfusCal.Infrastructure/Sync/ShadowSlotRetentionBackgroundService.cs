@@ -91,7 +91,13 @@ public sealed class ShadowSlotRetentionBackgroundService(
         {
             throw;
         }
-        catch (Exception ex)
+        catch (DbUpdateException ex)
+        {
+            logger.LogWarning(ex,
+                "Shadow slot retention purge failed; will retry in {IntervalHours} hours.",
+                (int)PurgeInterval.TotalHours);
+        }
+        catch (InvalidOperationException ex)
         {
             logger.LogWarning(ex,
                 "Shadow slot retention purge failed; will retry in {IntervalHours} hours.",
