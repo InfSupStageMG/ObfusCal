@@ -21,11 +21,10 @@ internal static class DotEnvLoader
         if (!File.Exists(safePath))
             return;
 
-        foreach (var line in File.ReadLines(filePath).Select(rawLine => rawLine.Trim()))
+        foreach (var line in File.ReadLines(filePath)
+            .Select(rawLine => rawLine.Trim())
+            .Where(line => line.Length != 0 && !line.StartsWith('#')))
         {
-            if (line.Length == 0 || line.StartsWith('#'))
-                continue;
-
             var separatorIndex = line.IndexOf('=');
             if (separatorIndex <= 0)
                 continue;
