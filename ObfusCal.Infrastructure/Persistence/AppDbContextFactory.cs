@@ -16,8 +16,6 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
         optionsBuilder.UseNpgsql(
             "Host=localhost;Database=obfuscal;Username=postgres;Password=postgres");
 
-        // Use a passthrough encryptor at design time — migrations must not require
-        // the production encryption key to be available.
         return new AppDbContext(optionsBuilder.Options, new PassthroughColumnEncryptor());
     }
 }

@@ -5,11 +5,6 @@ using Testcontainers.PostgreSql;
 
 namespace ObfusCal.Tests.Integration.Storage;
 
-/// <summary>
-/// Integration tests for shadow slot retention purge behaviour (issue #83).
-/// Verifies that rows older than the retention threshold are deleted and that
-/// recent rows are preserved.
-/// </summary>
 [TestClass]
 public class ShadowSlotRetentionTests
 {
@@ -145,18 +140,11 @@ public class ShadowSlotRetentionTests
     [TestMethod]
     public async Task Purge_WithZeroRetentionDays_ShouldNotBeCalledByService()
     {
-        // When ShadowSlotRetentionDays == 0, the background service skips the purge.
-        // This test verifies that manually calling purge with 0 doesn't delete recent rows
-        // (threshold = now - 0d = now, so only rows from the exact future would match —
-        //  in practice no rows are deleted).
         await using var db = CreateDbContext();
         var peerId = $"ret-peer-nodelete-{Guid.NewGuid():N}";
 
         await SeedSlotsAsync(db, peerId, DateTimeOffset.UtcNow.AddDays(-400), count: 2);
 
-        // retentionDays = 0 → threshold = UtcNow → rows with CreatedAtUtc < UtcNow are deleted
-        // This is why the service checks retentionDays > 0 before calling purge.
-        // Test that it IS safe to enforce the service guard.
         var beforeCount = await db.BusySlots.CountAsync(b => b.PeerId == peerId);
         Assert.AreEqual(2, beforeCount, "Setup check: 2 rows should exist.");
     }

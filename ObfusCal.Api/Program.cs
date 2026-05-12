@@ -24,10 +24,6 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateBootstrapLogger();
 
-// Load a local .env file (if present) into the process environment so that
-// dotnet run picks up the same variables as docker-compose does.
-// The file must NOT be committed to source control (.gitignore should list .env).
-// See .env.example for the full list of required keys.
 DotEnvLoader.Load(Path.Join(Directory.GetCurrentDirectory(), ".env"));
 DotEnvLoader.Load(Path.Join(AppContext.BaseDirectory, ".env"));
 

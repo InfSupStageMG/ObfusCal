@@ -7,10 +7,8 @@
 /// </summary>
 public interface IColumnEncryptor
 {
-    /// <summary>Encrypts a plaintext string value for storage in a database column.</summary>
     string Encrypt(string plaintext);
 
-    /// <summary>Decrypts a previously encrypted column value back to its plaintext form.</summary>
     string Decrypt(string ciphertext);
 }
 
