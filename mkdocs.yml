@@ -18,9 +18,6 @@ theme:
 
 nav:
   - Home: index.md
-  - Guides:
-      - "SBOM (Software Bill of Materials)": sbom/index.md
-      - "iCloud CalDAV Setup": icloud-caldav-setup.md
   - Architecture:
       - "1. Introduction & Goals": 01-introduction-goals.md
       - "2. Architecture Constraints": 02-architecture-constraints.md
@@ -52,6 +49,9 @@ nav:
 
       - "Developer Reference":
           - "Clean Architecture Guide": clean-architecture.md
+      - "Guides":
+          - "SBOM (Software Bill of Materials)": sbom/index.md
+          - "iCloud CalDAV Setup": icloud-caldav-setup.md
 
 markdown_extensions:
   - attr_list
