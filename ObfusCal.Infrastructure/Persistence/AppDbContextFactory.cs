@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using ObfusCal.Infrastructure.Security;
 
 namespace ObfusCal.Infrastructure.Persistence;
 
@@ -15,7 +16,9 @@ public class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
         optionsBuilder.UseNpgsql(
             "Host=localhost;Database=obfuscal;Username=postgres;Password=postgres");
 
-        return new AppDbContext(optionsBuilder.Options);
+        // Use a passthrough encryptor at design time — migrations must not require
+        // the production encryption key to be available.
+        return new AppDbContext(optionsBuilder.Options, new PassthroughColumnEncryptor());
     }
 }
 

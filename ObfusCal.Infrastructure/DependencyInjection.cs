@@ -42,6 +42,8 @@ public static class DependencyInjection
         services.AddSingleton<ExternalSecretProvider>();
         services.AddSingleton<ISecretProvider, ConfiguredSecretProvider>();
         services.AddSingleton<ILogRedactor, DefaultLogRedactor>();
+        services.AddSingleton<IColumnEncryptor>(provider =>
+            new AesGcmColumnEncryptor(provider.GetRequiredService<ISecretProvider>()));
         services.AddSingleton<ICalendarSourceSecretProtector, CalendarSourceSecretProtector>();
         services.AddSingleton<ISyncRuntimeOptionsProvider, SyncRuntimeOptionsProvider>();
         services.AddSingleton<IUrlSafetyValidator, UrlSafetyValidator>();
@@ -53,6 +55,7 @@ public static class DependencyInjection
             options.RequiredSecretKeys.Add(SecretKeys.AzureAdTenantId);
             options.RequiredSecretKeys.Add(SecretKeys.AzureAdClientId);
             options.RequiredSecretKeys.Add(SecretKeys.GraphConsentClientId);
+            options.RequiredSecretKeys.Add(SecretKeys.ColumnEncryptionKey);
         });
 
         services.AddDbContext<AppDbContext>((provider, options) =>
@@ -242,6 +245,7 @@ public static class DependencyInjection
         services.AddScoped<ICloudCalendarSourceCore>();
         services.AddHostedService<CalendarOwnerAvailabilityBackgroundService>();
         services.AddHostedService<PeerSyncBackgroundService>();
+        services.AddHostedService<ShadowSlotRetentionBackgroundService>();
     }
 
     private static void RegisterCalendarSourcePlugins(IServiceCollection services)

@@ -36,7 +36,8 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
             Title = s.Title,
             Description = s.Description,
             AttendeeEmails = s.AttendeeEmails?.ToArray(),
-            Location = s.Location
+            Location = s.Location,
+            CreatedAtUtc = DateTimeOffset.UtcNow
         }).ToList();
 
         await dbContext.BusySlots.AddRangeAsync(entities, ct);
@@ -68,7 +69,8 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
             CalendarOwnerId = calendarOwnerId,
             SourceEventId = s.SourceEventId,
             Start = s.Start,
-            End = s.End
+            End = s.End,
+            CreatedAtUtc = DateTimeOffset.UtcNow
         }).ToList();
 
         await dbContext.BusySlots.AddRangeAsync(entities, ct);

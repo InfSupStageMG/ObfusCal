@@ -1,9 +1,18 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Infrastructure.Persistence;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+public class AppDbContext : DbContext
 {
+    private readonly IColumnEncryptor? _columnEncryptor;
+
+    public AppDbContext(DbContextOptions<AppDbContext> options, IColumnEncryptor? columnEncryptor = null)
+        : base(options)
+    {
+        _columnEncryptor = columnEncryptor;
+    }
+
     public DbSet<CalendarOwner> CalendarOwners => Set<CalendarOwner>();
     public DbSet<CalendarSourceInstance> CalendarSourceInstances => Set<CalendarSourceInstance>();
     public DbSet<ObfuscationProfile> ObfuscationProfiles => Set<ObfuscationProfile>();
@@ -15,6 +24,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Build converters if an encryptor is available; otherwise omit (design-time / tests without DI).
+        var encryptedString = _columnEncryptor is not null
+            ? new EncryptedStringConverter(_columnEncryptor)
+            : null;
+        var encryptedNullableString = _columnEncryptor is not null
+            ? new NullableEncryptedStringConverter(_columnEncryptor)
+            : null;
+
         modelBuilder.Entity<CalendarOwner>(e =>
         {
             e.HasKey(c => c.Id);
@@ -58,6 +75,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .HasMaxLength(32768);
             e.Property(instance => instance.SecretDataJson)
                 .HasMaxLength(32768);
+            if (encryptedNullableString is not null)
+                e.Property(instance => instance.SecretDataJson).HasConversion(encryptedNullableString);
             e.HasIndex(instance => instance.CalendarOwnerId);
             e.HasIndex(instance => new { instance.CalendarOwnerId, instance.PluginId });
         });
@@ -93,6 +112,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(p => p.ApiKeyHash)
                 .IsRequired()
                 .HasMaxLength(512);
+            if (encryptedString is not null)
+                e.Property(p => p.ApiKeyHash).HasConversion(encryptedString);
             e.Property(p => p.Scopes)
                 .IsRequired()
                 .HasMaxLength(256);
@@ -130,11 +151,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasKey(b => b.Id);
             e.Property(b => b.PeerId).IsRequired();
             e.Property(b => b.SourceEventId).IsRequired();
+            e.Property(b => b.CreatedAtUtc).IsRequired();
             e.Property(b => b.AttendeeEmails)
                 .HasColumnType("text[]");
             e.HasIndex(b => b.PeerId);
             e.HasIndex(b => b.CalendarOwnerId);
             e.HasIndex(b => new { b.PeerId, b.CalendarOwnerId });
+            e.HasIndex(b => b.CreatedAtUtc); // used by retention purge queries
         });
 
         modelBuilder.Entity<CalendarOwnerAvailabilitySlot>(e =>

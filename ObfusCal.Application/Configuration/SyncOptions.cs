@@ -21,5 +21,12 @@ public sealed class SyncOptions
     public int PullBusySlotsRateLimitWindowSeconds { get; init; } = 60;
     public long MaxRequestBodySizeBytes { get; init; } = 1_048_576;
     public List<string> KnownPeerIds { get; init; } = [];
+
+    /// <summary>
+    /// How many days shadow slot rows (busy slots received from peers) are retained before being purged.
+    /// The purge background job removes rows with <c>CreatedAtUtc</c> older than this threshold.
+    /// Default: 90 days. Set to 0 to disable automatic purging.
+    /// </summary>
+    public int ShadowSlotRetentionDays { get; init; } = 90;
 }
 
