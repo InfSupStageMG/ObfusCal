@@ -6,9 +6,7 @@ public sealed class SyncOptions
 
     public int SyncIntervalSeconds { get; init; } = 900;
     public int LookAheadDays { get; init; } = 14;
-    // Subject to change - potentially make configurable by sysadmin
     public int MaxQueryWindowDays { get; init; } = 90;
-    // Subject to change - potentially make configurable by sysadmin
     public int MaxShadowSlotsPerRequest { get; init; } = 500;
     public string InstanceId { get; init; } = string.Empty;
     public string ApiKey { get; init; } = string.Empty;
@@ -21,5 +19,6 @@ public sealed class SyncOptions
     public int PullBusySlotsRateLimitWindowSeconds { get; init; } = 60;
     public long MaxRequestBodySizeBytes { get; init; } = 1_048_576;
     public List<string> KnownPeerIds { get; init; } = [];
+    public int ShadowSlotRetentionDays { get; init; } = 90;
 }
 

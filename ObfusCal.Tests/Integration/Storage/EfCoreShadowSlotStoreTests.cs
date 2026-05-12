@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
+using ObfusCal.Infrastructure.Security;
 using ObfusCal.Infrastructure.Storage;
 using Testcontainers.PostgreSql;
 using BusySlot = ObfusCal.Domain.Models.BusySlot;
@@ -26,7 +27,7 @@ public class EfCoreShadowSlotStoreTests
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(_connectionString)
             .Options;
-        await using var db = new AppDbContext(options);
+        await using var db = new AppDbContext(options, new PassthroughColumnEncryptor());
         await db.Database.EnsureCreatedAsync();
     }
 
@@ -41,7 +42,7 @@ public class EfCoreShadowSlotStoreTests
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseNpgsql(_connectionString)
             .Options;
-        return new AppDbContext(options);
+        return new AppDbContext(options, new PassthroughColumnEncryptor());
     }
 
     [TestMethod]

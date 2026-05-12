@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ObfusCal.Infrastructure.Persistence;
+using ObfusCal.Infrastructure.Security;
 
 namespace ObfusCal.Tests.Helpers;
 
@@ -15,7 +16,7 @@ internal static class TestDbContextFactory
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
             .Options;
 
-        return new AppDbContext(options);
+        return new AppDbContext(options, new PassthroughColumnEncryptor());
     }
 }
 
