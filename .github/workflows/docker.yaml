@@ -31,9 +31,74 @@ jobs:
       - name: Run tests
         run: dotnet test --no-restore --verbosity normal
 
-  build:
+  container-smoke:
     runs-on: ubuntu-latest
     needs: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build runtime image
+        run: docker build -t obfuscal-api:ci .
+
+      - name: Start postgres for smoke test
+        run: |
+          docker network create obfuscal-ci
+          docker run -d --name obfuscal-ci-db --network obfuscal-ci \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -e POSTGRES_DB=obfuscal \
+            --health-cmd="pg_isready -U postgres" \
+            --health-interval=5s \
+            --health-timeout=5s \
+            --health-retries=20 \
+            postgres:18
+
+      - name: Wait for postgres health
+        run: |
+          for i in {1..30}; do
+            state=$(docker inspect --format='{{json .State.Health.Status}}' obfuscal-ci-db)
+            if [ "$state" = '"healthy"' ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs obfuscal-ci-db
+          exit 1
+
+      - name: Start API container
+        run: |
+          docker run -d --name obfuscal-ci-api --network obfuscal-ci -p 18080:8080 \
+            -e ASPNETCORE_ENVIRONMENT=Development \
+            -e ASPNETCORE_URLS=http://+:8080 \
+            -e ConnectionStrings__DefaultConnection='Host=obfuscal-ci-db;Database=obfuscal;Username=postgres;Password=postgres' \
+            -e AzureAd__TenantId='11111111-1111-1111-1111-111111111111' \
+            -e AzureAd__ClientId='22222222-2222-2222-2222-222222222222' \
+            -e GraphConsent__ClientId='33333333-3333-3333-3333-333333333333' \
+            -e ColumnEncryption__Key='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' \
+            obfuscal-api:ci
+
+      - name: Smoke test health endpoint
+        run: |
+          for i in {1..40}; do
+            if curl -fsS http://localhost:18080/health > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs obfuscal-ci-api
+          exit 1
+
+      - name: Cleanup smoke test containers
+        if: always()
+        run: |
+          docker rm -f obfuscal-ci-api obfuscal-ci-db || true
+          docker network rm obfuscal-ci || true
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [test, container-smoke]
     permissions:
       contents: read
       packages: write

@@ -33,6 +33,15 @@ services:
   api:
     build: .
     container_name: obfuscal-api
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${API_MEM_LIMIT:-512m}
+    cpus: ${API_CPUS:-4.0}
     expose:
       - "8443"
     environment:

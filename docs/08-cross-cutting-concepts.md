@@ -69,6 +69,14 @@ peer is authenticated and an IP-based backstop for unauthenticated API requests.
 `GET /api/sync/busy-slots/{calendarOwnerRef}` use separate configurable fixed windows, and API request bodies are
 capped at `Sync:MaxRequestBodySizeBytes` (default 1 MB) to reduce resource exhaustion risk.
 
+**HTTP hardening defaults:** In production, the API enables HSTS and HTTPS redirection. Responses also include
+`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: no-referrer` to reduce browser-side
+attack surface. Cookie policy defaults are enforced to `HttpOnly=Always`, `Secure=Always`, and `SameSite=Lax`.
+
+**Container runtime hardening:** The runtime container executes as a non-root user and the compose service applies a
+read-only root filesystem, drops Linux capabilities (`cap_drop: [ALL]`), enables `no-new-privileges`, and limits
+resources with configurable memory/CPU caps. The API is exposed only through the reverse proxy on the internal network.
+
 **Credential encryption and key persistence:** Microsoft Graph OAuth refresh tokens and iCloud credentials are encrypted
 at rest using the .NET Data Protection API (DPAPI) before being written to the database. A database breach yields only
 ciphertext.
