@@ -99,7 +99,7 @@ push payload size is capped by `Sync:MaxShadowSlotsPerRequest` (default `500`).
 The pipeline uses a chain-of-responsibility pattern. A raw `CalendarEvent` is passed through a sequence of
 `IObfuscationTransformer` implementations, each applying one rule:
 
-- `RemoveTitleTransformer`: replaces the event title with "Busy"
+- `RemoveTitleTransformer`: clears the event title (sets it to an empty string)
 - `RemoveDescriptionTransformer`: clears the event description
 - `RemoveLocationTransformer`: clears the event location
 - `RemoveAttendeesTransformer`: removes all attendee names and email addresses

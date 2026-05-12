@@ -43,13 +43,13 @@ Before starting the containers:
 1. Ensure certificates exist under `certs/nginx` and `certs/api` (see `certs/README.md`).
 2. Create a `.env` file from `.env.example` with PostgreSQL, API certificate, and application secret placeholders.
 3. Decide how peer transport should be handled in the current environment:
-   - **Production / staging:** keep `PeerTransportSecurity__AllowSelfSignedCerts=false` and use CA-issued peer certs.
-   - **Development / local compose:** set `PeerTransportSecurity__AllowSelfSignedCerts=true` so self-signed peer
-     certificates are accepted.
-   - **Optional pinning:** populate `PeerConnections.PinnedCertificateThumbprint` for each peer if you want the peer
-     TLS certificate to be fixed to a known leaf certificate.
-   - **Optional mTLS groundwork:** store `PeerConnections.ClientCertificateThumbprint` for peers that should present a
-     client certificate, and make sure the certificate is available in the local machine/user certificate store.
+    - **Production / staging:** keep `PeerTransportSecurity__AllowSelfSignedCerts=false` and use CA-issued peer certs.
+    - **Development / local compose:** set `PeerTransportSecurity__AllowSelfSignedCerts=true` so self-signed peer
+      certificates are accepted.
+    - **Optional pinning:** populate `PeerConnections.PinnedCertificateThumbprint` for each peer if you want the peer
+      TLS certificate to be fixed to a known leaf certificate.
+    - **Optional mTLS groundwork:** store `PeerConnections.ClientCertificateThumbprint` for peers that should present a
+      client certificate, and make sure the certificate is available in the local machine/user certificate store.
 4. Ensure the Entra ID app role `Sysadmin` exists on the API app registration and is assigned to designated
    administrators.
 
@@ -93,23 +93,25 @@ containers.
 | `AzureAd__ClientId`                                   | Entra app/client ID (required at startup)                                                      |
 | `GraphConsent__ClientId`                              | Microsoft Graph consent client ID (required at startup)                                        |
 | `GraphConsent__ClientSecret`                          | Microsoft Graph consent client secret (optional depending on tenant app registration)          |
+| `GoogleConsent__ClientId`                             | Google OAuth client ID (required for Google Calendar source)                                   |
+| `GoogleConsent__ClientSecret`                         | Google OAuth client secret (required for Google Calendar source)                               |
 | `GoogleConsent__RedirectUri`                          | Optional Google OAuth callback override; must exactly match the URI registered in Google Cloud |
 | `Sync__InstanceId`                                    | Local instance identifier used in peer sync headers                                            |
 | `Sync__ApiKey`                                        | Shared API key used for peer sync authentication                                               |
 | `Sync__PeerRequestTimestampToleranceSeconds`          | Replay window tolerance for `X-Peer-Timestamp` (default `300`)                                 |
 | `Sync__PeerRequestRateLimitPermitLimit`               | Global peer/IP backstop request limit for API traffic (default `240` per `60` seconds)         |
-| `Sync__PeerRequestRateLimitWindowSeconds`              | Window for the peer/IP backstop (default `60`)                                                 |
-| `Sync__PushShadowSlotsRateLimitPermitLimit`            | Per-peer limit for `POST /api/shadow-slots` (default `60` per `60` seconds)                    |
-| `Sync__PushShadowSlotsRateLimitWindowSeconds`          | Window for `POST /api/shadow-slots` rate limiting (default `60`)                               |
-| `Sync__PullBusySlotsRateLimitPermitLimit`              | Per-peer limit for `GET /api/sync/busy-slots/{calendarOwnerRef}` (default `120` per `60` s)    |
-| `Sync__PullBusySlotsRateLimitWindowSeconds`            | Window for `GET /api/sync/busy-slots/{calendarOwnerRef}` rate limiting (default `60`)          |
-| `Sync__MaxRequestBodySizeBytes`                        | Maximum API request body size (default `1048576` bytes)                                        |
+| `Sync__PeerRequestRateLimitWindowSeconds`             | Window for the peer/IP backstop (default `60`)                                                 |
+| `Sync__PushShadowSlotsRateLimitPermitLimit`           | Per-peer limit for `POST /api/shadow-slots` (default `60` per `60` seconds)                    |
+| `Sync__PushShadowSlotsRateLimitWindowSeconds`         | Window for `POST /api/shadow-slots` rate limiting (default `60`)                               |
+| `Sync__PullBusySlotsRateLimitPermitLimit`             | Per-peer limit for `GET /api/sync/busy-slots/{calendarOwnerRef}` (default `120` per `60` s)    |
+| `Sync__PullBusySlotsRateLimitWindowSeconds`           | Window for `GET /api/sync/busy-slots/{calendarOwnerRef}` rate limiting (default `60`)          |
+| `Sync__MaxRequestBodySizeBytes`                       | Maximum API request body size (default `1048576` bytes)                                        |
 | `Sync__SyncIntervalSeconds`                           | How often the background sync runs (default: `900` = 15 minutes)                               |
 | `Sync__MaxQueryWindowDays`                            | Maximum allowed inbound query window in days for busy/free-busy endpoints (default `90`)       |
 | `Sync__MaxShadowSlotsPerRequest`                      | Maximum allowed shadow slots in one push payload (default `500`)                               |
 | `PeerTransportSecurity__AllowSelfSignedCerts`         | Accept self-signed peer certificates when `true` (default `false`)                             |
-| `PeerConnections.PinnedCertificateThumbprint`         | Optional peer leaf certificate thumbprint used to pin the expected server certificate           |
-| `PeerConnections.ClientCertificateThumbprint`         | Optional peer client certificate thumbprint used as mTLS groundwork                             |
+| `PeerConnections.PinnedCertificateThumbprint`         | Optional peer leaf certificate thumbprint used to pin the expected server certificate          |
+| `PeerConnections.ClientCertificateThumbprint`         | Optional peer client certificate thumbprint used as mTLS groundwork                            |
 | `Secrets__Provider`                                   | Secret provider mode (`Environment` default, `External` stub)                                  |
 
 At startup, ObfusCal validates required secrets and fails fast with a descriptive error when one is missing.

@@ -52,7 +52,7 @@ tests/
 ```
 
 Current repository projects are `ObfusCal.Domain`, `ObfusCal.Application`, `ObfusCal.Infrastructure`, `ObfusCal.Api`,
-and `ObfusCal.Tests`.
+`ObfusCal.Plugins.GoogleCalendar`, `ObfusCal.Plugins.ICloudCalendar`, and `ObfusCal.Tests`.
 
 ---
 

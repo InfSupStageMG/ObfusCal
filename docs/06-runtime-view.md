@@ -2,7 +2,8 @@
 
 ## Scenario 1: Background Sync Cycle
 
-This is the primary runtime scenario. The `SyncService` runs on a configurable interval (default: 15 minutes).
+This is the primary runtime scenario. The `PeerSyncBackgroundService` runs on a configurable interval (default: 15
+minutes).
 
 ![Sync Sequence Diagram](img/sequence-sync.png)
 
@@ -34,7 +35,7 @@ An authenticated calendar owner requests their own obfuscated availability windo
 
 ## Scenario 3: User Authenticates and Views Availability
 
-1. User opens Swagger UI or another API client.
+1. User opens the ObfusCal web interface (or Swagger UI in development).
 2. The application redirects to internship company's Entra ID login page via OpenID Connect.
 3. After successful authentication (including MFA), Entra ID returns a JWT token.
 4. The application extracts the user's Object ID from the token and scopes all subsequent data access to that ID.
