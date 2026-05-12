@@ -41,6 +41,7 @@ public sealed class CustomWebApplicationFactory(
             var configuration = new Dictionary<string, string?>
             {
                 ["ConnectionStrings:DefaultConnection"] = Postgres.GetConnectionString(),
+                ["ColumnEncryption:Key"] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
                 ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
                 ["AzureAd:TenantId"] = "11111111-1111-1111-1111-111111111111",
                 ["AzureAd:Domain"] = "internshipcompany.onmicrosoft.com",

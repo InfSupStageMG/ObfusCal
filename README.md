@@ -248,6 +248,32 @@ match a redirect URI registered on the Google OAuth client exactly.
 - `AzureAd:TenantId`
 - `AzureAd:ClientId`
 - `GraphConsent:ClientId`
+- `ColumnEncryption:Key` — a 256-bit AES key used to encrypt sensitive database columns at rest
+
+**Generating the column encryption key**
+
+The application will refuse to start if this key is missing. Generate it once per instance and store it in your `.env`
+file (or secret store). Never reuse the same key across instances and never rotate it without re-encrypting existing
+data first.
+
+```powershell
+# PowerShell
+[Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+```
+
+```bash
+# bash / openssl
+openssl rand -base64 32
+```
+
+Add the output to `.env`:
+
+```
+COLUMNENCRYPTION__KEY="<paste key here>"
+```
+
+> **If this key is lost**, all encrypted column values (peer API key hashes, calendar source credentials) become
+> unreadable and must be re-entered. Back it up alongside your DataProtection keys.
 
 Use `.env.example` as the authoritative placeholder list for local/compose configuration.
 

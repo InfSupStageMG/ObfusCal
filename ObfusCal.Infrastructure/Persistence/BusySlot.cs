@@ -13,5 +13,6 @@ public class BusySlot
     public string? Description { get; set; }
     public string[]? AttendeeEmails { get; set; }
     public string? Location { get; set; }
+    public DateTimeOffset CreatedAtUtc { get; set; }
 }
 

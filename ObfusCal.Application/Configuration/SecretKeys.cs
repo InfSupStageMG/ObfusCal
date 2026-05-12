@@ -12,5 +12,6 @@ public static class SecretKeys
     public const string AzureAdTenantId = "AzureAd:TenantId";
     public const string SyncInstanceId = "Sync:InstanceId";
     public const string SyncApiKey = "Sync:ApiKey";
+    public const string ColumnEncryptionKey = "ColumnEncryption:Key";
 }
 

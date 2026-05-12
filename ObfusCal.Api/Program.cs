@@ -26,6 +26,9 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateBootstrapLogger();
 
+DotEnvLoader.Load(Path.Join(Directory.GetCurrentDirectory(), ".env"));
+DotEnvLoader.Load(Path.Join(AppContext.BaseDirectory, ".env"));
+
 try
 {
     const string appAuthenticationScheme = "AppAuthentication";

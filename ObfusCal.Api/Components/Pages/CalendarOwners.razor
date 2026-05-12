@@ -35,7 +35,7 @@
         <section class="card">
             <FluentDataGrid Items="_owners.AsQueryable()" TGridItem="CalendarOwnerSummary" Class="app-data-grid">
                 <TemplateColumn Title="Name" Sortable="true">
-                    <FluentAnchor Href="@($"/calendar-owners/{context.Id}")" Appearance="Appearance.Hypertext">
+                    <FluentAnchor Href="@("/calendar-owners/" + context.Id)" Appearance="Appearance.Hypertext">
                         @context.Name
                     </FluentAnchor>
                 </TemplateColumn>
