@@ -1,6 +1,6 @@
 ﻿# [Short title of solved problem and solution]
 
-* **Status:** [proposed | rejected | accepted | deprecated | ... | superseded by [ADR0053](0053-example.md)]
+* **Status:** [proposed | rejected | accepted | deprecated | ... | superseded by ADR00xx]
 * **Deciders:** [list everyone involved in the decision]
 * **Date:** [YYYY-MM-DD when the decision was last updated]
 

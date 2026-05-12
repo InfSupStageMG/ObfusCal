@@ -141,7 +141,7 @@ If you configure iCloud as a calendar source, you need:
 - An Apple app-specific password
 - The full iCloud CalDAV calendar URL
 
-For a full walkthrough, see `docs/13-icloud-caldav-setup.md`.
+For a full walkthrough, see `docs/icloud-caldav-setup.md`.
 
 ### 1) Generate an app-specific password
 
@@ -283,6 +283,8 @@ The configured mutation gate is 75% (`thresholds.low` and `thresholds.break` in 
 
 ## Documentation
 
+Public docs site: https://infsupstagemg.github.io/ObfusCal/
+
 Architecture documentation is written in arc42 format and served via MkDocs:
 
 ```powershell
@@ -318,4 +320,4 @@ feedback are welcome. Please open an issue before submitting a pull request.
 
 ## License
 
-GNU GPL v3.0. See [LICENSE](LICENSE) for details.
+GNU GPL v3.0. See [LICENSE](LICENSE.md) for details.

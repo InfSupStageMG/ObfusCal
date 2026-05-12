@@ -4,7 +4,7 @@ This project publishes a CycloneDX SBOM for dependency transparency and security
 
 ## View the SBOM
 
-- [Open SBOM JSON](./InfSupStageMG%20-%20SBOM.json)
+- [Open SBOM JSON](./InfSupStageMG - SBOM.json)
 
 ## Notes
 

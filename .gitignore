@@ -22,3 +22,6 @@ certs/**
 # Mutation testing output
 StrykerOutput/
 
+# Site build output
+site/
+
