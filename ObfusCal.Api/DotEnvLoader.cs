@@ -15,10 +15,13 @@ internal static class DotEnvLoader
 {
     internal static void Load(string filePath)
     {
-        if (!File.Exists(filePath))
+        if (!TryGetSafeDotEnvPath(filePath, out var safePath))
             return;
 
-        foreach (var rawLine in File.ReadLines(filePath))
+        if (!File.Exists(safePath))
+            return;
+
+        foreach (var rawLine in File.ReadLines(safePath))
         {
             var line = rawLine.Trim();
 
@@ -44,6 +47,33 @@ internal static class DotEnvLoader
             if (Environment.GetEnvironmentVariable(key) is null)
                 Environment.SetEnvironmentVariable(key, value);
         }
+    }
+
+    private static bool TryGetSafeDotEnvPath(string filePath, out string safePath)
+    {
+        safePath = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(filePath))
+            return false;
+
+        // Reject common traversal payloads before canonicalization.
+        if (filePath.Contains("..", StringComparison.Ordinal))
+            return false;
+
+        // DotEnvLoader is intentionally scoped to .env files only.
+        if (!string.Equals(Path.GetFileName(filePath), ".env", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        try
+        {
+            safePath = Path.GetFullPath(filePath);
+        }
+        catch
+        {
+            return false;
+        }
+
+        return string.Equals(Path.GetFileName(safePath), ".env", StringComparison.OrdinalIgnoreCase);
     }
 }
 
