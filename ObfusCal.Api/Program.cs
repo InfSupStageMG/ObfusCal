@@ -64,6 +64,13 @@ try
         PeerRateLimiting.Configure(options, syncOptions);
     });
 
+    builder.Services.AddHostedService(provider =>
+    {
+        var syncOptions = provider.GetRequiredService<IOptions<SyncOptions>>().Value;
+        var evictionInterval = TimeSpan.FromMinutes(1);
+        return new RateLimitBucketEvictionService(evictionInterval);
+    });
+
     builder.Services.AddAuthorization(options =>
     {
         options.AddPolicy(PeerApiAuthorizationPolicies.PushShadowSlots, policy =>

@@ -6,13 +6,10 @@ internal static class RateLimitStore
 {
     private static readonly ConcurrentDictionary<string, FixedWindowBucket> Buckets = new();
     private static readonly TimeSpan ExpiredBucketThreshold = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan EvictionInterval = TimeSpan.FromMinutes(1);
-    private static readonly Timer EvictionTimer = new(EvictExpiredBucketsSafe, null, EvictionInterval, EvictionInterval);
 
     internal static bool TryAcquirePermit(string instanceScope, string scope, string subject, int permitLimit,
         int windowSeconds, out int retryAfterSeconds)
     {
-        _ = EvictionTimer;
 
         var key = $"{instanceScope}:{scope}:{subject}";
         var bucket = Buckets.GetOrAdd(key, _ => new FixedWindowBucket());
@@ -47,19 +44,7 @@ internal static class RateLimitStore
         return result;
     }
 
-    private static void EvictExpiredBucketsSafe(object? _)
-    {
-        try
-        {
-            EvictExpiredBuckets();
-        }
-        catch
-        {
-            // Keep timer callback failures from impacting request processing.
-        }
-    }
-
-    private static void EvictExpiredBuckets()
+    internal static void EvictExpiredBuckets()
     {
         var now = DateTimeOffset.UtcNow;
 
