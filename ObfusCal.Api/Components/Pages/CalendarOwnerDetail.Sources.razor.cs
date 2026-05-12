@@ -128,15 +128,9 @@ public partial class CalendarOwnerDetail
             await LoadSourceInstancesAsync();
             ApplyPluginDefaults();
 
-            try
-            {
-                await AvailabilitySyncService.RunSyncForOwnerAsync(Id, CancellationToken.None);
-                _sourceMessage = $"Added source instance '{created.DisplayName}' and synced availability.";
-            }
-            catch (Exception syncEx)
-            {
-                _sourceMessage = $"Added source instance '{created.DisplayName}', but sync failed: {syncEx.Message}";
-            }
+            await TryRunAvailabilitySyncAsync(
+                $"Added source instance '{created.DisplayName}' and synced availability.",
+                $"Added source instance '{created.DisplayName}', but sync failed");
         }
         catch (Exception ex)
         {
@@ -183,15 +177,9 @@ public partial class CalendarOwnerDetail
             _sourceMessageIntent = MessageIntent.Success;
             await LoadSourceInstancesAsync();
 
-            try
-            {
-                await AvailabilitySyncService.RunSyncForOwnerAsync(Id, CancellationToken.None);
-                _sourceMessage = $"Updated source instance '{updated.DisplayName}' and synced availability.";
-            }
-            catch (Exception syncEx)
-            {
-                _sourceMessage = $"Updated source instance '{updated.DisplayName}', but sync failed: {syncEx.Message}";
-            }
+            await TryRunAvailabilitySyncAsync(
+                $"Updated source instance '{updated.DisplayName}' and synced availability.",
+                $"Updated source instance '{updated.DisplayName}', but sync failed");
         }
         catch (Exception ex)
         {
@@ -226,6 +214,19 @@ public partial class CalendarOwnerDetail
         finally
         {
             _deletingSourceInstanceId = null;
+        }
+    }
+
+    private async Task TryRunAvailabilitySyncAsync(string successMessage, string failedPrefix)
+    {
+        try
+        {
+            await AvailabilitySyncService.RunSyncForOwnerAsync(Id, CancellationToken.None);
+            _sourceMessage = successMessage;
+        }
+        catch (InvalidOperationException syncEx)
+        {
+            _sourceMessage = $"{failedPrefix}: {syncEx.Message}";
         }
     }
 
