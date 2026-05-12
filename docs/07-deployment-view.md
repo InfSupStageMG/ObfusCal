@@ -85,6 +85,18 @@ the API container.
 The API container remains single-purpose for the API process. Runtime still depends on external infrastructure
 (PostgreSQL, TLS key material, and environment-provided secrets).
 
+### Container runtime hardening
+
+The API service in `docker-compose.yaml` is hardened with runtime defaults that reduce blast radius if the process is
+compromised:
+
+- Runs as non-root (`USER 1000`) from the runtime stage in `Dockerfile`
+- `read_only: true` root filesystem
+- `tmpfs: /tmp` for ephemeral writable scratch space
+- `cap_drop: [ALL]` and `security_opt: ["no-new-privileges:true"]`
+- No direct host port publish on the API service (reachable only on the internal compose network via reverse proxy)
+- Resource limits via `mem_limit` / `cpus`
+
 Peer sync traffic is additionally throttled in-process: authenticated peers are rate limited by peer ID, unauthenticated
 API calls fall back to an IP-based backstop, and peer sync request bodies are capped at 1 MB by default.
 
@@ -100,6 +112,8 @@ containers.
 | `ASPNETCORE_Kestrel__Certificates__Default__Path`     | Path to the PFX certificate file mounted into the container                                    |
 | `ASPNETCORE_Kestrel__Certificates__Default__Password` | Password for the PFX certificate (sourced from `.env`)                                         |
 | `API_CERT_PASSWORD`                                   | Passed to `docker compose` via `.env`; sets the Kestrel cert password                          |
+| `API_MEM_LIMIT`                                       | API container memory limit used by Compose (default `512m`)                                    |
+| `API_CPUS`                                            | API container CPU quota used by Compose (default `4.0`)                                        |
 | `DATAPROTECTION_KEYS_PATH`                            | Path where DataProtection keys are persisted (default: `/dataprotection/keys`)                 |
 | `PeerConnections.ApiKeyHash` (database)               | Salted PBKDF2-SHA256 hash of peer API keys used by peer authentication                         |
 | `PeerConnections.Scopes` (database)                   | Space-separated peer scopes (`push_shadow_slots`, `pull_busy_slots`)                           |

@@ -113,6 +113,12 @@ docker compose up -d --build
     - `https://obfuscal.local/health`
     - `https://obfuscal.local/swagger` (Development mode only)
     - `http://obfuscal.local` redirects to HTTPS
+    - API runs with hardened container defaults (`read_only`, `cap_drop: [ALL]`, `no-new-privileges`, `tmpfs: /tmp`)
+
+   Optional API container sizing can be set via `.env`:
+
+   - `API_MEM_LIMIT` (default `512m`)
+   - `API_CPUS` (default `4.0`)
 
 ### Option 2: Run API with .NET CLI (requires PostgreSQL first)
 
@@ -212,6 +218,13 @@ startup.
 
 Environment variable names use the standard double-underscore mapping (for example `GRAPHCONSENT__CLIENTSECRET` and
 `CONNECTIONSTRINGS__DEFAULTCONNECTION`).
+
+## HTTP security defaults
+
+- Production uses HSTS + HTTPS redirection.
+- API/UI responses include `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and
+  `Referrer-Policy: no-referrer`.
+- Cookie policy is enforced with `HttpOnly=Always`, `Secure=Always`, and `SameSite=Lax` defaults.
 
 For Google Calendar OAuth, you can optionally override the callback URI with `GOOGLECONSENT__REDIRECTURI`. This must
 match a redirect URI registered on the Google OAuth client exactly.

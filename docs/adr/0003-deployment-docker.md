@@ -32,3 +32,9 @@ and makes updates a single image pull. `docker compose up` is sufficient for any
 * **Negative:** Requires Docker to be installed and running on the host server.
 * **Negative:** Docker Desktop has commercial licensing implications for larger organisations (Rancher Desktop is a free
   alternative).
+
+## Related security guidance
+
+Container and runtime hardening controls for this ADR are documented in
+`docs/07-deployment-view.md` (see "Container runtime hardening").
+
