@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.CookiePolicy;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
@@ -111,6 +112,13 @@ try
         };
     });
 
+    builder.Services.Configure<CookiePolicyOptions>(options =>
+    {
+        options.HttpOnly = HttpOnlyPolicy.Always;
+        options.Secure = CookieSecurePolicy.Always;
+        options.MinimumSameSitePolicy = SameSiteMode.Lax;
+    });
+
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen(options =>
     {
@@ -168,6 +176,15 @@ try
 
     app.UseSerilogRequestLogging();
     app.UseStaticFiles();
+    app.UseCookiePolicy();
+
+    app.Use(async (context, next) =>
+    {
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        context.Response.Headers["X-Frame-Options"] = "DENY";
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        await next();
+    });
 
     app.UseExceptionHandler(exceptionApp =>
     {
