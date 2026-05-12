@@ -42,7 +42,23 @@ Before starting the containers:
 
 1. Ensure certificates exist under `certs/nginx` and `certs/api` (see `certs/README.md`).
 2. Create a `.env` file from `.env.example` with PostgreSQL, API certificate, and application secret placeholders.
-3. Decide how peer transport should be handled in the current environment:
+3. **Generate a column encryption key** and set it as `COLUMNENCRYPTION__KEY` in `.env`. The application refuses to
+   start without it. Generate it once and back it up:
+
+   ```powershell
+   # PowerShell
+   [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+   ```
+
+   ```bash
+   # bash / openssl
+   openssl rand -base64 32
+   ```
+
+   > Losing this key makes all encrypted column values (peer API key hashes, calendar source credentials)
+   > unreadable. Back it up alongside your DataProtection keys.
+
+4. Decide how peer transport should be handled in the current environment:
     - **Production / staging:** keep `PeerTransportSecurity__AllowSelfSignedCerts=false` and use CA-issued peer certs.
     - **Development / local compose:** set `PeerTransportSecurity__AllowSelfSignedCerts=true` so self-signed peer
       certificates are accepted.
@@ -50,7 +66,7 @@ Before starting the containers:
       TLS certificate to be fixed to a known leaf certificate.
     - **Optional mTLS groundwork:** store `PeerConnections.ClientCertificateThumbprint` for peers that should present a
       client certificate, and make sure the certificate is available in the local machine/user certificate store.
-4. Ensure the Entra ID app role `Sysadmin` exists on the API app registration and is assigned to designated
+5. Ensure the Entra ID app role `Sysadmin` exists on the API app registration and is assigned to designated
    administrators.
 
 Bring up a full instance (reverse proxy + API + PostgreSQL):
@@ -88,14 +104,15 @@ containers.
 | `PeerConnections.ApiKeyHash` (database)               | Salted PBKDF2-SHA256 hash of peer API keys used by peer authentication                         |
 | `PeerConnections.Scopes` (database)                   | Space-separated peer scopes (`push_shadow_slots`, `pull_busy_slots`)                           |
 | `PeerConnections.RevokedAt` (database)                | Revocation timestamp; non-null peers are rejected by peer authentication                       |
-| `ConnectionStrings__DefaultConnection`                | PostgreSQL connection string (required at startup)                                             |
-| `AzureAd__TenantId`                                   | Entra tenant ID (required at startup)                                                          |
-| `AzureAd__ClientId`                                   | Entra app/client ID (required at startup)                                                      |
-| `GraphConsent__ClientId`                              | Microsoft Graph consent client ID (required at startup)                                        |
+| `ConnectionStrings__DefaultConnection`                | PostgreSQL connection string (**required at startup**)                                         |
+| `AzureAd__TenantId`                                   | Entra tenant ID (**required at startup**)                                                      |
+| `AzureAd__ClientId`                                   | Entra app/client ID (**required at startup**)                                                  |
+| `GraphConsent__ClientId`                              | Microsoft Graph consent client ID (**required at startup**)                                    |
 | `GraphConsent__ClientSecret`                          | Microsoft Graph consent client secret (optional depending on tenant app registration)          |
 | `GoogleConsent__ClientId`                             | Google OAuth client ID (required for Google Calendar source)                                   |
 | `GoogleConsent__ClientSecret`                         | Google OAuth client secret (required for Google Calendar source)                               |
 | `GoogleConsent__RedirectUri`                          | Optional Google OAuth callback override; must exactly match the URI registered in Google Cloud |
+| `ColumnEncryption__Key`                               | Base64-encoded 256-bit AES key for column-level encryption (**required at startup**)           |
 | `Sync__InstanceId`                                    | Local instance identifier used in peer sync headers                                            |
 | `Sync__ApiKey`                                        | Shared API key used for peer sync authentication                                               |
 | `Sync__PeerRequestTimestampToleranceSeconds`          | Replay window tolerance for `X-Peer-Timestamp` (default `300`)                                 |
@@ -109,6 +126,7 @@ containers.
 | `Sync__SyncIntervalSeconds`                           | How often the background sync runs (default: `900` = 15 minutes)                               |
 | `Sync__MaxQueryWindowDays`                            | Maximum allowed inbound query window in days for busy/free-busy endpoints (default `90`)       |
 | `Sync__MaxShadowSlotsPerRequest`                      | Maximum allowed shadow slots in one push payload (default `500`)                               |
+| `Sync__ShadowSlotRetentionDays`                       | Days to retain received shadow slots before automatic purge (default `90`)                     |
 | `PeerTransportSecurity__AllowSelfSignedCerts`         | Accept self-signed peer certificates when `true` (default `false`)                             |
 | `PeerConnections.PinnedCertificateThumbprint`         | Optional peer leaf certificate thumbprint used to pin the expected server certificate          |
 | `PeerConnections.ClientCertificateThumbprint`         | Optional peer client certificate thumbprint used as mTLS groundwork                            |

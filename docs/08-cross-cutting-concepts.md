@@ -6,13 +6,14 @@ Raw calendar events are never written to the database. They exist only as in-mem
 execution and are discarded immediately after. The obfuscation pipeline is the gating condition for storage; only its
 output (`BusySlot`) is persisted.
 
-| Data                         | Persisted       | In Memory            | Sent to Peers |
-|------------------------------|-----------------|----------------------|---------------|
-| Raw meeting details          | Never           | During pipeline only | Never         |
-| Obfuscated BusySlot          | Yes             | Yes                  | Yes           |
-| User ID and sync state       | Yes             | Yes                  | Never         |
-| Obfuscation profile settings | Yes             | Yes                  | Never         |
-| OAuth refresh tokens         | Yes (encrypted) | Yes                  | Never         |
+| Data                         | Persisted                                    | In Memory            | Sent to Peers |
+|------------------------------|----------------------------------------------|----------------------|---------------|
+| Raw meeting details          | Never                                        | During pipeline only | Never         |
+| Obfuscated BusySlot          | Yes                                          | Yes                  | Yes           |
+| User ID and sync state       | Yes                                          | Yes                  | Never         |
+| Obfuscation profile settings | Yes                                          | Yes                  | Never         |
+| OAuth refresh tokens         | Yes (encrypted)                              | Yes                  | Never         |
+| Shadow slots from peers      | Yes, purged after `ShadowSlotRetentionDays`  | Yes                  | Never         |
 
 ## Security
 
@@ -67,6 +68,33 @@ volume. Without key persistence:
 - Users see errors like "iCloud credentials could not be read"
 
 Each API instance must have its own isolated DataProtection key store; keys must never be shared between instances.
+
+**Column-level encryption:** Certain sensitive database columns — `PeerConnections.ApiKeyHash` and
+`CalendarSourceInstances.SecretDataJson` — are encrypted at rest using AES-256-GCM before the value reaches the
+database. Each write uses a fresh random nonce so identical plaintext values produce different ciphertext. A database
+dump in isolation is useless without the encryption key.
+
+The key is supplied via `COLUMNENCRYPTION__KEY` (a base64-encoded 32-byte random value). The application validates this
+secret at startup and refuses to start if it is missing:
+
+```bash
+# Generate a key (Linux / macOS / Git Bash)
+openssl rand -base64 32
+
+# Generate a key (PowerShell)
+[Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+```
+
+Set the output in `.env`:
+
+```
+COLUMNENCRYPTION__KEY="<generated key>"
+```
+
+> **Key loss is unrecoverable.** If the key is lost, all encrypted column values become unreadable. Back up
+> `COLUMNENCRYPTION__KEY` alongside the DataProtection key volume. Unlike DataProtection keys, this key is
+> stateless (it lives only in the environment), so backing it up is a simple copy of the `.env` or secret store
+> value.
 
 **Centralized secret access:** Runtime secret reads are routed through `ISecretProvider` instead of direct
 `IConfiguration` access in business logic. The default `EnvironmentSecretProvider` supports standard .NET
