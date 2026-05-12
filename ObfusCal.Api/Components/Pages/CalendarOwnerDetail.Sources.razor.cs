@@ -223,10 +223,12 @@ public partial class CalendarOwnerDetail
         {
             await AvailabilitySyncService.RunSyncForOwnerAsync(Id, CancellationToken.None);
             _sourceMessage = successMessage;
+            _sourceMessageIntent = MessageIntent.Success;
         }
         catch (InvalidOperationException syncEx)
         {
             _sourceMessage = $"{failedPrefix}: {syncEx.Message}";
+            _sourceMessageIntent = MessageIntent.Warning;
         }
     }
 
