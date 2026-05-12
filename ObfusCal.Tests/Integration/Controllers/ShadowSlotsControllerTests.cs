@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using ObfusCal.Application.Interfaces;
@@ -337,6 +338,108 @@ public class ShadowSlotsControllerTests
         var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task PushShadowSlots_WhenPeerExceedsRateLimit_ReturnsTooManyRequestsAndKeepsOtherPeersUnthrottled()
+    {
+        var overrides = new Dictionary<string, string?>
+        {
+            ["Sync:PeerRequestRateLimitPermitLimit"] = "20",
+            ["Sync:PeerRequestRateLimitWindowSeconds"] = "3600",
+            ["Sync:PushShadowSlotsRateLimitPermitLimit"] = "1",
+            ["Sync:PushShadowSlotsRateLimitWindowSeconds"] = "3600",
+            ["Sync:PullBusySlotsRateLimitPermitLimit"] = "2",
+            ["Sync:PullBusySlotsRateLimitWindowSeconds"] = "3600"
+        };
+
+        await using var factory = new CustomWebApplicationFactory("Development", additionalConfiguration: overrides);
+        using var client = factory.CreateClient();
+
+        var primaryOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        await factory.SeedCalendarOwnerPeerMappingAsync(primaryOwnerId, Guid.NewGuid());
+
+        var secondaryOwnerId = await factory.SeedCalendarOwnerAsync("peer-b-user");
+        var secondaryPeerInstanceId = "peer-b";
+        var secondaryPeerApiKey = $"integration-test-peer-b-{Guid.NewGuid():N}";
+        await factory.SeedCalendarOwnerPeerMappingAsync(secondaryOwnerId, Guid.NewGuid(), secondaryPeerInstanceId, secondaryPeerApiKey);
+
+        var payload = new[]
+        {
+            new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(30) }
+        };
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "ApiKey",
+            CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
+
+        var firstResponse = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+        var secondResponse = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", secondaryPeerApiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
+        var otherPeerResponse = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Created, firstResponse.StatusCode);
+        Assert.AreEqual(HttpStatusCode.TooManyRequests, secondResponse.StatusCode);
+        Assert.IsTrue(secondResponse.Headers.RetryAfter is not null);
+        Assert.AreEqual(HttpStatusCode.Created, otherPeerResponse.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task PullBusySlots_WhenPeerExceedsSeparateRateLimit_ReturnsTooManyRequests()
+    {
+        var overrides = new Dictionary<string, string?>
+        {
+            ["Sync:PeerRequestRateLimitPermitLimit"] = "20",
+            ["Sync:PeerRequestRateLimitWindowSeconds"] = "3600",
+            ["Sync:PushShadowSlotsRateLimitPermitLimit"] = "5",
+            ["Sync:PushShadowSlotsRateLimitWindowSeconds"] = "3600",
+            ["Sync:PullBusySlotsRateLimitPermitLimit"] = "2",
+            ["Sync:PullBusySlotsRateLimitWindowSeconds"] = "3600"
+        };
+
+        await using var factory = new CustomWebApplicationFactory("Development", additionalConfiguration: overrides);
+        using var client = factory.CreateClient();
+
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        var calendarOwnerRef = Guid.NewGuid();
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, calendarOwnerRef);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "ApiKey",
+            CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
+
+        var from = DateTimeOffset.UtcNow.AddDays(-1).ToString("O");
+        var to = DateTimeOffset.UtcNow.AddDays(1).ToString("O");
+        var firstResponse = await client.GetAsync(
+            $"/api/sync/busy-slots/{calendarOwnerRef}?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}",
+            TestContext.CancellationToken);
+        var secondResponse = await client.GetAsync(
+            $"/api/sync/busy-slots/{calendarOwnerRef}?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}",
+            TestContext.CancellationToken);
+        var thirdResponse = await client.GetAsync(
+            $"/api/sync/busy-slots/{calendarOwnerRef}?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.OK, firstResponse.StatusCode);
+        Assert.AreEqual(HttpStatusCode.OK, secondResponse.StatusCode);
+        Assert.AreEqual(HttpStatusCode.TooManyRequests, thirdResponse.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task PushShadowSlots_ReturnsPayloadTooLarge_WhenRequestBodyExceedsConfiguredLimit()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development");
+        using var client = factory.CreateClient();
+
+        using var oversizedContent = new StringContent(new string('x', 1_500_000), Encoding.UTF8, "application/json");
+
+        var response = await client.PostAsync("/api/shadow-slots", oversizedContent, TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
     }
 
     private static void SetReplayHeader(HttpClient client, DateTimeOffset timestamp)

@@ -15,6 +15,13 @@ public class ConfigurationDefaultsTests
         Assert.AreEqual(900, options.SyncIntervalSeconds);
         Assert.AreEqual(14, options.LookAheadDays);
         Assert.AreEqual(300, options.PeerRequestTimestampToleranceSeconds);
+        Assert.AreEqual(240, options.PeerRequestRateLimitPermitLimit);
+        Assert.AreEqual(60, options.PeerRequestRateLimitWindowSeconds);
+        Assert.AreEqual(60, options.PushShadowSlotsRateLimitPermitLimit);
+        Assert.AreEqual(60, options.PushShadowSlotsRateLimitWindowSeconds);
+        Assert.AreEqual(120, options.PullBusySlotsRateLimitPermitLimit);
+        Assert.AreEqual(60, options.PullBusySlotsRateLimitWindowSeconds);
+        Assert.AreEqual(1_048_576, options.MaxRequestBodySizeBytes);
         Assert.AreEqual(90, options.MaxQueryWindowDays);
         Assert.AreEqual(500, options.MaxShadowSlotsPerRequest);
     }
