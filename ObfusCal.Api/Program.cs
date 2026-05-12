@@ -66,7 +66,6 @@ try
 
     builder.Services.AddHostedService(provider =>
     {
-        var syncOptions = provider.GetRequiredService<IOptions<SyncOptions>>().Value;
         var evictionInterval = TimeSpan.FromMinutes(1);
         return new RateLimitBucketEvictionService(evictionInterval);
     });
