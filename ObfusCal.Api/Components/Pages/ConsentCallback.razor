@@ -1,4 +1,5 @@
 ﻿@page "/consent-callback"
+@rendermode ConsentCallback.RenderMode
 @attribute [Authorize]
 @using ObfusCal.Application.Interfaces
 @using System.Collections.Concurrent
@@ -42,6 +43,16 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Guard: skip all OAuth work during server-side prerendering.
+        // The consent callback MUST run in the interactive circuit so the circuit-scoped
+        // AppDbContext remains alive through the exchange → token-save sequence.
+        // The component already has prerender:false, but the parent Routes component
+        // (InteractiveServer / prerender:true) cascades its prerender setting to children,
+        // so RendererInfo.IsInteractive is the definitive, cascade-immune guard.
+        // Returning here keeps _loading=true; the circuit re-render will show the real result.
+        if (!RendererInfo.IsInteractive)
+            return;
+
         var shouldReleaseState = false;
         string? stateToken = null;
 
@@ -103,9 +114,12 @@
         }
     }
 
-    private static bool IsStateValidationFailure(string message)
-        => message.Contains("state", StringComparison.OrdinalIgnoreCase)
-           || (message.Contains("expired", StringComparison.OrdinalIgnoreCase)
-               && message.Contains("consent", StringComparison.OrdinalIgnoreCase));
+    // Detects exceptions thrown by the Google/Graph state-validation logic.
+    // Using precise phrases prevents infrastructure exceptions such as EF Core's
+    // ObjectDisposedException (whose message contains "…using statement…", where
+    // "statement" starts with "state") from being silently swallowed as state errors.
+    internal static bool IsStateValidationFailure(string message)
+        => message.Contains("consent state", StringComparison.OrdinalIgnoreCase)
+           || message.StartsWith("State is required", StringComparison.OrdinalIgnoreCase);
 }
 

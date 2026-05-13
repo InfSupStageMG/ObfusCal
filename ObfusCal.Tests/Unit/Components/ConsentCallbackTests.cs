@@ -1,0 +1,64 @@
+﻿using Microsoft.AspNetCore.Components.Web;
+using ObfusCal.Api.Components.Pages;
+
+namespace ObfusCal.Tests.Unit.Components;
+
+[TestClass]
+public class ConsentCallbackTests
+{
+    [TestMethod]
+    public void ConsentCallback_DisablesPrerender()
+    {
+        Assert.IsInstanceOfType(ConsentCallback.RenderMode, typeof(InteractiveServerRenderMode));
+        Assert.AreEqual(false, ConsentCallback.RenderMode.Prerender);
+    }
+
+    // ── IsStateValidationFailure ─────────────────────────────────────────────────
+
+    [TestMethod]
+    [DataRow("State is required to complete Google consent.")]
+    [DataRow("State is required to complete Graph consent.")]
+    [DataRow("state is required to complete anything")]   // case-insensitive
+    [DataRow("Google consent state has expired. Start consent again.")]
+    [DataRow("Google consent state is invalid.")]
+    [DataRow("Google consent state is invalid or expired.")]
+    [DataRow("Google consent state does not match this calendar source.")]
+    [DataRow("Graph consent state is invalid.")]
+    [DataRow("Graph consent state has expired. Start consent again.")]
+    [DataRow("Graph consent state does not contain owner context. Use the instance-specific consent flow.")]
+    [DataRow("Graph consent state is invalid or expired.")]
+    public void IsStateValidationFailure_ReturnsTrueForConsentStateMessages(string message)
+    {
+        Assert.IsTrue(ConsentCallback.IsStateValidationFailure(message),
+            $"Expected IsStateValidationFailure=true for: {message}");
+    }
+
+    [TestMethod]
+    // EF Core ObjectDisposedException – the key regression: it previously matched because
+    // "statement" starts with "state".
+    [DataRow("Cannot access a disposed context instance. A common cause of this error is disposing " +
+             "a context instance that was resolved from dependency injection and then later trying to use " +
+             "the same context instance elsewhere in your application. This may occur if you are calling " +
+             "'Dispose' on the context instance, or wrapping it in a using statement. If you are using " +
+             "dependency injection, you should let the dependency injection container take care of " +
+             "disposing context instances.\nObject name: 'AppDbContext'.")]
+    // Google invalid_grant – contains "expired" but not "consent state"
+    [DataRow("Google token exchange failed with invalid_grant. The authorization code may be " +
+             "expired or already used, or the redirect URI did not exactly match the URI used during authorization.")]
+    // Missing instance
+    [DataRow("Google calendar source instance was not found.")]
+    [DataRow("Graph calendar source instance was not found.")]
+    [DataRow("Calendar owner was not found.")]
+    [DataRow("Authorization code is required to complete Google consent.")]
+    [DataRow("The specified calendar source instance is not a Google source.")]
+    [DataRow("Google token exchange failed with HTTP 400: error='access_denied', description='User denied'.")]
+    public void IsStateValidationFailure_ReturnsFalseForInfrastructureExceptions(string message)
+    {
+        Assert.IsFalse(ConsentCallback.IsStateValidationFailure(message),
+            $"Expected IsStateValidationFailure=false for: {message}");
+    }
+}
+
+
+
+
