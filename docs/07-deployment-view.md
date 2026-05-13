@@ -127,11 +127,11 @@ local sign-out cycle.
 | `PeerConnections.ApiKeyHash` (database)               | Salted PBKDF2-SHA256 hash of peer API keys used by peer authentication                         |
 | `PeerConnections.Scopes` (database)                   | Space-separated peer scopes (`push_shadow_slots`, `pull_busy_slots`)                           |
 | `PeerConnections.RevokedAt` (database)                | Revocation timestamp; non-null peers are rejected by peer authentication                       |
-| `ConnectionStrings__DefaultConnection`                | PostgreSQL connection string (**required at startup**)                                             |
-| `AzureAd__TenantId`                                   | Entra tenant ID (**required at startup**)                                                           |
-| `AzureAd__ClientId`                                   | Entra app/client ID (**required at startup**)                                                       |
-| `AzureAd__ClientSecret`                               | Entra web-app client secret for browser SSO (**required at startup**)                              |
-| `GraphConsent__ClientId`                              | Microsoft Graph consent client ID (**required at startup**)                                         |
+| `ConnectionStrings__DefaultConnection`                | PostgreSQL connection string (**required at startup**)                                         |
+| `AzureAd__TenantId`                                   | Entra tenant ID (**required at startup**)                                                      |
+| `AzureAd__ClientId`                                   | Entra app/client ID (**required at startup**)                                                  |
+| `AzureAd__ClientSecret`                               | Entra web-app client secret for browser SSO (**required at startup**)                          |
+| `GraphConsent__ClientId`                              | Microsoft Graph consent client ID (**required at startup**)                                    |
 | `GraphConsent__ClientSecret`                          | Microsoft Graph consent client secret (optional depending on tenant app registration)          |
 | `GoogleConsent__ClientId`                             | Google OAuth client ID (required for Google Calendar source)                                   |
 | `GoogleConsent__ClientSecret`                         | Google OAuth client secret (required for Google Calendar source)                               |

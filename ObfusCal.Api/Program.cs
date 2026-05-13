@@ -144,7 +144,11 @@ try
     {
         options.HttpOnly = HttpOnlyPolicy.Always;
         options.Secure = CookieSecurePolicy.Always;
-        options.MinimumSameSitePolicy = SameSiteMode.Lax;
+        // Do NOT set MinimumSameSitePolicy to Lax here. The OIDC correlation and nonce cookies
+        // must be SameSite=None so they are sent back on Microsoft's cross-site POST to /signin-oidc.
+        // Upgrading them to Lax causes "Correlation failed" because cross-site POSTs never carry Lax cookies.
+        // The auth session cookie (.AspNetCore.Cookies) defaults to Lax on its own, so that remains protected.
+        options.MinimumSameSitePolicy = SameSiteMode.Unspecified;
     });
 
     builder.Services.AddEndpointsApiExplorer();
@@ -208,13 +212,7 @@ try
     app.UseStaticFiles();
     app.UseCookiePolicy();
 
-    app.Use(async (context, next) =>
-    {
-        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-        context.Response.Headers["X-Frame-Options"] = "DENY";
-        context.Response.Headers["Referrer-Policy"] = "no-referrer";
-        await next();
-    });
+    app.UseMiddleware<SecurityHeadersMiddleware>();
 
     app.UseExceptionHandler(exceptionApp => exceptionApp.Run(ProgramSetup.HandleExceptionAsync));
 
