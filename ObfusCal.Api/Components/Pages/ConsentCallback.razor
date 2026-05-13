@@ -1,12 +1,11 @@
 ﻿@page "/consent-callback"
-@rendermode ConsentCallback.RenderMode
+@rendermode RenderMode
 @attribute [Authorize]
 @using ObfusCal.Application.Interfaces
 @using System.Collections.Concurrent
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Logging
-@inject ICalendarOwnerGoogleConsentService GoogleConsentService
-@inject ICalendarOwnerGraphConsentService GraphConsentService
-@inject NavigationManager Navigation
+@inject IServiceScopeFactory ConsentScopeFactory
 @inject ILogger<ConsentCallback> Logger
 
 <PageTitle>Authorizing… - ObfusCal</PageTitle>
@@ -83,13 +82,24 @@
 
             try
             {
+                // Resolve consent services from a dedicated scope so their AppDbContext is
+                // independent of the Blazor circuit scope.  If the SignalR connection drops
+                // while the Google/Graph token-exchange HTTP call is in flight, the circuit
+                // scope (and its DbContext) can be disposed; a self-contained scope here
+                // survives that and completes the write atomically before being disposed.
+                await using var consentScope = ConsentScopeFactory.CreateAsyncScope();
+
                 if (isGraphConsent)
                 {
-                    await GraphConsentService.CompleteConsentFromStateAsync(Code, State);
+                    var graphService = consentScope.ServiceProvider
+                        .GetRequiredService<ICalendarOwnerGraphConsentService>();
+                    await graphService.CompleteConsentFromStateAsync(Code, State);
                 }
                 else
                 {
-                    await GoogleConsentService.CompleteConsentFromStateAsync(Code, State);
+                    var googleService = consentScope.ServiceProvider
+                        .GetRequiredService<ICalendarOwnerGoogleConsentService>();
+                    await googleService.CompleteConsentFromStateAsync(Code, State);
                 }
 
                 shouldReleaseState = false; // keep state locked so duplicate callbacks are no-ops
