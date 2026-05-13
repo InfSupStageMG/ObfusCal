@@ -123,7 +123,7 @@ local sign-out cycle.
 | `API_CERT_PASSWORD`                                   | Passed to `docker compose` via `.env`; sets the Kestrel cert password                          |
 | `API_MEM_LIMIT`                                       | API container memory limit used by Compose (default `512m`)                                    |
 | `API_CPUS`                                            | API container CPU quota used by Compose (default `4.0`)                                        |
-| `DATAPROTECTION_KEYS_PATH`                            | Path where DataProtection keys are persisted (default: `/dataprotection/keys`)                 |
+| `DATAPROTECTION_KEYS_PATH`                            | *Removed* — keys are now persisted to PostgreSQL via `DataProtectionKeys` table                |
 | `PeerConnections.ApiKeyHash` (database)               | Salted PBKDF2-SHA256 hash of peer API keys used by peer authentication                         |
 | `PeerConnections.Scopes` (database)                   | Space-separated peer scopes (`push_shadow_slots`, `pull_busy_slots`)                           |
 | `PeerConnections.RevokedAt` (database)                | Revocation timestamp; non-null peers are rejected by peer authentication                       |
@@ -166,19 +166,17 @@ callback URI that is registered on the Google OAuth client. Google rejects `.loc
 
 ### DataProtection Key Persistence
 
-**IMPORTANT:** The API uses Microsoft's Data Protection API (DPAPI) to encrypt sensitive credentials (OAuth tokens,
-iCloud passwords). These encrypted values cannot be decrypted without the encryption keys.
+DataProtection keys are persisted to the **`DataProtectionKeys` table in PostgreSQL** via `IDataProtectionKeyContext`.
+This means:
 
-To avoid losing credentials on container restart:
+- Keys survive container rebuilds, restarts, and pod reschedules automatically — no separate filesystem volume is
+  required.
+- The `AddDataProtectionKeys` EF Core migration creates the table at startup via `MigrateDatabaseAsync()`.
+- Keys are scoped to the `ObfusCal` application name; sharing the database with another application does not cause key
+  conflicts.
 
-- Mount a persistent volume to `/dataprotection/keys` in the container (already configured in `docker-compose.yaml`)
-- Ensure the mounted directory is readable and writable by the container process
-- Do **not** share DataProtection keys between different API instances — each instance must have its own isolated key
-  store
-
-If DataProtection keys are lost, all encrypted credentials become unreadable and must be re-entered by the user.
-
-See the `Dockerfile` and `docker-compose.yaml` for the volume configuration.
+> **If the database is dropped and recreated**, all DataProtection-sealed values (OAuth tokens, iCloud passwords) become
+> unreadable and must be re-entered. Back up your PostgreSQL data alongside any other persistent state.
 
 ## CI/CD
 

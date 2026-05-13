@@ -24,6 +24,13 @@ capped at 1 MB by default to reduce DoS risk.
 
 ---
 
+## Documentation
+
+- [Home](https://infsupstagemg.github.io/ObfusCal/)
+- [ICloud CalDAV setup guide](https://infsupstagemg.github.io/ObfusCal/docs/icloud-caldav-setup/)
+
+---
+
 ## Project structure
 
 ```
