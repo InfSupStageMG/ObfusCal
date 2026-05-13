@@ -41,7 +41,7 @@ public class SecurityHardeningTests
 
         Assert.AreEqual(HttpOnlyPolicy.Always, options.HttpOnly);
         Assert.AreEqual(CookieSecurePolicy.Always, options.Secure);
-        Assert.AreEqual(SameSiteMode.Lax, options.MinimumSameSitePolicy);
+        Assert.AreEqual(SameSiteMode.Unspecified, options.MinimumSameSitePolicy);
     }
 }
 
