@@ -88,31 +88,16 @@ public static class DependencyInjection
 
     private static void ConfigureDataProtection(IServiceCollection services)
     {
-        var dataProtectionKeyPath = Environment.GetEnvironmentVariable("DATAPROTECTION_KEYS_PATH")
-            ?? "/dataprotection/keys";
+        // Keys are stored in the DataProtectionKeys table in PostgreSQL so they survive container
+        // rebuilds and do not depend on a separately mounted filesystem volume.
+        // The migration that creates the table runs at startup via MigrateDatabaseAsync().
+        services.AddDataProtection()
+            .SetApplicationName("ObfusCal")
+            .PersistKeysToDbContext<AppDbContext>();
 
-        var dataProtectionBuilder = services.AddDataProtection()
-            .SetApplicationName("ObfusCal");
-
-        // Attempt to use persistent key storage if the directory exists or can be created
-        try
-        {
-            if (!Path.IsPathRooted(dataProtectionKeyPath))
-            {
-                dataProtectionKeyPath = Path.Combine(AppContext.BaseDirectory, dataProtectionKeyPath);
-            }
-
-            Directory.CreateDirectory(dataProtectionKeyPath);
-            dataProtectionBuilder.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeyPath));
-
-            Log.ForContext("DataProtectionKeyPath", dataProtectionKeyPath)
-                .Information("DataProtection keys will be persisted to {Path}. Ensure this directory is mounted as a persistent volume in containers.", dataProtectionKeyPath);
-        }
-        catch (Exception ex)
-        {
-            Log.ForContext("DataProtectionKeyPath", dataProtectionKeyPath)
-                .Warning(ex, "Failed to configure persistent DataProtection key storage. Keys will be ephemeral and will be lost on application restart. Re-saving iCloud configurations may be required after restarts.");
-        }
+        Log.Information(
+            "DataProtection keys will be persisted to PostgreSQL via AppDbContext. " +
+            "Ensure the database is available and migrations have run before the first OIDC request.");
     }
 
     private static void RegisterHttpClients(IServiceCollection services)
