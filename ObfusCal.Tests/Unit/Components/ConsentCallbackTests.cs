@@ -13,14 +13,6 @@ public class ConsentCallbackTests
         Assert.AreEqual(false, ConsentCallback.RenderMode.Prerender);
     }
 
-    // ── Scope isolation ─────────────────────────────────────────────────────────
-    // The component must NOT directly inject ICalendarOwnerGoogleConsentService or
-    // ICalendarOwnerGraphConsentService.  Consent services are resolved from a
-    // dedicated scope created inside OnInitializedAsync so that the AppDbContext they
-    // depend on is independent of the Blazor circuit scope.  If the circuit's
-    // SignalR connection drops while the OAuth token-exchange HTTP call is in flight,
-    // the circuit scope (and its DbContext) can be disposed; the self-contained scope
-    // keeps the DB write alive and completes atomically.
     [TestMethod]
     public void ConsentCallback_DoesNotDirectlyInjectConsentServices()
     {
@@ -38,8 +30,6 @@ public class ConsentCallbackTests
             "ICalendarOwnerGraphConsentService must NOT be directly injected; " +
             "resolve it from a dedicated scope in OnInitializedAsync instead.");
     }
-
-    // ── IsStateValidationFailure ─────────────────────────────────────────────────
 
     [TestMethod]
     [DataRow("State is required to complete Google consent.")]
