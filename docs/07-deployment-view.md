@@ -101,7 +101,16 @@ Peer sync traffic is additionally throttled in-process: authenticated peers are 
 API calls fall back to an IP-based backstop, and peer sync request bodies are capped at 1 MB by default.
 
 For local API-only debugging, start PostgreSQL first and then run `dotnet run --project ObfusCal.Api` outside
-containers.
+containers. Use the HTTPS development URL:
+
+- `https://localhost:7001/` for the browser SSO flow (`/signin-oidc`)
+- `https://localhost:7001/swagger` for Swagger OAuth (`/swagger/oauth2-redirect.html`)
+
+Both redirect URIs must be registered on the Entra app registration because the browser origin must match exactly.
+
+When the browser session is already authenticated, the ObfusCal header's **Switch user** action triggers a fresh OIDC
+challenge with Entra's account picker (`prompt=select_account`) so operators can test multiple users without a full
+local sign-out cycle.
 
 ## Environment Variables
 
@@ -121,6 +130,7 @@ containers.
 | `ConnectionStrings__DefaultConnection`                | PostgreSQL connection string (**required at startup**)                                         |
 | `AzureAd__TenantId`                                   | Entra tenant ID (**required at startup**)                                                      |
 | `AzureAd__ClientId`                                   | Entra app/client ID (**required at startup**)                                                  |
+| `AzureAd__ClientSecret`                               | Entra web-app client secret for browser SSO (**required at startup**)                          |
 | `GraphConsent__ClientId`                              | Microsoft Graph consent client ID (**required at startup**)                                    |
 | `GraphConsent__ClientSecret`                          | Microsoft Graph consent client secret (optional depending on tenant app registration)          |
 | `GoogleConsent__ClientId`                             | Google OAuth client ID (required for Google Calendar source)                                   |
@@ -146,7 +156,9 @@ containers.
 | `PeerConnections.ClientCertificateThumbprint`         | Optional peer client certificate thumbprint used as mTLS groundwork                            |
 | `Secrets__Provider`                                   | Secret provider mode (`Environment` default, `External` stub)                                  |
 
-At startup, ObfusCal validates required secrets and fails fast with a descriptive error when one is missing.
+At startup, ObfusCal validates required secrets and fails fast with a descriptive error when one is missing. This now
+includes the Entra browser-login client secret because the Blazor UI signs users in with the server-side OpenID
+Connect code flow.
 
 For Google Calendar OAuth in local development, prefer `https://localhost/consent-callback` or another public HTTPS
 callback URI that is registered on the Google OAuth client. Google rejects `.local` redirect domains such as

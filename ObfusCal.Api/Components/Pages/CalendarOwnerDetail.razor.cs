@@ -1,14 +1,21 @@
 ﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.FluentUI.AspNetCore.Components;
+using ObfusCal.Api.Authorization;
 using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Components.Pages;
 
 public partial class CalendarOwnerDetail
 {
+    [Inject] private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = default!;
+    [Inject] private CurrentUserContextAccessor CurrentUserContextAccessor { get; set; } = default!;
+
     [Parameter] public Guid Id { get; set; }
 
     private CalendarOwnerInfo? _owner;
+    private bool _isSysadmin;
+    private string? _accessDeniedMessage;
     private List<ProfileViewModel> _profiles = [];
 
     private readonly List<PluginOption> _pluginOptions = [];
@@ -37,6 +44,8 @@ public partial class CalendarOwnerDetail
     private string? _ownerSyncMessage;
     private MessageIntent _ownerSyncMessageIntent = MessageIntent.Info;
 
+    private string BackLink => _isSysadmin ? "/calendar-owners" : "/";
+
     private PluginOption? SelectedPluginOption
     {
         get => _selectedPluginOption;
@@ -49,9 +58,30 @@ public partial class CalendarOwnerDetail
 
     protected override async Task OnInitializedAsync()
     {
+        var currentUser = await CurrentUserContextAccessor.GetCurrentAsync();
+        _isSysadmin = currentUser.IsSysadmin;
+
+        if (!_isSysadmin)
+        {
+            if (currentUser.CalendarOwnerId is null)
+            {
+                _accessDeniedMessage = "No calendar owner mapping exists for your signed-in account.";
+                return;
+            }
+
+            if (currentUser.CalendarOwnerId != Id)
+            {
+                _accessDeniedMessage = "You are not authorized to view this calendar owner.";
+                return;
+            }
+        }
+
         _owner = await CalendarOwnerService.GetByIdAsync(Id);
         if (_owner is null)
+        {
+            _accessDeniedMessage = "Calendar owner was not found.";
             return;
+        }
 
         LoadPluginCatalog();
         await LoadSourceInstancesAsync();

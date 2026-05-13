@@ -14,14 +14,24 @@ public class StatusControllerTests
     private static readonly CustomWebApplicationFactory Factory = new("Development", useTestAuthentication: true);
 
     [TestMethod]
-    public async Task GetStatus_ReturnsOk_WhenAuthenticated()
+    public async Task GetStatus_ReturnsOk_WhenCallerHasSysadminRole()
     {
-        var client = Factory.CreateAuthenticatedClient();
+        var client = Factory.CreateAuthenticatedClientWithRoles(TestAuthHandler.DefaultObjectId, "Sysadmin");
         await Factory.SeedCalendarOwnerAsync(TestAuthHandler.DefaultObjectId);
 
         var response = await client.GetAsync("/api/status");
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task GetStatus_ReturnsForbidden_WhenCallerLacksSysadminRole()
+    {
+        var client = Factory.CreateAuthenticatedClient();
+
+        var response = await client.GetAsync("/api/status");
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [TestMethod]
@@ -37,7 +47,7 @@ public class StatusControllerTests
     [TestMethod]
     public async Task GetStatus_ReturnsEmptyArray_WhenNoCalendarOwners()
     {
-        var client = Factory.CreateAuthenticatedClient();
+        var client = Factory.CreateAuthenticatedClientWithRoles(TestAuthHandler.DefaultObjectId, "Sysadmin");
 
         var response = await client.GetAsync("/api/status");
 
@@ -49,7 +59,7 @@ public class StatusControllerTests
     [TestMethod]
     public async Task GetStatus_IncludesCalendarOwnerFields()
     {
-        var client = Factory.CreateAuthenticatedClient();
+        var client = Factory.CreateAuthenticatedClientWithRoles(TestAuthHandler.DefaultObjectId, "Sysadmin");
         var ownerId = await Factory.SeedCalendarOwnerAsync(TestAuthHandler.DefaultObjectId, name: "Status Test Owner");
 
         var response = await client.GetAsync("/api/status");
@@ -66,7 +76,7 @@ public class StatusControllerTests
     [TestMethod]
     public async Task GetStatus_IncludesPeerConnectionStatus()
     {
-        var client = Factory.CreateAuthenticatedClient();
+        var client = Factory.CreateAuthenticatedClientWithRoles(TestAuthHandler.DefaultObjectId, "Sysadmin");
         var ownerId = await Factory.SeedCalendarOwnerAsync(TestAuthHandler.DefaultObjectId);
         await Factory.SeedCalendarOwnerPeerMappingAsync(ownerId, Guid.NewGuid());
 
@@ -85,7 +95,7 @@ public class StatusControllerTests
     public async Task GetStatus_NullTimestamps_WhenNeverSynced()
     {
         var uniqueObjectId = Guid.NewGuid().ToString();
-        var client = Factory.CreateAuthenticatedClient();
+        var client = Factory.CreateAuthenticatedClientWithRoles(TestAuthHandler.DefaultObjectId, "Sysadmin");
         var ownerId = await Factory.SeedCalendarOwnerAsync(uniqueObjectId, name: "Null Timestamp Owner");
 
         var response = await client.GetAsync("/api/status");
@@ -104,7 +114,7 @@ public class StatusControllerTests
     public async Task GetStatus_IncludesPeerLastSyncMetadata()
     {
         var uniqueObjectId = Guid.NewGuid().ToString();
-        var client = Factory.CreateAuthenticatedClient(uniqueObjectId);
+        var client = Factory.CreateAuthenticatedClientWithRoles(TestAuthHandler.DefaultObjectId, "Sysadmin");
         var ownerId = await Factory.SeedCalendarOwnerAsync(uniqueObjectId, name: "Peer Metadata Owner");
         await Factory.SeedCalendarOwnerPeerMappingAsync(
             ownerId,

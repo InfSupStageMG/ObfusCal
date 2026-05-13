@@ -14,14 +14,25 @@ public class SyncControllerTests
     private static readonly CustomWebApplicationFactory Factory = new("Development", useTestAuthentication: true);
 
     [TestMethod]
-    public async Task GetPeerSyncStatus_ReturnsOk_WhenAuthenticated()
+    public async Task GetPeerSyncStatus_ReturnsOk_WhenCallerHasSysadminRole()
     {
-        var client = Factory.CreateAuthenticatedClient();
+        var client = Factory.CreateAuthenticatedClientWithRoles(
+            TestAuthHandler.DefaultObjectId, "Sysadmin");
         await Factory.SeedCalendarOwnerAsync(TestAuthHandler.DefaultObjectId);
 
         var response = await client.GetAsync("/api/sync/peers");
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task GetPeerSyncStatus_ReturnsForbidden_WhenCallerLacksSysadminRole()
+    {
+        var client = Factory.CreateAuthenticatedClient();
+
+        var response = await client.GetAsync("/api/sync/peers");
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [TestMethod]

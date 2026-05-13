@@ -1,10 +1,13 @@
 ﻿using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
 using ObfusCal.Infrastructure.Security;
@@ -43,6 +46,7 @@ public sealed class CustomWebApplicationFactory(
                 ["AzureAd:TenantId"] = "11111111-1111-1111-1111-111111111111",
                 ["AzureAd:Domain"] = "internshipcompany.onmicrosoft.com",
                 ["AzureAd:ClientId"] = "22222222-2222-2222-2222-222222222222",
+                ["AzureAd:ClientSecret"] = "integration-test-web-client-secret",
                 ["GraphConsent:ApiBaseUrl"] = "https://graph.microsoft.com",
                 ["GraphConsent:Scope"] = "https://graph.microsoft.com/Calendars.Read offline_access",
                 ["GraphConsent:ClientId"] = "33333333-3333-3333-3333-333333333333",
@@ -87,6 +91,20 @@ public sealed class CustomWebApplicationFactory(
                 services.Remove(graphTokenClientDescriptor);
 
             services.AddSingleton<IGraphOAuthTokenClient, FakeGraphOAuthTokenClient>();
+
+            services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+            {
+                var configuration = new OpenIdConnectConfiguration
+                {
+                    Issuer = "https://login.microsoftonline.com/test-tenant/v2.0",
+                    AuthorizationEndpoint = "https://login.microsoftonline.com/test-tenant/oauth2/v2.0/authorize",
+                    TokenEndpoint = "https://login.microsoftonline.com/test-tenant/oauth2/v2.0/token",
+                    EndSessionEndpoint = "https://login.microsoftonline.com/test-tenant/oauth2/v2.0/logout"
+                };
+
+                options.Configuration = configuration;
+                options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(configuration);
+            });
 
             if (!useTestAuthentication) return;
             services.AddAuthentication(options =>

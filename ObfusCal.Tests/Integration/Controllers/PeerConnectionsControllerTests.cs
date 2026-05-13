@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using ObfusCal.Api.Controllers;
 using ObfusCal.Application.Interfaces;
@@ -89,6 +90,28 @@ public class PeerConnectionsControllerTests
             TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task RequestPeerConnection_AutoProvisionsCalendarOwner_WhenMissing()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/peer-connections/request",
+            new PeerConnectionsController.RequestPeerConnectionRequest("Contoso"),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var owner = await dbContext.CalendarOwners.SingleOrDefaultAsync(o => o.EntraObjectId == objectId, TestContext.CancellationToken);
+
+        Assert.IsNotNull(owner);
+        Assert.AreEqual(objectId, owner.EntraObjectId);
     }
 
     [TestMethod]

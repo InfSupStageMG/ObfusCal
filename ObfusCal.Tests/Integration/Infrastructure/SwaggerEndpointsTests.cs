@@ -60,6 +60,20 @@ public class SwaggerEndpointsTests
     }
 
     [TestMethod]
+    public async Task Development_SwaggerUi_ContainsConfiguredOAuthClientAndRedirectUri()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development");
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/swagger/index.js", TestContext.CancellationToken);
+        var script = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("\"clientId\":\"", script);
+        Assert.Contains("https://localhost:7001/swagger/oauth2-redirect.html", script);
+    }
+
+    [TestMethod]
     public async Task Production_SwaggerEndpoints_AreNotAccessible()
     {
         await using var factory = new CustomWebApplicationFactory("Production");

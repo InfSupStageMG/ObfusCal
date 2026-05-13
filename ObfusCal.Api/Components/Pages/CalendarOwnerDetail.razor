@@ -1,4 +1,5 @@
 ﻿@page "/calendar-owners/{Id:guid}"
+@attribute [Authorize]
 @using ObfusCal.Application.Interfaces
 @inject ICalendarOwnerService CalendarOwnerService
 @inject ICalendarSourceCatalog CalendarSourceCatalog
@@ -12,13 +13,19 @@
 <PageTitle>Calendar Owner - ObfusCal</PageTitle>
 
 <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center">
-    <FluentButton Appearance="Appearance.Lightweight" OnClick="@(() => Navigation.NavigateTo("/calendar-owners"))">
+    <FluentButton Appearance="Appearance.Lightweight" OnClick="@(() => Navigation.NavigateTo(BackLink))">
         ← Back
     </FluentButton>
     <h1>@(_owner?.Name ?? "Calendar Owner")</h1>
 </FluentStack>
 
-@if (_owner is null)
+@if (_accessDeniedMessage is not null)
+{
+    <FluentMessageBar Intent="MessageIntent.Error" Title="Access denied">
+        @_accessDeniedMessage
+    </FluentMessageBar>
+}
+else if (_owner is null)
 {
     <FluentProgress/>
 }

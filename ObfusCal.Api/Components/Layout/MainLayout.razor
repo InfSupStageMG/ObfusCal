@@ -1,11 +1,31 @@
 ﻿@inherits LayoutComponentBase
 @using FluentIcons = Microsoft.FluentUI.AspNetCore.Components.Icons
+@inject NavigationManager Navigation
 
 <FluentDesignTheme Mode="DesignThemeModes.Light" CustomColor="#0078d4" />
 
 <FluentLayout>
-    <FluentHeader>
-        ObfusCal
+    <FluentHeader Class="layout-header">
+        <div class="layout-header-bar">
+            <span class="layout-brand">ObfusCal</span>
+            <AuthorizeView>
+                <Authorized>
+                    <div class="layout-account layout-account--authenticated">
+                        <div class="layout-account-identity">
+                            <span class="layout-account-label">Signed in as</span>
+                            <span class="layout-user-name" title="@context.User.GetIdentityTooltip()">@context.User.GetPreferredDisplayName()</span>
+                        </div>
+                        <button type="button" class="layout-account-action" @onclick="NavigateToSwitchUser">Switch user</button>
+                        <button type="button" class="layout-account-action" @onclick="NavigateToLogout">Sign out</button>
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <div class="layout-account">
+                        <button type="button" class="layout-account-action layout-account-action--primary" @onclick="NavigateToLogin">Sign in</button>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
     </FluentHeader>
 
     <FluentStack Orientation="Orientation.Horizontal" Class="layout-body">
@@ -13,18 +33,11 @@
             <FluentNavLink Href="/" Icon="@(new FluentIcons.Regular.Size20.CalendarLtr())" Match="NavLinkMatch.All">
                 Dashboard
             </FluentNavLink>
-            <FluentNavLink Href="/calendar-owners" Icon="@(new FluentIcons.Regular.Size20.People())">
-                Calendar Owners
-            </FluentNavLink>
-            <FluentNavLink Href="/peers" Icon="@(new FluentIcons.Regular.Size20.Globe())">
-                Peer Connections
-            </FluentNavLink>
-            <FluentNavLink Href="/sync-status" Icon="@(new FluentIcons.Regular.Size20.ArrowSync())">
-                Sync Status
-            </FluentNavLink>
-            <FluentNavLink Href="/health-status" Icon="@(new FluentIcons.Regular.Size20.HeartPulse())">
-                Health Status
-            </FluentNavLink>
+            <AuthorizeView>
+                <Authorized>
+                    <UserNavigationLinks />
+                </Authorized>
+            </AuthorizeView>
         </FluentNavMenu>
 
         <FluentBodyContent Class="layout-content-host">
@@ -37,6 +50,17 @@
 
 <FluentToastProvider />
 <FluentDialogProvider />
+
+@code {
+    private void NavigateToLogin()
+        => Navigation.NavigateTo("/account/login?returnUrl=%2F", forceLoad: true);
+
+    private void NavigateToSwitchUser()
+        => Navigation.NavigateTo("/account/switch?returnUrl=%2F", forceLoad: true);
+
+    private void NavigateToLogout()
+        => Navigation.NavigateTo("/account/logout?returnUrl=%2F", forceLoad: true);
+}
 
 
 

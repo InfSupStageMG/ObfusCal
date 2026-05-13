@@ -1,12 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
+using ObfusCal.Api.Authorization;
 using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = "Sysadmin")]
+[Authorize(Policy = AppAuthorizationPolicies.Sysadmin)]
 [Route("api/admin/peer-connections")]
 public sealed class AdminPeerConnectionsController(IPeerConnectionService peerConnectionService) : ControllerBase
 {

@@ -42,6 +42,7 @@ public sealed class TestAuthHandler(
             foreach (var role in rolesHeader.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
                 claims.Add(new Claim(ClaimTypes.Role, role));
+                claims.Add(new Claim("roles", role));
             }
         }
 

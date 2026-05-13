@@ -2,7 +2,7 @@
   "profiles": {
     "InstanceA": {
       "commandName": "Project",
-      "applicationUrl": "http://localhost:5001",
+      "applicationUrl": "https://localhost:7001;http://localhost:5001",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "Sync__InstanceId": "A"
@@ -10,7 +10,7 @@
     },
     "InstanceB": {
       "commandName": "Project",
-      "applicationUrl": "http://localhost:5002",
+      "applicationUrl": "https://localhost:7002;http://localhost:5002",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "Sync__InstanceId": "B"

@@ -1,13 +1,16 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.CookiePolicy;
-using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.FluentUI.AspNetCore.Components;
 using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.OpenApi;
+using ObfusCal.Api;
 using ObfusCal.Api.Authentication;
 using ObfusCal.Api.Authorization;
 using ObfusCal.Api.Components;
@@ -16,7 +19,6 @@ using ObfusCal.Api.RateLimiting;
 using ObfusCal.Application;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
-using ObfusCal.Application.UseCases.Validation;
 using ObfusCal.Infrastructure;
 using ObfusCal.Infrastructure.Security;
 using Serilog;
@@ -30,6 +32,8 @@ DotEnvLoader.Load(Path.Join(AppContext.BaseDirectory, ".env"));
 
 try
 {
+    const string appAuthenticationScheme = "AppAuthentication";
+
     var builder = WebApplication.CreateBuilder(args);
     var azureAdSection = builder.Configuration.GetSection("AzureAd");
     var azureAdInstance = (azureAdSection["Instance"] ?? "https://login.microsoftonline.com/").TrimEnd('/');
@@ -37,12 +41,14 @@ try
     var azureAdClientId = azureAdSection["ClientId"] ?? "00000000-0000-0000-0000-000000000000";
     var swaggerOAuthClientId = builder.Configuration["Swagger:OAuth:ClientId"] ?? azureAdClientId;
     var swaggerOAuthScope = builder.Configuration["Swagger:OAuth:Scope"] ?? $"api://{azureAdClientId}/access_as_user";
+    var swaggerOAuthRedirectUri = builder.Configuration["Swagger:OAuth:RedirectUri"];
     var authorizationUrl = new Uri($"{azureAdInstance}/{azureAdTenantId}/oauth2/v2.0/authorize");
     var tokenUrl = new Uri($"{azureAdInstance}/{azureAdTenantId}/oauth2/v2.0/token");
 
     builder.WebHost.ConfigureKestrel((context, options) =>
     {
-        var syncOptions = context.Configuration.GetSection(SyncOptions.SectionName).Get<SyncOptions>() ?? new SyncOptions();
+        var syncOptions = context.Configuration.GetSection(SyncOptions.SectionName).Get<SyncOptions>() ??
+                          new SyncOptions();
         options.Limits.MaxRequestBodySize = syncOptions.MaxRequestBodySizeBytes;
     });
 
@@ -55,40 +61,62 @@ try
         .AddInfrastructure(builder.Configuration)
         .AddApplication();
 
-    builder.Services
-        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    builder.Services.AddHttpContextAccessor();
+
+    var authenticationBuilder = builder.Services
+        .AddAuthentication(options =>
+        {
+            options.DefaultScheme = appAuthenticationScheme;
+            options.DefaultAuthenticateScheme = appAuthenticationScheme;
+            options.DefaultChallengeScheme = appAuthenticationScheme;
+        })
+        .AddPolicyScheme(appAuthenticationScheme, "ObfusCal application authentication",
+            options => { options.ForwardDefaultSelector = ProgramSetup.SelectAuthenticationScheme; })
         .AddScheme<AuthenticationSchemeOptions, PeerApiKeyAuthenticationHandler>(
             PeerApiKeyAuthenticationDefaults.SchemeName,
-            _ => { })
-        .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+            _ => { });
+
+    authenticationBuilder.AddMicrosoftIdentityWebApi(
+        builder.Configuration.GetSection("AzureAd"),
+        jwtBearerScheme: JwtBearerDefaults.AuthenticationScheme);
+
+    authenticationBuilder.AddMicrosoftIdentityWebApp(
+        builder.Configuration.GetSection("AzureAd"),
+        openIdConnectScheme: OpenIdConnectDefaults.AuthenticationScheme,
+        cookieScheme: CookieAuthenticationDefaults.AuthenticationScheme);
+
+    builder.Services.Configure<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme,
+        options =>
+        {
+            options.LoginPath = "/account/login";
+            options.LogoutPath = "/account/logout";
+            options.AccessDeniedPath = "/account/access-denied";
+            options.SlidingExpiration = true;
+        });
+
+    builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+    {
+        options.UsePkce = true;
+        options.ResponseType = OpenIdConnectResponseType.Code;
+        options.SaveTokens = false;
+    });
 
     builder.Services.AddRateLimiter(options =>
     {
-        var syncOptions = builder.Configuration.GetSection(SyncOptions.SectionName).Get<SyncOptions>() ?? new SyncOptions();
+        var syncOptions = builder.Configuration.GetSection(SyncOptions.SectionName).Get<SyncOptions>() ??
+                          new SyncOptions();
         PeerRateLimiting.Configure(options, syncOptions);
     });
 
-    builder.Services.AddHostedService(provider =>
+    builder.Services.AddHostedService(_ =>
     {
         var evictionInterval = TimeSpan.FromMinutes(1);
         return new RateLimitBucketEvictionService(evictionInterval);
     });
 
-    builder.Services.AddAuthorization(options =>
-    {
-        options.AddPolicy(PeerApiAuthorizationPolicies.PushShadowSlots, policy =>
-        {
-            policy.AddAuthenticationSchemes(PeerApiKeyAuthenticationDefaults.SchemeName);
-            policy.RequireClaim(PeerApiKeyClaimTypes.Scope, PeerApiScopes.PushShadowSlots);
-        });
-
-        options.AddPolicy(PeerApiAuthorizationPolicies.PullBusySlots, policy =>
-        {
-            policy.AddAuthenticationSchemes(PeerApiKeyAuthenticationDefaults.SchemeName);
-            policy.RequireClaim(PeerApiKeyClaimTypes.Scope, PeerApiScopes.PullBusySlots);
-        });
-    });
+    builder.Services.AddAuthorization(ProgramSetup.ConfigureAuthorizationPolicies);
     builder.Services.AddScoped<CalendarOwnerAccessEvaluator>();
+    builder.Services.AddScoped<CurrentUserContextAccessor>();
     builder.Services.AddScoped(provider => new CalendarConsentServices(
         provider.GetRequiredService<ICalendarOwnerGraphConsentService>(),
         provider.GetRequiredService<ICalendarOwnerGoogleConsentService>()));
@@ -116,7 +144,11 @@ try
     {
         options.HttpOnly = HttpOnlyPolicy.Always;
         options.Secure = CookieSecurePolicy.Always;
-        options.MinimumSameSitePolicy = SameSiteMode.Lax;
+        // Do NOT set MinimumSameSitePolicy to Lax here. The OIDC correlation and nonce cookies
+        // must be SameSite=None so they are sent back on Microsoft's cross-site POST to /signin-oidc.
+        // Upgrading them to Lax causes "Correlation failed" because cross-site POSTs never carry Lax cookies.
+        // The auth session cookie (.AspNetCore.Cookies) defaults to Lax on its own, so that remains protected.
+        options.MinimumSameSitePolicy = SameSiteMode.Unspecified;
     });
 
     builder.Services.AddEndpointsApiExplorer();
@@ -150,6 +182,7 @@ try
         });
     });
     builder.Services.AddHealthChecks();
+    builder.Services.AddCascadingAuthenticationState();
 
     builder.Services.AddRazorComponents()
         .AddInteractiveServerComponents();
@@ -168,7 +201,8 @@ try
 
     var forwardedHeadersOptions = new ForwardedHeadersOptions
     {
-        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedHost |
+                           ForwardedHeaders.XForwardedProto
     };
     forwardedHeadersOptions.KnownIPNetworks.Clear();
     forwardedHeadersOptions.KnownProxies.Clear();
@@ -178,58 +212,9 @@ try
     app.UseStaticFiles();
     app.UseCookiePolicy();
 
-    app.Use(async (context, next) =>
-    {
-        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-        context.Response.Headers["X-Frame-Options"] = "DENY";
-        context.Response.Headers["Referrer-Policy"] = "no-referrer";
-        await next();
-    });
+    app.UseMiddleware<SecurityHeadersMiddleware>();
 
-    app.UseExceptionHandler(exceptionApp =>
-    {
-        exceptionApp.Run(async context =>
-        {
-            var exceptionFeature = context.Features.Get<IExceptionHandlerPathFeature>();
-            if (exceptionFeature?.Error is RequestValidationException requestValidationException)
-            {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                context.Response.ContentType = "application/problem+json";
-
-                var validationProblem = new ValidationProblemDetails(requestValidationException.Errors.ToDictionary(kvp => kvp.Key, kvp => kvp.Value))
-                {
-                    Status = StatusCodes.Status400BadRequest,
-                    Title = "One or more validation errors occurred."
-                };
-                validationProblem.Extensions["traceId"] = context.TraceIdentifier;
-
-                await context.Response.WriteAsJsonAsync(validationProblem);
-                return;
-            }
-
-            var redactor = context.RequestServices.GetRequiredService<ILogRedactor>();
-            var exception = exceptionFeature?.Error;
-            var redactedMessage = redactor.Redact(exception?.Message ?? "Unhandled exception");
-
-            Log.ForContext("RequestMethod", context.Request.Method)
-                .ForContext("RequestPath", exceptionFeature?.Path ?? context.Request.Path.Value)
-                .ForContext("TraceId", context.TraceIdentifier)
-                .Error(exception, "Unhandled exception while processing HTTP request: {RedactedMessage}", redactedMessage);
-
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            context.Response.ContentType = "application/problem+json";
-
-            await context.Response.WriteAsJsonAsync(new ProblemDetails
-            {
-                Status = StatusCodes.Status500InternalServerError,
-                Title = "An unexpected error occurred.",
-                Extensions =
-                {
-                    ["traceId"] = context.TraceIdentifier
-                }
-            });
-        });
-    });
+    app.UseExceptionHandler(exceptionApp => exceptionApp.Run(ProgramSetup.HandleExceptionAsync));
 
     if (app.Environment.IsDevelopment())
     {
@@ -239,6 +224,7 @@ try
             options.OAuthClientId(swaggerOAuthClientId);
             options.OAuthUsePkce();
             options.OAuthScopes(swaggerOAuthScope);
+            ProgramSetup.ConfigureSwaggerUi(options, swaggerOAuthRedirectUri);
         });
     }
     else
@@ -250,32 +236,7 @@ try
     app.UseAuthentication();
     app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"), apiApp =>
     {
-        apiApp.Use(async (context, next) =>
-        {
-            var syncOptions = context.RequestServices.GetRequiredService<IOptions<SyncOptions>>().Value;
-
-            if (syncOptions.MaxRequestBodySizeBytes > 0 &&
-                context.Request.ContentLength is { } contentLength &&
-                contentLength > syncOptions.MaxRequestBodySizeBytes)
-            {
-                context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
-                context.Response.ContentType = "application/problem+json";
-
-                await context.Response.WriteAsJsonAsync(new ProblemDetails
-                {
-                    Status = StatusCodes.Status413PayloadTooLarge,
-                    Title = "Request body exceeds the maximum allowed size."
-                });
-                return;
-            }
-
-            await PeerRateLimiting.CapturePeerIdentityForRateLimitingAsync(context);
-
-            if (await PeerRateLimiting.TryEnforceApiRequestRateLimitsAsync(context, syncOptions))
-                return;
-
-            await next();
-        });
+        apiApp.Use(ProgramSetup.HandleApiRequestAsync);
 
         apiApp.UseRateLimiter();
     });
@@ -299,3 +260,4 @@ finally
 {
     await Log.CloseAndFlushAsync();
 }
+

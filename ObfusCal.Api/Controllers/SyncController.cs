@@ -2,29 +2,20 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web;
 using System.ComponentModel.DataAnnotations;
+using ObfusCal.Api.Authorization;
 using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = AppAuthorizationPolicies.Sysadmin)]
 [Route("api/sync")]
 public sealed class SyncController(
-    IPeerConnectionService peerConnectionService,
     IServiceScopeFactory scopeFactory,
     ILogger<SyncController> logger) : ControllerBase
 {
-    [HttpGet("peers")]
-    [ProducesResponseType(typeof(IReadOnlyList<PeerSyncStatus>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetPeerSyncStatus(CancellationToken ct)
-    {
-        var peers = await peerConnectionService.ListSyncStatusAsync(ct);
-        return Ok(peers);
-    }
 
     [HttpPost("trigger")]
-    [Authorize(Roles = "Sysadmin")]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

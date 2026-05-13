@@ -19,7 +19,8 @@ services:
     image: nginx:1.30-alpine
     container_name: obfuscal-proxy
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"
@@ -48,6 +49,7 @@ services:
       - ConnectionStrings__DefaultConnection=Host=db;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       - AZUREAD__TENANTID=${AZUREAD__TENANTID}
       - AZUREAD__CLIENTID=${AZUREAD__CLIENTID}
+      - AZUREAD__CLIENTSECRET=${AZUREAD__CLIENTSECRET}
       - GRAPHCONSENT__CLIENTID=${GRAPHCONSENT__CLIENTID}
       - GRAPHCONSENT__CLIENTSECRET=${GRAPHCONSENT__CLIENTSECRET}
       - GOOGLECONSENT__CLIENTID=${GOOGLECONSENT__CLIENTID}

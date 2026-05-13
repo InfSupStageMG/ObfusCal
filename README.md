@@ -89,6 +89,20 @@ openssl pkcs12 -export `
 
 2. Create a `.env` file from `.env.example` and fill in the values.
 
+   Browser sign-in for the Blazor UI now uses Entra ID OpenID Connect on the server side, so the Entra app registration
+   must include a web redirect URI for `https://localhost:7001/signin-oidc` (and any reverse-proxy hostnames you use)
+   and you must provide `AZUREAD__CLIENTSECRET`.
+
+   On the first successful browser sign-in, ObfusCal automatically provisions a `CalendarOwner` record keyed by the
+   user's Entra object ID. After you are signed in, the header also exposes a **Switch user** action that reopens the
+   Entra account picker without requiring a manual sign-out first.
+
+   The Blazor UI is role-aware:
+
+   - normal users see the dashboard, their own calendar-owner settings, and a read-only **My Peers** view for their
+     peer request / approval status
+   - sysadmins see global **Calendar Owners**, **Peer Connections**, **Sync Status**, and **Health Status** views
+
    For Google Calendar OAuth, set `GOOGLECONSENT__REDIRECTURI` to a Google-registered callback such as
    `https://localhost/consent-callback` or a public HTTPS URI. Do not use `https://obfuscal.local/consent-callback`
    for Google OAuth — Google rejects `.local` redirect domains.
@@ -140,7 +154,15 @@ docker compose up -d db
 dotnet run --project ObfusCal.Api
 ```
 
-3. Open `http://localhost:5001/swagger`.
+3. Open `https://localhost:7001/swagger`.
+
+   For local OAuth testing:
+
+    - use `https://localhost:7001/` to exercise browser SSO for the Blazor UI (`/signin-oidc` callback)
+    - use `https://localhost:7001/swagger` to exercise bearer-token API testing in Swagger (
+      `/swagger/oauth2-redirect.html` callback)
+
+   After browser sign-in completes, the app will auto-create the matching calendar owner if it does not already exist.
 
 ---
 
@@ -218,6 +240,10 @@ startup.
 
 Environment variable names use the standard double-underscore mapping (for example `GRAPHCONSENT__CLIENTSECRET` and
 `CONNECTIONSTRINGS__DEFAULTCONNECTION`).
+
+For browser SSO, `AZUREAD__CLIENTSECRET` is required at startup together with `AZUREAD__TENANTID` and
+`AZUREAD__CLIENTID`. The Entra app registration must allow both the server-side web callback (`/signin-oidc`) and any
+Swagger OAuth redirect URI you configure.
 
 ## HTTP security defaults
 
