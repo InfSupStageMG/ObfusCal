@@ -9,7 +9,7 @@ public sealed class CurrentUserContextAccessor(
     ICalendarOwnerProvisioningService calendarOwnerProvisioningService)
 {
     private readonly SemaphoreSlim _resolutionLock = new(1, 1);
-    private CurrentUserContext? _cachedContext;
+    private volatile CurrentUserContext? _cachedContext;
 
     public async Task<CurrentUserContext> GetCurrentAsync(CancellationToken ct = default)
     {

@@ -21,10 +21,10 @@ internal static class ProgramSetup
         if (!context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
             return CookieAuthenticationDefaults.AuthenticationScheme;
 
-        return AuthenticationHeaderValue.TryParse(context.Request.Headers.Authorization, out var authorizationHeader)
-               && string.Equals(authorizationHeader.Scheme, PeerApiKeyAuthenticationDefaults.SchemeName, StringComparison.OrdinalIgnoreCase)
-            ? PeerApiKeyAuthenticationDefaults.SchemeName
-            : JwtBearerDefaults.AuthenticationScheme;
+        if (!AuthenticationHeaderValue.TryParse(context.Request.Headers.Authorization, out var authorizationHeader))
+            return JwtBearerDefaults.AuthenticationScheme;
+
+        return string.Equals(authorizationHeader.Scheme, PeerApiKeyAuthenticationDefaults.SchemeName, StringComparison.OrdinalIgnoreCase) ? PeerApiKeyAuthenticationDefaults.SchemeName : JwtBearerDefaults.AuthenticationScheme;
     }
 
     public static void ConfigureAuthorizationPolicies(Microsoft.AspNetCore.Authorization.AuthorizationOptions options)
