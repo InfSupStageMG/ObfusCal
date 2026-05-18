@@ -1,11 +1,11 @@
 ﻿@page "/consent-callback"
+@rendermode RenderMode
 @attribute [Authorize]
 @using ObfusCal.Application.Interfaces
 @using System.Collections.Concurrent
+@using Microsoft.Extensions.DependencyInjection
 @using Microsoft.Extensions.Logging
-@inject ICalendarOwnerGoogleConsentService GoogleConsentService
-@inject ICalendarOwnerGraphConsentService GraphConsentService
-@inject NavigationManager Navigation
+@inject IServiceScopeFactory ConsentScopeFactory
 @inject ILogger<ConsentCallback> Logger
 
 <PageTitle>Authorizing… - ObfusCal</PageTitle>
@@ -42,6 +42,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (!RendererInfo.IsInteractive)
+            return;
+
         var shouldReleaseState = false;
         string? stateToken = null;
 
@@ -72,13 +75,19 @@
 
             try
             {
+                await using var consentScope = ConsentScopeFactory.CreateAsyncScope();
+
                 if (isGraphConsent)
                 {
-                    await GraphConsentService.CompleteConsentFromStateAsync(Code, State);
+                    var graphService = consentScope.ServiceProvider
+                        .GetRequiredService<ICalendarOwnerGraphConsentService>();
+                    await graphService.CompleteConsentFromStateAsync(Code, State);
                 }
                 else
                 {
-                    await GoogleConsentService.CompleteConsentFromStateAsync(Code, State);
+                    var googleService = consentScope.ServiceProvider
+                        .GetRequiredService<ICalendarOwnerGoogleConsentService>();
+                    await googleService.CompleteConsentFromStateAsync(Code, State);
                 }
 
                 shouldReleaseState = false; // keep state locked so duplicate callbacks are no-ops
@@ -103,9 +112,8 @@
         }
     }
 
-    private static bool IsStateValidationFailure(string message)
-        => message.Contains("state", StringComparison.OrdinalIgnoreCase)
-           || (message.Contains("expired", StringComparison.OrdinalIgnoreCase)
-               && message.Contains("consent", StringComparison.OrdinalIgnoreCase));
+    internal static bool IsStateValidationFailure(string message)
+        => message.Contains("consent state", StringComparison.OrdinalIgnoreCase)
+           || message.StartsWith("State is required", StringComparison.OrdinalIgnoreCase);
 }
 
