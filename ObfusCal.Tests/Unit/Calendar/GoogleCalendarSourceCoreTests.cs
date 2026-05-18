@@ -104,7 +104,7 @@ public class GoogleCalendarSourceCoreTests
                 SerializeSecret(secretProtector, "access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))));
         Assert.IsNotNull(created);
 
-        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(
                 """
@@ -133,7 +133,8 @@ public class GoogleCalendarSourceCoreTests
                 """,
                 Encoding.UTF8,
                 "application/json")
-        }));
+        };
+        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(response));
         using var httpClient = new HttpClient(handler);
 
         var source = CreateSource(

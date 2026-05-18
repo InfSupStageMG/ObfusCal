@@ -295,16 +295,23 @@ public class CalendarOwnerAvailabilitySyncServiceTests
         await dbContext.SaveChangesAsync();
 
         var requests = new List<(HttpMethod Method, string Path)>();
+        static Task<HttpResponseMessage> CreateOkGraphResponse()
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("{\"value\":[]}", Encoding.UTF8, "application/json")
+            };
+
+            return Task.FromResult(response);
+        }
+
         var source = CreateGraphSource(
             dbContext,
             dataProtectionProvider,
             request =>
             {
                 requests.Add((request.Method, request.RequestUri!.AbsolutePath));
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent("{\"value\":[]}", Encoding.UTF8, "application/json")
-                });
+                return CreateOkGraphResponse();
             });
 
         var service = CreateService(

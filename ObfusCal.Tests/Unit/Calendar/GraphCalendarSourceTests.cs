@@ -267,6 +267,7 @@ public class GraphCalendarSourceTests
         };
 
         var seenTokens = new List<string?>();
+        var createdResponses = new List<HttpResponseMessage>();
         var handler = new DelegatingHttpMessageHandler(request =>
         {
             var token = request.Headers.Authorization?.Parameter;
@@ -274,7 +275,11 @@ public class GraphCalendarSourceTests
 
             var requestUri = request.RequestUri!.ToString();
             if (seenTokens.Count == 1)
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized));
+            {
+                var unauthorized = new HttpResponseMessage(HttpStatusCode.Unauthorized);
+                createdResponses.Add(unauthorized);
+                return Task.FromResult(unauthorized);
+            }
 
             if (!requestUri.Contains("$skiptoken=page2", StringComparison.Ordinal))
             {
@@ -291,10 +296,12 @@ public class GraphCalendarSourceTests
                                            "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/calendarView?$skiptoken=page2"
                                          }
                                          """;
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                var page1Response = new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent(page1Json, Encoding.UTF8, "application/json")
-                });
+                };
+                createdResponses.Add(page1Response);
+                return Task.FromResult(page1Response);
             }
 
             const string page2Json = """
@@ -309,10 +316,12 @@ public class GraphCalendarSourceTests
                                        ]
                                      }
                                      """;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            var page2Response = new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(page2Json, Encoding.UTF8, "application/json")
-            });
+            };
+            createdResponses.Add(page2Response);
+            return Task.FromResult(page2Response);
         });
 
         var source = CreateSource(
@@ -334,6 +343,10 @@ public class GraphCalendarSourceTests
         Assert.HasCount(2, events);
         Assert.AreEqual("Page 1 event", events[0].Title);
         Assert.AreEqual("Page 2 event", events[1].Title);
+        foreach (var response in createdResponses)
+        {
+            response.Dispose();
+        }
     }
 
     [TestMethod]
@@ -454,6 +467,14 @@ public class GraphCalendarSourceTests
                                   """;
 
         var requestLog = new List<string>();
+        static HttpResponseMessage CreateJsonOkResponse(string payload)
+        {
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(payload, Encoding.UTF8, "application/json")
+            };
+        }
+
         var handler = new DelegatingHttpMessageHandler(request =>
         {
             var url = request.RequestUri!.ToString();
@@ -464,18 +485,12 @@ public class GraphCalendarSourceTests
                 // First page: one event and a nextLink pointing to page 2
                 var json =
                     $$"""{"value":[{{page1Event}}],"@odata.nextLink":"https://graph.microsoft.com/v1.0/me/calendarView?$skiptoken=page2"}""";
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent(json, Encoding.UTF8, "application/json")
-                });
+                return Task.FromResult(CreateJsonOkResponse(json));
             }
 
             // Page 2: one more event, no nextLink
             var page2Json = $$"""{"value":[{{page2Event}}]}""";
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(page2Json, Encoding.UTF8, "application/json")
-            });
+            return Task.FromResult(CreateJsonOkResponse(page2Json));
         });
 
         using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
@@ -691,13 +706,15 @@ public class GraphCalendarSourceTests
             requestLog.Add((request.Method, request.RequestUri!.ToString()));
             if (request.Method == HttpMethod.Get)
             {
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                var response = new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent(managedEventsJson, Encoding.UTF8, "application/json")
-                });
+                };
+                return Task.FromResult(response);
             }
 
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
+            var noContentResponse = new HttpResponseMessage(HttpStatusCode.NoContent);
+            return Task.FromResult(noContentResponse);
         });
 
         using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
