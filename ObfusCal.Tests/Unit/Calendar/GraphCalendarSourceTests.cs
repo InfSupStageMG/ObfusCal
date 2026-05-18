@@ -262,7 +262,7 @@ public class GraphCalendarSourceTests
         await dbContext.SaveChangesAsync();
 
         const string managedPropId = "String {e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0} Name ObfusCal.Managed";
-        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        using var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(
                 $$"""
@@ -289,10 +289,11 @@ public class GraphCalendarSourceTests
                 Encoding.UTF8,
                 "application/json")
         }));
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
 
         var source = CreateSource(
             dbContext,
-            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            httpClient,
             new StubGraphOAuthTokenClient(),
             new CapturingLogger<GraphCalendarSource>(),
             dataProtectionProvider);

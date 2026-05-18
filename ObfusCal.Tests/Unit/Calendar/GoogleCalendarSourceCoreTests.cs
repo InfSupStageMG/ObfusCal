@@ -134,13 +134,14 @@ public class GoogleCalendarSourceCoreTests
                 Encoding.UTF8,
                 "application/json")
         }));
+        using var httpClient = new HttpClient(handler);
 
         var source = CreateSource(
             dbContext,
             instances,
             secretProtector,
             new StubGoogleOAuthTokenClient(),
-            new HttpClient(handler),
+            httpClient,
             new CapturingLogger<GoogleCalendarSourceCore>());
 
         var events = await source.GetEventsAsync(
@@ -283,12 +284,14 @@ public class GoogleCalendarSourceCoreTests
             };
         });
 
+        using var httpClient = new HttpClient(handler);
+
         var source = CreateSource(
             dbContext,
             instances,
             secretProtector,
             new StubGoogleOAuthTokenClient(),
-            new HttpClient(handler),
+            httpClient,
             new CapturingLogger<GoogleCalendarSourceCore>());
 
         var from = new DateTimeOffset(2026, 6, 10, 8, 0, 0, TimeSpan.Zero);

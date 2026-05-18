@@ -220,42 +220,59 @@ public class CalendarOwnerAvailabilitySyncServiceTests
         });
 
         var requests = new List<(HttpMethod Method, string Uri)>();
-        var source = CreateGraphSource(
-            dbContext,
-            dataProtectionProvider,
-            request =>
+        var responsesToDispose = new List<HttpResponseMessage>();
+        try
+        {
+            var source = CreateGraphSource(
+                dbContext,
+                dataProtectionProvider,
+                request =>
+                {
+                    requests.Add((request.Method, request.RequestUri!.ToString()));
+
+                    if (request.RequestUri!.AbsolutePath.EndsWith("/me/calendarView", StringComparison.Ordinal))
+                    {
+                        var response = new HttpResponseMessage(HttpStatusCode.OK)
+                        {
+                            Content = new StringContent("{\"value\":[]}", Encoding.UTF8, "application/json")
+                        };
+                        responsesToDispose.Add(response);
+                        return Task.FromResult(response);
+                    }
+
+                    if (request.Method == HttpMethod.Get)
+                    {
+                        var response = new HttpResponseMessage(HttpStatusCode.OK)
+                        {
+                            Content = new StringContent(managedEventsJson, Encoding.UTF8, "application/json")
+                        };
+                        responsesToDispose.Add(response);
+                        return Task.FromResult(response);
+                    }
+
+                    var noContentResponse = new HttpResponseMessage(HttpStatusCode.NoContent);
+                    responsesToDispose.Add(noContentResponse);
+                    return Task.FromResult(noContentResponse);
+                });
+
+            var service = CreateService(
+                dbContext,
+                source,
+                new CapturingLogger<CalendarOwnerAvailabilitySyncService>(),
+                new StubShadowSlotStore([]));
+
+            await service.RunSyncForOwnerAsync(ownerId);
+
+            Assert.AreEqual(1, requests.Count(entry => entry.Method == HttpMethod.Delete));
+            Assert.IsTrue(requests.Any(entry => entry.Method == HttpMethod.Delete && entry.Uri.Contains("managed-1", StringComparison.Ordinal)));
+        }
+        finally
+        {
+            foreach (var response in responsesToDispose)
             {
-                requests.Add((request.Method, request.RequestUri!.ToString()));
-
-                if (request.RequestUri!.AbsolutePath.EndsWith("/me/calendarView", StringComparison.Ordinal))
-                {
-                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-                    {
-                        Content = new StringContent("{\"value\":[]}", Encoding.UTF8, "application/json")
-                    });
-                }
-
-                if (request.Method == HttpMethod.Get)
-                {
-                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-                    {
-                        Content = new StringContent(managedEventsJson, Encoding.UTF8, "application/json")
-                    });
-                }
-
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
-            });
-
-        var service = CreateService(
-            dbContext,
-            source,
-            new CapturingLogger<CalendarOwnerAvailabilitySyncService>(),
-            new StubShadowSlotStore([]));
-
-        await service.RunSyncForOwnerAsync(ownerId);
-
-        Assert.AreEqual(1, requests.Count(entry => entry.Method == HttpMethod.Delete));
-        Assert.IsTrue(requests.Any(entry => entry.Method == HttpMethod.Delete && entry.Uri.Contains("managed-1", StringComparison.Ordinal)));
+                response.Dispose();
+            }
+        }
     }
 
     [TestMethod]
@@ -284,10 +301,7 @@ public class CalendarOwnerAvailabilitySyncServiceTests
             request =>
             {
                 requests.Add((request.Method, request.RequestUri!.AbsolutePath));
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent("{\"value\":[]}", Encoding.UTF8, "application/json")
-                });
+                return Task.FromResult(HttpClientHandlerStub.JsonResponse("{\"value\":[]}"));
             });
 
         var service = CreateService(
@@ -339,8 +353,14 @@ public class CalendarOwnerAvailabilitySyncServiceTests
         Func<HttpRequestMessage, Task<HttpResponseMessage>> handler)
     {
         var instances = new FakeCalendarSourceInstanceService(ownerId => dbContext.CalendarOwners.Any(owner => owner.Id == ownerId));
+        var messageHandler = new DelegatingHttpMessageHandler(handler);
+        var httpClient = new HttpClient(messageHandler, disposeHandler: true)
+        {
+            BaseAddress = new Uri("https://graph.microsoft.com/")
+        };
+
         return new GraphCalendarSource(
-            new HttpClient(new DelegatingHttpMessageHandler(handler)) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            httpClient,
             dbContext,
             dataProtectionProvider,
             new StubGraphOAuthTokenClient(),
