@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,7 @@ using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Domain.Models;
 using ObfusCal.Infrastructure.Persistence;
+using BusySlot = ObfusCal.Domain.Models.BusySlot;
 
 namespace ObfusCal.Infrastructure.Calendars;
 
@@ -24,6 +26,8 @@ public sealed class GoogleCalendarSourceCore(
     ILogger<GoogleCalendarSourceCore> logger)
 {
     private const string GooglePluginId = "google";
+    private const string ManagedPropertyKey = "ObfusCal.Managed";
+    private const string SlotIdPropertyKey = "ObfusCal.SlotId";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -159,9 +163,10 @@ public sealed class GoogleCalendarSourceCore(
         CancellationToken ct)
     {
         var payload = await response.Content.ReadFromJsonAsync<GoogleCalendarEventsResponse>(JsonOptions, ct)
-            ?? new GoogleCalendarEventsResponse([]);
+            ?? new GoogleCalendarEventsResponse(null, []);
 
         return payload.Items
+            .Where(source => !IsManagedEvent(source))
             .Select(MapEvent)
             .Where(mapped => mapped is not null)
             .Select(mapped => mapped!)
@@ -169,6 +174,10 @@ public sealed class GoogleCalendarSourceCore(
             .OrderBy(e => e.Start)
             .ToList();
     }
+
+    private static bool IsManagedEvent(GoogleCalendarEvent source)
+        => source.ExtendedProperties?.Private?.TryGetValue(ManagedPropertyKey, out var value) == true
+           && string.Equals(value, "1", StringComparison.Ordinal);
 
     public async Task<CalendarSourceReadiness> GetReadinessAsync(Guid calendarOwnerId, CancellationToken ct = default)
     {
@@ -201,6 +210,95 @@ public sealed class GoogleCalendarSourceCore(
             : CalendarSourceReadiness.NotReady(
                 "Google consent required.",
                 "Complete Google consent for this source instance before requesting busy slots."));
+    }
+
+    public async Task WriteBackSlotsAsync(
+        CalendarSourceInstanceContext instance,
+        IReadOnlyList<BusySlot> busySlots,
+        string placeholderTitle,
+        DateTimeOffset windowStart,
+        DateTimeOffset windowEnd,
+        CancellationToken ct = default)
+    {
+        if (!IsGoogleSource(instance))
+            return;
+
+        var queryContext = await BuildQueryContextAsync(instance, ct);
+        if (queryContext is null)
+        {
+            logger.LogWarning(
+                "Write-back skipped for calendar source instance {CalendarSourceInstanceId}: no valid Google access token.",
+                instance.Id);
+            return;
+        }
+
+        var managedEvents = await GetManagedEventsAsync(
+            instance,
+            queryContext.CalendarId,
+            queryContext.SecretData,
+            queryContext.AccessToken,
+            windowStart,
+            windowEnd,
+            ct);
+
+        var managedBySlotId = managedEvents
+            .Where(e => e.GoogleId is not null && e.SlotId is not null)
+            .ToDictionary(e => e.SlotId!, e => e, StringComparer.Ordinal);
+
+        var activeSlotIds = busySlots
+            .Select(slot => slot.SourceEventId)
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (var slot in busySlots)
+        {
+            if (managedBySlotId.TryGetValue(slot.SourceEventId, out var existing))
+            {
+                if (existing.Start != slot.Start || existing.End != slot.End
+                    || !string.Equals(existing.Summary, placeholderTitle, StringComparison.Ordinal))
+                {
+                    await PatchPlaceholderEventAsync(
+                        instance,
+                        queryContext.CalendarId,
+                        queryContext.SecretData,
+                        queryContext.AccessToken,
+                        existing.GoogleId!,
+                        slot,
+                        placeholderTitle,
+                        ct);
+                }
+            }
+            else
+            {
+                await CreatePlaceholderEventAsync(
+                    instance,
+                    queryContext.CalendarId,
+                    queryContext.SecretData,
+                    queryContext.AccessToken,
+                    slot,
+                    placeholderTitle,
+                    ct);
+            }
+        }
+
+        var staleCount = 0;
+        foreach (var (slotId, ev) in managedBySlotId)
+        {
+            if (activeSlotIds.Contains(slotId) || ev.Start < windowStart || ev.Start >= windowEnd) continue;
+            await DeleteEventAsync(
+                instance,
+                queryContext.CalendarId,
+                queryContext.SecretData,
+                queryContext.AccessToken,
+                ev.GoogleId!,
+                ct);
+            staleCount++;
+        }
+
+        logger.LogInformation(
+            "Write-back complete for Google calendar source instance {CalendarSourceInstanceId}: {UpsertCount} active placeholder(s), {DeleteCount} stale placeholder(s) removed.",
+            instance.Id,
+            busySlots.Count,
+            staleCount);
     }
 
     private async Task<string> RefreshIfExpiringAsync(
@@ -272,6 +370,51 @@ public sealed class GoogleCalendarSourceCore(
         }
     }
 
+    private async Task<IReadOnlyList<ManagedGoogleEventRecord>> GetManagedEventsAsync(
+        CalendarSourceInstanceContext instance,
+        string calendarId,
+        GoogleSourceSecretData secretData,
+        string accessToken,
+        DateTimeOffset windowStart,
+        DateTimeOffset windowEnd,
+        CancellationToken ct)
+    {
+        var events = new List<ManagedGoogleEventRecord>();
+        string? nextPageToken = null;
+
+        do
+        {
+            using var response = await SendWithRetryAsync(
+                instance,
+                secretData,
+                accessToken,
+                token => CreateManagedEventsRequest(token, calendarId, windowStart, windowEnd, nextPageToken),
+                ct);
+
+            if (!IsSuccessfulResponse(instance, response))
+                return [];
+
+            var payload = await response.Content.ReadFromJsonAsync<GoogleCalendarEventsResponse>(JsonOptions, ct)
+                ?? new GoogleCalendarEventsResponse(null, []);
+
+            events.AddRange(payload.Items
+                .Select(item =>
+                {
+                    var slotId = item.ExtendedProperties?.Private?.TryGetValue(SlotIdPropertyKey, out var value) == true
+                        ? value
+                        : null;
+                    TryParseGoogleEventDate(item.Start, false, out var start);
+                    TryParseGoogleEventDate(item.End, true, out var end);
+                    return new ManagedGoogleEventRecord(item.Id, slotId, item.Summary, start, end);
+                })
+                .Where(item => item.GoogleId is not null));
+
+            nextPageToken = payload.NextPageToken;
+        } while (!string.IsNullOrWhiteSpace(nextPageToken));
+
+        return events;
+    }
+
     private async Task<HttpResponseMessage> QueryEventsWithRetryAsync(
         CalendarSourceInstanceContext instance,
         string calendarId,
@@ -281,7 +424,23 @@ public sealed class GoogleCalendarSourceCore(
         DateTimeOffset to,
         CancellationToken ct)
     {
-        var response = await QueryEventsAsync(calendarId, accessToken, from, to, ct);
+        return await SendWithRetryAsync(
+            instance,
+            secretData,
+            accessToken,
+            token => CreateEventsQueryRequest(token, calendarId, from, to),
+            ct);
+    }
+
+    private async Task<HttpResponseMessage> SendWithRetryAsync(
+        CalendarSourceInstanceContext instance,
+        GoogleSourceSecretData secretData,
+        string accessToken,
+        Func<string, HttpRequestMessage> requestFactory,
+        CancellationToken ct)
+    {
+        using var request = requestFactory(accessToken);
+        var response = await httpClient.SendAsync(request, ct);
         if (response.StatusCode != HttpStatusCode.Unauthorized)
             return response;
 
@@ -291,30 +450,194 @@ public sealed class GoogleCalendarSourceCore(
         if (string.IsNullOrWhiteSpace(refreshedAccessToken))
             return new HttpResponseMessage(HttpStatusCode.Unauthorized);
 
-        return await QueryEventsAsync(calendarId, refreshedAccessToken, from, to, ct);
+        using var retryRequest = requestFactory(refreshedAccessToken);
+        return await httpClient.SendAsync(retryRequest, ct);
     }
 
-    private async Task<HttpResponseMessage> QueryEventsAsync(
+    private async Task CreatePlaceholderEventAsync(
+        CalendarSourceInstanceContext instance,
         string calendarId,
+        GoogleSourceSecretData secretData,
         string accessToken,
+        BusySlot slot,
+        string placeholderTitle,
+        CancellationToken ct)
+    {
+        using var response = await SendWithRetryAsync(
+            instance,
+            secretData,
+            accessToken,
+            token => CreateGoogleWriteRequest(HttpMethod.Post, token, calendarId, null, slot, placeholderTitle, includeSlotMetadata: true),
+            ct);
+
+        if (response.IsSuccessStatusCode)
+            return;
+
+        logger.LogWarning(
+            "Failed to create placeholder event for slot {SlotId} for calendar source instance {CalendarSourceInstanceId}: HTTP {StatusCode}.",
+            slot.SourceEventId,
+            instance.Id,
+            (int)response.StatusCode);
+    }
+
+    private async Task PatchPlaceholderEventAsync(
+        CalendarSourceInstanceContext instance,
+        string calendarId,
+        GoogleSourceSecretData secretData,
+        string accessToken,
+        string googleEventId,
+        BusySlot slot,
+        string placeholderTitle,
+        CancellationToken ct)
+    {
+        using var response = await SendWithRetryAsync(
+            instance,
+            secretData,
+            accessToken,
+            token => CreateGoogleWriteRequest(new HttpMethod("PATCH"), token, calendarId, googleEventId, slot, placeholderTitle, includeSlotMetadata: false),
+            ct);
+
+        if (response.IsSuccessStatusCode)
+            return;
+
+        logger.LogWarning(
+            "Failed to patch placeholder event {GoogleEventId} for calendar source instance {CalendarSourceInstanceId}: HTTP {StatusCode}.",
+            googleEventId,
+            instance.Id,
+            (int)response.StatusCode);
+    }
+
+    private async Task DeleteEventAsync(
+        CalendarSourceInstanceContext instance,
+        string calendarId,
+        GoogleSourceSecretData secretData,
+        string accessToken,
+        string googleEventId,
+        CancellationToken ct)
+    {
+        using var response = await SendWithRetryAsync(
+            instance,
+            secretData,
+            accessToken,
+            token => CreateDeleteRequest(token, calendarId, googleEventId),
+            ct);
+
+        if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
+            return;
+
+        logger.LogWarning(
+            "Failed to delete stale placeholder event {GoogleEventId} for calendar source instance {CalendarSourceInstanceId}: HTTP {StatusCode}.",
+            googleEventId,
+            instance.Id,
+            (int)response.StatusCode);
+    }
+
+    private HttpRequestMessage CreateEventsQueryRequest(
+        string accessToken,
+        string calendarId,
+        DateTimeOffset from,
+        DateTimeOffset to)
+    {
+        var requestUri =
+            $"{GetGoogleApiBaseUrl().TrimEnd('/')}/calendar/v3/calendars/{Uri.EscapeDataString(calendarId)}/events" +
+            $"?singleEvents=true&orderBy=startTime&timeMin={Uri.EscapeDataString(from.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))}" +
+            $"&timeMax={Uri.EscapeDataString(to.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))}";
+
+        var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        request.Headers.Accept.ParseAdd("application/json");
+        return request;
+    }
+
+    private HttpRequestMessage CreateManagedEventsRequest(
+        string accessToken,
+        string calendarId,
         DateTimeOffset from,
         DateTimeOffset to,
-        CancellationToken ct)
+        string? pageToken)
+    {
+        var requestUri =
+            $"{GetGoogleApiBaseUrl().TrimEnd('/')}/calendar/v3/calendars/{Uri.EscapeDataString(calendarId)}/events" +
+            $"?singleEvents=true&orderBy=startTime&timeMin={Uri.EscapeDataString(from.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))}" +
+            $"&timeMax={Uri.EscapeDataString(to.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))}" +
+            $"&privateExtendedProperty={Uri.EscapeDataString($"{ManagedPropertyKey}=1")}";
+
+        if (!string.IsNullOrWhiteSpace(pageToken))
+            requestUri += $"&pageToken={Uri.EscapeDataString(pageToken)}";
+
+        var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        request.Headers.Accept.ParseAdd("application/json");
+        return request;
+    }
+
+    private HttpRequestMessage CreateGoogleWriteRequest(
+        HttpMethod method,
+        string accessToken,
+        string calendarId,
+        string? googleEventId,
+        BusySlot slot,
+        string placeholderTitle,
+        bool includeSlotMetadata)
+    {
+        var requestUri = string.IsNullOrWhiteSpace(googleEventId)
+            ? $"{GetGoogleApiBaseUrl().TrimEnd('/')}/calendar/v3/calendars/{Uri.EscapeDataString(calendarId)}/events"
+            : $"{GetGoogleApiBaseUrl().TrimEnd('/')}/calendar/v3/calendars/{Uri.EscapeDataString(calendarId)}/events/{Uri.EscapeDataString(googleEventId)}";
+
+        object body = includeSlotMetadata
+            ? new
+            {
+                summary = placeholderTitle,
+                start = new { dateTime = slot.Start.UtcDateTime.ToString("O", CultureInfo.InvariantCulture) },
+                end = new { dateTime = slot.End.UtcDateTime.ToString("O", CultureInfo.InvariantCulture) },
+                transparency = "opaque",
+                reminders = new { useDefault = false },
+                extendedProperties = new
+                {
+                    @private = new Dictionary<string, string>
+                    {
+                        [ManagedPropertyKey] = "1",
+                        [SlotIdPropertyKey] = slot.SourceEventId
+                    }
+                }
+            }
+            : new
+            {
+                summary = placeholderTitle,
+                start = new { dateTime = slot.Start.UtcDateTime.ToString("O", CultureInfo.InvariantCulture) },
+                end = new { dateTime = slot.End.UtcDateTime.ToString("O", CultureInfo.InvariantCulture) },
+                transparency = "opaque",
+                reminders = new { useDefault = false }
+            };
+
+        var request = new HttpRequestMessage(method, requestUri);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        request.Headers.Accept.ParseAdd("application/json");
+        request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+        return request;
+    }
+
+    private HttpRequestMessage CreateDeleteRequest(
+        string accessToken,
+        string calendarId,
+        string googleEventId)
+    {
+        var requestUri =
+            $"{GetGoogleApiBaseUrl().TrimEnd('/')}/calendar/v3/calendars/{Uri.EscapeDataString(calendarId)}/events/{Uri.EscapeDataString(googleEventId)}";
+
+        var request = new HttpRequestMessage(HttpMethod.Delete, requestUri);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        request.Headers.Accept.ParseAdd("application/json");
+        return request;
+    }
+
+    private string GetGoogleApiBaseUrl()
     {
         var baseUrl = googleConsentOptions.Value.ApiBaseUrl.Trim();
         if (string.IsNullOrWhiteSpace(baseUrl))
             throw new InvalidOperationException("GoogleConsent:ApiBaseUrl is required.");
 
-        var requestUri =
-            $"{baseUrl.TrimEnd('/')}/calendar/v3/calendars/{Uri.EscapeDataString(calendarId)}/events" +
-            $"?singleEvents=true&orderBy=startTime&timeMin={Uri.EscapeDataString(from.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))}" +
-            $"&timeMax={Uri.EscapeDataString(to.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))}";
-
-        using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        request.Headers.Accept.ParseAdd("application/json");
-
-        return await httpClient.SendAsync(request, ct);
+        return baseUrl;
     }
 
     private static CalendarEvent? MapEvent(GoogleCalendarEvent source)
@@ -405,6 +728,8 @@ public sealed class GoogleCalendarSourceCore(
     }
 
     private sealed record GoogleCalendarEventsResponse(
+        [property: JsonPropertyName("nextPageToken")]
+        string? NextPageToken,
         [property: JsonPropertyName("items")]
         List<GoogleCalendarEvent> Items);
 
@@ -421,8 +746,14 @@ public sealed class GoogleCalendarSourceCore(
         GoogleEventDate? End,
         [property: JsonPropertyName("attendees")]
         List<GoogleEventAttendee>? Attendees,
+        [property: JsonPropertyName("extendedProperties")]
+        GoogleEventExtendedProperties? ExtendedProperties,
         [property: JsonPropertyName("location")]
         string? Location);
+
+    private sealed record GoogleEventExtendedProperties(
+        [property: JsonPropertyName("private")]
+        Dictionary<string, string>? Private);
 
     private sealed record GoogleEventDate(
         [property: JsonPropertyName("dateTime")]
@@ -438,6 +769,13 @@ public sealed class GoogleCalendarSourceCore(
         GoogleSourceSecretData SecretData,
         string AccessToken,
         string CalendarId);
+
+    private sealed record ManagedGoogleEventRecord(
+        string? GoogleId,
+        string? SlotId,
+        string? Summary,
+        DateTimeOffset Start,
+        DateTimeOffset End);
 
     internal sealed record GoogleSourceConfiguration(string? CalendarId);
 

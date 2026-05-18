@@ -37,10 +37,6 @@ public class ShadowSlotRetentionTests
     private static AppDbContext CreateDbContext()
         => new AppDbContext(CreateDbOptions(), new PassthroughColumnEncryptor());
 
-    // -----------------------------------------------------------------------
-    // Helpers
-    // -----------------------------------------------------------------------
-
     private static async Task SeedSlotsAsync(
         AppDbContext db,
         string peerId,
@@ -70,10 +66,6 @@ public class ShadowSlotRetentionTests
             .Where(b => b.CreatedAtUtc < threshold)
             .ExecuteDeleteAsync();
     }
-
-    // -----------------------------------------------------------------------
-    // Tests
-    // -----------------------------------------------------------------------
 
     [TestMethod]
     public async Task Purge_DeletesRowsOlderThanRetentionWindow()
@@ -173,7 +165,7 @@ public class ShadowSlotRetentionTests
             .FirstOrDefaultAsync();
 
         Assert.IsNotNull(slot);
-        Assert.IsTrue(slot.CreatedAtUtc >= before,
+        Assert.IsGreaterThanOrEqualTo(before, slot.CreatedAtUtc,
             "CreatedAtUtc should be set to approximate UtcNow at insertion time.");
     }
 }

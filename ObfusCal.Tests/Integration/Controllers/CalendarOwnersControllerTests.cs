@@ -396,7 +396,7 @@ public class CalendarOwnersControllerTests
 
         Assert.IsNotNull(authorizationUrl);
         Assert.Contains("login.microsoftonline.com", authorizationUrl);
-        Assert.Contains("Calendars.Read", authorizationUrl);
+        Assert.Contains("Calendars.ReadWrite", authorizationUrl);
         Assert.Contains(Uri.EscapeDataString(redirectUri), authorizationUrl);
     }
 

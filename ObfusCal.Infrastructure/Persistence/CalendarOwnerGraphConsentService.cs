@@ -122,7 +122,7 @@ internal sealed class CalendarOwnerGraphConsentService(
             ?? throw new InvalidOperationException("GraphConsent:ClientId or AzureAd:ClientId is required.");
 
         var scope = string.IsNullOrWhiteSpace(graphConsentOptions.Value.Scope)
-            ? "https://graph.microsoft.com/Calendars.Read offline_access"
+            ? "https://graph.microsoft.com/Calendars.ReadWrite offline_access"
             : graphConsentOptions.Value.Scope;
 
         var query = string.Join("&",
@@ -137,7 +137,7 @@ internal sealed class CalendarOwnerGraphConsentService(
         return $"{instance}/{tenantId}/oauth2/v2.0/authorize?{query}";
     }
 
-    public async Task CompleteConsentFromStateAsync(
+    public async Task<Guid> CompleteConsentFromStateAsync(
         string authorizationCode,
         string state,
         CancellationToken ct = default)
@@ -174,6 +174,8 @@ internal sealed class CalendarOwnerGraphConsentService(
                 payload.RedirectUri,
                 ct);
         }
+
+        return payload.CalendarOwnerId;
     }
 
     private string BuildStateToken(Guid calendarOwnerId, Guid calendarSourceInstanceId, string redirectUri)

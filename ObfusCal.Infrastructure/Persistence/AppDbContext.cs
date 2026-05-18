@@ -54,6 +54,7 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
                 .HasMaxLength(8192);
             e.HasIndex(c => c.EntraObjectId)
                 .IsUnique();
+            e.Property(c => c.WriteBackPlaceholderTitle).HasMaxLength(256);
 
             e.HasMany(c => c.ObfuscationProfiles)
                 .WithOne(profile => profile.CalendarOwner)

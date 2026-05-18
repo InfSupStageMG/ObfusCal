@@ -7,9 +7,6 @@ namespace ObfusCal.Tests.Unit.Plugins;
 [TestClass]
 public class CalendarSourcePluginCatalogTests
 {
-    // ---------------------------------------------------------------------------
-    // Catalog contract
-    // ---------------------------------------------------------------------------
 
     [TestMethod]
     public void GetPlugins_ReturnsAllDescriptors_InAlphabeticalOrder()
@@ -59,10 +56,6 @@ public class CalendarSourcePluginCatalogTests
         Assert.IsNull(catalog.GetPlugin("   "));
     }
 
-    // ---------------------------------------------------------------------------
-    // Plugin discovery via attribute scanning
-    // ---------------------------------------------------------------------------
-
     [TestMethod]
     public void Discover_FindsAllThreeBuiltInPlugins()
     {
@@ -90,8 +83,8 @@ public class CalendarSourcePluginCatalogTests
         var plugins = CalendarSourcePluginCatalog.Discover(includeExternalPlugins: false);
         var types = plugins.Select(p => p.ImplementationType).ToHashSet();
 
-        Assert.IsFalse(types.Contains(typeof(StubSourceA)), "Unannotated ICalendarSource should not appear in catalog");
-        Assert.IsFalse(types.Contains(typeof(StubSourceB)), "Unannotated ICalendarSource should not appear in catalog");
+        Assert.DoesNotContain(typeof(StubSourceA), types, "Unannotated ICalendarSource should not appear in catalog");
+        Assert.DoesNotContain(typeof(StubSourceB), types, "Unannotated ICalendarSource should not appear in catalog");
     }
 
     [TestMethod]
@@ -100,7 +93,7 @@ public class CalendarSourcePluginCatalogTests
         var plugins = CalendarSourcePluginCatalog.Discover(includeExternalPlugins: false);
         var ids = plugins.Select(p => p.Id).ToList();
 
-        Assert.AreEqual(ids.Count, ids.Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+        Assert.HasCount(ids.Count, ids.Distinct(StringComparer.OrdinalIgnoreCase),
             "Catalog must not contain duplicate plugin IDs");
     }
 

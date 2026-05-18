@@ -36,6 +36,7 @@ public partial class CalendarOwnerDetail
     private string? _sourceMessage;
     private MessageIntent _sourceMessageIntent = MessageIntent.Info;
     private Guid? _lastActionInstanceId;
+    private bool _canConfigureGraphWriteBack;
 
 
     private string? _profileMessage;
@@ -82,6 +83,9 @@ public partial class CalendarOwnerDetail
             _accessDeniedMessage = "Calendar owner was not found.";
             return;
         }
+
+        _writeBackEnabled = _owner.WriteBackEnabled;
+        _writeBackPlaceholderTitle = _owner.WriteBackPlaceholderTitle;
 
         LoadPluginCatalog();
         await LoadSourceInstancesAsync();

@@ -16,14 +16,11 @@ public class CalendarOwner
     public DateTimeOffset? GraphConsentGrantedAtUtc { get; set; }
     public DateTimeOffset? LastSyncedAt { get; set; }
     public bool? LastSyncSucceeded { get; set; }
-
+    public bool WriteBackEnabled { get; set; }
+    public string? WriteBackPlaceholderTitle { get; set; }
     public ICollection<CalendarOwnerPeerMapping> PeerMappings { get; set; } = [];
     public ICollection<ObfuscationProfile> ObfuscationProfiles { get; set; } = [];
     public ICollection<CalendarSourceInstance> CalendarSourceInstances { get; set; } = [];
 
-    /// <summary>
-    /// External iCal feed sources configured for this owner.
-    /// Each entry represents a calendar from a peer organisation that does not run ObfusCal.
-    /// </summary>
     public ICollection<CalendarOwnerICalFeed> ICalFeeds { get; set; } = [];
 }

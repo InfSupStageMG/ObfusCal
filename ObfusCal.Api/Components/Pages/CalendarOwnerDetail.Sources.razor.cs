@@ -56,6 +56,9 @@ public partial class CalendarOwnerDetail
                 Actions = actions
             });
         }
+
+        _canConfigureGraphWriteBack = _sourceInstances.Any(instance =>
+            instance.IsEnabled && string.Equals(instance.PluginId, "graph", StringComparison.OrdinalIgnoreCase));
     }
 
     private void ApplyPluginDefaults()
@@ -125,7 +128,11 @@ public partial class CalendarOwnerDetail
             _sourceMessage = $"Added source instance '{created.DisplayName}'. Triggering sync...";
             _sourceMessageIntent = MessageIntent.Success;
             _showAddForm = false;
-            await LoadSourceInstancesAsync();
+
+            // Reload the source list, but do not let a readiness-check failure (e.g. a
+            // plugin's CalDAV/OAuth probe throwing) block the sync trigger below.
+            try { await LoadSourceInstancesAsync(); }
+            catch { /* stale list is acceptable; the snapshot sync still fires */ }
             ApplyPluginDefaults();
 
             await TryRunAvailabilitySyncAsync(
@@ -175,7 +182,11 @@ public partial class CalendarOwnerDetail
 
             _sourceMessage = $"Updated source instance '{updated.DisplayName}'. Triggering sync...";
             _sourceMessageIntent = MessageIntent.Success;
-            await LoadSourceInstancesAsync();
+
+            // Same guard as CreateSourceInstanceAsync: readiness-check failures in the
+            // list reload must not prevent the sync trigger.
+            try { await LoadSourceInstancesAsync(); }
+            catch { /* stale list is acceptable; the snapshot sync still fires */ }
 
             await TryRunAvailabilitySyncAsync(
                 $"Updated source instance '{updated.DisplayName}' and synced availability.",

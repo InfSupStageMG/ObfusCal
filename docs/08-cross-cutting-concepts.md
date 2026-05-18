@@ -6,14 +6,15 @@ Raw calendar events are never written to the database. They exist only as in-mem
 execution and are discarded immediately after. The obfuscation pipeline is the gating condition for storage; only its
 output (`BusySlot`) is persisted.
 
-| Data                         | Persisted                                    | In Memory            | Sent to Peers |
-|------------------------------|----------------------------------------------|----------------------|---------------|
-| Raw meeting details          | Never                                        | During pipeline only | Never         |
-| Obfuscated BusySlot          | Yes                                          | Yes                  | Yes           |
-| User ID and sync state       | Yes                                          | Yes                  | Never         |
-| Obfuscation profile settings | Yes                                          | Yes                  | Never         |
-| OAuth refresh tokens         | Yes (encrypted)                              | Yes                  | Never         |
-| Shadow slots from peers      | Yes, purged after `ShadowSlotRetentionDays`  | Yes                  | Never         |
+| Data                          | Persisted                                   | In Memory            | Sent to Peers |
+|-------------------------------|---------------------------------------------|----------------------|---------------|
+| Raw meeting details           | Never                                       | During pipeline only | Never         |
+| Obfuscated BusySlot           | Yes                                         | Yes                  | Yes           |
+| User ID and sync state        | Yes                                         | Yes                  | Never         |
+| Obfuscation profile settings  | Yes                                         | Yes                  | Never         |
+| OAuth refresh tokens          | Yes (encrypted)                             | Yes                  | Never         |
+| Shadow slots from peers       | Yes, purged after `ShadowSlotRetentionDays` | Yes                  | Never         |
+| Graph write-back placeholders | Yes, in the owner's Microsoft 365 calendar  | Yes                  | N/A           |
 
 ## Security
 
@@ -129,6 +130,16 @@ error when critical values are missing. This prevents deferred runtime failures 
 runtime callback origin via `GoogleConsent:RedirectUri` / `GOOGLECONSENT__REDIRECTURI` so container, proxy, and local
 debugging setups can use a single registered callback. `.local` redirect domains are rejected early because Google does
 not accept them for this flow.
+
+**Microsoft Graph write-back discipline:** when a calendar owner enables write-back, ObfusCal creates and reconciles
+provider-managed placeholder events in Microsoft 365 using `singleValueExtendedProperties`. Those placeholders carry a
+stable ObfusCal marker plus slot identifier for safe cleanup, but the payload itself remains privacy-preserving: only
+the configured placeholder title and the start/end timestamps are written. Peer identity, attendee data, location, and
+raw event descriptions are never written back.
+
+The write-back path is opt-in per owner (`CalendarOwner.WriteBackEnabled`). Disabling the flag stops future placeholder
+reconciliation on the next sync cycle without performing an immediate destructive cleanup pass, which keeps runtime
+behavior predictable for operators.
 
 **Data scoping:** After authentication, the user's Entra ID Object ID is extracted from the bearer token or browser
 principal and used as a strict data boundary. Non-admin users are scoped to their own calendar owner in both the API

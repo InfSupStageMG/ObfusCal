@@ -13,7 +13,7 @@ public class ConfigurationDefaultsTests
         var options = new SyncOptions();
 
         Assert.AreEqual(900, options.SyncIntervalSeconds);
-        Assert.AreEqual(14, options.LookAheadDays);
+        Assert.AreEqual(90, options.LookAheadDays);
         Assert.AreEqual(300, options.PeerRequestTimestampToleranceSeconds);
         Assert.AreEqual(240, options.PeerRequestRateLimitPermitLimit);
         Assert.AreEqual(60, options.PeerRequestRateLimitWindowSeconds);
@@ -24,6 +24,9 @@ public class ConfigurationDefaultsTests
         Assert.AreEqual(1_048_576, options.MaxRequestBodySizeBytes);
         Assert.AreEqual(90, options.MaxQueryWindowDays);
         Assert.AreEqual(500, options.MaxShadowSlotsPerRequest);
+        Assert.AreEqual(90, options.ShadowSlotRetentionDays);
+        Assert.AreEqual(90, options.WriteBackLookAheadDays);
+        Assert.AreEqual("Busy", options.WriteBackPlaceholderTitle);
     }
 
     [TestMethod]
@@ -39,7 +42,7 @@ public class ConfigurationDefaultsTests
     {
         var options = new GraphConsentOptions();
 
-        Assert.AreEqual("https://graph.microsoft.com/Calendars.Read offline_access", options.Scope);
+        Assert.AreEqual("https://graph.microsoft.com/Calendars.ReadWrite offline_access", options.Scope);
     }
 
     [TestMethod]
@@ -57,4 +60,3 @@ public class ConfigurationDefaultsTests
         Assert.IsNull(peer.ClientCertificateThumbprint);
     }
 }
-

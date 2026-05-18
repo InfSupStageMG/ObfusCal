@@ -5,11 +5,15 @@
     <div class="calendar-grid">
         <div class="calendar-header">
             <div class="calendar-header-row">
-                <h3>@_monthYear</h3>
-                @if (DisplayDate.HasValue)
+                <div class="calendar-month-nav">
+                    <button class="month-nav-btn" @onclick="PreviousMonth" aria-label="Previous month">&#8249;</button>
+                    <h3 class="calendar-month-label">@_monthYear</h3>
+                    <button class="month-nav-btn" @onclick="NextMonth" aria-label="Next month">&#8250;</button>
+                </div>
+                @if (Slots.Count > 0)
                 {
                     <div class="calendar-date-range">
-                        <span class="date-range-label">Viewing:</span>
+                        <span class="date-range-label">Data:</span>
                         <span class="date-range-value">@GetDisplayDateRange()</span>
                     </div>
                 }
@@ -26,11 +30,14 @@
         <div class="calendar-dates">
             @foreach (var (date, hasEvents, events) in _calendarDays)
             {
-                <div class="calendar-day @(hasEvents ? "has-events" : "") @(date == null ? "other-month" : "") @(date == _selectedDate ? "selected" : "")"
+                var isOutsideViewMonth = IsOutsideViewMonth(date);
+                var isSelectable = date.HasValue && !isOutsideViewMonth;
+
+                <div class="calendar-day @(hasEvents ? "has-events" : "") @(isOutsideViewMonth ? "other-month" : "") @(date == _selectedDate ? "selected" : "")"
                      @onclick="@(() => SelectDay(date))"
-                     role="button"
-                     tabindex="0"
-                     style="cursor: @(date.HasValue ? "pointer" : "default");">
+                     role="@(isSelectable ? "button" : null)"
+                     tabindex="@(isSelectable ? 0 : -1)"
+                     style="cursor: @(isSelectable ? "pointer" : "default");">
                     @if (date.HasValue)
                     {
                         <div class="calendar-day-number">@date.Value.Day</div>
@@ -136,18 +143,48 @@
     private DateTime? _selectedDate;
     private bool _showModal;
 
+    private DateTime _viewMonth = DateTime.Today;
+    private List<MergedFreeBusyResponse>? _lastSeenSlots;
+    private DateTime? _lastDisplayDate;
+
     protected override void OnParametersSet()
     {
+        var nextDisplayDate = DisplayDate?.Date ?? DateTime.Today;
+
+        if (!ReferenceEquals(_lastSeenSlots, Slots) || _lastDisplayDate != nextDisplayDate)
+        {
+            _viewMonth = nextDisplayDate;
+            _lastSeenSlots = Slots;
+            _lastDisplayDate = nextDisplayDate;
+            _selectedDate = null;
+            _selectedDayEvents = [];
+            _showModal = false;
+        }
+
+        BuildCalendarGrid();
+    }
+
+    private void PreviousMonth()
+    {
+        _viewMonth = _viewMonth.AddMonths(-1);
+        BuildCalendarGrid();
+    }
+
+    private void NextMonth()
+    {
+        _viewMonth = _viewMonth.AddMonths(1);
         BuildCalendarGrid();
     }
 
     private void SelectDay(DateTime? date)
     {
-        if (date is null || date.Value.Month != DisplayDate?.Month)
+        if (IsOutsideViewMonth(date))
             return;
 
-        _selectedDate = date;
-        _selectedDayEvents = GetEventsForDate(date.Value);
+        var selectedDate = date.GetValueOrDefault();
+
+        _selectedDate = selectedDate;
+        _selectedDayEvents = GetEventsForDate(selectedDate);
         _showModal = _selectedDayEvents.Count > 0;
     }
 
@@ -160,10 +197,7 @@
 
     private void BuildCalendarGrid()
     {
-        if (DisplayDate is null)
-            return;
-
-        var firstDay = new DateTime(DisplayDate.Value.Year, DisplayDate.Value.Month, 1);
+        var firstDay = new DateTime(_viewMonth.Year, _viewMonth.Month, 1);
         _monthYear = firstDay.ToString("MMMM yyyy", CultureInfo.CurrentCulture);
 
         _calendarDays = [];
@@ -215,6 +249,9 @@
             .OrderBy(s => TimeZoneInfo.ConvertTime(s.Start, TimeZone))
             .ToList();
     }
+
+    private bool IsOutsideViewMonth(DateTime? date)
+        => !date.HasValue || date.Value.Month != _viewMonth.Month || date.Value.Year != _viewMonth.Year;
 
     private string FormatTime(MergedFreeBusyResponse evt)
     {

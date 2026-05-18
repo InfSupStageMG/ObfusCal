@@ -18,6 +18,11 @@ authenticate with their existing company credentials via Entra ID (Azure AD), an
 automatically on a configurable schedule. Supported calendar sources include Microsoft Graph (Microsoft 365), Google
 Calendar, iCloud CalDAV, and read-only iCal (`.ics`) feeds.
 
+For Microsoft Graph calendar owners who enable write-back, the sync cycle also writes **ObfusCal-managed placeholder
+events** into Microsoft 365. These placeholders contain only the configured title plus start/end time, are tagged with
+Graph extended properties for safe cleanup, and never include peer identity, attendee lists, locations, or event
+content.
+
 Peer sync traffic is also rate limited per authenticated peer, with an IP-based backstop for unauthenticated requests.
 The shadow-slot push and busy-slot pull endpoints each use their own configurable window, and API request bodies are
 capped at 1 MB by default to reduce DoS risk.
@@ -100,15 +105,19 @@ openssl pkcs12 -export `
    must include a web redirect URI for `https://localhost:7001/signin-oidc` (and any reverse-proxy hostnames you use)
    and you must provide `AZUREAD__CLIENTSECRET`.
 
+   Microsoft Graph consent for calendar sync now requires
+   `GraphConsent:Scope=https://graph.microsoft.com/Calendars.ReadWrite offline_access`
+   so ObfusCal can both read the owner's calendar and maintain ObfusCal-managed write-back placeholders.
+
    On the first successful browser sign-in, ObfusCal automatically provisions a `CalendarOwner` record keyed by the
    user's Entra object ID. After you are signed in, the header also exposes a **Switch user** action that reopens the
    Entra account picker without requiring a manual sign-out first.
 
    The Blazor UI is role-aware:
 
-   - normal users see the dashboard, their own calendar-owner settings, and a read-only **My Peers** view for their
-     peer request / approval status
-   - sysadmins see global **Calendar Owners**, **Peer Connections**, **Sync Status**, and **Health Status** views
+    - normal users see the dashboard, their own calendar-owner settings, and a read-only **My Peers** view for their
+      peer request / approval status
+    - sysadmins see global **Calendar Owners**, **Peer Connections**, **Sync Status**, and **Health Status** views
 
    For Google Calendar OAuth, set `GOOGLECONSENT__REDIRECTURI` to a Google-registered callback such as
    `https://localhost/consent-callback` or a public HTTPS URI. Do not use `https://obfuscal.local/consent-callback`
@@ -138,8 +147,8 @@ docker compose up -d --build
 
    Optional API container sizing can be set via `.env`:
 
-   - `API_MEM_LIMIT` (default `512m`)
-   - `API_CPUS` (default `4.0`)
+    - `API_MEM_LIMIT` (default `512m`)
+    - `API_CPUS` (default `4.0`)
 
 ### Option 2: Run API with .NET CLI (requires PostgreSQL first)
 
@@ -248,6 +257,9 @@ startup.
 Environment variable names use the standard double-underscore mapping (for example `GRAPHCONSENT__CLIENTSECRET` and
 `CONNECTIONSTRINGS__DEFAULTCONNECTION`).
 
+The Graph consent scope defaults to `https://graph.microsoft.com/Calendars.ReadWrite offline_access`. Override it only
+if your Entra app registration intentionally uses an equivalent write-capable scope set.
+
 For browser SSO, `AZUREAD__CLIENTSECRET` is required at startup together with `AZUREAD__TENANTID` and
 `AZUREAD__CLIENTID`. The Entra app registration must allow both the server-side web callback (`/signin-oidc`) and any
 Swagger OAuth redirect URI you configure.
@@ -304,6 +316,12 @@ Use `.env.example` as the authoritative placeholder list for local/compose confi
 - `POST /api/shadow-slots` and `GET /api/sync/busy-slots/{calendarOwnerRef}` each have their own configurable
   window/permit settings.
 - API request bodies are capped at 1 MB by default via `Sync__MaxRequestBodySizeBytes`.
+- `Sync__WriteBackLookAheadDays` controls how far ahead ObfusCal queries and reconciles Graph-managed placeholders
+  during a sync cycle (default `90`).
+- `Sync__WriteBackPlaceholderTitle` provides the fallback title for write-back placeholders when a calendar owner has
+  not set a custom title in the UI (default `Busy`).
+- Per-owner write-back remains opt-in through the **Calendar Write-Back** section in `CalendarOwnerDetail`; turning the
+  flag off stops future placeholder reconciliation without deleting existing managed events immediately.
 
 ## Sysadmin peer approval
 

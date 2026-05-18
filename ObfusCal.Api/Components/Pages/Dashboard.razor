@@ -1,7 +1,9 @@
 ﻿@page "/"
 @attribute [Authorize]
 @using Microsoft.JSInterop
+@using Microsoft.Extensions.Options
 @using ObfusCal.Application.Interfaces
+@using ObfusCal.Application.Configuration
 @using ObfusCal.Application.UseCases.GetMergedFreeBusy
 @using ObfusCal.Api.Authorization
 @using ObfusCal.Api.Components.Shared
@@ -9,6 +11,7 @@
 @inject ICalendarOwnerService CalendarOwnerService
 @inject ICalendarOwnerAvailabilitySyncService AvailabilitySyncService
 @inject CurrentUserContextAccessor CurrentUserContextAccessor
+@inject IOptions<SyncOptions> SyncOptions
 @inject IJSRuntime Js
 @inject NavigationManager Navigation
 
@@ -86,16 +89,6 @@
                 }
             </div>
 
-            <div class="combined-calendar-field combined-calendar-field--from app-form-field">
-                <FluentLabel Class="combined-calendar-label app-form-label">From</FluentLabel>
-                <FluentDatePicker @bind-Value="_fromDate" Class="combined-calendar-control app-form-control" Style="width: 100%; max-width: 100%; min-width: 0;" />
-            </div>
-
-            <div class="combined-calendar-field combined-calendar-field--to app-form-field">
-                <FluentLabel Class="combined-calendar-label app-form-label">To</FluentLabel>
-                <FluentDatePicker @bind-Value="_toDate" Class="combined-calendar-control app-form-control" Style="width: 100%; max-width: 100%; min-width: 0;" />
-            </div>
-
             <div class="combined-calendar-field combined-calendar-field--timezone app-form-field">
                 <FluentLabel Class="combined-calendar-label app-form-label">Time zone</FluentLabel>
                 <FluentSelect TOption="TimeZoneOption"
@@ -127,7 +120,7 @@
         <MergedFreeBusyCalendarView
             Slots="_slots"
             TimeZone="ResolveSelectedTimeZone()"
-            DisplayDate="_fromDate" />
+            DisplayDate="_displayDate" />
     }
     else if (_loaded)
     {
@@ -140,9 +133,8 @@
 @code {
     private List<CalendarOwnerOption>? _calendarOwners;
     private CalendarOwnerOption? _selectedOwner;
-    private DateTime? _fromDate = DateTime.UtcNow.Date;
-    private DateTime? _toDate = DateTime.UtcNow.Date.AddDays(7);
     private List<MergedFreeBusyResponse>? _slots;
+    private DateTime _displayDate = DateTime.UtcNow.Date;
     private bool _loading;
     private bool _loaded;
     private bool _refreshing;
@@ -242,7 +234,7 @@
 
     private async Task LoadFreeBusyAsync()
     {
-        if (_selectedOwner is null || _fromDate is null || _toDate is null)
+        if (_selectedOwner is null)
             return;
 
         _loading = true;
@@ -252,8 +244,13 @@
         try
         {
             var timeZone = ResolveSelectedTimeZone();
-            var from = ConvertLocalDateBoundaryToUtc(_fromDate.Value.Date, timeZone);
-            var to = ConvertLocalDateBoundaryToUtc(_toDate.Value.Date.AddDays(1), timeZone);
+            _displayDate = GetCurrentDateInTimeZone(timeZone);
+
+            // Load the full sync window so month navigation works without extra round-trips.
+            // Stay within MaxQueryWindowDays to satisfy the use-case validation.
+            var windowDays = Math.Min(SyncOptions.Value.LookAheadDays, SyncOptions.Value.MaxQueryWindowDays);
+            var from = ConvertLocalDateBoundaryToUtc(_displayDate, timeZone);
+            var to = ConvertLocalDateBoundaryToUtc(_displayDate.AddDays(windowDays), timeZone);
 
             var result = await GetMergedFreeBusyUseCase.ExecuteAsync(
                 new GetMergedFreeBusyQuery(_selectedOwner.Id, from, to),
@@ -309,6 +306,9 @@
         var utc = TimeZoneInfo.ConvertTimeToUtc(local, timeZone);
         return new DateTimeOffset(utc, TimeSpan.Zero);
     }
+
+    private static DateTime GetCurrentDateInTimeZone(TimeZoneInfo timeZone)
+        => TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, timeZone).Date;
 
     private void NavigateToCalendarOwners()
         => Navigation.NavigateTo("/calendar-owners");

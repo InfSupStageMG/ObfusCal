@@ -5,6 +5,7 @@
 @using Microsoft.Extensions.Logging
 @inject ICalendarOwnerGoogleConsentService GoogleConsentService
 @inject ICalendarOwnerGraphConsentService GraphConsentService
+@inject ICalendarOwnerAvailabilitySyncService SyncService
 @inject NavigationManager Navigation
 @inject ILogger<ConsentCallback> Logger
 
@@ -70,15 +71,16 @@
 
             var isGraphConsent = State.StartsWith(GraphStatePrefix, StringComparison.Ordinal);
 
+            Guid calendarOwnerId;
             try
             {
                 if (isGraphConsent)
                 {
-                    await GraphConsentService.CompleteConsentFromStateAsync(Code, State);
+                    calendarOwnerId = await GraphConsentService.CompleteConsentFromStateAsync(Code, State);
                 }
                 else
                 {
-                    await GoogleConsentService.CompleteConsentFromStateAsync(Code, State);
+                    calendarOwnerId = await GoogleConsentService.CompleteConsentFromStateAsync(Code, State);
                 }
 
                 shouldReleaseState = false; // keep state locked so duplicate callbacks are no-ops
@@ -87,11 +89,31 @@
             {
                 Logger.LogWarning(ex, "State validation failed during consent completion");
                 _errorMessage = "Authorization from the provider could not be validated.";
+                return;
             }
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Unexpected error during consent completion. Exception type: {ExceptionType}", ex.GetType().Name);
                 _errorMessage = ex.InnerException?.Message ?? ex.Message;
+                return;
+            }
+
+            // Trigger availability sync now that the source has a valid token. The consent page
+            // spinner stays visible during the sync so the user lands on a fresh snapshot.
+            try
+            {
+                await SyncService.RunSyncForOwnerAsync(calendarOwnerId, CancellationToken.None);
+                Logger.LogInformation(
+                    "Post-consent availability sync succeeded for calendar owner {CalendarOwnerId}.",
+                    calendarOwnerId);
+            }
+            catch (Exception ex)
+            {
+                // Non-fatal: log and continue to success page. The scheduled background sync will
+                // pick up the new source on its next cycle.
+                Logger.LogWarning(ex,
+                    "Post-consent availability sync failed for calendar owner {CalendarOwnerId}; the snapshot will be refreshed on the next scheduled sync.",
+                    calendarOwnerId);
             }
         }
         finally

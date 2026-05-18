@@ -14,7 +14,7 @@ namespace ObfusCal.Plugins.GoogleCalendar;
     "Start Google OAuth",
     hint: "Authorizes ObfusCal to read your Google Calendar for this source instance.")]
 public sealed class GoogleCalendarSourcePlugin(GoogleCalendarSourceCore sourceCore)
-    : ICalendarSource, ICalendarSourceReadinessEvaluator, ICalendarSourceInstanceHandler, ICalendarSourceInstanceReadinessEvaluator
+    : ICalendarSource, ICalendarSourceReadinessEvaluator, ICalendarSourceInstanceHandler, ICalendarSourceInstanceReadinessEvaluator, ICalendarSourceInstanceWriteBack
 {
     public Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(
         DateTimeOffset from,
@@ -35,5 +35,14 @@ public sealed class GoogleCalendarSourcePlugin(GoogleCalendarSourceCore sourceCo
 
     public Task<CalendarSourceReadiness> GetReadinessAsync(CalendarSourceInstanceContext instance, CancellationToken ct = default) =>
         GoogleCalendarSourceCore.GetReadinessAsync(instance, ct);
+
+    public Task WriteBackSlotsAsync(
+        CalendarSourceInstanceContext instance,
+        IReadOnlyList<BusySlot> busySlots,
+        string placeholderTitle,
+        DateTimeOffset windowStart,
+        DateTimeOffset windowEnd,
+        CancellationToken ct = default) =>
+        sourceCore.WriteBackSlotsAsync(instance, busySlots, placeholderTitle, windowStart, windowEnd, ct);
 }
 
