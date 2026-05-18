@@ -478,9 +478,11 @@ public class GraphCalendarSourceTests
             });
         });
 
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
+
         var source = CreateSource(
             dbContext,
-            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            httpClient,
             new StubGraphOAuthTokenClient(),
             new CapturingLogger<GraphCalendarSource>(),
             dataProtectionProvider);
@@ -541,9 +543,11 @@ public class GraphCalendarSourceTests
             });
         });
 
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
+
         var source = CreateSource(
             dbContext,
-            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            httpClient,
             new StubGraphOAuthTokenClient(),
             logger,
             dataProtectionProvider);
@@ -604,9 +608,10 @@ public class GraphCalendarSourceTests
             };
         });
 
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
         var source = CreateSource(
             dbContext,
-            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            httpClient,
             new StubGraphOAuthTokenClient(),
             new CapturingLogger<GraphCalendarSource>(),
             dataProtectionProvider);
@@ -695,9 +700,10 @@ public class GraphCalendarSourceTests
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
         });
 
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
         var source = CreateSource(
             dbContext,
-            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            httpClient,
             new StubGraphOAuthTokenClient(),
             new CapturingLogger<GraphCalendarSource>(),
             dataProtectionProvider);
@@ -733,10 +739,11 @@ public class GraphCalendarSourceTests
             called = true;
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
         });
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
 
         var source = CreateSource(
             dbContext,
-            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            httpClient,
             new StubGraphOAuthTokenClient(),
             new CapturingLogger<GraphCalendarSource>(),
             new EphemeralDataProtectionProvider());
@@ -784,9 +791,10 @@ public class GraphCalendarSourceTests
             };
         });
 
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
         var source = CreateSource(
             dbContext,
-            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            httpClient,
             new StubGraphOAuthTokenClient(),
             new CapturingLogger<GraphCalendarSource>(),
             dataProtectionProvider);
@@ -855,9 +863,10 @@ public class GraphCalendarSourceTests
                 : new HttpResponseMessage(HttpStatusCode.NoContent));
         });
 
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
         var source = CreateSource(
             dbContext,
-            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            httpClient,
             new StubGraphOAuthTokenClient(),
             new CapturingLogger<GraphCalendarSource>(),
             dataProtectionProvider);
@@ -898,9 +907,10 @@ public class GraphCalendarSourceTests
             });
         });
 
+        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
         var source = CreateSource(
             dbContext,
-            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            httpClient,
             new StubGraphOAuthTokenClient(),
             new CapturingLogger<GraphCalendarSource>(),
             dataProtectionProvider);

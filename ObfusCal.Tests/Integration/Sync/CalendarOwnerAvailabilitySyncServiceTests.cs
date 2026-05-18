@@ -350,25 +350,43 @@ public class CalendarOwnerAvailabilitySyncServiceTests
             logger);
     }
 
-    private static GraphCalendarSource CreateGraphSource(
+    private static ICalendarSource CreateGraphSource(
         AppDbContext dbContext,
         IDataProtectionProvider dataProtectionProvider,
         Func<HttpRequestMessage, Task<HttpResponseMessage>> handler)
     {
         var instances = new FakeCalendarSourceInstanceService(ownerId => dbContext.CalendarOwners.Any(owner => owner.Id == ownerId));
-        var messageHandler = new DelegatingHttpMessageHandler(handler);
-        var httpClient = new HttpClient(messageHandler, disposeHandler: true)
-        {
-            BaseAddress = new Uri("https://graph.microsoft.com/")
-        };
+        return new PerCallGraphCalendarSource(dbContext, dataProtectionProvider, handler, instances);
+    }
 
-        return new GraphCalendarSource(
-            httpClient,
-            dbContext,
-            dataProtectionProvider,
-            new StubGraphOAuthTokenClient(),
-            instances,
-            NullLogger<GraphCalendarSource>.Instance);
+    private sealed class PerCallGraphCalendarSource(
+        AppDbContext dbContext,
+        IDataProtectionProvider dataProtectionProvider,
+        Func<HttpRequestMessage, Task<HttpResponseMessage>> handler,
+        FakeCalendarSourceInstanceService instances) : ICalendarSource
+    {
+        public async Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(
+            DateTimeOffset from,
+            DateTimeOffset to,
+            Guid? calendarOwnerId = null,
+            CancellationToken ct = default)
+        {
+            var messageHandler = new DelegatingHttpMessageHandler(handler);
+            using var httpClient = new HttpClient(messageHandler, disposeHandler: true)
+            {
+                BaseAddress = new Uri("https://graph.microsoft.com/")
+            };
+
+            var source = new GraphCalendarSource(
+                httpClient,
+                dbContext,
+                dataProtectionProvider,
+                new StubGraphOAuthTokenClient(),
+                instances,
+                NullLogger<GraphCalendarSource>.Instance);
+
+            return await source.GetEventsAsync(from, to, calendarOwnerId, ct);
+        }
     }
 
     private sealed class StubCalendarSource(IDictionary<Guid, IReadOnlyList<CalendarEvent>> eventsByOwner) : ICalendarSource
