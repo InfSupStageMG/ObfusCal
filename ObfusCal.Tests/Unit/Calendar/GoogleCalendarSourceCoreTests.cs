@@ -104,7 +104,7 @@ public class GoogleCalendarSourceCoreTests
                 SerializeSecret(secretProtector, "access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))));
         Assert.IsNotNull(created);
 
-        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(
                 """
@@ -133,8 +133,7 @@ public class GoogleCalendarSourceCoreTests
                 """,
                 Encoding.UTF8,
                 "application/json")
-        };
-        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(response));
+        }));
         using var httpClient = new HttpClient(handler);
 
         var source = CreateSource(
@@ -324,6 +323,74 @@ public class GoogleCalendarSourceCoreTests
     }
 
     [TestMethod]
+    public async Task WriteBackSlotsAsync_ForCalendarOwner_CreatesPlaceholderEventsUsingEnabledGoogleInstance()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        dbContext.CalendarOwners.Add(new CalendarOwner { Id = ownerId, Name = "Owner" });
+        await dbContext.SaveChangesAsync();
+
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var secretProtector = new CalendarSourceSecretProtector(dataProtectionProvider);
+        var instances = new FakeCalendarSourceInstanceService(id => id == ownerId);
+
+        var created = await instances.CreateAsync(ownerId,
+            new CreateCalendarSourceInstanceInput(
+                "google",
+                "Google Calendar",
+                "{\"calendarId\":\"primary\"}",
+                SerializeSecret(secretProtector, "access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))));
+        Assert.IsNotNull(created);
+
+        var requestLog = new List<(HttpMethod Method, string Uri, string? Body)>();
+        var handler = new DelegatingHttpMessageHandler(async request =>
+        {
+            var body = request.Content is null ? null : await request.Content.ReadAsStringAsync();
+            requestLog.Add((request.Method, request.RequestUri!.ToString(), body));
+
+            if (request.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"items\":[]}", Encoding.UTF8, "application/json")
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.Created)
+            {
+                Content = new StringContent("{\"id\":\"new-google-event\"}", Encoding.UTF8, "application/json")
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+
+        var source = CreateSource(
+            dbContext,
+            instances,
+            secretProtector,
+            new StubGoogleOAuthTokenClient(),
+            httpClient,
+            new CapturingLogger<GoogleCalendarSourceCore>());
+
+        var from = new DateTimeOffset(2026, 6, 10, 8, 0, 0, TimeSpan.Zero);
+        var to = from.AddHours(1);
+
+        await source.WriteBackSlotsAsync(
+            ownerId,
+            [new Domain.Models.BusySlot("slot-1", from, to)],
+            "Busy",
+            from.AddHours(-1),
+            to.AddHours(1));
+
+        var post = requestLog.Single(entry => entry.Method == HttpMethod.Post);
+        StringAssert.Contains(post.Uri, "/calendar/v3/calendars/primary/events");
+        Assert.IsNotNull(post.Body);
+
+        using var doc = JsonDocument.Parse(post.Body);
+        Assert.AreEqual("Busy", doc.RootElement.GetProperty("summary").GetString());
+    }
+
+    [TestMethod]
     public async Task GetEventsAsync_Throws_WhenGoogleApiBaseUrlIsMissing()
     {
         await using var dbContext = TestDbContextFactory.CreateInMemory();
@@ -373,7 +440,7 @@ public class GoogleCalendarSourceCoreTests
             ApiBaseUrl = "https://www.googleapis.com",
             AuthorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth",
             TokenEndpoint = "https://oauth2.googleapis.com/token",
-            Scope = "https://www.googleapis.com/auth/calendar.readonly"
+            Scope = "https://www.googleapis.com/auth/calendar.events"
         });
         return new GoogleCalendarSourceCore(
             httpClient,

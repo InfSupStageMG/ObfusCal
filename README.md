@@ -18,10 +18,10 @@ authenticate with their existing company credentials via Entra ID (Azure AD), an
 automatically on a configurable schedule. Supported calendar sources include Microsoft Graph (Microsoft 365), Google
 Calendar, iCloud CalDAV, and read-only iCal (`.ics`) feeds.
 
-For Microsoft Graph calendar owners who enable write-back, the sync cycle also writes **ObfusCal-managed placeholder
-events** into Microsoft 365. These placeholders contain only the configured title plus start/end time, are tagged with
-Graph extended properties for safe cleanup, and never include peer identity, attendee lists, locations, or event
-content.
+For Microsoft Graph and Google Calendar owners who enable write-back, the sync cycle also writes
+**ObfusCal-managed placeholder events** into the connected calendar. These placeholders contain only the configured
+title plus start/end time, are tagged with provider metadata for safe cleanup, and never include peer identity,
+attendee lists, locations, or event content.
 
 Peer sync traffic is also rate limited per authenticated peer, with an IP-based backstop for unauthenticated requests.
 The shadow-slot push and busy-slot pull endpoints each use their own configurable window, and API request bodies are
@@ -108,6 +108,10 @@ openssl pkcs12 -export `
    Microsoft Graph consent for calendar sync now requires
    `GraphConsent:Scope=https://graph.microsoft.com/Calendars.ReadWrite offline_access`
    so ObfusCal can both read the owner's calendar and maintain ObfusCal-managed write-back placeholders.
+
+    Google Calendar consent now requires
+    `GoogleConsent:Scope=https://www.googleapis.com/auth/calendar.events`
+    so ObfusCal can both read the owner's calendar events and maintain ObfusCal-managed write-back placeholders.
 
    On the first successful browser sign-in, ObfusCal automatically provisions a `CalendarOwner` record keyed by the
    user's Entra object ID. After you are signed in, the header also exposes a **Switch user** action that reopens the
@@ -260,6 +264,9 @@ Environment variable names use the standard double-underscore mapping (for examp
 The Graph consent scope defaults to `https://graph.microsoft.com/Calendars.ReadWrite offline_access`. Override it only
 if your Entra app registration intentionally uses an equivalent write-capable scope set.
 
+The Google consent scope defaults to `https://www.googleapis.com/auth/calendar.events`. Override it only if your
+Google OAuth client intentionally uses an equivalent write-capable Calendar Events scope.
+
 For browser SSO, `AZUREAD__CLIENTSECRET` is required at startup together with `AZUREAD__TENANTID` and
 `AZUREAD__CLIENTID`. The Entra app registration must allow both the server-side web callback (`/signin-oidc`) and any
 Swagger OAuth redirect URI you configure.
@@ -316,7 +323,7 @@ Use `.env.example` as the authoritative placeholder list for local/compose confi
 - `POST /api/shadow-slots` and `GET /api/sync/busy-slots/{calendarOwnerRef}` each have their own configurable
   window/permit settings.
 - API request bodies are capped at 1 MB by default via `Sync__MaxRequestBodySizeBytes`.
-- `Sync__WriteBackLookAheadDays` controls how far ahead ObfusCal queries and reconciles Graph-managed placeholders
+- `Sync__WriteBackLookAheadDays` controls how far ahead ObfusCal queries and reconciles provider-managed placeholders
   during a sync cycle (default `90`).
 - `Sync__WriteBackPlaceholderTitle` provides the fallback title for write-back placeholders when a calendar owner has
   not set a custom title in the UI (default `Busy`).

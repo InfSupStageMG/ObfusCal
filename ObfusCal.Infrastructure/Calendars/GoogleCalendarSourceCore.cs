@@ -213,6 +213,32 @@ public sealed class GoogleCalendarSourceCore(
     }
 
     public async Task WriteBackSlotsAsync(
+        Guid calendarOwnerId,
+        IReadOnlyList<BusySlot> busySlots,
+        string placeholderTitle,
+        DateTimeOffset windowStart,
+        DateTimeOffset windowEnd,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var ownerExists = await dbContext.CalendarOwners
+            .AsNoTracking()
+            .AnyAsync(owner => owner.Id == calendarOwnerId, ct);
+
+        if (!ownerExists)
+            return;
+
+        var instance = (await calendarSourceInstanceStore.ListAsync(calendarOwnerId, ct))
+            .FirstOrDefault(sourceInstance => sourceInstance.IsEnabled && IsGoogleSource(sourceInstance));
+
+        if (instance is null)
+            return;
+
+        await WriteBackSlotsAsync(instance, busySlots, placeholderTitle, windowStart, windowEnd, ct);
+    }
+
+    public async Task WriteBackSlotsAsync(
         CalendarSourceInstanceContext instance,
         IReadOnlyList<BusySlot> busySlots,
         string placeholderTitle,

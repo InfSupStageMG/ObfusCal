@@ -131,11 +131,12 @@ runtime callback origin via `GoogleConsent:RedirectUri` / `GOOGLECONSENT__REDIRE
 debugging setups can use a single registered callback. `.local` redirect domains are rejected early because Google does
 not accept them for this flow.
 
-**Microsoft Graph write-back discipline:** when a calendar owner enables write-back, ObfusCal creates and reconciles
-provider-managed placeholder events in Microsoft 365 using `singleValueExtendedProperties`. Those placeholders carry a
-stable ObfusCal marker plus slot identifier for safe cleanup, but the payload itself remains privacy-preserving: only
-the configured placeholder title and the start/end timestamps are written. Peer identity, attendee data, location, and
-raw event descriptions are never written back.
+**Microsoft Graph and Google write-back discipline:** when a calendar owner enables write-back, ObfusCal creates and
+reconciles provider-managed placeholder events in Microsoft 365 and Google Calendar using provider-native metadata
+(`singleValueExtendedProperties` for Graph, `extendedProperties.private` for Google). Those placeholders carry a stable
+ObfusCal marker plus slot identifier for safe cleanup, but the payload itself remains privacy-preserving: only the
+configured placeholder title and the start/end timestamps are written. Peer identity, attendee data, location, and raw
+event descriptions are never written back.
 
 The write-back path is opt-in per owner (`CalendarOwner.WriteBackEnabled`). Disabling the flag stops future placeholder
 reconciliation on the next sync cycle without performing an immediate destructive cleanup pass, which keeps runtime

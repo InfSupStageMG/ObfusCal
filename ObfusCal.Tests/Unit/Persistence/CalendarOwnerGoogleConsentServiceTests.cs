@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.DataProtection;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
@@ -14,9 +14,9 @@ public class CalendarOwnerGoogleConsentServiceTests
     [TestMethod]
     public async Task BuildAuthorizationUrlAsync_IncludesSelectAccountPrompt()
     {
-        var (service, ownerId, _) = Setup();
+        await using var setup = CreateSetup();
 
-        var authorizationUrl = await service.BuildAuthorizationUrlAsync(ownerId, "https://localhost/consent-callback");
+        var authorizationUrl = await setup.Service.BuildAuthorizationUrlAsync(setup.OwnerId, "https://localhost/consent-callback");
 
         Assert.Contains(Uri.EscapeDataString("select_account consent"), authorizationUrl);
     }
@@ -25,16 +25,16 @@ public class CalendarOwnerGoogleConsentServiceTests
     public async Task BuildAuthorizationUrlAsync_UsesConfiguredRedirectUri_WhenPresent()
     {
         var configuredRedirectUri = "https://localhost/consent-callback";
-        var (service, ownerId, _) = Setup(new GoogleConsentOptions
+        await using var setup = CreateSetup(new GoogleConsentOptions
         {
             AuthorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth",
             TokenEndpoint = "https://oauth2.googleapis.com/token",
-            Scope = "https://www.googleapis.com/auth/calendar.readonly",
+            Scope = "https://www.googleapis.com/auth/calendar.events",
             ClientId = "google-client-id",
             RedirectUri = configuredRedirectUri
         });
 
-        var authorizationUrl = await service.BuildAuthorizationUrlAsync(ownerId, "https://obfuscal.local/consent-callback");
+        var authorizationUrl = await setup.Service.BuildAuthorizationUrlAsync(setup.OwnerId, "https://obfuscal.local/consent-callback");
 
         Assert.Contains(Uri.EscapeDataString(configuredRedirectUri), authorizationUrl);
         Assert.DoesNotContain(Uri.EscapeDataString("https://obfuscal.local/consent-callback"), authorizationUrl);
@@ -43,10 +43,10 @@ public class CalendarOwnerGoogleConsentServiceTests
     [TestMethod]
     public async Task BuildAuthorizationUrlAsync_WithLocalDomainRedirectUri_ThrowsClearException()
     {
-        var (service, ownerId, _) = Setup();
+        await using var setup = CreateSetup();
 
         var exception = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
-            service.BuildAuthorizationUrlAsync(ownerId, "https://obfuscal.local/consent-callback"));
+            setup.Service.BuildAuthorizationUrlAsync(setup.OwnerId, "https://obfuscal.local/consent-callback"));
 
         Assert.Contains(".local", exception.Message);
         Assert.Contains("GoogleConsent:RedirectUri", exception.Message);
@@ -57,30 +57,30 @@ public class CalendarOwnerGoogleConsentServiceTests
     {
         var configuredRedirectUri = "https://localhost/consent-callback";
         var tokenClient = new CapturingGoogleOAuthTokenClient();
-        var (service, ownerId, _) = Setup(
+        await using var setup = CreateSetup(
             new GoogleConsentOptions
             {
                 AuthorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth",
                 TokenEndpoint = "https://oauth2.googleapis.com/token",
-                Scope = "https://www.googleapis.com/auth/calendar.readonly",
+                Scope = "https://www.googleapis.com/auth/calendar.events",
                 ClientId = "google-client-id",
                 RedirectUri = configuredRedirectUri
             },
             tokenClient);
 
-        var authorizationUrl = await service.BuildAuthorizationUrlAsync(ownerId, "https://obfuscal.local/consent-callback");
+        var authorizationUrl = await setup.Service.BuildAuthorizationUrlAsync(setup.OwnerId, "https://obfuscal.local/consent-callback");
         var state = GetQueryValue(authorizationUrl, "state");
 
-        await service.CompleteConsentFromStateAsync("authorization-code", state);
+        await setup.Service.CompleteConsentFromStateAsync("authorization-code", state);
 
         Assert.AreEqual(configuredRedirectUri, tokenClient.LastRedirectUri);
 
-        var status = await service.GetStatusAsync(ownerId);
+        var status = await setup.Service.GetStatusAsync(setup.OwnerId);
         Assert.IsNotNull(status);
         Assert.IsTrue(status.HasGoogleConsent);
     }
 
-    private static (CalendarOwnerGoogleConsentService Service, Guid OwnerId, CapturingGoogleOAuthTokenClient TokenClient) Setup(
+    private static TestSetup CreateSetup(
         GoogleConsentOptions? googleConsentOptions = null,
         CapturingGoogleOAuthTokenClient? tokenClient = null)
     {
@@ -91,7 +91,6 @@ public class CalendarOwnerGoogleConsentServiceTests
 
         tokenClient ??= new CapturingGoogleOAuthTokenClient();
         var instances = new FakeCalendarSourceInstanceService(calendarOwnerId => dbContext.CalendarOwners.Any(owner => owner.Id == calendarOwnerId));
-        var logger = LoggerFactory.Create(_ => { }).CreateLogger<CalendarOwnerGoogleConsentService>();
         var service = new CalendarOwnerGoogleConsentService(
             dbContext,
             DataProtectionProvider.Create("google-consent-tests"),
@@ -104,15 +103,15 @@ public class CalendarOwnerGoogleConsentServiceTests
                 {
                     AuthorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth",
                     TokenEndpoint = "https://oauth2.googleapis.com/token",
-                    Scope = "https://www.googleapis.com/auth/calendar.readonly",
+                    Scope = "https://www.googleapis.com/auth/calendar.events",
                     ClientId = "google-client-id"
                 }),
                 tokenClient),
             new PassthroughSecretProtector(),
             new GoogleConsentInstanceDependencies(instances, instances),
-            logger);
+            NullLogger<CalendarOwnerGoogleConsentService>.Instance);
 
-        return (service, ownerId, tokenClient);
+        return new TestSetup(dbContext, service, ownerId, tokenClient);
     }
 
     private static string GetQueryValue(string url, string key)
@@ -164,6 +163,19 @@ public class CalendarOwnerGoogleConsentServiceTests
     private sealed class DictionarySecretProvider(IReadOnlyDictionary<string, string?> values) : ISecretProvider
     {
         public string? GetSecret(string key) => values.TryGetValue(key, out var value) ? value : null;
+    }
+
+    private sealed class TestSetup(
+        AppDbContext dbContext,
+        CalendarOwnerGoogleConsentService service,
+        Guid ownerId,
+        CapturingGoogleOAuthTokenClient tokenClient) : IAsyncDisposable
+    {
+        public CalendarOwnerGoogleConsentService Service { get; } = service;
+        public Guid OwnerId { get; } = ownerId;
+        public CapturingGoogleOAuthTokenClient TokenClient { get; } = tokenClient;
+
+        public ValueTask DisposeAsync() => dbContext.DisposeAsync();
     }
 }
 
