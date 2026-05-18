@@ -1,4 +1,6 @@
-﻿namespace ObfusCal.Application.UseCases.GetMergedFreeBusy;
+﻿using ObfusCal.Domain.Models;
+
+namespace ObfusCal.Application.UseCases.GetMergedFreeBusy;
 
 public record MergedFreeBusyResponse(
 	DateTimeOffset Start,
@@ -6,5 +8,7 @@ public record MergedFreeBusyResponse(
 	string? Title = null,
 	string? Description = null,
 	IReadOnlyList<string>? AttendeeEmails = null,
-	string? Location = null);
+	string? Location = null,
+	IReadOnlyList<BusySlot>? SourceSlots = null
+);
 

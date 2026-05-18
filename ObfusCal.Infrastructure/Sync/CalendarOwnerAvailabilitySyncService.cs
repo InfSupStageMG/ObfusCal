@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -20,6 +21,7 @@ public sealed class CalendarOwnerAvailabilitySyncService(
     ILogger<CalendarOwnerAvailabilitySyncService> logger)
     : ICalendarOwnerAvailabilitySyncService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     public async Task RunSyncCycleAsync(CancellationToken ct = default)
     {
         var options = syncOptions.Value;
@@ -158,7 +160,8 @@ public sealed class CalendarOwnerAvailabilitySyncService(
             Title = slot.Title,
             Description = slot.Description,
             AttendeeEmails = slot.AttendeeEmails?.ToArray(),
-            Location = slot.Location
+            Location = slot.Location,
+            SourceSlotsJson = SerializeSourceSlots(slot.SourceSlots)
         }).ToList();
 
         await dbContext.CalendarOwnerAvailabilitySlots.AddRangeAsync(entities, ct);
@@ -188,6 +191,33 @@ public sealed class CalendarOwnerAvailabilitySyncService(
             logger.LogWarning(ex,
                 "Failed to persist availability sync metadata for calendar owner {CalendarOwnerId}.",
                 calendarOwnerId);
+        }
+    }
+
+    private static string? SerializeSourceSlots(IReadOnlyList<BusySlot>? sourceSlots)
+    {
+        if (sourceSlots is null || sourceSlots.Count == 0)
+            return null;
+
+        try
+        {
+            var dtos = sourceSlots.Select(s => new
+            {
+                s.SourceEventId,
+                s.Start,
+                s.End,
+                s.Title,
+                s.Description,
+                s.AttendeeEmails,
+                s.Location
+            }).ToArray();
+
+            return JsonSerializer.Serialize(dtos, JsonOptions);
+        }
+        catch (Exception)
+        {
+            // If serialization fails, don't crash - data persistence should continue
+            return null;
         }
     }
 }
