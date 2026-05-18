@@ -2,15 +2,12 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
-using BusySlot = ObfusCal.Domain.Models.BusySlot;
 using CalendarEvent = ObfusCal.Domain.Models.CalendarEvent;
 
 namespace ObfusCal.Infrastructure.Calendars;
@@ -24,7 +21,7 @@ namespace ObfusCal.Infrastructure.Calendars;
     "graph-instance-consent",
     "Start Microsoft OAuth",
     hint: "Authorizes ObfusCal to read your Microsoft Graph calendar and maintain ObfusCal-managed busy placeholders for this source instance.")]
-public sealed class GraphCalendarSource(
+public sealed partial class GraphCalendarSource(
     HttpClient httpClient,
     AppDbContext dbContext,
     IDataProtectionProvider dataProtectionProvider,
@@ -39,6 +36,12 @@ public sealed class GraphCalendarSource(
     private const string ObfusCalPropertyNamespace = "e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0";
     private const string ManagedPropertyId = "String {" + ObfusCalPropertyNamespace + "} Name ObfusCal.Managed";
     private const string SlotIdPropertyId  = "String {" + ObfusCalPropertyNamespace + "} Name ObfusCal.SlotId";
+
+    private readonly HttpClient _httpClient = httpClient;
+    private readonly AppDbContext _dbContext = dbContext;
+    private readonly IGraphOAuthTokenClient _tokenClient = tokenClient;
+    private readonly ICalendarSourceInstanceStore _calendarSourceInstanceStore = calendarSourceInstanceStore;
+    private readonly ILogger<GraphCalendarSource> _logger = logger;
 
     private readonly IDataProtector _tokenProtector = dataProtectionProvider
         .CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
@@ -57,21 +60,21 @@ public sealed class GraphCalendarSource(
         if (calendarOwnerId is null)
             return [];
 
-        var owner = await dbContext.CalendarOwners
+        var owner = await _dbContext.CalendarOwners
             .SingleOrDefaultAsync(x => x.Id == calendarOwnerId.Value, ct);
 
         if (owner is null)
             return [];
 
-        var accessToken = await GetOrRefreshOwnerAccessTokenAsync(owner, ct);
-        if (string.IsNullOrWhiteSpace(accessToken))
+        var tokenSession = await CreateOwnerTokenSessionAsync(owner, ct);
+        if (tokenSession is null)
             return [];
 
-        using var response = await GetCalendarViewWithRetryAsync(owner, accessToken, from, to, ct);
+        using var response = await GetCalendarViewWithRetryAsync(tokenSession, from, to, ct);
 
         if (!response.IsSuccessStatusCode)
         {
-            logger.LogWarning(
+            _logger.LogWarning(
                 "Graph calendar fetch failed for calendar owner {CalendarOwnerId} with HTTP {StatusCode}.",
                 calendarOwnerId.Value,
                 (int)response.StatusCode);
@@ -79,7 +82,7 @@ public sealed class GraphCalendarSource(
         }
 
         var payload = await response.Content.ReadFromJsonAsync<GraphCalendarViewResponse>(cancellationToken: ct);
-        var events = await CollectAllPagesAsync(payload, accessToken, ct);
+        var events = await CollectAllPagesAsync(payload, tokenSession, ct);
 
         return events
             .Where(source => !IsManagedEvent(source))
@@ -102,31 +105,14 @@ public sealed class GraphCalendarSource(
 
         ct.ThrowIfCancellationRequested();
 
-        var secretData = ParseSecretData(instance.SecretDataJson);
-        if (secretData is null || string.IsNullOrWhiteSpace(secretData.ProtectedAccessToken))
+        var tokenSession = await CreateInstanceTokenSessionAsync(instance, ct);
+        if (tokenSession is null)
             return [];
 
-        string accessToken;
-        try
-        {
-            accessToken = _tokenProtector.Unprotect(secretData.ProtectedAccessToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex,
-                "Unable to read Graph access token for calendar source instance {CalendarSourceInstanceId}; returning no events.",
-                instance.Id);
-            return [];
-        }
-
-        accessToken = await RefreshIfExpiringAsync(instance, secretData, accessToken, ct);
-        if (string.IsNullOrWhiteSpace(accessToken))
-            return [];
-
-        using var response = await GetCalendarViewWithRetryAsync(instance, secretData, accessToken, from, to, ct);
+        using var response = await GetCalendarViewWithRetryAsync(tokenSession, from, to, ct);
         if (!response.IsSuccessStatusCode)
         {
-            logger.LogWarning(
+            _logger.LogWarning(
                 "Graph calendar fetch failed for calendar source instance {CalendarSourceInstanceId} with HTTP {StatusCode}.",
                 instance.Id,
                 (int)response.StatusCode);
@@ -134,7 +120,7 @@ public sealed class GraphCalendarSource(
         }
 
         var payload = await response.Content.ReadFromJsonAsync<GraphCalendarViewResponse>(cancellationToken: ct);
-        var events = await CollectAllPagesAsync(payload, accessToken, ct);
+        var events = await CollectAllPagesAsync(payload, tokenSession, ct);
 
         return events
             .Where(source => !IsManagedEvent(source))
@@ -148,7 +134,7 @@ public sealed class GraphCalendarSource(
 
     public async Task<CalendarSourceReadiness> GetReadinessAsync(Guid calendarOwnerId, CancellationToken ct = default)
     {
-        var owner = await dbContext.CalendarOwners
+        var owner = await _dbContext.CalendarOwners
             .AsNoTracking()
             .SingleOrDefaultAsync(x => x.Id == calendarOwnerId, ct);
 
@@ -178,276 +164,6 @@ public sealed class GraphCalendarSource(
                 "Complete Microsoft Graph consent for this source instance before requesting busy slots."));
     }
 
-    public async Task WriteBackSlotsAsync(
-        Guid calendarOwnerId,
-        IReadOnlyList<BusySlot> busySlots,
-        string placeholderTitle,
-        DateTimeOffset windowStart,
-        DateTimeOffset windowEnd,
-        CancellationToken ct = default)
-    {
-        var owner = await dbContext.CalendarOwners
-            .SingleOrDefaultAsync(x => x.Id == calendarOwnerId, ct);
-        if (owner is null)
-            return;
-
-        var accessToken = await GetOrRefreshOwnerAccessTokenAsync(owner, ct);
-        if (string.IsNullOrWhiteSpace(accessToken))
-        {
-            logger.LogWarning(
-                "Write-back skipped for calendar owner {CalendarOwnerId}: no valid Graph access token.",
-                calendarOwnerId);
-            return;
-        }
-
-        await WriteBackSlotsCoreAsync(
-            accessToken,
-            busySlots,
-            placeholderTitle,
-            calendarOwnerId,
-            windowStart,
-            windowEnd,
-            ct);
-    }
-
-    public async Task WriteBackSlotsAsync(
-        CalendarSourceInstanceContext instance,
-        IReadOnlyList<BusySlot> busySlots,
-        string placeholderTitle,
-        DateTimeOffset windowStart,
-        DateTimeOffset windowEnd,
-        CancellationToken ct = default)
-    {
-        var secretData = ParseSecretData(instance.SecretDataJson);
-        if (secretData is null || string.IsNullOrWhiteSpace(secretData.ProtectedAccessToken))
-        {
-            logger.LogWarning(
-                "Write-back skipped for calendar source instance {CalendarSourceInstanceId}: no valid Graph access token.",
-                instance.Id);
-            return;
-        }
-
-        string accessToken;
-        try
-        {
-            accessToken = _tokenProtector.Unprotect(secretData.ProtectedAccessToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex,
-                "Unable to read Graph access token for calendar source instance {CalendarSourceInstanceId}; write-back skipped.",
-                instance.Id);
-            return;
-        }
-
-        accessToken = await RefreshIfExpiringAsync(instance, secretData, accessToken, ct);
-        if (string.IsNullOrWhiteSpace(accessToken))
-        {
-            logger.LogWarning(
-                "Write-back skipped for calendar source instance {CalendarSourceInstanceId}: no valid Graph access token.",
-                instance.Id);
-            return;
-        }
-
-        await WriteBackSlotsCoreAsync(
-            accessToken,
-            busySlots,
-            placeholderTitle,
-            instance.CalendarOwnerId,
-            windowStart,
-            windowEnd,
-            ct);
-    }
-
-    private async Task WriteBackSlotsCoreAsync(
-        string accessToken,
-        IReadOnlyList<BusySlot> busySlots,
-        string placeholderTitle,
-        Guid calendarOwnerId,
-        DateTimeOffset windowStart,
-        DateTimeOffset windowEnd,
-        CancellationToken ct)
-    {
-        var managedEvents = await GetManagedEventsAsync(accessToken, calendarOwnerId, windowStart, windowEnd, ct);
-
-        var managedBySlotId = managedEvents
-            .Where(e => e.GraphId is not null && e.SlotId is not null)
-            .ToDictionary(e => e.SlotId!, e => e, StringComparer.Ordinal);
-
-        var activeSlotIds = busySlots
-            .Select(s => s.SourceEventId)
-            .ToHashSet(StringComparer.Ordinal);
-
-        // Upsert: create new or patch changed existing placeholder events.
-        foreach (var slot in busySlots)
-        {
-            if (managedBySlotId.TryGetValue(slot.SourceEventId, out var existing))
-            {
-                if (existing.Start != slot.Start || existing.End != slot.End
-                    || !string.Equals(existing.Subject, placeholderTitle, StringComparison.Ordinal))
-                {
-                    await PatchPlaceholderEventAsync(existing.GraphId!, accessToken, slot, placeholderTitle, calendarOwnerId, ct);
-                }
-            }
-            else
-            {
-                await CreatePlaceholderEventAsync(accessToken, slot, placeholderTitle, calendarOwnerId, ct);
-            }
-        }
-
-        // Cleanup: only delete stale managed events whose start falls within the write-back window.
-        // Events beyond the window belong to shadow slots not yet in scope; deleting them here would
-        // cause placeholder churn as the advancing window temporarily excludes future slots.
-        var staleCount = 0;
-        foreach (var (slotId, ev) in managedBySlotId)
-        {
-            if (activeSlotIds.Contains(slotId) || ev.Start < windowStart || ev.Start >= windowEnd) continue;
-            await DeleteEventAsync(ev.GraphId!, accessToken, calendarOwnerId, ct);
-            staleCount++;
-        }
-
-        logger.LogInformation(
-            "Write-back complete for calendar owner {CalendarOwnerId}: {UpsertCount} active placeholder(s), {DeleteCount} stale placeholder(s) removed.",
-            calendarOwnerId,
-            busySlots.Count,
-            staleCount);
-    }
-
-    private async Task<IReadOnlyList<ManagedEventRecord>> GetManagedEventsAsync(
-        string accessToken,
-        Guid calendarOwnerId,
-        DateTimeOffset windowStart,
-        DateTimeOffset windowEnd,
-        CancellationToken ct)
-    {
-        var managedFilter = $"singleValueExtendedProperties/Any(ep: ep/id eq '{ManagedPropertyId}' and ep/value eq '1')";
-        var windowFilter =
-            $"start/dateTime ge '{windowStart.UtcDateTime.ToString("O", CultureInfo.InvariantCulture)}' and start/dateTime lt '{windowEnd.UtcDateTime.ToString("O", CultureInfo.InvariantCulture)}'";
-        var filter = $"{managedFilter} and {windowFilter}";
-        var expand = $"singleValueExtendedProperties($filter=id eq '{SlotIdPropertyId}')";
-        var requestUri =
-            $"{GraphEventsPath}?$filter={Uri.EscapeDataString(filter)}&$expand={Uri.EscapeDataString(expand)}&$select=id,subject,start,end&$top={GraphCalendarViewPageSize}";
-
-        var events = new List<ManagedEventRecord>();
-        string? nextPageUri = requestUri;
-
-        while (!string.IsNullOrWhiteSpace(nextPageUri))
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Get, nextPageUri);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-            request.Headers.Accept.ParseAdd("application/json");
-
-            using var response = await httpClient.SendAsync(request, ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.LogWarning(
-                    "Failed to fetch ObfusCal-managed Graph events for calendar owner {CalendarOwnerId}: HTTP {StatusCode}.",
-                    calendarOwnerId,
-                    (int)response.StatusCode);
-                return [];
-            }
-
-            var payload = await response.Content.ReadFromJsonAsync<GraphManagedEventsResponse>(cancellationToken: ct);
-            if (payload?.Value is not null)
-            {
-                events.AddRange(payload.Value
-                    .Select(dto =>
-                    {
-                        var slotId = dto.ExtendedProperties?
-                            .FirstOrDefault(p => string.Equals(p.Id, SlotIdPropertyId, StringComparison.Ordinal))
-                            ?.Value;
-                        TryParseGraphDateTime(dto.Start, out var start);
-                        TryParseGraphDateTime(dto.End, out var end);
-                        return new ManagedEventRecord(dto.Id, slotId, dto.Subject, start, end);
-                    })
-                    .Where(e => e.GraphId is not null));
-            }
-
-            nextPageUri = payload?.NextLink;
-        }
-
-        return events;
-    }
-
-    private async Task CreatePlaceholderEventAsync(
-        string accessToken,
-        BusySlot slot,
-        string placeholderTitle,
-        Guid calendarOwnerId,
-        CancellationToken ct)
-    {
-        var body = new
-        {
-            subject = placeholderTitle,
-            start = new { dateTime = slot.Start.UtcDateTime.ToString("O", CultureInfo.InvariantCulture), timeZone = "UTC" },
-            end   = new { dateTime = slot.End.UtcDateTime.ToString("O", CultureInfo.InvariantCulture),   timeZone = "UTC" },
-            showAs = "busy",
-            isReminderOn = false,
-            singleValueExtendedProperties = new[]
-            {
-                new { id = ManagedPropertyId, value = "1" },
-                new { id = SlotIdPropertyId,  value = slot.SourceEventId }
-            }
-        };
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, GraphEventsPath);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
-
-        using var response = await httpClient.SendAsync(request, ct);
-        if (!response.IsSuccessStatusCode)
-        {
-            logger.LogWarning(
-                "Failed to create placeholder event for slot {SlotId} for calendar owner {CalendarOwnerId}: HTTP {StatusCode}.",
-                slot.SourceEventId, calendarOwnerId, (int)response.StatusCode);
-        }
-    }
-
-    private async Task PatchPlaceholderEventAsync(
-        string graphEventId,
-        string accessToken,
-        BusySlot slot,
-        string placeholderTitle,
-        Guid calendarOwnerId,
-        CancellationToken ct)
-    {
-        var body = new
-        {
-            subject = placeholderTitle,
-            start = new { dateTime = slot.Start.UtcDateTime.ToString("O", CultureInfo.InvariantCulture), timeZone = "UTC" },
-            end   = new { dateTime = slot.End.UtcDateTime.ToString("O", CultureInfo.InvariantCulture),   timeZone = "UTC" }
-        };
-
-        using var request = new HttpRequestMessage(HttpMethod.Patch, $"{GraphEventsPath}/{Uri.EscapeDataString(graphEventId)}");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
-
-        using var response = await httpClient.SendAsync(request, ct);
-        if (!response.IsSuccessStatusCode)
-        {
-            logger.LogWarning(
-                "Failed to patch placeholder event {GraphEventId} for calendar owner {CalendarOwnerId}: HTTP {StatusCode}.",
-                graphEventId, calendarOwnerId, (int)response.StatusCode);
-        }
-    }
-
-    private async Task DeleteEventAsync(
-        string graphEventId,
-        string accessToken,
-        Guid calendarOwnerId,
-        CancellationToken ct)
-    {
-        using var request = new HttpRequestMessage(HttpMethod.Delete, $"{GraphEventsPath}/{Uri.EscapeDataString(graphEventId)}");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-        using var response = await httpClient.SendAsync(request, ct);
-        if (!response.IsSuccessStatusCode && response.StatusCode != HttpStatusCode.NotFound)
-        {
-            logger.LogWarning(
-                "Failed to delete stale placeholder event {GraphEventId} for calendar owner {CalendarOwnerId}: HTTP {StatusCode}.",
-                graphEventId, calendarOwnerId, (int)response.StatusCode);
-        }
-    }
 
     private async Task<string?> GetOrRefreshOwnerAccessTokenAsync(CalendarOwner owner, CancellationToken ct)
     {
@@ -461,7 +177,7 @@ public sealed class GraphCalendarSource(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex,
+            _logger.LogWarning(ex,
                 "Unable to read Graph access token for calendar owner {CalendarOwnerId}.",
                 owner.Id);
             return null;
@@ -469,6 +185,66 @@ public sealed class GraphCalendarSource(
 
         var refreshed = await RefreshIfExpiringAsync(owner, accessToken, ct);
         return string.IsNullOrWhiteSpace(refreshed) ? null : refreshed;
+    }
+
+    private async Task<GraphAccessTokenSession?> CreateOwnerTokenSessionAsync(CalendarOwner owner, CancellationToken ct)
+    {
+        var accessToken = await GetOrRefreshOwnerAccessTokenAsync(owner, ct);
+        return string.IsNullOrWhiteSpace(accessToken)
+            ? null
+            : new GraphAccessTokenSession(accessToken, refreshCt => ForceRefreshAsync(owner, refreshCt));
+    }
+
+    private async Task<GraphAccessTokenSession?> CreateInstanceTokenSessionAsync(
+        CalendarSourceInstanceContext instance,
+        CancellationToken ct)
+    {
+        var secretData = ParseSecretData(instance.SecretDataJson);
+        if (secretData is null || string.IsNullOrWhiteSpace(secretData.ProtectedAccessToken))
+            return null;
+
+        if (!TryUnprotectInstanceAccessToken(instance, secretData, out var accessToken))
+            return null;
+
+        var sessionState = new GraphInstanceSessionState(secretData);
+        accessToken = await EnsureFreshInstanceAccessTokenAsync(instance, sessionState, accessToken!, ct);
+        if (string.IsNullOrWhiteSpace(accessToken))
+            return null;
+
+        return new GraphAccessTokenSession(accessToken, refreshCt => ForceRefreshAsync(instance, sessionState, refreshCt));
+    }
+
+    private bool TryUnprotectInstanceAccessToken(
+        CalendarSourceInstanceContext instance,
+        GraphSourceSecretData secretData,
+        out string? accessToken)
+    {
+        try
+        {
+            accessToken = _tokenProtector.Unprotect(secretData.ProtectedAccessToken!);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Unable to read Graph access token for calendar source instance {CalendarSourceInstanceId}; returning no events.",
+                instance.Id);
+            accessToken = null;
+            return false;
+        }
+    }
+
+    private async Task<string> EnsureFreshInstanceAccessTokenAsync(
+        CalendarSourceInstanceContext instance,
+        GraphInstanceSessionState sessionState,
+        string accessToken,
+        CancellationToken ct)
+    {
+        var expiresAt = sessionState.SecretData.TokenExpiresAtUtc;
+        if (expiresAt is null || expiresAt.Value > DateTimeOffset.UtcNow.AddMinutes(1))
+            return accessToken;
+
+        return await ForceRefreshAsync(instance, sessionState, ct);
     }
 
     private async Task<string> RefreshIfExpiringAsync(CalendarOwner owner, string accessToken, CancellationToken ct)
@@ -480,24 +256,11 @@ public sealed class GraphCalendarSource(
         return await ForceRefreshAsync(owner, ct);
     }
 
-    private async Task<string> RefreshIfExpiringAsync(
-        CalendarSourceInstanceContext instance,
-        GraphSourceSecretData secretData,
-        string accessToken,
-        CancellationToken ct)
-    {
-        var expiresAt = secretData.TokenExpiresAtUtc;
-        if (expiresAt is null || expiresAt.Value > DateTimeOffset.UtcNow.AddMinutes(1))
-            return accessToken;
-
-        return await ForceRefreshAsync(instance, secretData, ct);
-    }
-
     private async Task<string> ForceRefreshAsync(CalendarOwner owner, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(owner.GraphRefreshTokenProtected))
         {
-            logger.LogWarning(
+            _logger.LogWarning(
                 "Graph access token refresh skipped for calendar owner {CalendarOwnerId}: no refresh token available.",
                 owner.Id);
             return string.Empty;
@@ -510,7 +273,7 @@ public sealed class GraphCalendarSource(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex,
+            _logger.LogWarning(ex,
                 "Graph access token refresh failed for calendar owner {CalendarOwnerId}: refresh token could not be read.",
                 owner.Id);
             return string.Empty;
@@ -518,7 +281,7 @@ public sealed class GraphCalendarSource(
 
         try
         {
-            var refreshed = await tokenClient.RefreshAccessTokenAsync(refreshToken, ct);
+            var refreshed = await _tokenClient.RefreshAccessTokenAsync(refreshToken, ct);
             owner.GraphAccessTokenProtected = _tokenProtector.Protect(refreshed.AccessToken);
             if (!string.IsNullOrWhiteSpace(refreshed.RefreshToken))
                 owner.GraphRefreshTokenProtected = _tokenProtector.Protect(refreshed.RefreshToken);
@@ -526,12 +289,12 @@ public sealed class GraphCalendarSource(
             owner.GraphTokenExpiresAtUtc = refreshed.ExpiresAtUtc;
             owner.GraphTokenLastRefreshedAtUtc = DateTimeOffset.UtcNow;
 
-            await dbContext.SaveChangesAsync(ct);
+            await _dbContext.SaveChangesAsync(ct);
             return refreshed.AccessToken;
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex,
+            _logger.LogWarning(ex,
                 "Graph access token refresh failed for calendar owner {CalendarOwnerId}; returning no events.",
                 owner.Id);
             return string.Empty;
@@ -540,15 +303,25 @@ public sealed class GraphCalendarSource(
 
     private async Task<string> ForceRefreshAsync(
         CalendarSourceInstanceContext instance,
+        GraphInstanceSessionState sessionState,
+        CancellationToken ct)
+    {
+        var refreshResult = await ForceRefreshAsync(instance, sessionState.SecretData, ct);
+        sessionState.SecretData = refreshResult.SecretData;
+        return refreshResult.AccessToken;
+    }
+
+    private async Task<GraphTokenRefreshResult> ForceRefreshAsync(
+        CalendarSourceInstanceContext instance,
         GraphSourceSecretData secretData,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(secretData.ProtectedRefreshToken))
         {
-            logger.LogWarning(
+            _logger.LogWarning(
                 "Graph access token refresh skipped for calendar source instance {CalendarSourceInstanceId}: no refresh token available.",
                 instance.Id);
-            return string.Empty;
+            return GraphTokenRefreshResult.Empty(secretData);
         }
 
         string refreshToken;
@@ -558,15 +331,15 @@ public sealed class GraphCalendarSource(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex,
+            _logger.LogWarning(ex,
                 "Graph access token refresh failed for calendar source instance {CalendarSourceInstanceId}: refresh token could not be read.",
                 instance.Id);
-            return string.Empty;
+            return GraphTokenRefreshResult.Empty(secretData);
         }
 
         try
         {
-            var refreshed = await tokenClient.RefreshAccessTokenAsync(refreshToken, ct);
+            var refreshed = await _tokenClient.RefreshAccessTokenAsync(refreshToken, ct);
             var updatedSecretData = secretData with
             {
                 ProtectedAccessToken = _tokenProtector.Protect(refreshed.AccessToken),
@@ -577,43 +350,65 @@ public sealed class GraphCalendarSource(
                 TokenLastRefreshedAtUtc = DateTimeOffset.UtcNow
             };
 
-            await calendarSourceInstanceStore.UpdateSecretDataAsync(
+            await _calendarSourceInstanceStore.UpdateSecretDataAsync(
                 instance.CalendarOwnerId,
                 instance.Id,
                 JsonSerializer.Serialize(updatedSecretData),
                 ct);
 
-            return refreshed.AccessToken;
+            return new GraphTokenRefreshResult(refreshed.AccessToken, updatedSecretData);
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex,
+            _logger.LogWarning(ex,
                 "Graph access token refresh failed for calendar source instance {CalendarSourceInstanceId}; returning no events.",
                 instance.Id);
-            return string.Empty;
+            return GraphTokenRefreshResult.Empty(secretData);
         }
     }
 
-    private async Task<HttpResponseMessage> GetCalendarViewAsync(
-        string accessToken,
+    private string BuildCalendarViewRequestUri(
         DateTimeOffset from,
-        DateTimeOffset to,
-        CancellationToken ct)
+        DateTimeOffset to)
     {
         var expand = $"singleValueExtendedProperties($filter=id eq '{ManagedPropertyId}')";
-        var requestUri =
+        return
             $"{GraphCalendarViewPath}?startDateTime={Uri.EscapeDataString(from.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))}&endDateTime={Uri.EscapeDataString(to.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))}&$expand={Uri.EscapeDataString(expand)}&$top={GraphCalendarViewPageSize}";
+    }
+
+    private async Task<HttpResponseMessage> SendAuthorizedGetAsync(
+        string requestUri,
+        string accessToken,
+        CancellationToken ct)
+    {
         using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Accept.ParseAdd("application/json");
 
-        return await httpClient.SendAsync(request, ct);
+        return await _httpClient.SendAsync(request, ct);
+    }
+
+    private async Task<HttpResponseMessage> SendAuthorizedGetWithRetryAsync(
+        string requestUri,
+        GraphAccessTokenSession tokenSession,
+        CancellationToken ct)
+    {
+        var response = await SendAuthorizedGetAsync(requestUri, tokenSession.AccessToken, ct);
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+            return response;
+
+        response.Dispose();
+
+        if (!await tokenSession.TryRefreshAsync(ct))
+            return new HttpResponseMessage(HttpStatusCode.Unauthorized);
+
+        return await SendAuthorizedGetAsync(requestUri, tokenSession.AccessToken, ct);
     }
 
     /// <summary>Follows @odata.nextLink pages until exhausted and returns all events.</summary>
     private async Task<List<GraphEvent>> CollectAllPagesAsync(
         GraphCalendarViewResponse? firstPage,
-        string accessToken,
+        GraphAccessTokenSession tokenSession,
         CancellationToken ct)
     {
         var allEvents = new List<GraphEvent>();
@@ -629,78 +424,38 @@ public sealed class GraphCalendarSource(
 
             if (!seenNextLinks.Add(page.NextLink))
             {
-                logger.LogWarning(
+                _logger.LogWarning(
                     "Graph calendarView pagination returned a repeated nextLink; stopping early to avoid an infinite loop.");
                 break;
             }
 
-            page = await FetchNextPageAsync(accessToken, page.NextLink, ct);
+            page = await FetchNextPageAsync(tokenSession, page.NextLink, ct);
         }
 
         return allEvents;
     }
 
     private async Task<GraphCalendarViewResponse?> FetchNextPageAsync(
-        string accessToken,
+        GraphAccessTokenSession tokenSession,
         string nextLink,
         CancellationToken ct)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, nextLink);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-        request.Headers.Accept.ParseAdd("application/json");
+        using var response = await SendAuthorizedGetWithRetryAsync(nextLink, tokenSession, ct);
+        if (response.IsSuccessStatusCode)
+            return await response.Content.ReadFromJsonAsync<GraphCalendarViewResponse>(cancellationToken: ct);
+        _logger.LogWarning(
+            "Graph calendarView next-page fetch failed with HTTP {StatusCode}; pagination stopped early.",
+            (int)response.StatusCode);
+        return null;
 
-        using var response = await httpClient.SendAsync(request, ct);
-        if (!response.IsSuccessStatusCode)
-        {
-            logger.LogWarning(
-                "Graph calendarView next-page fetch failed with HTTP {StatusCode}; pagination stopped early.",
-                (int)response.StatusCode);
-            return null;
-        }
-
-        return await response.Content.ReadFromJsonAsync<GraphCalendarViewResponse>(cancellationToken: ct);
     }
 
     private async Task<HttpResponseMessage> GetCalendarViewWithRetryAsync(
-        CalendarOwner owner,
-        string accessToken,
+        GraphAccessTokenSession tokenSession,
         DateTimeOffset from,
         DateTimeOffset to,
         CancellationToken ct)
-    {
-        var response = await GetCalendarViewAsync(accessToken, from, to, ct);
-        if (response.StatusCode != HttpStatusCode.Unauthorized)
-            return response;
-
-        response.Dispose();
-
-        var refreshedAccessToken = await ForceRefreshAsync(owner, ct);
-        if (string.IsNullOrWhiteSpace(refreshedAccessToken))
-            return new HttpResponseMessage(HttpStatusCode.Unauthorized);
-
-        return await GetCalendarViewAsync(refreshedAccessToken, from, to, ct);
-    }
-
-    private async Task<HttpResponseMessage> GetCalendarViewWithRetryAsync(
-        CalendarSourceInstanceContext instance,
-        GraphSourceSecretData secretData,
-        string accessToken,
-        DateTimeOffset from,
-        DateTimeOffset to,
-        CancellationToken ct)
-    {
-        var response = await GetCalendarViewAsync(accessToken, from, to, ct);
-        if (response.StatusCode != HttpStatusCode.Unauthorized)
-            return response;
-
-        response.Dispose();
-
-        var refreshedAccessToken = await ForceRefreshAsync(instance, secretData, ct);
-        if (string.IsNullOrWhiteSpace(refreshedAccessToken))
-            return new HttpResponseMessage(HttpStatusCode.Unauthorized);
-
-        return await GetCalendarViewAsync(refreshedAccessToken, from, to, ct);
-    }
+        => await SendAuthorizedGetWithRetryAsync(BuildCalendarViewRequestUri(from, to), tokenSession, ct);
 
     private static GraphSourceSecretData? ParseSecretData(string? secretDataJson)
     {
@@ -779,13 +534,13 @@ public sealed class GraphCalendarSource(
             }
             catch (TimeZoneNotFoundException ex)
             {
-                logger.LogDebug(ex,
+                _logger.LogDebug(ex,
                     "Graph event timezone '{TimeZoneId}' was not found on this host. Falling back to UTC parsing.",
                     timeZoneId);
             }
             catch (InvalidTimeZoneException ex)
             {
-                logger.LogDebug(ex,
+                _logger.LogDebug(ex,
                     "Graph event timezone '{TimeZoneId}' is invalid on this host. Falling back to UTC parsing.",
                     timeZoneId);
             }
@@ -794,72 +549,4 @@ public sealed class GraphCalendarSource(
         value = new DateTimeOffset(DateTime.SpecifyKind(parsedDateTime, DateTimeKind.Utc));
         return true;
     }
-
-    private sealed record GraphCalendarViewResponse(
-        [property: JsonPropertyName("value")] List<GraphEvent>? Value,
-        [property: JsonPropertyName("@odata.nextLink")] string? NextLink);
-
-    private sealed record GraphEvent(
-        [property: JsonPropertyName("id")] string? Id,
-        [property: JsonPropertyName("subject")]
-        string? Subject,
-        [property: JsonPropertyName("bodyPreview")]
-        string? BodyPreview,
-        [property: JsonPropertyName("start")] GraphDateTimeTimeZone? Start,
-        [property: JsonPropertyName("end")] GraphDateTimeTimeZone? End,
-        [property: JsonPropertyName("attendees")]
-        List<GraphAttendee>? Attendees,
-        [property: JsonPropertyName("singleValueExtendedProperties")]
-        List<GraphExtendedProperty>? ExtendedProperties,
-        [property: JsonPropertyName("location")]
-        GraphLocation? Location);
-
-    private sealed record GraphDateTimeTimeZone(
-        [property: JsonPropertyName("dateTime")]
-        string? DateTime,
-        [property: JsonPropertyName("timeZone")]
-        string? TimeZone);
-
-    private sealed record GraphAttendee(
-        [property: JsonPropertyName("emailAddress")]
-        GraphEmailAddress? EmailAddress);
-
-    private sealed record GraphEmailAddress(
-        [property: JsonPropertyName("address")]
-        string? Address);
-
-    private sealed record GraphLocation(
-        [property: JsonPropertyName("displayName")]
-        string? DisplayName);
-
-    // Write-back DTOs
-    private sealed record GraphManagedEventsResponse(
-        [property: JsonPropertyName("value")] List<GraphManagedEventDto>? Value,
-        [property: JsonPropertyName("@odata.nextLink")] string? NextLink);
-
-    private sealed record GraphManagedEventDto(
-        [property: JsonPropertyName("id")]      string? Id,
-        [property: JsonPropertyName("subject")] string? Subject,
-        [property: JsonPropertyName("start")]   GraphDateTimeTimeZone? Start,
-        [property: JsonPropertyName("end")]     GraphDateTimeTimeZone? End,
-        [property: JsonPropertyName("singleValueExtendedProperties")]
-        List<GraphExtendedProperty>? ExtendedProperties);
-
-    private sealed record GraphExtendedProperty(
-        [property: JsonPropertyName("id")]    string? Id,
-        [property: JsonPropertyName("value")] string? Value);
-
-    private sealed record ManagedEventRecord(
-        string? GraphId,
-        string? SlotId,
-        string? Subject,
-        DateTimeOffset Start,
-        DateTimeOffset End);
-
-    internal sealed record GraphSourceSecretData(
-        string? ProtectedAccessToken,
-        string? ProtectedRefreshToken,
-        DateTimeOffset? ConsentGrantedAtUtc,
-        DateTimeOffset? TokenExpiresAtUtc,
-        DateTimeOffset? TokenLastRefreshedAtUtc);
 }

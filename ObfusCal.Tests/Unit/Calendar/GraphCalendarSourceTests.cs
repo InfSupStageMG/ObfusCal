@@ -244,6 +244,99 @@ public class GraphCalendarSourceTests
     }
 
     [TestMethod]
+    public async Task GetEventsAsync_ReusesRefreshedToken_ForNextLinkRequests()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var protector = dataProtectionProvider.CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Owner",
+            GraphAccessTokenProtected = protector.Protect("expired-access-token"),
+            GraphRefreshTokenProtected = protector.Protect("refresh-token"),
+            GraphTokenExpiresAtUtc = DateTimeOffset.UtcNow.AddHours(1)
+        });
+        await dbContext.SaveChangesAsync();
+
+        var tokenClient = new StubGraphOAuthTokenClient
+        {
+            RefreshedToken = new GraphOAuthTokenResponse("fresh-access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))
+        };
+
+        var seenTokens = new List<string?>();
+        var handler = new DelegatingHttpMessageHandler(request =>
+        {
+            var token = request.Headers.Authorization?.Parameter;
+            seenTokens.Add(token);
+
+            var requestUri = request.RequestUri!.ToString();
+            if (seenTokens.Count == 1)
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized));
+
+            if (!requestUri.Contains("$skiptoken=page2", StringComparison.Ordinal))
+            {
+                const string page1Json = """
+                                         {
+                                           "value": [
+                                             {
+                                               "id": "evt-p1",
+                                               "subject": "Page 1 event",
+                                               "start": { "dateTime": "2026-06-01T08:00:00Z", "timeZone": "UTC" },
+                                               "end": { "dateTime": "2026-06-01T09:00:00Z", "timeZone": "UTC" }
+                                             }
+                                           ],
+                                           "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/calendarView?$skiptoken=page2"
+                                         }
+                                         """;
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(page1Json, Encoding.UTF8, "application/json")
+                });
+            }
+
+            const string page2Json = """
+                                     {
+                                       "value": [
+                                         {
+                                           "id": "evt-p2",
+                                           "subject": "Page 2 event",
+                                           "start": { "dateTime": "2026-06-02T08:00:00Z", "timeZone": "UTC" },
+                                           "end": { "dateTime": "2026-06-02T09:00:00Z", "timeZone": "UTC" }
+                                         }
+                                       ]
+                                     }
+                                     """;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(page2Json, Encoding.UTF8, "application/json")
+            });
+        });
+
+        var source = CreateSource(
+            dbContext,
+            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            tokenClient,
+            new CapturingLogger<GraphCalendarSource>(),
+            dataProtectionProvider);
+
+        var events = await source.GetEventsAsync(
+            new DateTimeOffset(2026, 5, 1, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
+            ownerId);
+
+        CollectionAssert.AreEqual(
+            new[] { "expired-access-token", "fresh-access-token", "fresh-access-token" },
+            seenTokens.ToArray());
+        Assert.AreEqual(1, tokenClient.RefreshCallCount);
+        Assert.HasCount(2, events);
+        Assert.AreEqual("Page 1 event", events[0].Title);
+        Assert.AreEqual("Page 2 event", events[1].Title);
+    }
+
+    [TestMethod]
     public async Task GetEventsAsync_SkipsManagedPlaceholderEvents()
     {
         await using var dbContext = TestDbContextFactory.CreateInMemory();
@@ -289,7 +382,8 @@ public class GraphCalendarSourceTests
                 Encoding.UTF8,
                 "application/json")
         }));
-        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
 
         var source = CreateSource(
             dbContext,
@@ -423,7 +517,7 @@ public class GraphCalendarSourceTests
         const string repeatedLink = "https://graph.microsoft.com/v1.0/me/calendarView?$skiptoken=repeat";
         var logger = new CapturingLogger<GraphCalendarSource>();
         var requestCount = 0;
-        var handler = new DelegatingHttpMessageHandler(request =>
+        var handler = new DelegatingHttpMessageHandler(_ =>
         {
             requestCount++;
 

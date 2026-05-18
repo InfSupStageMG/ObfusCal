@@ -263,8 +263,8 @@ public class CalendarOwnerAvailabilitySyncServiceTests
 
             await service.RunSyncForOwnerAsync(ownerId);
 
-            Assert.AreEqual(1, requests.Count(entry => entry.Method == HttpMethod.Delete));
-            Assert.IsTrue(requests.Any(entry => entry.Method == HttpMethod.Delete && entry.Uri.Contains("managed-1", StringComparison.Ordinal)));
+            Assert.ContainsSingle(entry => entry.Method == HttpMethod.Delete, requests);
+            Assert.Contains(entry => entry.Method == HttpMethod.Delete && entry.Uri.Contains("managed-1", StringComparison.Ordinal), requests);
         }
         finally
         {
@@ -301,7 +301,10 @@ public class CalendarOwnerAvailabilitySyncServiceTests
             request =>
             {
                 requests.Add((request.Method, request.RequestUri!.AbsolutePath));
-                return Task.FromResult(HttpClientHandlerStub.JsonResponse("{\"value\":[]}"));
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"value\":[]}", Encoding.UTF8, "application/json")
+                });
             });
 
         var service = CreateService(
@@ -312,7 +315,7 @@ public class CalendarOwnerAvailabilitySyncServiceTests
 
         await service.RunSyncForOwnerAsync(ownerId);
 
-        Assert.AreEqual(1, requests.Count, "Only the normal calendar read should run when write-back is disabled.");
+        Assert.HasCount(1, requests, "Only the normal calendar read should run when write-back is disabled.");
         Assert.AreEqual("/v1.0/me/calendarView", requests[0].Path);
     }
 

@@ -49,62 +49,85 @@ internal sealed class AggregateCalendarSource(
             return;
 
         var eventsByInstanceId = await LoadProjectedEventsByInstanceAsync(enabledSources, windowStart, windowEnd, ct);
+        var writableDestinations = GetWritableDestinations(enabledSources);
+        if (writableDestinations.Count == 0)
+        {
+            logger.LogInformation(
+                "No writable calendar source instances were available for calendar owner {CalendarOwnerId}; aggregate write-back skipped.",
+                calendarOwnerId);
+            return;
+        }
+
         var profile = await obfuscationProfileService.GetProfileAsync(
             calendarOwnerId,
             ObfuscationAuditContext.Client,
             ct);
 
-        var wroteToDestination = false;
-        foreach (var destination in enabledSources)
+        foreach (var destination in writableDestinations)
         {
-            if (destination.Source is not ICalendarSourceInstanceWriteBack writeBack)
-                continue;
-
-            wroteToDestination = true;
-
-            var eventsFromOtherSources = eventsByInstanceId
-                .Where(entry => entry.Key != destination.Instance.Id)
-                .SelectMany(entry => entry.Value)
-                .ToList();
-
-            var outboundSlots = obfuscationPipeline.Process(
-                    eventsFromOtherSources,
-                    calendarOwnerId.ToString(),
-                    ObfuscationAuditContext.Client,
-                    profile)
-                .Concat(busySlots)
-                .OrderBy(slot => slot.Start)
-                .ToList();
-
-            try
-            {
-                await writeBack.WriteBackSlotsAsync(
-                    destination.Instance,
-                    outboundSlots,
-                    placeholderTitle,
-                    windowStart,
-                    windowEnd,
-                    ct);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(
-                    ex,
-                    "Write-back failed for calendar source instance {CalendarSourceInstanceId} ({PluginId}) for calendar owner {CalendarOwnerId}; continuing with remaining destinations.",
-                    destination.Instance.Id,
-                    destination.Instance.PluginId,
-                    calendarOwnerId);
-            }
+            var outboundSlots = BuildOutboundSlots(destination.Instance.Id, eventsByInstanceId, busySlots, calendarOwnerId, profile);
+            await TryWriteToDestinationAsync(destination, outboundSlots, placeholderTitle, calendarOwnerId, windowStart, windowEnd, ct);
         }
+    }
 
-        if (!wroteToDestination)
+    private static IReadOnlyList<WritableDestination> GetWritableDestinations(IReadOnlyList<EnabledSourceInstance> enabledSources)
+        => enabledSources
+            .Where(source => source.Source is ICalendarSourceInstanceWriteBack)
+            .Select(source => new WritableDestination(source.Instance, (ICalendarSourceInstanceWriteBack)source.Source))
+            .ToList();
+
+    private List<BusySlot> BuildOutboundSlots(
+        Guid destinationInstanceId,
+        IReadOnlyDictionary<Guid, IReadOnlyList<CalendarEvent>> eventsByInstanceId,
+        IReadOnlyList<BusySlot> busySlots,
+        Guid calendarOwnerId,
+        ObfuscationProfileSettings profile)
+    {
+        var eventsFromOtherSources = eventsByInstanceId
+            .Where(entry => entry.Key != destinationInstanceId)
+            .SelectMany(entry => entry.Value)
+            .ToList();
+
+        return obfuscationPipeline.Process(
+                eventsFromOtherSources,
+                calendarOwnerId.ToString(),
+                ObfuscationAuditContext.Client,
+                profile)
+            .Concat(busySlots)
+            .OrderBy(slot => slot.Start)
+            .ToList();
+    }
+
+    private async Task TryWriteToDestinationAsync(
+        WritableDestination destination,
+        IReadOnlyList<BusySlot> outboundSlots,
+        string placeholderTitle,
+        Guid calendarOwnerId,
+        DateTimeOffset windowStart,
+        DateTimeOffset windowEnd,
+        CancellationToken ct)
+    {
+        try
         {
-            logger.LogInformation(
-                "No writable calendar source instances were available for calendar owner {CalendarOwnerId}; aggregate write-back skipped.",
+            await destination.WriteBack.WriteBackSlotsAsync(
+                destination.Instance,
+                outboundSlots,
+                placeholderTitle,
+                windowStart,
+                windowEnd,
+                ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Write-back failed for calendar source instance {CalendarSourceInstanceId} ({PluginId}) for calendar owner {CalendarOwnerId}; continuing with remaining destinations.",
+                destination.Instance.Id,
+                destination.Instance.PluginId,
                 calendarOwnerId);
         }
     }
@@ -177,5 +200,9 @@ internal sealed class AggregateCalendarSource(
     private sealed record EnabledSourceInstance(
         CalendarSourceInstanceContext Instance,
         ICalendarSource Source);
+
+    private sealed record WritableDestination(
+        CalendarSourceInstanceContext Instance,
+        ICalendarSourceInstanceWriteBack WriteBack);
 }
 

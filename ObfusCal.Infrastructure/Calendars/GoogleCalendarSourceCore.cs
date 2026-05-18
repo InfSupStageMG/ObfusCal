@@ -232,6 +232,40 @@ public sealed class GoogleCalendarSourceCore(
             return;
         }
 
+        var managedBySlotId = await GetManagedEventsBySlotIdAsync(
+            instance,
+            queryContext,
+            windowStart,
+            windowEnd,
+            ct);
+        var activeSlotIds = busySlots
+            .Select(slot => slot.SourceEventId)
+            .ToHashSet(StringComparer.Ordinal);
+
+        await UpsertPlaceholderEventsAsync(instance, queryContext, busySlots, placeholderTitle, managedBySlotId, ct);
+        var staleCount = await DeleteStaleManagedEventsAsync(
+            instance,
+            queryContext,
+            managedBySlotId,
+            activeSlotIds,
+            windowStart,
+            windowEnd,
+            ct);
+
+        logger.LogInformation(
+            "Write-back complete for Google calendar source instance {CalendarSourceInstanceId}: {UpsertCount} active placeholder(s), {DeleteCount} stale placeholder(s) removed.",
+            instance.Id,
+            busySlots.Count,
+            staleCount);
+    }
+
+    private async Task<Dictionary<string, ManagedGoogleEventRecord>> GetManagedEventsBySlotIdAsync(
+        CalendarSourceInstanceContext instance,
+        GoogleQueryContext queryContext,
+        DateTimeOffset windowStart,
+        DateTimeOffset windowEnd,
+        CancellationToken ct)
+    {
         var managedEvents = await GetManagedEventsAsync(
             instance,
             queryContext.CalendarId,
@@ -241,64 +275,91 @@ public sealed class GoogleCalendarSourceCore(
             windowEnd,
             ct);
 
-        var managedBySlotId = managedEvents
+        return managedEvents
             .Where(e => e.GoogleId is not null && e.SlotId is not null)
             .ToDictionary(e => e.SlotId!, e => e, StringComparer.Ordinal);
+    }
 
-        var activeSlotIds = busySlots
-            .Select(slot => slot.SourceEventId)
-            .ToHashSet(StringComparer.Ordinal);
-
+    private async Task UpsertPlaceholderEventsAsync(
+        CalendarSourceInstanceContext instance,
+        GoogleQueryContext queryContext,
+        IReadOnlyList<BusySlot> busySlots,
+        string placeholderTitle,
+        IReadOnlyDictionary<string, ManagedGoogleEventRecord> managedBySlotId,
+        CancellationToken ct)
+    {
         foreach (var slot in busySlots)
         {
             if (managedBySlotId.TryGetValue(slot.SourceEventId, out var existing))
             {
-                if (existing.Start != slot.Start || existing.End != slot.End
-                    || !string.Equals(existing.Summary, placeholderTitle, StringComparison.Ordinal))
-                {
-                    await PatchPlaceholderEventAsync(
-                        instance,
-                        queryContext.CalendarId,
-                        queryContext.SecretData,
-                        queryContext.AccessToken,
-                        existing.GoogleId!,
-                        slot,
-                        placeholderTitle,
-                        ct);
-                }
+                await UpdatePlaceholderEventIfNeededAsync(instance, queryContext, existing, slot, placeholderTitle, ct);
+                continue;
             }
-            else
-            {
-                await CreatePlaceholderEventAsync(
-                    instance,
-                    queryContext.CalendarId,
-                    queryContext.SecretData,
-                    queryContext.AccessToken,
-                    slot,
-                    placeholderTitle,
-                    ct);
-            }
+
+            await CreatePlaceholderEventAsync(
+                instance,
+                queryContext.CalendarId,
+                queryContext.SecretData,
+                queryContext.AccessToken,
+                slot,
+                placeholderTitle,
+                ct);
+        }
+    }
+
+    private async Task UpdatePlaceholderEventIfNeededAsync(
+        CalendarSourceInstanceContext instance,
+        GoogleQueryContext queryContext,
+        ManagedGoogleEventRecord existing,
+        BusySlot slot,
+        string placeholderTitle,
+        CancellationToken ct)
+    {
+        if (existing.Start == slot.Start
+            && existing.End == slot.End
+            && string.Equals(existing.Summary, placeholderTitle, StringComparison.Ordinal))
+        {
+            return;
         }
 
+        await PatchPlaceholderEventAsync(
+            instance,
+            queryContext.CalendarId,
+            queryContext.SecretData,
+            queryContext.AccessToken,
+            existing.GoogleId!,
+            slot,
+            placeholderTitle,
+            ct);
+    }
+
+    private async Task<int> DeleteStaleManagedEventsAsync(
+        CalendarSourceInstanceContext instance,
+        GoogleQueryContext queryContext,
+        IReadOnlyDictionary<string, ManagedGoogleEventRecord> managedBySlotId,
+        IReadOnlySet<string> activeSlotIds,
+        DateTimeOffset windowStart,
+        DateTimeOffset windowEnd,
+        CancellationToken ct)
+    {
         var staleCount = 0;
-        foreach (var (slotId, ev) in managedBySlotId)
+
+        foreach (var (slotId, managedEvent) in managedBySlotId)
         {
-            if (activeSlotIds.Contains(slotId) || ev.Start < windowStart || ev.Start >= windowEnd) continue;
+            if (activeSlotIds.Contains(slotId) || managedEvent.Start < windowStart || managedEvent.Start >= windowEnd)
+                continue;
+
             await DeleteEventAsync(
                 instance,
                 queryContext.CalendarId,
                 queryContext.SecretData,
                 queryContext.AccessToken,
-                ev.GoogleId!,
+                managedEvent.GoogleId!,
                 ct);
             staleCount++;
         }
 
-        logger.LogInformation(
-            "Write-back complete for Google calendar source instance {CalendarSourceInstanceId}: {UpsertCount} active placeholder(s), {DeleteCount} stale placeholder(s) removed.",
-            instance.Id,
-            busySlots.Count,
-            staleCount);
+        return staleCount;
     }
 
     private async Task<string> RefreshIfExpiringAsync(
