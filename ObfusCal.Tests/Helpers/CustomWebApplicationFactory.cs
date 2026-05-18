@@ -6,12 +6,14 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
 using ObfusCal.Infrastructure.Security;
 using ObfusCal.Infrastructure.Storage;
+using ObfusCal.Infrastructure.Sync;
 using Testcontainers.PostgreSql;
 
 namespace ObfusCal.Tests.Helpers;
@@ -19,6 +21,7 @@ namespace ObfusCal.Tests.Helpers;
 public sealed class CustomWebApplicationFactory(
     string environmentName,
     bool useTestAuthentication = false,
+    bool enableBackgroundServices = false,
     IReadOnlyDictionary<string, string?>? additionalConfiguration = null) : WebApplicationFactory<Program>
 {
     public const string IntegrationTestPeerInstanceId = "peer-a";
@@ -48,7 +51,7 @@ public sealed class CustomWebApplicationFactory(
                 ["AzureAd:ClientId"] = "22222222-2222-2222-2222-222222222222",
                 ["AzureAd:ClientSecret"] = "integration-test-web-client-secret",
                 ["GraphConsent:ApiBaseUrl"] = "https://graph.microsoft.com",
-                ["GraphConsent:Scope"] = "https://graph.microsoft.com/Calendars.Read offline_access",
+                ["GraphConsent:Scope"] = "https://graph.microsoft.com/Calendars.ReadWrite offline_access",
                 ["GraphConsent:ClientId"] = "33333333-3333-3333-3333-333333333333",
                 ["GraphConsent:ClientSecret"] = "integration-test-secret",
                 ["Swagger:OAuth:ClientId"] = "22222222-2222-2222-2222-222222222222",
@@ -78,6 +81,19 @@ public sealed class CustomWebApplicationFactory(
 
         builder.ConfigureServices(services =>
         {
+            if (!enableBackgroundServices)
+            {
+                var hostedServiceDescriptors = services
+                    .Where(d => d.ServiceType == typeof(IHostedService))
+                    .Where(d => d.ImplementationType == typeof(CalendarOwnerAvailabilityBackgroundService)
+                        || d.ImplementationType == typeof(PeerSyncBackgroundService)
+                        || d.ImplementationType == typeof(ShadowSlotRetentionBackgroundService))
+                    .ToList();
+
+                foreach (var descriptor in hostedServiceDescriptors)
+                    services.Remove(descriptor);
+            }
+
             var storeDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(IShadowSlotStore));
             if (storeDescriptor is not null)

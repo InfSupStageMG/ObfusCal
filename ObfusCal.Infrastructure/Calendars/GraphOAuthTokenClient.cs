@@ -111,7 +111,7 @@ internal sealed class GraphOAuthTokenClient(
             ?? throw new InvalidOperationException("GraphConsent:ClientId or AzureAd:ClientId is required.");
 
         var scope = string.IsNullOrWhiteSpace(graphConsentOptions.Value.Scope)
-            ? "https://graph.microsoft.com/Calendars.Read offline_access"
+            ? "https://graph.microsoft.com/Calendars.ReadWrite offline_access"
             : graphConsentOptions.Value.Scope;
 
         return new OAuthSettings(

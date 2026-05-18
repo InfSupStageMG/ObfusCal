@@ -153,7 +153,7 @@ internal sealed class CalendarOwnerGoogleConsentService(
         logger.LogInformation("Google consent stored for calendar owner {CalendarOwnerId}", calendarOwnerId);
     }
 
-    public async Task CompleteConsentFromStateAsync(
+    public async Task<Guid> CompleteConsentFromStateAsync(
         string authorizationCode,
         string state,
         CancellationToken ct = default)
@@ -170,6 +170,8 @@ internal sealed class CalendarOwnerGoogleConsentService(
             payload.RedirectUri,
             state,
             ct);
+
+        return payload.CalendarOwnerId;
     }
 
     private string BuildAuthorizationUrlCore(string redirectUri, Guid calendarOwnerId, Guid calendarSourceInstanceId)

@@ -25,7 +25,7 @@ public class CalendarOwnerGraphConsentServiceTests
             "client-id-456");
         var options = Options.Create(new GraphConsentOptions
         {
-            Scope = "https://graph.microsoft.com/Calendars.Read offline_access",
+            Scope = "https://graph.microsoft.com/Calendars.ReadWrite offline_access",
             ClientId = "consent-client-id"
         });
 
@@ -233,7 +233,7 @@ public class CalendarOwnerGraphConsentServiceTests
 
         var url = svc.BuildAuthorizationUrl("https://localhost/callback");
 
-        Assert.IsTrue(url.Contains("Calendars.Read"),
+        Assert.IsTrue(url.Contains("Calendars.ReadWrite"),
             "Should use default scope when configured scope is empty");
     }
 
@@ -262,7 +262,7 @@ public class CalendarOwnerGraphConsentServiceTests
 
         Assert.IsTrue(url.Contains("custom.scope"),
             "Should use configured scope when provided");
-        Assert.IsFalse(url.Contains("Calendars.Read"),
+        Assert.IsFalse(url.Contains("Calendars.ReadWrite"),
             "Should NOT use default scope when custom scope is configured");
     }
 
@@ -357,7 +357,9 @@ public class CalendarOwnerGraphConsentServiceTests
             "State must start with 'graph.' prefix");
 
         // Complete consent using the state — no owner/instance IDs needed by the caller
-        await consoleSvc.CompleteConsentFromStateAsync(FakeGraphOAuthTokenClient.ValidAuthorizationCode, state);
+        var returnedOwnerId = await consoleSvc.CompleteConsentFromStateAsync(FakeGraphOAuthTokenClient.ValidAuthorizationCode, state);
+
+        Assert.AreEqual(ownerId, returnedOwnerId, "CompleteConsentFromStateAsync should return the calendar owner ID");
 
         // Verify the token was stored in the source instance
         var stored = await instanceSvc.GetAsync(ownerId, instanceId);
@@ -517,4 +519,3 @@ public class CalendarOwnerGraphConsentServiceTests
         public string? GetSecret(string key) => values.TryGetValue(key, out var value) ? value : null;
     }
 }
-

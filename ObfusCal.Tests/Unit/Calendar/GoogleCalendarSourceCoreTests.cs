@@ -85,6 +85,76 @@ public class GoogleCalendarSourceCoreTests
     }
 
     [TestMethod]
+    public async Task GetEventsAsync_SkipsManagedPlaceholderEvents()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        dbContext.CalendarOwners.Add(new CalendarOwner { Id = ownerId, Name = "Owner" });
+        await dbContext.SaveChangesAsync();
+
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var secretProtector = new CalendarSourceSecretProtector(dataProtectionProvider);
+        var instances = new FakeCalendarSourceInstanceService(id => id == ownerId);
+
+        var created = await instances.CreateAsync(ownerId,
+            new CreateCalendarSourceInstanceInput(
+                "google",
+                "Google Calendar",
+                "{\"calendarId\":\"primary\"}",
+                SerializeSecret(secretProtector, "access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))));
+        Assert.IsNotNull(created);
+
+        using var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """
+                {
+                  "items": [
+                    {
+                      "id": "managed-1",
+                      "summary": "Busy",
+                      "start": { "dateTime": "2026-06-10T08:00:00Z" },
+                      "end": { "dateTime": "2026-06-10T09:00:00Z" },
+                      "extendedProperties": {
+                        "private": {
+                          "ObfusCal.Managed": "1",
+                          "ObfusCal.SlotId": "slot-1"
+                        }
+                      }
+                    },
+                    {
+                      "id": "google-evt-2",
+                      "summary": "Real event",
+                      "start": { "dateTime": "2026-06-10T10:00:00Z" },
+                      "end": { "dateTime": "2026-06-10T11:00:00Z" }
+                    }
+                  ]
+                }
+                """,
+                Encoding.UTF8,
+                "application/json")
+        };
+        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(response));
+        using var httpClient = new HttpClient(handler);
+
+        var source = CreateSource(
+            dbContext,
+            instances,
+            secretProtector,
+            new StubGoogleOAuthTokenClient(),
+            httpClient,
+            new CapturingLogger<GoogleCalendarSourceCore>());
+
+        var events = await source.GetEventsAsync(
+            new DateTimeOffset(2026, 6, 10, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 6, 11, 0, 0, 0, TimeSpan.Zero),
+            ownerId);
+
+        Assert.HasCount(1, events);
+        Assert.AreEqual("google-evt-2", events[0].Id);
+    }
+
+    [TestMethod]
     public async Task GetEventsAsync_RefreshesExpiredToken_BeforeGoogleCall()
     {
         await using var dbContext = TestDbContextFactory.CreateInMemory();
@@ -170,6 +240,87 @@ public class GoogleCalendarSourceCoreTests
 
         Assert.IsFalse(readiness.IsReady);
         StringAssert.Contains(readiness.Title, "Google consent required");
+    }
+
+    [TestMethod]
+    public async Task WriteBackSlotsAsync_CreatesPlaceholderEventsForInstance()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        dbContext.CalendarOwners.Add(new CalendarOwner { Id = ownerId, Name = "Owner" });
+        await dbContext.SaveChangesAsync();
+
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var secretProtector = new CalendarSourceSecretProtector(dataProtectionProvider);
+        var instances = new FakeCalendarSourceInstanceService(id => id == ownerId);
+
+        var created = await instances.CreateAsync(ownerId,
+            new CreateCalendarSourceInstanceInput(
+                "google",
+                "Google Calendar",
+                "{\"calendarId\":\"primary\"}",
+                SerializeSecret(secretProtector, "access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))));
+        Assert.IsNotNull(created);
+
+        var instance = await instances.GetAsync(ownerId, created.Id);
+        Assert.IsNotNull(instance);
+
+        var requestLog = new List<(HttpMethod Method, string Uri, string? Body)>();
+        var handler = new DelegatingHttpMessageHandler(async request =>
+        {
+            var body = request.Content is null ? null : await request.Content.ReadAsStringAsync();
+            requestLog.Add((request.Method, request.RequestUri!.ToString(), body));
+
+            if (request.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"items\":[]}", Encoding.UTF8, "application/json")
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.Created)
+            {
+                Content = new StringContent("{\"id\":\"new-google-event\"}", Encoding.UTF8, "application/json")
+            };
+        });
+
+        using var httpClient = new HttpClient(handler);
+
+        var source = CreateSource(
+            dbContext,
+            instances,
+            secretProtector,
+            new StubGoogleOAuthTokenClient(),
+            httpClient,
+            new CapturingLogger<GoogleCalendarSourceCore>());
+
+        var from = new DateTimeOffset(2026, 6, 10, 8, 0, 0, TimeSpan.Zero);
+        var to = from.AddHours(1);
+
+        await source.WriteBackSlotsAsync(
+            instance,
+            [new Domain.Models.BusySlot("slot-1", from, to)],
+            "Busy",
+            from.AddHours(-1),
+            to.AddHours(1));
+
+        var post = requestLog.Single(entry => entry.Method == HttpMethod.Post);
+        StringAssert.Contains(post.Uri, "/calendar/v3/calendars/primary/events");
+        Assert.IsNotNull(post.Body);
+
+        using var doc = JsonDocument.Parse(post.Body);
+        Assert.AreEqual("Busy", doc.RootElement.GetProperty("summary").GetString());
+        Assert.AreEqual("1", doc.RootElement
+            .GetProperty("extendedProperties")
+            .GetProperty("private")
+            .GetProperty("ObfusCal.Managed")
+            .GetString());
+        Assert.AreEqual("slot-1", doc.RootElement
+            .GetProperty("extendedProperties")
+            .GetProperty("private")
+            .GetProperty("ObfusCal.SlotId")
+            .GetString());
     }
 
     [TestMethod]

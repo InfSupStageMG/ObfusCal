@@ -15,6 +15,7 @@ public sealed class CalendarOwnerAvailabilitySyncService(
     ICalendarSourceResolver calendarSourceResolver,
     ObfuscationPipeline obfuscationPipeline,
     ICalendarOwnerObfuscationProfileService obfuscationProfileService,
+    IShadowSlotStore shadowSlotStore,
     IOptions<SyncOptions> syncOptions,
     IServiceScopeFactory scopeFactory,
     ILogger<CalendarOwnerAvailabilitySyncService> logger)
@@ -103,6 +104,41 @@ public sealed class CalendarOwnerAvailabilitySyncService(
             profile);
 
         await ReplaceAvailabilitySnapshotAsync(calendarOwnerId, busySlots, ct);
+
+        if (calendarSource is not ICalendarWriteBack writeBack) return busySlots;
+        try
+        {
+            var owner = await dbContext.CalendarOwners
+                .AsNoTracking()
+                .SingleOrDefaultAsync(o => o.Id == calendarOwnerId, ct);
+
+            if (owner?.WriteBackEnabled == true)
+            {
+                var writeBackEnd = DateTimeOffset.UtcNow.AddDays(Math.Max(1, syncOptions.Value.WriteBackLookAheadDays));
+                var shadowSlots = await shadowSlotStore.GetAllSlotsAsync(calendarOwnerId, from, writeBackEnd, ct);
+
+                logger.LogInformation(
+                    "Write-back starting for calendar owner {CalendarOwnerId}: {ShadowSlotCount} shadow slot(s) found in window [{WriteBackStart:O}, {WriteBackEnd:O}).",
+                    calendarOwnerId, shadowSlots.Count, from, writeBackEnd);
+
+                var placeholderTitle = string.IsNullOrWhiteSpace(owner.WriteBackPlaceholderTitle)
+                    ? syncOptions.Value.WriteBackPlaceholderTitle
+                    : owner.WriteBackPlaceholderTitle;
+
+                await writeBack.WriteBackSlotsAsync(calendarOwnerId, shadowSlots, placeholderTitle, from, writeBackEnd, ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Write-back failed for calendar owner {CalendarOwnerId}; availability sync result is still recorded.",
+                calendarOwnerId);
+        }
+
         return busySlots;
     }
 

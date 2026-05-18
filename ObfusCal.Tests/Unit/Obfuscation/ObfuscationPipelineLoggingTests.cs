@@ -101,10 +101,6 @@ public class ObfuscationPipelineLoggingTests
             "When pipeline has no transformers, message must say 'no transformers configured'");
     }
 
-    // ---------------------------------------------------------------------------
-    // Helpers
-    // ---------------------------------------------------------------------------
-
     private sealed class CapturingLogger<T> : ILogger<T>
     {
         private readonly Stack<IReadOnlyDictionary<string, object?>> _scopes = [];

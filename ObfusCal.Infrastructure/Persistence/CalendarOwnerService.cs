@@ -31,7 +31,9 @@ internal sealed class CalendarOwnerService(
             .Select(o => new CalendarOwnerInfo(
                 o.Id,
                 o.Name,
-                o.GraphConsentGrantedAtUtc != null))
+                o.GraphConsentGrantedAtUtc != null,
+                o.WriteBackEnabled,
+                o.WriteBackPlaceholderTitle))
             .SingleOrDefaultAsync(ct);
     }
 
@@ -52,6 +54,22 @@ internal sealed class CalendarOwnerService(
 
         return new CalendarOwnerSummary(owner.Id, owner.Name, false, 0, 0);
     }
+
+    public async Task UpdateWriteBackSettingsAsync(
+        Guid id,
+        bool writeBackEnabled,
+        string? writeBackPlaceholderTitle,
+        CancellationToken ct = default)
+    {
+        var owner = await dbContext.CalendarOwners.SingleOrDefaultAsync(o => o.Id == id, ct);
+        if (owner is null)
+            return;
+
+        owner.WriteBackEnabled = writeBackEnabled;
+        owner.WriteBackPlaceholderTitle = string.IsNullOrWhiteSpace(writeBackPlaceholderTitle)
+            ? null
+            : writeBackPlaceholderTitle.Trim();
+
+        await dbContext.SaveChangesAsync(ct);
+    }
 }
-
-

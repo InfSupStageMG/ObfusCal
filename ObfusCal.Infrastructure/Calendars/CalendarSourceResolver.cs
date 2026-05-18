@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
+using ObfusCal.Application.Obfuscation;
 using ObfusCal.Infrastructure.Persistence;
 
 namespace ObfusCal.Infrastructure.Calendars;
@@ -14,6 +15,8 @@ internal sealed class CalendarSourceResolver(
     ICalendarSourceCatalog catalog,
     ICalendarSourceInstanceStore calendarSourceInstanceStore,
     IServiceProvider serviceProvider,
+    ObfuscationPipeline obfuscationPipeline,
+    ICalendarOwnerObfuscationProfileService obfuscationProfileService,
     IOptions<CalendarSourceOptions> options,
     IHostEnvironment environment,
     ILogger<AggregateCalendarSource> aggregateLogger)
@@ -31,6 +34,8 @@ internal sealed class CalendarSourceResolver(
                     catalog,
                     calendarSourceInstanceStore,
                     serviceProvider,
+                    obfuscationPipeline,
+                    obfuscationProfileService,
                     aggregateLogger);
             }
         }

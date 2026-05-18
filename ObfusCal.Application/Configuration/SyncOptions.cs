@@ -5,7 +5,7 @@ public sealed class SyncOptions
     public const string SectionName = "Sync";
 
     public int SyncIntervalSeconds { get; init; } = 900;
-    public int LookAheadDays { get; init; } = 14;
+    public int LookAheadDays { get; init; } = 90;
     public int MaxQueryWindowDays { get; init; } = 90;
     public int MaxShadowSlotsPerRequest { get; init; } = 500;
     public string InstanceId { get; init; } = string.Empty;
@@ -20,5 +20,7 @@ public sealed class SyncOptions
     public long MaxRequestBodySizeBytes { get; init; } = 1_048_576;
     public List<string> KnownPeerIds { get; init; } = [];
     public int ShadowSlotRetentionDays { get; init; } = 90;
+    public int WriteBackLookAheadDays { get; init; } = 90;
+    public string WriteBackPlaceholderTitle { get; init; } = "Busy";
 }
 

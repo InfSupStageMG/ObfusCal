@@ -3,8 +3,10 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using ObfusCal.Application;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
+using ObfusCal.Application.Obfuscation;
 using ObfusCal.Domain.Models;
 using ObfusCal.Infrastructure.Calendars;
 using ObfusCal.Infrastructure.Persistence;
@@ -21,9 +23,6 @@ public class CalendarSourceResolverTests
     private static readonly CalendarSourcePluginDescriptor BetaDescriptor =
         new("beta", "Beta", typeof(BetaCalendarSource), false);
 
-    // ---------------------------------------------------------------------------
-    // Resolution priority: owner selection beats config
-    // ---------------------------------------------------------------------------
 
     [TestMethod]
     public async Task ResolveAsync_UsesOwnerPluginId_WhenOwnerHasExplicitSelection()
@@ -45,9 +44,6 @@ public class CalendarSourceResolverTests
             "Owner's saved selection should take precedence over configured default");
     }
 
-    // ---------------------------------------------------------------------------
-    // Resolution priority: config beats first-available when no owner selection
-    // ---------------------------------------------------------------------------
 
     [TestMethod]
     public async Task ResolveAsync_UsesConfiguredProvider_WhenOwnerHasNoSelection()
@@ -69,9 +65,6 @@ public class CalendarSourceResolverTests
             "Configured provider should be used when owner has no explicit selection");
     }
 
-    // ---------------------------------------------------------------------------
-    // Resolution priority: first-available fallback when config plugin not in catalog
-    // ---------------------------------------------------------------------------
 
     [TestMethod]
     public async Task ResolveAsync_FallsBackToFirstPlugin_WhenConfiguredProviderNotInCatalog()
@@ -86,9 +79,6 @@ public class CalendarSourceResolverTests
             "Should fall back to the first available plugin when configured provider is missing");
     }
 
-    // ---------------------------------------------------------------------------
-    // Owner not in DB → falls back to configured provider
-    // ---------------------------------------------------------------------------
 
     [TestMethod]
     public async Task ResolveAsync_UsesConfiguredProvider_WhenOwnerIdNotInDatabase()
@@ -103,9 +93,6 @@ public class CalendarSourceResolverTests
             "Should fall back to configured provider when owner is not in the database");
     }
 
-    // ---------------------------------------------------------------------------
-    // No owner id supplied → uses configured provider
-    // ---------------------------------------------------------------------------
 
     [TestMethod]
     public async Task ResolveAsync_UsesConfiguredProvider_WhenNoOwnerIdProvided()
@@ -118,10 +105,6 @@ public class CalendarSourceResolverTests
         Assert.IsInstanceOfType<BetaCalendarSource>(source);
     }
 
-    // ---------------------------------------------------------------------------
-    // Helpers
-    // ---------------------------------------------------------------------------
-
     private static CalendarSourceResolver Build(
         AppDbContext db,
         IReadOnlyList<CalendarSourcePluginDescriptor> descriptors,
@@ -129,6 +112,10 @@ public class CalendarSourceResolverTests
         string environmentName = "Production")
     {
         var catalog = new CalendarSourcePluginCatalog(descriptors);
+        using var applicationServices = new ServiceCollection()
+            .AddLogging()
+            .AddApplication()
+            .BuildServiceProvider();
 
         var services = new ServiceCollection();
         services.AddTransient<AlphaCalendarSource>();
@@ -141,9 +128,24 @@ public class CalendarSourceResolverTests
             catalog,
             instances,
             sp,
+            applicationServices.GetRequiredService<ObfuscationPipeline>(),
+            new StubCalendarOwnerObfuscationProfileService(),
             Options.Create(new CalendarSourceOptions { Provider = configuredProvider }),
             new FakeHostEnvironment(environmentName),
             NullLogger<AggregateCalendarSource>.Instance);
+    }
+
+    private sealed class StubCalendarOwnerObfuscationProfileService : ICalendarOwnerObfuscationProfileService
+    {
+        public Task<IReadOnlyList<ObfuscationProfileSettings>> GetProfilesAsync(Guid calendarOwnerId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<ObfuscationProfileSettings>>(
+                Enum.GetValues<ObfuscationAuditContext>().Select(ObfuscationProfileSettings.CreateDefault).ToList());
+
+        public Task<ObfuscationProfileSettings> GetProfileAsync(Guid calendarOwnerId, ObfuscationAuditContext context, CancellationToken ct = default)
+            => Task.FromResult(ObfuscationProfileSettings.CreateDefault(context));
+
+        public Task<ObfuscationProfileSettings> SetProfileAsync(Guid calendarOwnerId, ObfuscationProfileSettings profile, CancellationToken ct = default)
+            => Task.FromResult(profile);
     }
 
     private sealed class FakeHostEnvironment(string environmentName) : IHostEnvironment
