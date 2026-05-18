@@ -94,12 +94,12 @@ public sealed class CalendarOwnerAvailabilitySyncService(
         var events = await calendarSource.GetEventsAsync(from, to, calendarOwnerId, ct);
         var profile = await obfuscationProfileService.GetProfileAsync(
             calendarOwnerId,
-            ObfuscationAuditContext.Client,
+            ObfuscationAuditContext.Internal,
             ct);
         var busySlots = obfuscationPipeline.Process(
             events,
             calendarOwnerId.ToString(),
-            ObfuscationAuditContext.Client,
+            ObfuscationAuditContext.Internal,
             profile);
 
         await ReplaceAvailabilitySnapshotAsync(calendarOwnerId, busySlots, ct);
