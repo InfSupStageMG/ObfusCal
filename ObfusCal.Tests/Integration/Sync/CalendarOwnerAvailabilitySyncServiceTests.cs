@@ -16,6 +16,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Logging.Abstractions;
 using ObfusCal.Infrastructure.Calendars;
+using ObfusCal.Infrastructure.Security;
 using ObfusCal.Tests.Helpers;
 
 namespace ObfusCal.Tests.Integration.Sync;
@@ -326,6 +327,189 @@ public class CalendarOwnerAvailabilitySyncServiceTests
         Assert.AreEqual("/v1.0/me/calendarView", requests[0].Path);
     }
 
+    [TestMethod]
+    public async Task RunSyncForOwnerAsync_WithWriteBackEnabled_WritesManagedGooglePlaceholderUsingConfiguredTitle()
+    {
+        await using var dbContext = SyncIntegrationTestHelpers.CreateDbContext();
+        var ownerId = Guid.NewGuid();
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Google owner",
+            WriteBackEnabled = true,
+            WriteBackPlaceholderTitle = "Niet beschikbaar"
+        });
+        await dbContext.SaveChangesAsync();
+
+        var shadowSlot = new BusySlot("peer-slot-1", DateTimeOffset.UtcNow.AddMinutes(15), DateTimeOffset.UtcNow.AddMinutes(75));
+        var requests = new List<(HttpMethod Method, string Uri, string? Body)>();
+        var source = CreateGoogleSource(
+            dbContext,
+            async request =>
+            {
+                var body = request.Content is null ? null : await request.Content.ReadAsStringAsync();
+                requests.Add((request.Method, request.RequestUri!.ToString(), body));
+
+                if (request.Method == HttpMethod.Get)
+                {
+                    return new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent("{\"items\":[]}", Encoding.UTF8, "application/json")
+                    };
+                }
+
+                return new HttpResponseMessage(HttpStatusCode.Created)
+                {
+                    Content = new StringContent("{\"id\":\"managed-google-1\"}", Encoding.UTF8, "application/json")
+                };
+            });
+
+        var service = CreateService(
+            dbContext,
+            source,
+            new CapturingLogger<CalendarOwnerAvailabilitySyncService>(),
+            new StubShadowSlotStore([shadowSlot]));
+
+        await service.RunSyncForOwnerAsync(ownerId);
+
+        var post = requests.Single(entry => entry.Method == HttpMethod.Post);
+        using var doc = JsonDocument.Parse(post.Body!);
+        Assert.AreEqual("Niet beschikbaar", doc.RootElement.GetProperty("summary").GetString());
+        Assert.IsFalse(doc.RootElement.TryGetProperty("attendees", out _));
+        Assert.IsFalse(doc.RootElement.TryGetProperty("location", out _));
+        Assert.IsFalse(doc.RootElement.TryGetProperty("description", out _));
+    }
+
+    [TestMethod]
+    public async Task RunSyncForOwnerAsync_WithWriteBackEnabled_DeletesStaleManagedGooglePlaceholder()
+    {
+        await using var dbContext = SyncIntegrationTestHelpers.CreateDbContext();
+        var ownerId = Guid.NewGuid();
+        var staleStart = DateTimeOffset.UtcNow.AddMinutes(30);
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Google owner",
+            WriteBackEnabled = true
+        });
+        await dbContext.SaveChangesAsync();
+
+        var managedEventsJson = JsonSerializer.Serialize(new
+        {
+            items = new[]
+            {
+                new
+                {
+                    id = "managed-google-1",
+                    summary = "Busy",
+                    start = new { dateTime = staleStart.ToString("O") },
+                    end = new { dateTime = staleStart.AddHours(1).ToString("O") },
+                    extendedProperties = new
+                    {
+                        @private = new Dictionary<string, string>
+                        {
+                            ["ObfusCal.Managed"] = "1",
+                            ["ObfusCal.SlotId"] = "stale-slot"
+                        }
+                    }
+                }
+            }
+        });
+
+        var requests = new List<(HttpMethod Method, string Uri)>();
+        var responsesToDispose = new List<HttpResponseMessage>();
+        try
+        {
+            var source = CreateGoogleSource(
+                dbContext,
+                request =>
+                {
+                    requests.Add((request.Method, request.RequestUri!.ToString()));
+
+                    HttpResponseMessage response;
+                    if (request.Method == HttpMethod.Get && request.RequestUri.Query.Contains("privateExtendedProperty", StringComparison.Ordinal))
+                    {
+                        response = new HttpResponseMessage(HttpStatusCode.OK)
+                        {
+                            Content = new StringContent(managedEventsJson, Encoding.UTF8, "application/json")
+                        };
+                    }
+                    else if (request.Method == HttpMethod.Get)
+                    {
+                        response = new HttpResponseMessage(HttpStatusCode.OK)
+                        {
+                            Content = new StringContent("{\"items\":[]}", Encoding.UTF8, "application/json")
+                        };
+                    }
+                    else
+                    {
+                        response = new HttpResponseMessage(HttpStatusCode.NoContent);
+                    }
+
+                    responsesToDispose.Add(response);
+                    return Task.FromResult(response);
+                });
+
+            var service = CreateService(
+                dbContext,
+                source,
+                new CapturingLogger<CalendarOwnerAvailabilitySyncService>(),
+                new StubShadowSlotStore([]));
+
+            await service.RunSyncForOwnerAsync(ownerId);
+
+            Assert.ContainsSingle(entry => entry.Method == HttpMethod.Delete, requests);
+            Assert.Contains(entry => entry.Method == HttpMethod.Delete && entry.Uri.Contains("managed-google-1", StringComparison.Ordinal), requests);
+        }
+        finally
+        {
+            foreach (var response in responsesToDispose)
+            {
+                response.Dispose();
+            }
+        }
+    }
+
+    [TestMethod]
+    public async Task RunSyncForOwnerAsync_WithWriteBackDisabled_DoesNotInvokeGoogleWriteBack()
+    {
+        await using var dbContext = SyncIntegrationTestHelpers.CreateDbContext();
+        var ownerId = Guid.NewGuid();
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Google owner",
+            WriteBackEnabled = false
+        });
+        await dbContext.SaveChangesAsync();
+
+        var requests = new List<(HttpMethod Method, string Path)>();
+        var source = CreateGoogleSource(
+            dbContext,
+            request =>
+            {
+                requests.Add((request.Method, request.RequestUri!.AbsolutePath));
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"items\":[]}", Encoding.UTF8, "application/json")
+                });
+            });
+
+        var service = CreateService(
+            dbContext,
+            source,
+            new CapturingLogger<CalendarOwnerAvailabilitySyncService>(),
+            new StubShadowSlotStore([new BusySlot("peer-slot-1", DateTimeOffset.UtcNow.AddMinutes(10), DateTimeOffset.UtcNow.AddMinutes(40))]));
+
+        await service.RunSyncForOwnerAsync(ownerId);
+
+        Assert.HasCount(1, requests, "Only the normal calendar read should run when Google write-back is disabled.");
+        Assert.AreEqual("/calendar/v3/calendars/primary/events", requests[0].Path);
+    }
+
     private static CalendarOwnerAvailabilitySyncService CreateService(
         AppDbContext dbContext,
         ICalendarSource calendarSource,
@@ -364,6 +548,16 @@ public class CalendarOwnerAvailabilitySyncServiceTests
     {
         var instances = new FakeCalendarSourceInstanceService(ownerId => dbContext.CalendarOwners.Any(owner => owner.Id == ownerId));
         return new PerCallGraphCalendarSource(dbContext, dataProtectionProvider, handler, instances);
+    }
+
+    private static ICalendarSource CreateGoogleSource(
+        AppDbContext dbContext,
+        Func<HttpRequestMessage, Task<HttpResponseMessage>> handler)
+    {
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var secretProtector = new CalendarSourceSecretProtector(dataProtectionProvider);
+        var instances = new FakeCalendarSourceInstanceService(ownerId => dbContext.CalendarOwners.Any(owner => owner.Id == ownerId));
+        return new PerCallGoogleCalendarSource(dbContext, secretProtector, handler, instances);
     }
 
     private sealed class PerCallGraphCalendarSource(
@@ -413,6 +607,103 @@ public class CalendarOwnerAvailabilitySyncServiceTests
                 return 0;
             });
         }
+    }
+
+    private sealed class PerCallGoogleCalendarSource(
+        AppDbContext dbContext,
+        ICalendarSourceSecretProtector secretProtector,
+        Func<HttpRequestMessage, Task<HttpResponseMessage>> handler,
+        FakeCalendarSourceInstanceService instances) : ICalendarSource, ICalendarWriteBack
+    {
+        private async Task EnsureGoogleInstanceAsync(Guid calendarOwnerId, CancellationToken ct)
+        {
+            var existing = await instances.GetFirstAsync(calendarOwnerId, "google", ct);
+            if (existing is not null)
+                return;
+
+            await instances.CreateAsync(
+                calendarOwnerId,
+                new CreateCalendarSourceInstanceInput(
+                    "google",
+                    "Google Calendar",
+                    "{\"calendarId\":\"primary\"}",
+                    SerializeGoogleSecret(secretProtector, "access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))),
+                ct);
+        }
+
+        private async Task<TResult> WithInnerSourceAsync<TResult>(
+            Guid calendarOwnerId,
+            CancellationToken ct,
+            Func<GoogleCalendarSourceCore, Task<TResult>> action)
+        {
+            await EnsureGoogleInstanceAsync(calendarOwnerId, ct);
+
+            var messageHandler = new DelegatingHttpMessageHandler(handler);
+            using var httpClient = CreateGoogleHttpClient(messageHandler);
+
+            var source = new GoogleCalendarSourceCore(
+                httpClient,
+                dbContext,
+                instances,
+                secretProtector,
+                new StubGoogleOAuthTokenClient(),
+                Options.Create(new GoogleConsentOptions
+                {
+                    ApiBaseUrl = "https://www.googleapis.com",
+                    AuthorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth",
+                    TokenEndpoint = "https://oauth2.googleapis.com/token",
+                    Scope = "https://www.googleapis.com/auth/calendar.events"
+                }),
+                NullLogger<GoogleCalendarSourceCore>.Instance);
+
+            return await action(source);
+        }
+
+        private static HttpClient CreateGoogleHttpClient(HttpMessageHandler messageHandler)
+        {
+            var httpClient = new HttpClient(messageHandler, disposeHandler: true);
+            httpClient.BaseAddress = new Uri("https://www.googleapis.com/");
+            return httpClient;
+        }
+
+        public async Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(
+            DateTimeOffset from,
+            DateTimeOffset to,
+            Guid? calendarOwnerId = null,
+            CancellationToken ct = default)
+        {
+            if (calendarOwnerId is null)
+                return [];
+
+            return await WithInnerSourceAsync(calendarOwnerId.Value, ct, source => source.GetEventsAsync(from, to, calendarOwnerId, ct));
+        }
+
+        public async Task WriteBackSlotsAsync(
+            Guid calendarOwnerId,
+            IReadOnlyList<BusySlot> busySlots,
+            string placeholderTitle,
+            DateTimeOffset windowStart,
+            DateTimeOffset windowEnd,
+            CancellationToken ct = default)
+        {
+            await WithInnerSourceAsync(calendarOwnerId, ct, async source =>
+            {
+                await source.WriteBackSlotsAsync(calendarOwnerId, busySlots, placeholderTitle, windowStart, windowEnd, ct);
+                return 0;
+            });
+        }
+
+        private static string SerializeGoogleSecret(
+            ICalendarSourceSecretProtector protector,
+            string accessToken,
+            string refreshToken,
+            DateTimeOffset expiresAtUtc)
+            => JsonSerializer.Serialize(new GoogleCalendarSourceCore.GoogleSourceSecretData(
+                protector.Protect(accessToken),
+                protector.Protect(refreshToken),
+                DateTimeOffset.UtcNow,
+                expiresAtUtc,
+                DateTimeOffset.UtcNow));
     }
 
     private sealed class StubCalendarSource(IDictionary<Guid, IReadOnlyList<CalendarEvent>> eventsByOwner) : ICalendarSource
@@ -477,6 +768,15 @@ public class CalendarOwnerAvailabilitySyncServiceTests
 
         public Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(string refreshToken, CancellationToken ct = default)
             => Task.FromResult(new GraphOAuthTokenResponse("access-token", refreshToken, DateTimeOffset.UtcNow.AddHours(1)));
+    }
+
+    private sealed class StubGoogleOAuthTokenClient : IGoogleOAuthTokenClient
+    {
+        public Task<GoogleOAuthTokenResponse> ExchangeAuthorizationCodeAsync(string authorizationCode, string redirectUri, CancellationToken ct = default)
+            => throw new NotSupportedException();
+
+        public Task<GoogleOAuthTokenResponse> RefreshAccessTokenAsync(string refreshToken, CancellationToken ct = default)
+            => Task.FromResult(new GoogleOAuthTokenResponse("access-token", refreshToken, DateTimeOffset.UtcNow.AddHours(1)));
     }
 
     private sealed class DelegatingHttpMessageHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> handler) : HttpMessageHandler

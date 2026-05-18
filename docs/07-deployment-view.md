@@ -136,6 +136,7 @@ local sign-out cycle.
 | `GraphConsent__Scope`                                 | Graph OAuth scope set; keep `https://graph.microsoft.com/Calendars.ReadWrite offline_access` for two-way sync |
 | `GoogleConsent__ClientId`                             | Google OAuth client ID (required for Google Calendar source)                                                  |
 | `GoogleConsent__ClientSecret`                         | Google OAuth client secret (required for Google Calendar source)                                              |
+| `GoogleConsent__Scope`                                | Google OAuth scope set; keep `https://www.googleapis.com/auth/calendar.events` for Google two-way sync        |
 | `GoogleConsent__RedirectUri`                          | Optional Google OAuth callback override; must exactly match the URI registered in Google Cloud                |
 | `ColumnEncryption__Key`                               | Base64-encoded 256-bit AES key for column-level encryption (**required at startup**)                          |
 | `Sync__InstanceId`                                    | Local instance identifier used in peer sync headers                                                           |
@@ -152,8 +153,8 @@ local sign-out cycle.
 | `Sync__MaxQueryWindowDays`                            | Maximum allowed inbound query window in days for busy/free-busy endpoints (default `90`)                      |
 | `Sync__MaxShadowSlotsPerRequest`                      | Maximum allowed shadow slots in one push payload (default `500`)                                              |
 | `Sync__ShadowSlotRetentionDays`                       | Days to retain received shadow slots before automatic purge (default `90`)                                    |
-| `Sync__WriteBackLookAheadDays`                        | Graph placeholder reconciliation horizon in days (default `90`)                                               |
-| `Sync__WriteBackPlaceholderTitle`                     | Fallback title used for Graph write-back placeholders (default `Busy`)                                        |
+| `Sync__WriteBackLookAheadDays`                        | Provider-managed placeholder reconciliation horizon in days (default `90`)                                    |
+| `Sync__WriteBackPlaceholderTitle`                     | Fallback title used for write-back placeholders (default `Busy`)                                              |
 | `PeerTransportSecurity__AllowSelfSignedCerts`         | Accept self-signed peer certificates when `true` (default `false`)                                            |
 | `PeerConnections.PinnedCertificateThumbprint`         | Optional peer leaf certificate thumbprint used to pin the expected server certificate                         |
 | `PeerConnections.ClientCertificateThumbprint`         | Optional peer client certificate thumbprint used as mTLS groundwork                                           |
