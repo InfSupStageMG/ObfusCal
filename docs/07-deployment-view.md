@@ -100,6 +100,10 @@ compromised:
 Peer sync traffic is additionally throttled in-process: authenticated peers are rate limited by peer ID, unauthenticated
 API calls fall back to an IP-based backstop, and peer sync request bodies are capped at 1 MB by default.
 
+Runtime authorization semantics are part of deployment validation: calendar-owner scoped endpoints should return `404`
+for cross-owner requests (anti-enumeration), and owner-scoped peer shadow-slot pushes should return `403` when the peer
+is not mapped to the requested `calendarOwnerRef`.
+
 For local API-only debugging, start PostgreSQL first and then run `dotnet run --project ObfusCal.Api` outside
 containers. Use the HTTPS development URL:
 

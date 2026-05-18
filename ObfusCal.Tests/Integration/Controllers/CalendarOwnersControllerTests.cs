@@ -423,7 +423,7 @@ public class CalendarOwnersControllerTests
     }
 
     [TestMethod]
-    public async Task GetBusySlots_ReturnsForbidden_WhenAuthenticatedCalendarOwnerRequestsDifferentId()
+    public async Task GetBusySlots_ReturnsNotFound_WhenAuthenticatedCalendarOwnerRequestsDifferentId()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
         await SeedAuthenticatedCalendarOwnerAsync(factory);
@@ -433,11 +433,11 @@ public class CalendarOwnersControllerTests
             $"/api/calendar-owners/{Guid.NewGuid()}/busy-slots?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
             TestContext.CancellationToken);
 
-        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [TestMethod]
-    public async Task GetMergedFreeBusy_ReturnsForbidden_WhenAuthenticatedCalendarOwnerRequestsDifferentId()
+    public async Task GetMergedFreeBusy_ReturnsNotFound_WhenAuthenticatedCalendarOwnerRequestsDifferentId()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
         await SeedAuthenticatedCalendarOwnerAsync(factory);
@@ -447,11 +447,11 @@ public class CalendarOwnersControllerTests
             $"/api/calendar-owners/{Guid.NewGuid()}/merged-freebusy?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
             TestContext.CancellationToken);
 
-        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [TestMethod]
-    public async Task GetBusySlots_ReturnsForbidden_WhenAuthenticatedCalendarOwnerIsAutoProvisionedButRequestsDifferentId()
+    public async Task GetBusySlots_ReturnsNotFound_WhenAuthenticatedCalendarOwnerIsAutoProvisionedButRequestsDifferentId()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
         using var client = factory.CreateAuthenticatedClient(Guid.NewGuid().ToString());
@@ -460,11 +460,11 @@ public class CalendarOwnersControllerTests
             $"/api/calendar-owners/{Guid.NewGuid()}/busy-slots?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
             TestContext.CancellationToken);
 
-        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [TestMethod]
-    public async Task GetMergedFreeBusy_ReturnsForbidden_WhenAuthenticatedCalendarOwnerIsAutoProvisionedButRequestsDifferentId()
+    public async Task GetMergedFreeBusy_ReturnsNotFound_WhenAuthenticatedCalendarOwnerIsAutoProvisionedButRequestsDifferentId()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
         using var client = factory.CreateAuthenticatedClient(Guid.NewGuid().ToString());
@@ -473,7 +473,7 @@ public class CalendarOwnersControllerTests
             $"/api/calendar-owners/{Guid.NewGuid()}/merged-freebusy?from=2023-01-01T00:00:00Z&to=2023-01-02T00:00:00Z",
             TestContext.CancellationToken);
 
-        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [TestMethod]
@@ -698,7 +698,7 @@ public class CalendarOwnersControllerTests
     }
 
     [TestMethod]
-    public async Task ListObfuscationProfiles_ReturnsForbidden_ForDifferentOwner()
+    public async Task ListObfuscationProfiles_ReturnsNotFound_ForDifferentOwner()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
         await SeedAuthenticatedCalendarOwnerAsync(factory);
@@ -708,11 +708,11 @@ public class CalendarOwnersControllerTests
             $"/api/calendar-owners/{Guid.NewGuid()}/obfuscation-profiles",
             TestContext.CancellationToken);
 
-        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [TestMethod]
-    public async Task SetObfuscationProfile_ReturnsForbidden_ForDifferentOwner()
+    public async Task SetObfuscationProfile_ReturnsNotFound_ForDifferentOwner()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
         await SeedAuthenticatedCalendarOwnerAsync(factory);
@@ -727,7 +727,7 @@ public class CalendarOwnersControllerTests
             },
             TestContext.CancellationToken);
 
-        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
 
 }

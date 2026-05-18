@@ -226,7 +226,7 @@ public sealed class CalendarOwnerGoogleConsentController(
         return accessResult.Status switch
         {
             CalendarOwnerAccessStatus.Allowed => null,
-            CalendarOwnerAccessStatus.Forbidden => Forbid(),
+            CalendarOwnerAccessStatus.Forbidden => NotFound(),
             CalendarOwnerAccessStatus.NotFound => NotFound(),
             _ => Unauthorized()
         };
