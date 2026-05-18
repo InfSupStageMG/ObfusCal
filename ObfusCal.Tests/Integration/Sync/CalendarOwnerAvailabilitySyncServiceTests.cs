@@ -370,19 +370,14 @@ public class CalendarOwnerAvailabilitySyncServiceTests
         AppDbContext dbContext,
         IDataProtectionProvider dataProtectionProvider,
         Func<HttpRequestMessage, Task<HttpResponseMessage>> handler,
-        FakeCalendarSourceInstanceService instances) : ICalendarSource
+        FakeCalendarSourceInstanceService instances) : ICalendarSource, ICalendarWriteBack
     {
-        public async Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(
-            DateTimeOffset from,
-            DateTimeOffset to,
-            Guid? calendarOwnerId = null,
-            CancellationToken ct = default)
+        private async Task<TResult> WithInnerSourceAsync<TResult>(
+            Func<GraphCalendarSource, Task<TResult>> action)
         {
             var messageHandler = new DelegatingHttpMessageHandler(handler);
-            using var httpClient = new HttpClient(messageHandler, disposeHandler: true)
-            {
-                BaseAddress = new Uri("https://graph.microsoft.com/")
-            };
+            using var httpClient = new HttpClient(messageHandler, disposeHandler: true);
+            httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
 
             var source = new GraphCalendarSource(
                 httpClient,
@@ -392,7 +387,31 @@ public class CalendarOwnerAvailabilitySyncServiceTests
                 instances,
                 NullLogger<GraphCalendarSource>.Instance);
 
-            return await source.GetEventsAsync(from, to, calendarOwnerId, ct);
+            return await action(source);
+        }
+
+        public async Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(
+            DateTimeOffset from,
+            DateTimeOffset to,
+            Guid? calendarOwnerId = null,
+            CancellationToken ct = default)
+        {
+            return await WithInnerSourceAsync(source => source.GetEventsAsync(from, to, calendarOwnerId, ct));
+        }
+
+        public async Task WriteBackSlotsAsync(
+            Guid calendarOwnerId,
+            IReadOnlyList<BusySlot> busySlots,
+            string placeholderTitle,
+            DateTimeOffset windowStart,
+            DateTimeOffset windowEnd,
+            CancellationToken ct = default)
+        {
+            await WithInnerSourceAsync(async source =>
+            {
+                await source.WriteBackSlotsAsync(calendarOwnerId, busySlots, placeholderTitle, windowStart, windowEnd, ct);
+                return 0;
+            });
         }
     }
 

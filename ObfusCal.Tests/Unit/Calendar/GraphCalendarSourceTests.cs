@@ -63,9 +63,11 @@ public class GraphCalendarSourceTests
             });
         });
 
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
         var source = CreateSource(
             dbContext,
-            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            httpClient,
             new StubGraphOAuthTokenClient(),
             new CapturingLogger<GraphCalendarSource>(),
             dataProtectionProvider);
@@ -74,7 +76,7 @@ public class GraphCalendarSourceTests
 
         var events = await source.GetEventsAsync(from, to, ownerId);
 
-        Assert.AreEqual(1, events.Count);
+        Assert.HasCount(1, events);
         Assert.AreEqual("evt-1", events[0].Id);
         Assert.AreEqual("Client Workshop", events[0].Title);
         Assert.AreEqual("Discuss roadmap", events[0].Description);
@@ -117,9 +119,11 @@ public class GraphCalendarSourceTests
             });
         });
 
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
         var source = CreateSource(
             dbContext,
-            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            httpClient,
             tokenClient,
             new CapturingLogger<GraphCalendarSource>(),
             dataProtectionProvider);
@@ -161,13 +165,13 @@ public class GraphCalendarSourceTests
         };
         var logger = new CapturingLogger<GraphCalendarSource>();
 
+        var handler = new DelegatingHttpMessageHandler(_ =>
+            throw new AssertFailedException("Graph endpoint should not be called."));
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
         var source = CreateSource(
             dbContext,
-            new HttpClient(new DelegatingHttpMessageHandler(_ =>
-                throw new AssertFailedException("Graph endpoint should not be called.")))
-            {
-                BaseAddress = new Uri("https://graph.microsoft.com/")
-            },
+            httpClient,
             tokenClient,
             logger,
             dataProtectionProvider);
@@ -203,8 +207,7 @@ public class GraphCalendarSourceTests
 
         var tokenClient = new StubGraphOAuthTokenClient
         {
-            RefreshedToken = new GraphOAuthTokenResponse("fresh-access-token", "refresh-token",
-                DateTimeOffset.UtcNow.AddHours(1))
+            RefreshedToken = new GraphOAuthTokenResponse("fresh-access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))
         };
 
         var callCount = 0;
@@ -226,9 +229,11 @@ public class GraphCalendarSourceTests
             });
         });
 
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
         var source = CreateSource(
             dbContext,
-            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            httpClient,
             tokenClient,
             new CapturingLogger<GraphCalendarSource>(),
             dataProtectionProvider);
@@ -324,17 +329,19 @@ public class GraphCalendarSourceTests
             return Task.FromResult(page2Response);
         });
 
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
         var source = CreateSource(
             dbContext,
-            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            httpClient,
             tokenClient,
             new CapturingLogger<GraphCalendarSource>(),
             dataProtectionProvider);
 
-        var events = await source.GetEventsAsync(
-            new DateTimeOffset(2026, 5, 1, 0, 0, 0, TimeSpan.Zero),
-            new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
-            ownerId);
+        var from = new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
+        var to = from.AddDays(7);
+
+        var events = await source.GetEventsAsync(from, to, ownerId);
 
         CollectionAssert.AreEqual(
             new[] { "expired-access-token", "fresh-access-token", "fresh-access-token" },
@@ -493,8 +500,8 @@ public class GraphCalendarSourceTests
             return Task.FromResult(CreateJsonOkResponse(page2Json));
         });
 
-        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
-
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
         var source = CreateSource(
             dbContext,
             httpClient,
@@ -558,8 +565,8 @@ public class GraphCalendarSourceTests
             });
         });
 
-        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
-
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
         var source = CreateSource(
             dbContext,
             httpClient,
@@ -623,7 +630,8 @@ public class GraphCalendarSourceTests
             };
         });
 
-        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
         var source = CreateSource(
             dbContext,
             httpClient,
@@ -704,20 +712,18 @@ public class GraphCalendarSourceTests
         var handler = new DelegatingHttpMessageHandler(request =>
         {
             requestLog.Add((request.Method, request.RequestUri!.ToString()));
-            if (request.Method == HttpMethod.Get)
+            if (request.Method != HttpMethod.Get)
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
             {
-                var response = new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent(managedEventsJson, Encoding.UTF8, "application/json")
-                };
-                return Task.FromResult(response);
-            }
+                Content = new StringContent(managedEventsJson, Encoding.UTF8, "application/json")
+            };
+            return Task.FromResult(response);
 
-            var noContentResponse = new HttpResponseMessage(HttpStatusCode.NoContent);
-            return Task.FromResult(noContentResponse);
         });
 
-        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
         var source = CreateSource(
             dbContext,
             httpClient,
@@ -756,7 +762,8 @@ public class GraphCalendarSourceTests
             called = true;
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
         });
-        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
 
         var source = CreateSource(
             dbContext,
@@ -808,7 +815,8 @@ public class GraphCalendarSourceTests
             };
         });
 
-        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
         var source = CreateSource(
             dbContext,
             httpClient,
@@ -880,7 +888,8 @@ public class GraphCalendarSourceTests
                 : new HttpResponseMessage(HttpStatusCode.NoContent));
         });
 
-        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
         var source = CreateSource(
             dbContext,
             httpClient,
@@ -924,7 +933,8 @@ public class GraphCalendarSourceTests
             });
         });
 
-        using var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") };
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
         var source = CreateSource(
             dbContext,
             httpClient,
@@ -997,9 +1007,11 @@ public class GraphCalendarSourceTests
             };
         });
 
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
         var source = CreateSource(
             dbContext,
-            new HttpClient(handler) { BaseAddress = new Uri("https://graph.microsoft.com/") },
+            httpClient,
             new StubGraphOAuthTokenClient(),
             new CapturingLogger<GraphCalendarSource>(),
             dataProtectionProvider,
