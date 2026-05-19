@@ -34,25 +34,25 @@ jobs:
               --no-restore \
               --verbosity normal \
               --logger "trx;LogFileName=test-results.trx" \
-              --results-directory ./TestResults \
-              | tee test-output.log
+              --results-directory ./TestResults
 
       - name: Generate Test Summary
         if: always()
         run: |
             echo "### Test Results Summary" >> $GITHUB_STEP_SUMMARY
-            echo '```text' >> $GITHUB_STEP_SUMMARY
-            # Extract the summary line(s) from the dotnet test output
-            grep -E "(Passed|Failed).*Total:" test-output.log >> $GITHUB_STEP_SUMMARY || echo "No test summary line found." >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            if [ -f "./TestResults/test-results.trx" ]; then
+                COUNTERS=$(grep -o '<Counters [^>]*>' ./TestResults/test-results.trx)
 
-      - name: Upload Test Results Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dotnet-test-results
-          path: ./TestResults/*.trx
-          retention-days: 14
+                TOTAL=$(echo "$COUNTERS" | grep -oP 'total="\K\d+')
+                PASSED=$(echo "$COUNTERS" | grep -oP 'passed="\K\d+')
+                FAILED=$(echo "$COUNTERS" | grep -oP 'failed="\K\d+')
+
+                echo "- **Total Tests:** $TOTAL" >> $GITHUB_STEP_SUMMARY
+                echo "- **Passed:** ✅ $PASSED" >> $GITHUB_STEP_SUMMARY
+                echo "- **Failed:** ❌ $FAILED" >> $GITHUB_STEP_SUMMARY
+            else
+                echo "⚠️ **No test results file found.** The build likely failed before tests could run." >> $GITHUB_STEP_SUMMARY
+            fi
 
   container-smoke:
     runs-on: ubuntu-latest
