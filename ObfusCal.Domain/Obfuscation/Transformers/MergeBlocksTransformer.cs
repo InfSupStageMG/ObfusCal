@@ -6,11 +6,6 @@ namespace ObfusCal.Domain.Obfuscation.Transformers;
 /// Merges overlapping and adjacent busy slots into single continuous blocks.
 /// This prevents fingerprinting of schedules based on the frequency and boundaries
 /// of individual busy blocks.
-///
-/// When merging slots, the result preserves the data of the first slot and captures
-/// all constituent slots (including nested sources from previous merges) in SourceSlots.
-/// This ensures that the full event context remains available for later inspection
-/// while maintaining the merged block as the primary view.
 /// </summary>
 public sealed class MergeBlocksTransformer : IBusySlotTransformerPlugin
 {
