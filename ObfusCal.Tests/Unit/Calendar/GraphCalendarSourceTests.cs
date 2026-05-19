@@ -104,7 +104,7 @@ public class GraphCalendarSourceTests
 
         var tokenClient = new StubGraphOAuthTokenClient
         {
-            RefreshedToken = new GraphOAuthTokenResponse("new-access-token", "new-refresh-token",
+            RefreshedToken = new GraphOAuthTokenResponse("new-access-token", "new-refresh-token", "https://graph.microsoft.com/Calendars.ReadWrite offline_access",
                 DateTimeOffset.UtcNow.AddHours(1))
         };
 
@@ -207,7 +207,7 @@ public class GraphCalendarSourceTests
 
         var tokenClient = new StubGraphOAuthTokenClient
         {
-            RefreshedToken = new GraphOAuthTokenResponse("fresh-access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))
+            RefreshedToken = new GraphOAuthTokenResponse("fresh-access-token", "refresh-token", "https://graph.microsoft.com/Calendars.ReadWrite offline_access", DateTimeOffset.UtcNow.AddHours(1))
         };
 
         var callCount = 0;
@@ -268,7 +268,7 @@ public class GraphCalendarSourceTests
 
         var tokenClient = new StubGraphOAuthTokenClient
         {
-            RefreshedToken = new GraphOAuthTokenResponse("fresh-access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))
+            RefreshedToken = new GraphOAuthTokenResponse("fresh-access-token", "refresh-token", "https://graph.microsoft.com/Calendars.ReadWrite offline_access", DateTimeOffset.UtcNow.AddHours(1))
         };
 
         var seenTokens = new List<string?>();
@@ -960,6 +960,116 @@ public class GraphCalendarSourceTests
     }
 
     [TestMethod]
+    public async Task WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenScopesAreNull()
+    {
+        // An instance whose GrantedScopes field is null (e.g. data created before scope tracking was
+        // added, or missing JSON field) must be treated as read-only.  No Graph mutations should occur.
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        await dbContext.CalendarOwners.AddAsync(new CalendarOwner { Id = ownerId, Name = "Owner" });
+        await dbContext.SaveChangesAsync();
+
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var protector = dataProtectionProvider.CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
+        var instances = new FakeCalendarSourceInstanceService(id => id == ownerId);
+        var created = await instances.CreateAsync(
+            ownerId,
+            new CreateCalendarSourceInstanceInput(
+                "graph",
+                "Graph",
+                "{\"calendarId\":\"primary\"}",
+                JsonSerializer.Serialize(new GraphCalendarSource.GraphSourceSecretData(
+                    protector.Protect("access-token"),
+                    protector.Protect("refresh-token"),
+                    GrantedScopes: null,        // <-- no scopes stored
+                    DateTimeOffset.UtcNow,
+                    DateTimeOffset.UtcNow.AddHours(1),
+                    DateTimeOffset.UtcNow))));
+        Assert.IsNotNull(created);
+
+        var instance = await instances.GetAsync(ownerId, created.Id);
+        Assert.IsNotNull(instance);
+
+        var called = false;
+        var handler = new DelegatingHttpMessageHandler(_ =>
+        {
+            called = true;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        });
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
+        var source = CreateSource(
+            dbContext,
+            httpClient,
+            new StubGraphOAuthTokenClient(),
+            new CapturingLogger<GraphCalendarSource>(),
+            dataProtectionProvider,
+            instances);
+
+        var from = DateTimeOffset.UtcNow;
+        var to = from.AddHours(1);
+        await source.WriteBackSlotsAsync(instance, [new BusySlot("slot-1", from, to)], "Busy", from, to);
+
+        Assert.IsFalse(called,
+            "No Graph HTTP calls should be made for an instance with null GrantedScopes (read-only fallback).");
+    }
+
+    [TestMethod]
+    public async Task WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenReadOnlyConsent()
+    {
+        // An instance consented via the read-only flow stores Calendars.Read (no ReadWrite).
+        // Write-back must be suppressed so no DELETE or POST calls reach the Graph API.
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        await dbContext.CalendarOwners.AddAsync(new CalendarOwner { Id = ownerId, Name = "Owner" });
+        await dbContext.SaveChangesAsync();
+
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var protector = dataProtectionProvider.CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
+        var instances = new FakeCalendarSourceInstanceService(id => id == ownerId);
+        var created = await instances.CreateAsync(
+            ownerId,
+            new CreateCalendarSourceInstanceInput(
+                "graph",
+                "Graph",
+                "{\"calendarId\":\"primary\"}",
+                JsonSerializer.Serialize(new GraphCalendarSource.GraphSourceSecretData(
+                    protector.Protect("access-token"),
+                    protector.Protect("refresh-token"),
+                    "https://graph.microsoft.com/Calendars.Read offline_access",   // read-only scope
+                    DateTimeOffset.UtcNow,
+                    DateTimeOffset.UtcNow.AddHours(1),
+                    DateTimeOffset.UtcNow))));
+        Assert.IsNotNull(created);
+
+        var instance = await instances.GetAsync(ownerId, created.Id);
+        Assert.IsNotNull(instance);
+
+        var called = false;
+        var handler = new DelegatingHttpMessageHandler(_ =>
+        {
+            called = true;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        });
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
+        var source = CreateSource(
+            dbContext,
+            httpClient,
+            new StubGraphOAuthTokenClient(),
+            new CapturingLogger<GraphCalendarSource>(),
+            dataProtectionProvider,
+            instances);
+
+        var from = DateTimeOffset.UtcNow;
+        var to = from.AddHours(1);
+        await source.WriteBackSlotsAsync(instance, [new BusySlot("slot-1", from, to)], "Busy", from, to);
+
+        Assert.IsFalse(called,
+            "No Graph HTTP calls should be made for a source instance consented with Calendars.Read only.");
+    }
+
+    [TestMethod]
     public async Task WriteBackSlotsAsync_ForSourceInstance_CreatesPlaceholderEvents()
     {
         await using var dbContext = TestDbContextFactory.CreateInMemory();
@@ -979,6 +1089,7 @@ public class GraphCalendarSourceTests
                 JsonSerializer.Serialize(new GraphCalendarSource.GraphSourceSecretData(
                     protector.Protect("access-token"),
                     protector.Protect("refresh-token"),
+                    "https://graph.microsoft.com/Calendars.ReadWrite offline_access",
                     DateTimeOffset.UtcNow,
                     DateTimeOffset.UtcNow.AddHours(1),
                     DateTimeOffset.UtcNow))));
@@ -1031,16 +1142,17 @@ public class GraphCalendarSourceTests
     private sealed class StubGraphOAuthTokenClient : IGraphOAuthTokenClient
     {
         public GraphOAuthTokenResponse RefreshedToken { get; set; } =
-            new("access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1));
+            new("access-token", "refresh-token", "https://graph.microsoft.com/Calendars.ReadWrite offline_access", DateTimeOffset.UtcNow.AddHours(1));
 
         public Exception? RefreshException { get; set; }
         public int RefreshCallCount { get; private set; }
 
         public Task<GraphOAuthTokenResponse> ExchangeAuthorizationCodeAsync(string authorizationCode,
-            string redirectUri, CancellationToken ct = default)
+            string redirectUri, string? scope = null, CancellationToken ct = default)
             => Task.FromResult(RefreshedToken);
 
         public Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(string refreshToken,
+            string? scope = null,
             CancellationToken ct = default)
         {
             RefreshCallCount++;

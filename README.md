@@ -105,13 +105,15 @@ openssl pkcs12 -export `
    must include a web redirect URI for `https://localhost:7001/signin-oidc` (and any reverse-proxy hostnames you use)
    and you must provide `AZUREAD__CLIENTSECRET`.
 
-   Microsoft Graph consent for calendar sync now requires
-   `GraphConsent:Scope=https://graph.microsoft.com/Calendars.ReadWrite offline_access`
-   so ObfusCal can both read the owner's calendar and maintain ObfusCal-managed write-back placeholders.
+   Microsoft Graph consent now supports two access modes:
+    - read-only: `GraphConsent:ReadOnlyScope=https://graph.microsoft.com/Calendars.Read offline_access`
+    - write-back: `GraphConsent:ReadWriteScope=https://graph.microsoft.com/Calendars.ReadWrite offline_access`
 
-    Google Calendar consent now requires
-    `GoogleConsent:Scope=https://www.googleapis.com/auth/calendar.events`
-    so ObfusCal can both read the owner's calendar events and maintain ObfusCal-managed write-back placeholders.
+   Source instances connected with read-only consent can sync events but cannot write ObfusCal-managed placeholders.
+
+   Google Calendar consent now requires
+   `GoogleConsent:Scope=https://www.googleapis.com/auth/calendar.events`
+   so ObfusCal can both read the owner's calendar events and maintain ObfusCal-managed write-back placeholders.
 
    On the first successful browser sign-in, ObfusCal automatically provisions a `CalendarOwner` record keyed by the
    user's Entra object ID. After you are signed in, the header also exposes a **Switch user** action that reopens the
@@ -183,6 +185,10 @@ dotnet run --project ObfusCal.Api
       `/swagger/oauth2-redirect.html` callback)
 
    After browser sign-in completes, the app will auto-create the matching calendar owner if it does not already exist.
+
+> **Important Note for Open-Source Users:** While ObfusCal can synchronize calendar events from multiple providers (
+> Google, iCloud, generic iCal), the **Administration Dashboard currently requires a Microsoft Entra ID (Azure AD) tenant
+** for user sign-in. Generic OIDC providers (e.g., Keycloak, Auth0) are not yet supported for the admin UI.
 
 ---
 
@@ -261,8 +267,13 @@ startup.
 Environment variable names use the standard double-underscore mapping (for example `GRAPHCONSENT__CLIENTSECRET` and
 `CONNECTIONSTRINGS__DEFAULTCONNECTION`).
 
-The Graph consent scope defaults to `https://graph.microsoft.com/Calendars.ReadWrite offline_access`. Override it only
-if your Entra app registration intentionally uses an equivalent write-capable scope set.
+Graph consent supports split scopes by default:
+
+- read-only: `https://graph.microsoft.com/Calendars.Read offline_access`
+- write-back: `https://graph.microsoft.com/Calendars.ReadWrite offline_access`
+
+`GraphConsent:AuthorityTenant` can be set to `common` or `consumers` as groundwork for personal-account consent
+scenarios. Leave it unset to use `AzureAd:TenantId`.
 
 The Google consent scope defaults to `https://www.googleapis.com/auth/calendar.events`. Override it only if your
 Google OAuth client intentionally uses an equivalent write-capable Calendar Events scope.

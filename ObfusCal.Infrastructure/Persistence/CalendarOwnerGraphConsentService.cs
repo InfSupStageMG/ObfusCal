@@ -39,6 +39,9 @@ internal sealed class CalendarOwnerGraphConsentService(
             .Select(owner => new CalendarOwnerGraphConsentStatus(
                 !string.IsNullOrWhiteSpace(owner.GraphAccessTokenProtected)
                 || !string.IsNullOrWhiteSpace(owner.GraphRefreshTokenProtected),
+                ResolveAccessLevel(owner.GraphGrantedScopes),
+                AllowsWriteBack(owner.GraphGrantedScopes),
+                owner.GraphGrantedScopes,
                 owner.GraphConsentGrantedAtUtc,
                 owner.GraphTokenExpiresAtUtc,
                 owner.GraphTokenLastRefreshedAtUtc))
@@ -58,6 +61,9 @@ internal sealed class CalendarOwnerGraphConsentService(
         return new CalendarOwnerGraphConsentStatus(
             !string.IsNullOrWhiteSpace(secretData?.ProtectedAccessToken)
             || !string.IsNullOrWhiteSpace(secretData?.ProtectedRefreshToken),
+            ResolveAccessLevel(secretData?.GrantedScopes),
+            AllowsWriteBack(secretData?.GrantedScopes),
+            secretData?.GrantedScopes,
             secretData?.ConsentGrantedAtUtc,
             secretData?.TokenExpiresAtUtc,
             secretData?.TokenLastRefreshedAtUtc);
@@ -83,22 +89,30 @@ internal sealed class CalendarOwnerGraphConsentService(
     }
 
     public string BuildAuthorizationUrl(string redirectUri)
-        => BuildAuthorizationUrlCore(redirectUri, Guid.Empty, Guid.Empty);
+        => BuildAuthorizationUrl(redirectUri, GraphConsentAccessLevel.ReadWrite);
+
+    public string BuildAuthorizationUrl(string redirectUri, GraphConsentAccessLevel accessLevel)
+        => BuildAuthorizationUrlCore(redirectUri, Guid.Empty, Guid.Empty, accessLevel);
 
     public async Task<string> BuildAuthorizationUrlAsync(
         Guid calendarOwnerId,
         Guid calendarSourceInstanceId,
         string redirectUri,
+        GraphConsentAccessLevel accessLevel,
         CancellationToken ct = default)
     {
         var instance = await calendarSourceInstanceStore.GetAsync(calendarOwnerId, calendarSourceInstanceId, ct);
         if (instance is null || !string.Equals(instance.PluginId, GraphPluginId, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Graph calendar source instance was not found.");
 
-        return BuildAuthorizationUrlCore(redirectUri, calendarOwnerId, calendarSourceInstanceId);
+        return BuildAuthorizationUrlCore(redirectUri, calendarOwnerId, calendarSourceInstanceId, accessLevel);
     }
 
-    private string BuildAuthorizationUrlCore(string redirectUri, Guid calendarOwnerId, Guid calendarSourceInstanceId)
+    private string BuildAuthorizationUrlCore(
+        string redirectUri,
+        Guid calendarOwnerId,
+        Guid calendarSourceInstanceId,
+        GraphConsentAccessLevel accessLevel)
     {
         // Validate that redirectUri is an absolute URI
         try
@@ -114,16 +128,18 @@ internal sealed class CalendarOwnerGraphConsentService(
         }
 
         var instance = (secretProvider.GetSecret("AzureAd:Instance") ?? "https://login.microsoftonline.com/").TrimEnd('/');
-        var tenantId = secretProvider.GetSecret(SecretKeys.AzureAdTenantId)
+        var authorityTenant = string.IsNullOrWhiteSpace(graphConsentOptions.Value.AuthorityTenant)
+            ? null
+            : graphConsentOptions.Value.AuthorityTenant;
+        var tenantId = authorityTenant
+            ?? secretProvider.GetSecret(SecretKeys.AzureAdTenantId)
             ?? throw new InvalidOperationException("AzureAd:TenantId is required.");
         var clientId = graphConsentOptions.Value.ClientId
             ?? secretProvider.GetSecret(SecretKeys.GraphConsentClientId)
             ?? secretProvider.GetSecret(SecretKeys.AzureAdClientId)
             ?? throw new InvalidOperationException("GraphConsent:ClientId or AzureAd:ClientId is required.");
 
-        var scope = string.IsNullOrWhiteSpace(graphConsentOptions.Value.Scope)
-            ? "https://graph.microsoft.com/Calendars.ReadWrite offline_access"
-            : graphConsentOptions.Value.Scope;
+        var scope = ResolveScope(accessLevel);
 
         var query = string.Join("&",
             $"client_id={Uri.EscapeDataString(clientId)}",
@@ -132,7 +148,7 @@ internal sealed class CalendarOwnerGraphConsentService(
             "response_mode=query",
             $"scope={Uri.EscapeDataString(scope)}",
             "prompt=consent",
-            $"state={Uri.EscapeDataString(BuildStateToken(calendarOwnerId, calendarSourceInstanceId, redirectUri))}");
+            $"state={Uri.EscapeDataString(BuildStateToken(calendarOwnerId, calendarSourceInstanceId, redirectUri, accessLevel, scope))}");
 
         return $"{instance}/{tenantId}/oauth2/v2.0/authorize?{query}";
     }
@@ -164,6 +180,7 @@ internal sealed class CalendarOwnerGraphConsentService(
                 payload.CalendarSourceInstanceId,
                 authorizationCode,
                 payload.RedirectUri,
+                payload.RequestedScope,
                 ct);
         }
         else
@@ -172,18 +189,26 @@ internal sealed class CalendarOwnerGraphConsentService(
                 payload.CalendarOwnerId,
                 authorizationCode,
                 payload.RedirectUri,
+                payload.RequestedScope,
                 ct);
         }
 
         return payload.CalendarOwnerId;
     }
 
-    private string BuildStateToken(Guid calendarOwnerId, Guid calendarSourceInstanceId, string redirectUri)
+    private string BuildStateToken(
+        Guid calendarOwnerId,
+        Guid calendarSourceInstanceId,
+        string redirectUri,
+        GraphConsentAccessLevel accessLevel,
+        string requestedScope)
     {
         var payload = new GraphConsentStatePayload(
             calendarOwnerId,
             calendarSourceInstanceId,
             redirectUri,
+            accessLevel,
+            requestedScope,
             DateTimeOffset.UtcNow.AddMinutes(10));
 
         return StatePrefix + _stateProtector.Protect(JsonSerializer.Serialize(payload));
@@ -204,17 +229,28 @@ internal sealed class CalendarOwnerGraphConsentService(
         }
     }
 
-    public async Task CompleteConsentAsync(
+    public Task CompleteConsentAsync(
         Guid calendarOwnerId,
         string authorizationCode,
         string redirectUri,
+        CancellationToken ct = default)
+        => CompleteConsentAsync(calendarOwnerId, authorizationCode, redirectUri, requestedScope: null, ct);
+
+    private async Task CompleteConsentAsync(
+        Guid calendarOwnerId,
+        string authorizationCode,
+        string redirectUri,
+        string? requestedScope,
         CancellationToken ct = default)
     {
         var owner = await dbContext.CalendarOwners
             .SingleOrDefaultAsync(x => x.Id == calendarOwnerId, ct)
             ?? throw new InvalidOperationException("Calendar owner was not found.");
 
-        var tokenResponse = await tokenClient.ExchangeAuthorizationCodeAsync(authorizationCode, redirectUri, ct);
+        var scope = string.IsNullOrWhiteSpace(requestedScope)
+            ? ResolveScope(GraphConsentAccessLevel.ReadWrite)
+            : requestedScope;
+        var tokenResponse = await tokenClient.ExchangeAuthorizationCodeAsync(authorizationCode, redirectUri, scope, ct);
 
         owner.GraphAccessTokenProtected = _tokenProtector.Protect(tokenResponse.AccessToken);
         owner.GraphRefreshTokenProtected = string.IsNullOrWhiteSpace(tokenResponse.RefreshToken)
@@ -223,6 +259,7 @@ internal sealed class CalendarOwnerGraphConsentService(
         owner.GraphConsentGrantedAtUtc = DateTimeOffset.UtcNow;
         owner.GraphTokenLastRefreshedAtUtc = DateTimeOffset.UtcNow;
         owner.GraphTokenExpiresAtUtc = tokenResponse.ExpiresAtUtc;
+        owner.GraphGrantedScopes = tokenResponse.Scope ?? scope;
 
         await dbContext.SaveChangesAsync(ct);
 
@@ -236,6 +273,7 @@ internal sealed class CalendarOwnerGraphConsentService(
                     SecretDataJson: SerializeSecretData(new GraphCalendarSource.GraphSourceSecretData(
                         owner.GraphAccessTokenProtected,
                         owner.GraphRefreshTokenProtected,
+                        owner.GraphGrantedScopes,
                         owner.GraphConsentGrantedAtUtc,
                         owner.GraphTokenExpiresAtUtc,
                         owner.GraphTokenLastRefreshedAtUtc)),
@@ -244,11 +282,20 @@ internal sealed class CalendarOwnerGraphConsentService(
         }
     }
 
-    public async Task CompleteConsentAsync(
+    public Task CompleteConsentAsync(
         Guid calendarOwnerId,
         Guid calendarSourceInstanceId,
         string authorizationCode,
         string redirectUri,
+        CancellationToken ct = default)
+        => CompleteConsentAsync(calendarOwnerId, calendarSourceInstanceId, authorizationCode, redirectUri, requestedScope: null, ct);
+
+    private async Task CompleteConsentAsync(
+        Guid calendarOwnerId,
+        Guid calendarSourceInstanceId,
+        string authorizationCode,
+        string redirectUri,
+        string? requestedScope,
         CancellationToken ct = default)
     {
         var instance = await calendarSourceInstanceStore.GetAsync(calendarOwnerId, calendarSourceInstanceId, ct)
@@ -257,12 +304,16 @@ internal sealed class CalendarOwnerGraphConsentService(
         if (!string.Equals(instance.PluginId, GraphPluginId, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("The specified calendar source instance is not a Graph source.");
 
-        var tokenResponse = await tokenClient.ExchangeAuthorizationCodeAsync(authorizationCode, redirectUri, ct);
+        var scope = string.IsNullOrWhiteSpace(requestedScope)
+            ? ResolveScope(GraphConsentAccessLevel.ReadWrite)
+            : requestedScope;
+        var tokenResponse = await tokenClient.ExchangeAuthorizationCodeAsync(authorizationCode, redirectUri, scope, ct);
         var secretData = new GraphCalendarSource.GraphSourceSecretData(
             _tokenProtector.Protect(tokenResponse.AccessToken),
             string.IsNullOrWhiteSpace(tokenResponse.RefreshToken)
                 ? null
                 : _tokenProtector.Protect(tokenResponse.RefreshToken),
+            tokenResponse.Scope ?? scope,
             DateTimeOffset.UtcNow,
             tokenResponse.ExpiresAtUtc,
             DateTimeOffset.UtcNow);
@@ -313,9 +364,48 @@ internal sealed class CalendarOwnerGraphConsentService(
     private static string SerializeSecretData(GraphCalendarSource.GraphSourceSecretData secretData)
         => JsonSerializer.Serialize(secretData);
 
+    private string ResolveScope(GraphConsentAccessLevel accessLevel)
+    {
+        var options = graphConsentOptions.Value;
+
+        const string defaultReadWriteScope = "https://graph.microsoft.com/Calendars.ReadWrite offline_access";
+        if (accessLevel == GraphConsentAccessLevel.ReadWrite
+            && !string.IsNullOrWhiteSpace(options.Scope)
+            && !string.Equals(options.Scope, defaultReadWriteScope, StringComparison.OrdinalIgnoreCase))
+        {
+            return options.Scope;
+        }
+
+        var configuredScope = accessLevel == GraphConsentAccessLevel.ReadOnly
+            ? options.ReadOnlyScope
+            : options.ReadWriteScope;
+
+        if (!string.IsNullOrWhiteSpace(configuredScope))
+            return configuredScope;
+
+        if (!string.IsNullOrWhiteSpace(options.Scope) && accessLevel == GraphConsentAccessLevel.ReadWrite)
+            return options.Scope;
+
+        return accessLevel == GraphConsentAccessLevel.ReadOnly
+            ? "https://graph.microsoft.com/Calendars.Read offline_access"
+            : "https://graph.microsoft.com/Calendars.ReadWrite offline_access";
+    }
+
+    private static bool AllowsWriteBack(string? scopes)
+        => string.IsNullOrWhiteSpace(scopes)
+           || scopes.Contains("Calendars.ReadWrite", StringComparison.OrdinalIgnoreCase);
+
+    private static GraphConsentAccessLevel ResolveAccessLevel(string? scopes)
+        => !string.IsNullOrWhiteSpace(scopes)
+           && !AllowsWriteBack(scopes)
+            ? GraphConsentAccessLevel.ReadOnly
+            : GraphConsentAccessLevel.ReadWrite;
+
     private sealed record GraphConsentStatePayload(
         Guid CalendarOwnerId,
         Guid CalendarSourceInstanceId,
         string RedirectUri,
+        GraphConsentAccessLevel AccessLevel,
+        string RequestedScope,
         DateTimeOffset ExpiresAtUtc);
 }

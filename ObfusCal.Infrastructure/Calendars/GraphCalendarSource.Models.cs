@@ -81,6 +81,7 @@ public sealed partial class GraphCalendarSource
     internal sealed record GraphSourceSecretData(
         string? ProtectedAccessToken,
         string? ProtectedRefreshToken,
+        string? GrantedScopes,
         DateTimeOffset? ConsentGrantedAtUtc,
         DateTimeOffset? TokenExpiresAtUtc,
         DateTimeOffset? TokenLastRefreshedAtUtc);

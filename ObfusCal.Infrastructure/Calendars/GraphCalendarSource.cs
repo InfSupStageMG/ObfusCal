@@ -18,8 +18,12 @@ namespace ObfusCal.Infrastructure.Calendars;
     configurationJsonTemplate: "{\"calendarId\":\"primary\"}",
     setupHint: "Use the Graph consent flow to populate tokens for each source instance.")]
 [CalendarSourcePluginAction(
+    "graph-instance-consent-readonly",
+    "Connect Microsoft (read-only)",
+    hint: "Authorizes ObfusCal to read your Microsoft Graph calendar for this source instance without write-back permissions.")]
+[CalendarSourcePluginAction(
     "graph-instance-consent",
-    "Start Microsoft OAuth",
+    "Connect Microsoft (write-back)",
     hint: "Authorizes ObfusCal to read your Microsoft Graph calendar and maintain ObfusCal-managed busy placeholders for this source instance.")]
 public sealed partial class GraphCalendarSource(
     HttpClient httpClient,
@@ -144,11 +148,21 @@ public sealed partial class GraphCalendarSource(
         var hasConsent = !string.IsNullOrWhiteSpace(owner.GraphAccessTokenProtected)
             || !string.IsNullOrWhiteSpace(owner.GraphRefreshTokenProtected);
 
-        return hasConsent
-            ? CalendarSourceReadiness.Ready("Microsoft Graph calendar is configured.")
-            : CalendarSourceReadiness.NotReady(
+        if (!hasConsent)
+        {
+            return CalendarSourceReadiness.NotReady(
                 "Microsoft Graph consent required.",
                 "This calendar owner has not granted Microsoft Graph calendar consent yet. Complete consent before requesting busy slots.");
+        }
+
+        var canWriteBack = AllowsWriteBack(owner.GraphGrantedScopes);
+        return hasConsent
+            ? CalendarSourceReadiness.Ready(
+                canWriteBack ? "Connected (write-back enabled)." : "Connected (read-only).",
+                canWriteBack
+                    ? "Microsoft Graph consent includes calendar write permissions."
+                    : "Microsoft Graph consent is read-only; write-back placeholders are disabled for this connection.")
+            : CalendarSourceReadiness.NotReady("Microsoft Graph consent required.");
     }
 
     public Task<CalendarSourceReadiness> GetReadinessAsync(CalendarSourceInstanceContext instance, CancellationToken ct = default)
@@ -157,11 +171,22 @@ public sealed partial class GraphCalendarSource(
         var hasConsent = !string.IsNullOrWhiteSpace(secretData?.ProtectedAccessToken)
             || !string.IsNullOrWhiteSpace(secretData?.ProtectedRefreshToken);
 
-        return Task.FromResult(hasConsent
-            ? CalendarSourceReadiness.Ready("Microsoft Graph calendar is configured.")
-            : CalendarSourceReadiness.NotReady(
+        if (!hasConsent)
+        {
+            return Task.FromResult(CalendarSourceReadiness.NotReady(
                 "Microsoft Graph consent required.",
                 "Complete Microsoft Graph consent for this source instance before requesting busy slots."));
+        }
+
+        var canWriteBack = AllowsWriteBack(secretData?.GrantedScopes);
+
+        return Task.FromResult(hasConsent
+            ? CalendarSourceReadiness.Ready(
+                canWriteBack ? "Connected (write-back enabled)." : "Connected (read-only).",
+                canWriteBack
+                    ? "Microsoft Graph consent includes calendar write permissions."
+                    : "Microsoft Graph consent is read-only; write-back placeholders are disabled for this source instance.")
+            : CalendarSourceReadiness.NotReady("Microsoft Graph consent required."));
     }
 
 
@@ -281,10 +306,13 @@ public sealed partial class GraphCalendarSource(
 
         try
         {
-            var refreshed = await _tokenClient.RefreshAccessTokenAsync(refreshToken, ct);
+            var refreshed = await _tokenClient.RefreshAccessTokenAsync(refreshToken, owner.GraphGrantedScopes, ct);
             owner.GraphAccessTokenProtected = _tokenProtector.Protect(refreshed.AccessToken);
             if (!string.IsNullOrWhiteSpace(refreshed.RefreshToken))
                 owner.GraphRefreshTokenProtected = _tokenProtector.Protect(refreshed.RefreshToken);
+
+            if (!string.IsNullOrWhiteSpace(refreshed.Scope))
+                owner.GraphGrantedScopes = refreshed.Scope;
 
             owner.GraphTokenExpiresAtUtc = refreshed.ExpiresAtUtc;
             owner.GraphTokenLastRefreshedAtUtc = DateTimeOffset.UtcNow;
@@ -339,13 +367,14 @@ public sealed partial class GraphCalendarSource(
 
         try
         {
-            var refreshed = await _tokenClient.RefreshAccessTokenAsync(refreshToken, ct);
+            var refreshed = await _tokenClient.RefreshAccessTokenAsync(refreshToken, secretData.GrantedScopes, ct);
             var updatedSecretData = secretData with
             {
                 ProtectedAccessToken = _tokenProtector.Protect(refreshed.AccessToken),
                 ProtectedRefreshToken = string.IsNullOrWhiteSpace(refreshed.RefreshToken)
                     ? secretData.ProtectedRefreshToken
                     : _tokenProtector.Protect(refreshed.RefreshToken),
+                GrantedScopes = string.IsNullOrWhiteSpace(refreshed.Scope) ? secretData.GrantedScopes : refreshed.Scope,
                 TokenExpiresAtUtc = refreshed.ExpiresAtUtc,
                 TokenLastRefreshedAtUtc = DateTimeOffset.UtcNow
             };
@@ -549,4 +578,8 @@ public sealed partial class GraphCalendarSource(
         value = new DateTimeOffset(DateTime.SpecifyKind(parsedDateTime, DateTimeKind.Utc));
         return true;
     }
+
+    private static bool AllowsWriteBack(string? grantedScopes)
+        => string.IsNullOrWhiteSpace(grantedScopes)
+           || grantedScopes.Contains("Calendars.ReadWrite", StringComparison.OrdinalIgnoreCase);
 }

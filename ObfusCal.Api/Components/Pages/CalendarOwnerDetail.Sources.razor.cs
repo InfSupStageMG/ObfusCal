@@ -268,7 +268,20 @@ public partial class CalendarOwnerDetail
                     break;
 
                 case "graph-instance-consent":
-                    authUrl = await GraphConsentService.BuildAuthorizationUrlAsync(Id, instance.Id, callbackUri);
+                    authUrl = await GraphConsentService.BuildAuthorizationUrlAsync(
+                        Id,
+                        instance.Id,
+                        callbackUri,
+                        GraphConsentAccessLevel.ReadWrite);
+                    Navigation.NavigateTo(authUrl, forceLoad: true);
+                    break;
+
+                case "graph-instance-consent-readonly":
+                    authUrl = await GraphConsentService.BuildAuthorizationUrlAsync(
+                        Id,
+                        instance.Id,
+                        callbackUri,
+                        GraphConsentAccessLevel.ReadOnly);
                     Navigation.NavigateTo(authUrl, forceLoad: true);
                     break;
 

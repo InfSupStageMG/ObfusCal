@@ -11,6 +11,7 @@ public class CalendarOwner
     public string? ICloudAppSpecificPasswordProtected { get; set; }
     public string? GraphAccessTokenProtected { get; set; }
     public string? GraphRefreshTokenProtected { get; set; }
+    public string? GraphGrantedScopes { get; set; }
     public DateTimeOffset? GraphTokenExpiresAtUtc { get; set; }
     public DateTimeOffset? GraphTokenLastRefreshedAtUtc { get; set; }
     public DateTimeOffset? GraphConsentGrantedAtUtc { get; set; }

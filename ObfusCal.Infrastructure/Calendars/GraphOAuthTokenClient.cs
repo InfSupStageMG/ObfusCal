@@ -21,6 +21,7 @@ internal sealed class GraphOAuthTokenClient(
     public async Task<GraphOAuthTokenResponse> ExchangeAuthorizationCodeAsync(
         string authorizationCode,
         string redirectUri,
+        string? scope = null,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(authorizationCode))
@@ -29,7 +30,7 @@ internal sealed class GraphOAuthTokenClient(
         if (!Uri.TryCreate(redirectUri, UriKind.Absolute, out _))
             throw new InvalidOperationException("A valid absolute redirect URI is required to exchange Graph consent.");
 
-        var oauthSettings = BuildOAuthSettings();
+        var oauthSettings = BuildOAuthSettings(scope);
 
         var form = new Dictionary<string, string>
         {
@@ -50,12 +51,13 @@ internal sealed class GraphOAuthTokenClient(
 
     public async Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(
         string refreshToken,
+        string? scope = null,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
             throw new InvalidOperationException("Refresh token is required to renew Graph access.");
 
-        var oauthSettings = BuildOAuthSettings();
+        var oauthSettings = BuildOAuthSettings(scope);
         var form = new Dictionary<string, string>
         {
             ["grant_type"] = "refresh_token",
@@ -97,22 +99,30 @@ internal sealed class GraphOAuthTokenClient(
             expiresAt = DateTimeOffset.UtcNow.AddSeconds(payload.ExpiresIn.Value);
         }
 
-        return new GraphOAuthTokenResponse(payload.AccessToken, payload.RefreshToken, expiresAt);
+        return new GraphOAuthTokenResponse(payload.AccessToken, payload.RefreshToken, payload.Scope, expiresAt);
     }
 
-    private OAuthSettings BuildOAuthSettings()
+    private OAuthSettings BuildOAuthSettings(string? scopeOverride)
     {
         var instance = (secretProvider.GetSecret("AzureAd:Instance") ?? "https://login.microsoftonline.com/").TrimEnd('/');
-        var tenantId = secretProvider.GetSecret(SecretKeys.AzureAdTenantId)
+        var authorityTenant = string.IsNullOrWhiteSpace(graphConsentOptions.Value.AuthorityTenant)
+            ? null
+            : graphConsentOptions.Value.AuthorityTenant;
+        var tenantId = authorityTenant
+            ?? secretProvider.GetSecret(SecretKeys.AzureAdTenantId)
             ?? throw new InvalidOperationException("AzureAd:TenantId is required.");
         var clientId = graphConsentOptions.Value.ClientId
             ?? secretProvider.GetSecret(SecretKeys.GraphConsentClientId)
             ?? secretProvider.GetSecret(SecretKeys.AzureAdClientId)
             ?? throw new InvalidOperationException("GraphConsent:ClientId or AzureAd:ClientId is required.");
 
-        var scope = string.IsNullOrWhiteSpace(graphConsentOptions.Value.Scope)
-            ? "https://graph.microsoft.com/Calendars.ReadWrite offline_access"
-            : graphConsentOptions.Value.Scope;
+        var scope = string.IsNullOrWhiteSpace(scopeOverride)
+            ? (string.IsNullOrWhiteSpace(graphConsentOptions.Value.ReadWriteScope)
+                ? (string.IsNullOrWhiteSpace(graphConsentOptions.Value.Scope)
+                    ? "https://graph.microsoft.com/Calendars.ReadWrite offline_access"
+                    : graphConsentOptions.Value.Scope)
+                : graphConsentOptions.Value.ReadWriteScope)
+            : scopeOverride;
 
         return new OAuthSettings(
             $"{instance}/{tenantId}/oauth2/v2.0/token",
@@ -126,6 +136,8 @@ internal sealed class GraphOAuthTokenClient(
         string? AccessToken,
         [property: JsonPropertyName("refresh_token")]
         string? RefreshToken,
+        [property: JsonPropertyName("scope")]
+        string? Scope,
         [property: JsonPropertyName("expires_in")]
         int? ExpiresIn);
 

@@ -8,7 +8,8 @@ Use this checklist before declaring the project "ready":
     - Keep interfaces in `ObfusCal.Application`.
     - Keep implementations in `ObfusCal.Infrastructure`.
     - Do not reference `ObfusCal.Infrastructure` from `ObfusCal.Application` or `ObfusCal.Domain`.
-    - Keep composition/wiring in `ObfusCal.Api/Program.cs` and `ObfusCal.Infrastructure/DependencyInjection.cs`.
+    - Keep composition/wiring in `ObfusCal.Api/Program.cs`, `ObfusCal.Api/ProgramSetup.cs`, and
+      `ObfusCal.Infrastructure/DependencyInjection.cs`.
 
 2. **Secrets and security**
     - Use `ISecretProvider` for secret reads in runtime services.
@@ -43,6 +44,7 @@ Use this checklist before declaring the project "ready":
       flows.
     - Keep tests deterministic: avoid wall-clock coupling, random ordering assumptions, and external network
       dependencies.
+    - Integration tests rely on Testcontainers PostgreSQL; ensure Docker or Podman is running before full test gates.
     - Before declaring done, run targeted tests first, then full solution build/test gate.
 
 8. **API and UX consistency**
@@ -64,8 +66,9 @@ Use this checklist before declaring the project "ready":
 10. **Deployment and runtime operations**
     - Keep `Dockerfile` single-purpose for API runtime; document external runtime requirements (DB, certs, secrets).
     - Keep `docker-compose.yaml` aligned with documented env variables and readiness checks.
-    - Do not assume DataProtection key persistence in containers; if required, configure persistent key storage
-      explicitly.
+    - DataProtection keys are persisted via `PersistKeysToDbContext<AppDbContext>()` in
+      `ObfusCal.Infrastructure/DependencyInjection.cs`; treat database availability and startup migrations as required
+      for key continuity.
     - Validate health endpoint behavior (`/health`) after startup/config changes.
 
 11. **Observability and logging quality**
@@ -77,6 +80,9 @@ Use this checklist before declaring the project "ready":
 12. **Plugin and extensibility rules**
     - New calendar sources must be discovered through plugin contracts and registered via the catalog, not hardcoded
       switches.
+    - Keep plugin project naming as `ObfusCal.Plugins.*`; wildcard `PluginProjectReference` in
+      `ObfusCal.Api/ObfusCal.Api.csproj` and `ObfusCal.Tests/ObfusCal.Tests.csproj` depends on this for build/publish
+      copying into `plugins/`.
     - Keep plugin IDs stable and lowercase; treat ID changes as breaking changes for persisted selections.
     - Ensure fallback behavior remains explicit when plugins are unavailable or not ready.
     - Add tests for plugin resolution order (owner selection -> configured provider -> first available).
