@@ -6,40 +6,40 @@
 
 ## Context and problem statement
 
-As the project matures, we need to make our automated test results persistently available as artifacts and immediately
-visible in the CI/CD pipeline output. While there are many third-party GitHub Actions available in the marketplace to
-parse and publish test results (e.g., `dorny/test-reporter` or `EnricoMi/publish-unit-test-result-action`), we need to
-decide if the convenience of these tools outweighs the security and reliability risks they introduce to our supply
-chain.
+As the project matures, we need to make our automated test results insightful and persistently available. Raw `.trx` (
+XML) files are difficult for humans to read. While there are many third-party GitHub Actions and NuGet packages (e.g.,
+`trx2html`, `LiquidTestReports`) available to format these reports, we must evaluate if the convenience of these tools
+outweighs the security and reliability risks they introduce.
 
 ## Considered options
 
-* Third-party GitHub Actions from the marketplace
-* Native .NET tooling combined with GitHub's built-in Step Summaries and Artifacts
+1. **Third-party GitHub Actions** (e.g., `dorny/test-reporter`)
+2. **Third-party NuGet Loggers** (e.g., `LiquidTestReports`)
+3. **Native Microsoft HTML Logger + Python XML Parsing**
 
 ## Decision outcome
 
-We chose **Native .NET tooling combined with GitHub's built-in Step Summaries and Artifacts**.
+We chose **Option 3: Native Microsoft HTML Logger + Python XML Parsing**.
 
-We explicitly reject the use of third-party test reporter actions. Instead, we will output `.trx` files using
-`dotnet test --logger trx`, parse the summary via standard Linux CLI utilities (`grep`), and write it directly to the
-`$GITHUB_STEP_SUMMARY` environment variable.
+We don't want to use third-party test reporter actions and single-maintainer NuGet packages. Instead, we will generate a
+standalone HTML file using Microsoft's native `.NET VSTest` framework (`dotnet test --logger html`) to serve as a
+downloadable artifact. Concurrently, we will use a native Python script (pre-installed on CI runners) to parse the
+`.trx` XML and write a rich Markdown summary directly to the GitHub UI.
 
 ## Decision rationale
 
-1. **Security (Supply Chain):** Third-party actions require continuous trust. Compromised actions are a common
-   supply-chain attack vector. By avoiding them, we reduce our attack surface.
+1. **Security (Supply Chain):** Single-maintainer open-source packages carry a high risk of abandonment or supply-chain
+   compromise. By relying exclusively on Microsoft's built-in SDK tools and standard Python, our attack surface remains
+   near-zero.
 2. **Security (Permissions):** Most third-party test reporters require elevating the `GITHUB_TOKEN` to have
-   `pull-requests: write` access so they can post comments. Our native approach requires only `contents: read`, strictly
-   adhering to the Principle of Least Privilege.
-3. **Reliability:** Standard POSIX utilities and native GitHub features will not break due to underlying runner
-   changes (e.g., Node.js version deprecations), which frequently plague unmaintained marketplace actions.
+   `pull-requests: write` access. Our native approach allows us to keep pipeline permissions strictly locked down to
+   `contents: read`.
+3. **UX & Reliability:** The native HTML logger provides a clean, structured file for QA to download, while the
+   Python script ensures developers get immediate, expandable error logs directly in the GitHub Actions UI without
+   downloading anything.
 
 ## Consequences
 
 * **Positive:** Zero third-party dependencies are introduced to the CI/CD pipeline.
-* **Positive:** Pipeline permissions remain strictly locked down.
-* **Positive:** Test metrics are instantly visible on the GitHub Actions summary page without cluttering the Pull
-  Request timeline with bot comments.
-* **Negative:** The visual presentation in the Step Summary is basic text/markdown, lacking the rich graphical UI that
-  some dedicated third-party reporters provide.
+* **Positive:** Pipeline permissions remain strictly locked down (Principle of Least Privilege).
+* **Positive:** Test metrics and specific failure messages are instantly visible in the GitHub UI.

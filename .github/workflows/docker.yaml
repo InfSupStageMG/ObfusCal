@@ -1,198 +1,304 @@
 ﻿name: Build and publish Docker image
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    push:
+        branches:
+            - main
+    pull_request:
+        branches:
+            - main
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+    REGISTRY: ghcr.io
+    IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+    test:
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+        steps:
+            -   name: Checkout repository
+                uses: actions/checkout@v6
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          global-json-file: global.json
+            -   name: Setup .NET
+                uses: actions/setup-dotnet@v5
+                with:
+                    global-json-file: global.json
 
-      - name: Restore dependencies
-        run: dotnet restore
+            -   name: Restore dependencies
+                run: dotnet restore
 
-      - name: Run tests
-        run: |
-            dotnet test \
-              --no-restore \
-              --verbosity normal \
-              --logger "trx;LogFileName=test-results.trx" \
-              --results-directory ./TestResults
+            -   name: Run tests
+                run: |
+                    dotnet test \
+                      --no-restore \
+                      --verbosity normal \
+                      --logger "trx;LogFileName=test-results.trx" \
+                      --logger "html;LogFileName=test-results.html" \
+                      --results-directory ./TestResults
 
-      - name: Generate Rich Test Summary
-        if: always()
-        run: |
-            python3 -c '
-            import xml.etree.ElementTree as ET
-            import os
+            -   name: Generate Rich Test Summary
+                if: always()
+                run: |
+                    python3 - << 'EOF'
+                    import xml.etree.ElementTree as ET
+                    import os, sys
 
-            trx_file = "./TestResults/test-results.trx"
-            summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
+                    trx_file = "./TestResults/test-results.trx"
+                    summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
 
-            with open(summary_file, "a", encoding="utf-8") as f:
-                f.write("### 🧪 Test Results Summary\n\n")
+                    with open(summary_file, "a", encoding="utf-8") as f:
+                        f.write("### 🧪 Test Results Summary\n\n")
 
-                if not os.path.exists(trx_file):
-                    f.write("⚠️ **No test results file found.** The build likely failed before tests could run.\n")
-                    sys.exit(0)
+                        if not os.path.exists(trx_file):
+                            f.write("⚠️ **No test results file found.** The build likely failed before tests could run.\n")
+                            sys.exit(0)
 
-                # Parse the TRX XML (ignoring namespaces for simplicity)
-                tree = ET.parse(trx_file)
-                root = tree.getroot()
+                        try:
+                            tree = ET.parse(trx_file)
+                            root = tree.getroot()
+                            ns = {"v": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
 
-                # Extract Counters
-                counters = list(root.iter("{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}Counters"))[0]
-                total = counters.attrib.get("total", "0")
-                passed = counters.attrib.get("passed", "0")
-                failed = int(counters.attrib.get("failed", "0"))
+                            counters = root.find(".//v:Counters", ns)
+                            if counters is None:
+                                f.write("⚠️ Could not find test counters in TRX file.\n")
+                                sys.exit(0)
 
-                f.write(f"- **Total Tests:** {total}\n")
-                f.write(f"- **Passed:** ✅ {passed}\n")
-                f.write(f"- **Failed:** ❌ {failed}\n\n")
+                            total  = counters.attrib.get("total", "0")
+                            passed = counters.attrib.get("passed", "0")
+                            failed = int(counters.attrib.get("failed", "0"))
 
-                if failed > 0:
-                    f.write("#### ❌ Failed Tests Details\n")
+                            f.write(f"- **Total Tests:** {total}\n")
+                            f.write(f"- **Passed:** ✅ {passed}\n")
+                            f.write(f"- **Failed:** ❌ {failed}\n\n")
 
-                    # Find all failed tests
-                    results = root.iter("{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}UnitTestResult")
-                    for result in results:
-                        if result.attrib.get("outcome") == "Failed":
-                            test_name = result.attrib.get("testName", "Unknown Test")
+                            if failed > 0:
+                                f.write("#### ❌ Failed Tests Details\n\n")
+                                for result in root.findall(".//v:UnitTestResult", ns):
+                                    if result.attrib.get("outcome") == "Failed":
+                                        test_name  = result.attrib.get("testName", "Unknown Test")
+                                        msg_el     = result.find(".//v:ErrorInfo/v:Message", ns)
+                                        message    = msg_el.text if msg_el is not None else "No error message"
+                                        f.write(f"<details><summary><b>{test_name}</b></summary>\n\n")
+                                        f.write("```text\n")
+                                        f.write(f"{message}\n")
+                                        f.write("```\n")
+                                        f.write("</details>\n\n")
 
-                            # Extract error message
-                            error_info = result.find(".//{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}ErrorInfo")
-                            message = error_info.find("{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}Message").text if error_info is not None else "No error message"
+                        except Exception as e:
+                            f.write(f"⚠️ Error parsing TRX file: {str(e)}\n")
+                    EOF
 
-                            f.write(f"<details><summary><b>{test_name}</b></summary>\n\n")
-                            f.write("```text\n")
-                            f.write(f"{message}\n")
-                            f.write("```\n")
-                            f.write("</details>\n\n")
-            '
+            -   name: Generate Test Catalog
+                if: always()
+                run: |
+                    python3 - << 'EOF'
+                    import xml.etree.ElementTree as ET
+                    import os, sys
+                    from collections import defaultdict
 
-      - name: Upload Test Results Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dotnet-test-results
-          path: ./TestResults/*.trx
-          retention-days: 14
+                    trx_file = "./TestResults/test-results.trx"
+                    out_md    = "./TestResults/test-catalog.md"
 
-  container-smoke:
-    runs-on: ubuntu-latest
-    needs: test
+                    if not os.path.exists(trx_file):
+                        sys.exit(0)
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+                    ns = {"v": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
+                    root = ET.parse(trx_file).getroot()
 
-      - name: Build runtime image
-        run: docker build -t obfuscal-api:ci .
+                    # Build map: test name -> outcome
+                    outcomes = {
+                        r.attrib.get("testName", ""): r.attrib.get("outcome", "Unknown")
+                        for r in root.findall(".//v:UnitTestResult", ns)
+                    }
 
-      - name: Start postgres for smoke test
-        run: |
-          docker network create obfuscal-ci
-          docker run -d --name obfuscal-ci-db --network obfuscal-ci \
-            -e POSTGRES_USER=postgres \
-            -e POSTGRES_PASSWORD=postgres \
-            -e POSTGRES_DB=obfuscal \
-            --health-cmd="pg_isready -U postgres" \
-            --health-interval=5s \
-            --health-timeout=5s \
-            --health-retries=20 \
-            postgres:18
+                    # Build map: test name -> fully qualified class name
+                    # TestDefinitions contains ALL discovered tests, even if skipped
+                    class_map = {}
+                    for unit_test in root.findall(".//v:UnitTest", ns):
+                        name = unit_test.attrib.get("name", "")
+                        method_el = unit_test.find("v:TestMethod", ns)
+                        if method_el is not None:
+                            class_map[name] = method_el.attrib.get("className", "Unknown")
 
-      - name: Wait for postgres health
-        run: |
-          for i in {1..30}; do
-            state=$(docker inspect --format='{{json .State.Health.Status}}' obfuscal-ci-db)
-            if [ "$state" = '"healthy"' ]; then
-              exit 0
-            fi
-            sleep 2
-          done
-          docker logs obfuscal-ci-db
-          exit 1
+                    # Build tree: class -> [test names]
+                    tree = defaultdict(list)
+                    for test_name, class_name in class_map.items():
+                        outcome = outcomes.get(test_name, "NotRun")
+                        icon = {"Passed": "✅", "Failed": "❌", "NotExecuted": "⏭️"}.get(outcome, "❓")
+                        tree[class_name].append((test_name, icon))
 
-      - name: Start API container
-        run: |
-          docker run -d --name obfuscal-ci-api --network obfuscal-ci -p 18080:8080 \
-            -e ASPNETCORE_ENVIRONMENT=Development \
-            -e ASPNETCORE_URLS=http://+:8080 \
-            -e ConnectionStrings__DefaultConnection='Host=obfuscal-ci-db;Database=obfuscal;Username=postgres;Password=postgres' \
-            -e AzureAd__TenantId='11111111-1111-1111-1111-111111111111' \
-            -e AzureAd__ClientId='22222222-2222-2222-2222-222222222222' \
-            -e AzureAd__ClientSecret='smoke-test-placeholder' \
-            -e GraphConsent__ClientId='33333333-3333-3333-3333-333333333333' \
-            -e ColumnEncryption__Key='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' \
-            obfuscal-api:ci
+                    # Sort classes; strip method name from test_name for display
+                    # (MSTest stores the method name as the testName, but qualified names appear
+                    # in className, so the display name is just test_name itself)
+                    lines = [
+                        "# Test Catalog\n",
+                        f"_Auto-generated from CI run. {sum(len(v) for v in tree.values())} tests across {len(tree)} classes._\n\n",
+                    ]
 
-      - name: Smoke test health endpoint
-        run: |
-          for i in {1..40}; do
-            if curl -fsS http://localhost:18080/health > /dev/null; then
-              exit 0
-            fi
-            sleep 2
-          done
-          docker logs obfuscal-ci-api
-          exit 1
+                    # Group by top-level namespace segment for collapsible sections
+                    ns_groups = defaultdict(list)
+                    for class_name in sorted(tree.keys()):
+                        # e.g. "ObfusCal.Tests.Domain.ObfuscationPipelineTests"
+                        #  -> group by "Domain" (third segment), or "Root" if flat
+                        parts = class_name.split(".")
+                        group = parts[2] if len(parts) > 2 else parts[-1]
+                        ns_groups[group].append(class_name)
 
-      - name: Cleanup smoke test containers
-        if: always()
-        run: |
-          docker rm -f obfuscal-ci-api obfuscal-ci-db || true
-          docker network rm obfuscal-ci || true
+                    for group, classes in sorted(ns_groups.items()):
+                        total_in_group  = sum(len(tree[c]) for c in classes)
+                        passed_in_group = sum(1 for c in classes for (_, icon) in tree[c] if icon == "✅")
+                        lines.append(f"## {group} ({passed_in_group}/{total_in_group})\n\n")
 
-  build:
-    runs-on: ubuntu-latest
-    needs: [test, container-smoke]
-    permissions:
-      contents: read
-      packages: write
+                        for class_name in sorted(classes):
+                            short = class_name.split(".")[-1]
+                            tests = sorted(tree[class_name], key=lambda t: t[0])
+                            passed = sum(1 for _, icon in tests if icon == "✅")
+                            lines.append(f"<details>\n<summary><b>{short}</b> &nbsp;{passed}/{len(tests)}</summary>\n\n")
+                            lines.append("| Test | Result |\n|------|--------|\n")
+                            for test_name, icon in tests:
+                                # Strip class prefix if present (MSTest sometimes qualifies the name)
+                                display = test_name.split(".")[-1] if "." in test_name else test_name
+                                lines.append(f"| `{display}` | {icon} |\n")
+                            lines.append("\n</details>\n\n")
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+                    os.makedirs("./TestResults", exist_ok=True)
+                    with open(out_md, "w", encoding="utf-8") as f:
+                        f.writelines(lines)
 
-      - name: Log in to GHCR
+                    print(f"Test catalog written to {out_md}")
+                    EOF
+
+            -   name: Upload Test Results Artifact
+                if: always()
+                uses: actions/upload-artifact@v4
+                with:
+                    name: test-reports
+                    path: |
+                        ./TestResults/test-results.trx
+                        ./TestResults/test-results.html
+                        ./TestResults/test-catalog.md
+                    retention-days: 14
+
+    publish-test-catalog:
+        runs-on: ubuntu-latest
+        needs: [ test ]
         if: github.event_name == 'push'
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        permissions:
+            contents: write
+        steps:
+            -   uses: actions/checkout@v6
+            -   uses: actions/download-artifact@v4
+                with:
+                    name: test-reports
+                    path: ./downloaded
+            -   name: Commit test catalog to docs
+                run: |
+                    cp ./downloaded/test-catalog.md docs/test-catalog.md
+                    git config user.name "github-actions[bot]"
+                    git config user.email "github-actions[bot]@users.noreply.github.com"
+                    git add docs/test-catalog.md
+                    git diff --cached --quiet || git commit -m "chore: update test catalog [skip ci]"
+                    git push
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest,enable=${{ github.event_name == 'push' }}
-            type=sha,format=short
+    container-smoke:
+        runs-on: ubuntu-latest
+        needs: test
 
-      - name: Build and push
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          push: ${{ github.event_name == 'push' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+        steps:
+            -   name: Checkout repository
+                uses: actions/checkout@v6
+
+            -   name: Build runtime image
+                run: docker build -t obfuscal-api:ci .
+
+            -   name: Start postgres for smoke test
+                run: |
+                    docker network create obfuscal-ci
+                    docker run -d --name obfuscal-ci-db --network obfuscal-ci \
+                      -e POSTGRES_USER=postgres \
+                      -e POSTGRES_PASSWORD=postgres \
+                      -e POSTGRES_DB=obfuscal \
+                      --health-cmd="pg_isready -U postgres" \
+                      --health-interval=5s \
+                      --health-timeout=5s \
+                      --health-retries=20 \
+                      postgres:18
+
+            -   name: Wait for postgres health
+                run: |
+                    for i in {1..30}; do
+                      state=$(docker inspect --format='{{json .State.Health.Status}}' obfuscal-ci-db)
+                      if [ "$state" = '"healthy"' ]; then
+                        exit 0
+                      fi
+                      sleep 2
+                    done
+                    docker logs obfuscal-ci-db
+                    exit 1
+
+            -   name: Start API container
+                run: |
+                    docker run -d --name obfuscal-ci-api --network obfuscal-ci -p 18080:8080 \
+                      -e ASPNETCORE_ENVIRONMENT=Development \
+                      -e ASPNETCORE_URLS=http://+:8080 \
+                      -e ConnectionStrings__DefaultConnection='Host=obfuscal-ci-db;Database=obfuscal;Username=postgres;Password=postgres' \
+                      -e AzureAd__TenantId='11111111-1111-1111-1111-111111111111' \
+                      -e AzureAd__ClientId='22222222-2222-2222-2222-222222222222' \
+                      -e AzureAd__ClientSecret='smoke-test-placeholder' \
+                      -e GraphConsent__ClientId='33333333-3333-3333-3333-333333333333' \
+                      -e ColumnEncryption__Key='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' \
+                      obfuscal-api:ci
+
+            -   name: Smoke test health endpoint
+                run: |
+                    for i in {1..40}; do
+                      if curl -fsS http://localhost:18080/health > /dev/null; then
+                        exit 0
+                      fi
+                      sleep 2
+                    done
+                    docker logs obfuscal-ci-api
+                    exit 1
+
+            -   name: Cleanup smoke test containers
+                if: always()
+                run: |
+                    docker rm -f obfuscal-ci-api obfuscal-ci-db || true
+                    docker network rm obfuscal-ci || true
+
+    build:
+        runs-on: ubuntu-latest
+        needs: [ test, container-smoke ]
+        permissions:
+            contents: read
+            packages: write
+
+        steps:
+            -   name: Checkout repository
+                uses: actions/checkout@v6
+
+            -   name: Log in to GHCR
+                if: github.event_name == 'push'
+                uses: docker/login-action@v4
+                with:
+                    registry: ${{ env.REGISTRY }}
+                    username: ${{ github.actor }}
+                    password: ${{ secrets.GITHUB_TOKEN }}
+
+            -   name: Extract metadata
+                id: meta
+                uses: docker/metadata-action@v6
+                with:
+                    images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+                    tags: |
+                        type=raw,value=latest,enable=${{ github.event_name == 'push' }}
+                        type=sha,format=short
+
+            -   name: Build and push
+                uses: docker/build-push-action@v7
+                with:
+                    context: .
+                    push: ${{ github.event_name == 'push' }}
+                    tags: ${{ steps.meta.outputs.tags }}
+                    labels: ${{ steps.meta.outputs.labels }}
