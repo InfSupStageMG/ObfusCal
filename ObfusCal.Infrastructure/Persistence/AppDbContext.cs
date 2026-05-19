@@ -23,10 +23,10 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<BusySlot> BusySlots => Set<BusySlot>();
     public DbSet<CalendarOwnerAvailabilitySlot> CalendarOwnerAvailabilitySlots => Set<CalendarOwnerAvailabilitySlot>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+    public DbSet<PluginAllowlistOverride> PluginAllowlistOverrides => Set<PluginAllowlistOverride>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Build converters if an encryptor is available; otherwise omit (design-time / tests without DI).
         var encryptedString = _columnEncryptor is not null
             ? new EncryptedStringConverter(_columnEncryptor)
             : null;
@@ -34,6 +34,19 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
             ? new NullableEncryptedStringConverter(_columnEncryptor)
             : null;
 
+        ConfigureCalendarOwner(modelBuilder);
+        ConfigureCalendarSourceInstance(modelBuilder, encryptedNullableString);
+        ConfigureObfuscationProfile(modelBuilder);
+        ConfigureCalendarOwnerICalFeed(modelBuilder);
+        ConfigurePeerConnection(modelBuilder, encryptedString);
+        ConfigureCalendarOwnerPeerMapping(modelBuilder);
+        ConfigureBusySlot(modelBuilder);
+        ConfigureCalendarOwnerAvailabilitySlot(modelBuilder);
+        ConfigurePluginAllowlistOverride(modelBuilder);
+    }
+
+    private static void ConfigureCalendarOwner(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<CalendarOwner>(e =>
         {
             e.HasKey(c => c.Id);
@@ -66,7 +79,12 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
                 .WithOne(instance => instance.CalendarOwner)
                 .HasForeignKey(instance => instance.CalendarOwnerId);
         });
+    }
 
+    private static void ConfigureCalendarSourceInstance(
+        ModelBuilder modelBuilder,
+        NullableEncryptedStringConverter? encryptedNullableString)
+    {
         modelBuilder.Entity<CalendarSourceInstance>(e =>
         {
             e.HasKey(instance => instance.Id);
@@ -85,7 +103,10 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
             e.HasIndex(instance => instance.CalendarOwnerId);
             e.HasIndex(instance => new { instance.CalendarOwnerId, instance.PluginId });
         });
+    }
 
+    private static void ConfigureObfuscationProfile(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<ObfuscationProfile>(e =>
         {
             e.HasKey(profile => profile.Id);
@@ -94,7 +115,10 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
             e.HasIndex(profile => new { profile.CalendarOwnerId, profile.Context })
                 .IsUnique();
         });
+    }
 
+    private static void ConfigureCalendarOwnerICalFeed(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<CalendarOwnerICalFeed>(e =>
         {
             e.HasKey(f => f.Id);
@@ -104,7 +128,10 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
                 .HasForeignKey(f => f.CalendarOwnerId);
             e.HasIndex(f => f.CalendarOwnerId);
         });
+    }
 
+    private static void ConfigurePeerConnection(ModelBuilder modelBuilder, EncryptedStringConverter? encryptedString)
+    {
         modelBuilder.Entity<PeerConnection>(e =>
         {
             e.HasKey(p => p.Id);
@@ -139,7 +166,10 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
             e.HasIndex(p => new { p.RequestedByCalendarOwnerId, p.ClientOrganisationNameNormalized })
                 .IsUnique();
         });
+    }
 
+    private static void ConfigureCalendarOwnerPeerMapping(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<CalendarOwnerPeerMapping>(e =>
         {
             e.HasKey(m => m.Id);
@@ -150,7 +180,10 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
                 .WithMany(pc => pc.CalendarOwnerMappings)
                 .HasForeignKey(m => m.PeerConnectionId);
         });
+    }
 
+    private static void ConfigureBusySlot(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<BusySlot>(e =>
         {
             e.HasKey(b => b.Id);
@@ -162,9 +195,12 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
             e.HasIndex(b => b.PeerId);
             e.HasIndex(b => b.CalendarOwnerId);
             e.HasIndex(b => new { b.PeerId, b.CalendarOwnerId });
-            e.HasIndex(b => b.CreatedAtUtc); // used by retention purge queries
+            e.HasIndex(b => b.CreatedAtUtc);
         });
+    }
 
+    private static void ConfigureCalendarOwnerAvailabilitySlot(ModelBuilder modelBuilder)
+    {
         modelBuilder.Entity<CalendarOwnerAvailabilitySlot>(e =>
         {
             e.HasKey(slot => slot.Id);
@@ -173,6 +209,17 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
                 .HasColumnType("text[]");
             e.HasIndex(slot => slot.CalendarOwnerId);
             e.HasIndex(slot => new { slot.CalendarOwnerId, slot.Start, slot.End });
+        });
+    }
+
+    private static void ConfigurePluginAllowlistOverride(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<PluginAllowlistOverride>(e =>
+        {
+            e.HasKey(o => o.PluginId);
+            e.Property(o => o.PluginId).HasMaxLength(128).IsRequired();
+            e.Property(o => o.IsEnabled).IsRequired();
+            e.Property(o => o.UpdatedAtUtc).IsRequired();
         });
     }
 }
