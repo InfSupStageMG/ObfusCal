@@ -22,15 +22,19 @@ public sealed class AdminPluginAllowlistController(
         var overrides = (await allowlistService.ListEntriesAsync(ct))
             .ToDictionary(e => e.PluginId, StringComparer.OrdinalIgnoreCase);
 
-        var allPlugins = catalog.GetPlugins();
+        var catalogPlugins = catalog.GetPlugins()
+            .ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
 
-        var response = allPlugins.Select(plugin =>
+        var allPluginIds = overrides.Keys.Union(catalogPlugins.Keys, StringComparer.OrdinalIgnoreCase);
+
+        var response = allPluginIds.Select(pluginId =>
         {
-            var hasOverride = overrides.TryGetValue(plugin.Id, out var entry);
+            var hasOverride = overrides.TryGetValue(pluginId, out var entry);
+            var hasMetadata = catalogPlugins.TryGetValue(pluginId, out var plugin);
             return new PluginAllowlistStatusResponse(
-                plugin.Id,
-                plugin.DisplayName,
-                plugin.IsExternalPlugin,
+                pluginId,
+                hasMetadata ? plugin!.DisplayName : pluginId,
+                hasMetadata && plugin!.IsExternalPlugin,
                 IsEnabled: !hasOverride || entry!.IsEnabled,
                 HasOverride: hasOverride,
                 OverrideUpdatedAtUtc: hasOverride ? entry!.UpdatedAtUtc : null);
