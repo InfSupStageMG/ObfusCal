@@ -21,6 +21,8 @@ public sealed class MergeBlocksTransformer : IBusySlotTransformerPlugin
         var merged = new List<BusySlot>();
 
         var current = sorted[0];
+        var currentSources = new List<BusySlot> { current };
+
         for (var i = 1; i < sorted.Count; i++)
         {
             var next = sorted[i];
@@ -28,20 +30,50 @@ public sealed class MergeBlocksTransformer : IBusySlotTransformerPlugin
             // Merge if overlapping or adjacent (next starts at or before current ends)
             if (next.Start <= current.End)
             {
+                // Accumulate source slots: flatten any existing SourceSlots and add the slot itself
+                if (next.SourceSlots?.Count > 0)
+                    currentSources.AddRange(next.SourceSlots);
+                else
+                    currentSources.Add(next);
+
                 current = current with { End = Max(current.End, next.End) };
             }
             else
             {
-                merged.Add(current);
+                // Finalize current merged slot with its sources
+                var finalSlot = current with
+                {
+                    SourceSlots = NormalizeSourceSlotsToMergedWindow(currentSources, current.Start, current.End)
+                };
+                merged.Add(finalSlot);
+
                 current = next;
+                currentSources = new List<BusySlot> { next };
             }
         }
 
-        merged.Add(current);
+        // Add final merged slot
+        var lastFinalSlot = current with
+        {
+            SourceSlots = NormalizeSourceSlotsToMergedWindow(currentSources, current.Start, current.End)
+        };
+        merged.Add(lastFinalSlot);
+
         return merged.AsReadOnly();
     }
 
     private static DateTimeOffset Max(DateTimeOffset a, DateTimeOffset b) =>
         a > b ? a : b;
+
+    private static IReadOnlyList<BusySlot> NormalizeSourceSlotsToMergedWindow(
+        IReadOnlyList<BusySlot> sourceSlots,
+        DateTimeOffset mergedStart,
+        DateTimeOffset mergedEnd)
+    {
+        return sourceSlots
+            .Select(source => source with { Start = mergedStart, End = mergedEnd, SourceSlots = null })
+            .ToList()
+            .AsReadOnly();
+    }
 }
 

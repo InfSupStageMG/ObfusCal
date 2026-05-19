@@ -17,5 +17,12 @@ public class CalendarOwnerAvailabilitySlot
     public string[]? AttendeeEmails { get; set; }
     [MaxLength(1024)]
     public string? Location { get; set; }
+    /// <summary>
+    /// JSON array of merged source slots. Each object contains Start, End, Title, Description, AttendeeEmails, Location.
+    /// Populated by MergeBlocksTransformer when adjacent/overlapping slots are merged.
+    /// </summary>
+    public string? SourceSlotsJson { get; set; }
 }
+
+
 

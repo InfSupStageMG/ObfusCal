@@ -152,4 +152,74 @@ public class MergeBlocksTransformerTests
         Assert.AreEqual(Base.AddHours(3), result[0].End);
         Assert.AreEqual(Base.AddHours(5), result[1].Start);
     }
+
+    [TestMethod]
+    public void Transform_WithMergedSlots_CapturesAllSourceSlots()
+    {
+        var transformer = new MergeBlocksTransformer();
+        var first = new BusySlot("first", Base, Base.AddHours(1), Title: "First meeting");
+        var second = new BusySlot("second", Base.AddHours(1), Base.AddHours(2), Title: "Second meeting");
+
+        var result = transformer.Transform([first, second]);
+
+        Assert.HasCount(1, result);
+        Assert.IsNotNull(result[0].SourceSlots);
+        var sources = result[0].SourceSlots!;
+        Assert.HasCount(2, sources);
+        // Both merged slots should be captured
+        Assert.AreEqual("first", sources[0].SourceEventId);
+        Assert.AreEqual("second", sources[1].SourceEventId);
+        Assert.AreEqual(result[0].Start, sources[0].Start);
+        Assert.AreEqual(result[0].End, sources[0].End);
+        Assert.AreEqual(result[0].Start, sources[1].Start);
+        Assert.AreEqual(result[0].End, sources[1].End);
+    }
+
+    [TestMethod]
+    public void Transform_WithThreeSlots_FirstTwoMerged_CapturesSourcesCorrectly()
+    {
+        var transformer = new MergeBlocksTransformer();
+        var first = new BusySlot("first", Base, Base.AddHours(1));
+        var second = new BusySlot("second", Base.AddHours(1), Base.AddHours(2));
+        var third = new BusySlot("third", Base.AddHours(5), Base.AddHours(6));
+
+        var result = transformer.Transform([first, second, third]);
+
+        Assert.HasCount(2, result);
+        // First merged block should contain first and second
+        Assert.IsNotNull(result[0].SourceSlots);
+        var firstSources = result[0].SourceSlots!;
+        Assert.HasCount(2, firstSources);
+        Assert.AreEqual(result[0].Start, firstSources[0].Start);
+        Assert.AreEqual(result[0].End, firstSources[0].End);
+        Assert.AreEqual(result[0].Start, firstSources[1].Start);
+        Assert.AreEqual(result[0].End, firstSources[1].End);
+        // Third block should contain only itself
+        Assert.IsNotNull(result[1].SourceSlots);
+        var thirdSources = result[1].SourceSlots!;
+        Assert.HasCount(1, thirdSources);
+        Assert.AreEqual("third", thirdSources[0].SourceEventId);
+        Assert.AreEqual(result[1].Start, thirdSources[0].Start);
+        Assert.AreEqual(result[1].End, thirdSources[0].End);
+    }
+
+    [TestMethod]
+    public void Transform_PreservesObfuscatedDataInSourceSlots()
+    {
+        var transformer = new MergeBlocksTransformer();
+        var first = new BusySlot("first", Base, Base.AddHours(1), Title: "Confidential", Location: "Board room");
+        var second = new BusySlot("second", Base.AddHours(1), Base.AddHours(2), Title: "Another meeting", AttendeeEmails: ["alice@example.com"]);
+
+        var result = transformer.Transform([first, second]);
+
+        Assert.HasCount(1, result);
+        Assert.IsNotNull(result[0].SourceSlots);
+        var sources = result[0].SourceSlots!;
+        Assert.HasCount(2, sources);
+        // Verify obfuscated data is preserved in source slots
+        Assert.AreEqual("Confidential", sources[0].Title);
+        Assert.AreEqual("Board room", sources[0].Location);
+        Assert.AreEqual("Another meeting", sources[1].Title);
+        Assert.HasCount(1, sources[1].AttendeeEmails ?? []);
+    }
 }

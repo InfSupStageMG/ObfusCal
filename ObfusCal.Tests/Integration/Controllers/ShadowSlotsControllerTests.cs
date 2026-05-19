@@ -78,6 +78,34 @@ public class ShadowSlotsControllerTests
     }
 
     [TestMethod]
+    public async Task PushShadowSlots_WithOwnerScopedPayloadForUnmappedOwner_ReturnsForbidden()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development");
+        using var client = factory.CreateClient();
+
+        var mappedCalendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        await factory.SeedCalendarOwnerPeerMappingAsync(mappedCalendarOwnerId, Guid.NewGuid());
+
+        var payload = new
+        {
+            calendarOwnerRef = Guid.NewGuid(),
+            slots = new[]
+            {
+                new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(30) }
+            }
+        };
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "ApiKey",
+            CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
+
+        var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [TestMethod]
     public async Task PushShadowSlots_WithInvalidApiKey_ReturnsUnauthorizedAndStoresNothing()
     {
         await using var factory = new CustomWebApplicationFactory("Development");
