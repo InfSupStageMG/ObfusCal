@@ -42,94 +42,160 @@ internal sealed class CalendarSourcePluginCatalog(
         PluginAllowlistOptions? allowlist = null,
         ILogger? logger = null)
     {
-        var allowedIds = allowlist?.Enabled == true && allowlist.AllowedPluginIds.Count > 0
-            ? new HashSet<string>(allowlist.AllowedPluginIds.Select(id => id.Trim().ToLowerInvariant()),
-                StringComparer.OrdinalIgnoreCase)
-            : null;
-
-        var allowedTokens = allowlist?.AllowedPublicKeyTokens is { Count: > 0 } tokens
-            ? new HashSet<string>(tokens.Select(t => t.Trim().ToLowerInvariant()),
-                StringComparer.OrdinalIgnoreCase)
-            : null;
-
+        var allowedIds = BuildAllowedPluginIds(allowlist);
+        var allowedTokens = BuildAllowedPublicKeyTokens(allowlist);
+        var pluginsRoot = BuildPluginsRootPath();
         var descriptors = new List<CalendarSourcePluginDescriptor>();
-        var pluginsRoot = Path.GetFullPath(Path.Join(AppContext.BaseDirectory, "plugins"))
-            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            + Path.DirectorySeparatorChar;
 
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies().Where(assembly => !assembly.IsDynamic))
+        foreach (var assembly in GetCandidateAssemblies())
         {
-            var assemblyPath = string.IsNullOrWhiteSpace(assembly.Location)
-                ? string.Empty
-                : Path.GetFullPath(assembly.Location);
+            var assemblyPath = GetAssemblyPath(assembly);
+            var isExternalAssembly = IsExternalAssembly(includeExternalPlugins, pluginsRoot, assemblyPath);
 
-            var isExternalAssembly = includeExternalPlugins
-                && !string.IsNullOrWhiteSpace(assembly.Location)
-                && assemblyPath.StartsWith(
-                    pluginsRoot,
-                    StringComparison.OrdinalIgnoreCase);
+            if (!IsAssemblyAllowedByToken(assembly, assemblyPath, isExternalAssembly, allowedTokens, logger))
+                continue;
 
-            if (isExternalAssembly && allowedTokens is { Count: > 0 })
-            {
-                var pkt = assembly.GetName().GetPublicKeyToken();
-                var pktHex = pkt is { Length: > 0 }
-                    ? Convert.ToHexString(pkt).ToLowerInvariant()
-                    : string.Empty;
-
-                if (!allowedTokens.Contains(pktHex))
-                {
-                    logger?.LogWarning(
-                        "Rejected external plugin assembly {AssemblyPath}: public key token '{PublicKeyToken}' is not on the allowed list.",
-                        assembly.Location, pktHex);
-                    continue;
-                }
-            }
-
-            foreach (var type in GetLoadableTypes(assembly, logger)
-                         .Where(type => typeof(ICalendarSource).IsAssignableFrom(type))
-                         .Where(type => type is { IsInterface: false, IsAbstract: false }))
-            {
-                var attribute = type.GetCustomAttribute<CalendarSourcePluginAttribute>();
-                if (attribute is null)
-                    continue;
-
-                var pluginId = attribute.Id.Trim().ToLowerInvariant();
-
-                if (isExternalAssembly && allowedIds is not null && !allowedIds.Contains(pluginId))
-                {
-                    logger?.LogWarning(
-                        "Rejected external plugin '{PluginId}' from assembly {AssemblyPath}: plugin ID is not on the startup allowlist. " +
-                        "Add it to PluginAllowlist:AllowedPluginIds in appsettings to permit it.",
-                        pluginId, assembly.Location);
-                    continue;
-                }
-
-                var uiAttribute = type.GetCustomAttribute<CalendarSourcePluginUiAttribute>();
-                var actions = type.GetCustomAttributes<CalendarSourcePluginActionAttribute>()
-                    .Select(a => new CalendarSourcePluginActionDescriptor(a.ActionId, a.Label, a.Hint))
-                    .ToList();
-                var ui = new CalendarSourcePluginUiDescriptor(
-                    uiAttribute?.SupportsMultipleInstances ?? true,
-                    uiAttribute?.ConfigurationJsonTemplate,
-                    uiAttribute?.SecretDataJsonTemplate,
-                    uiAttribute?.SetupHint,
-                    actions);
-
-                descriptors.Add(new CalendarSourcePluginDescriptor(
-                    pluginId,
-                    attribute.DisplayName,
-                    type,
-                    isExternalAssembly,
-                    ui));
-            }
+            descriptors.AddRange(DiscoverDescriptorsFromAssembly(
+                assembly,
+                assemblyPath,
+                isExternalAssembly,
+                allowedIds,
+                logger));
         }
 
-        return descriptors
+        return DeduplicateAndSort(descriptors);
+    }
+
+    private static IReadOnlyCollection<Assembly> GetCandidateAssemblies() =>
+        AppDomain.CurrentDomain.GetAssemblies().Where(assembly => !assembly.IsDynamic).ToArray();
+
+    private static string BuildPluginsRootPath() =>
+        Path.GetFullPath(Path.Join(AppContext.BaseDirectory, "plugins"))
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+        + Path.DirectorySeparatorChar;
+
+    private static HashSet<string>? BuildAllowedPluginIds(PluginAllowlistOptions? allowlist)
+    {
+        if (allowlist?.Enabled != true || allowlist.AllowedPluginIds.Count == 0)
+            return null;
+
+        return new HashSet<string>(
+            allowlist.AllowedPluginIds.Select(id => id.Trim().ToLowerInvariant()),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static HashSet<string>? BuildAllowedPublicKeyTokens(PluginAllowlistOptions? allowlist)
+    {
+        if (allowlist?.AllowedPublicKeyTokens is not { Count: > 0 } tokens)
+            return null;
+
+        return new HashSet<string>(
+            tokens.Select(t => t.Trim().ToLowerInvariant()),
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string GetAssemblyPath(Assembly assembly) =>
+        string.IsNullOrWhiteSpace(assembly.Location)
+            ? string.Empty
+            : Path.GetFullPath(assembly.Location);
+
+    private static bool IsExternalAssembly(bool includeExternalPlugins, string pluginsRoot, string assemblyPath) =>
+        includeExternalPlugins
+        && !string.IsNullOrWhiteSpace(assemblyPath)
+        && assemblyPath.StartsWith(pluginsRoot, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsAssemblyAllowedByToken(
+        Assembly assembly,
+        string assemblyPath,
+        bool isExternalAssembly,
+        HashSet<string>? allowedTokens,
+        ILogger? logger)
+    {
+        if (!isExternalAssembly || allowedTokens is not { Count: > 0 })
+            return true;
+
+        var pkt = assembly.GetName().GetPublicKeyToken();
+        var pktHex = pkt is { Length: > 0 }
+            ? Convert.ToHexString(pkt).ToLowerInvariant()
+            : string.Empty;
+
+        if (allowedTokens.Contains(pktHex))
+            return true;
+
+        logger?.LogWarning(
+            "Rejected external plugin assembly {AssemblyPath}: public key token '{PublicKeyToken}' is not on the allowed list.",
+            assemblyPath, pktHex);
+        return false;
+    }
+
+    private static IReadOnlyList<CalendarSourcePluginDescriptor> DiscoverDescriptorsFromAssembly(
+        Assembly assembly,
+        string assemblyPath,
+        bool isExternalAssembly,
+        HashSet<string>? allowedIds,
+        ILogger? logger)
+    {
+        var descriptors = new List<CalendarSourcePluginDescriptor>();
+
+        foreach (var type in GetLoadableTypes(assembly, logger)
+                     .Where(type => typeof(ICalendarSource).IsAssignableFrom(type))
+                     .Where(type => type is { IsInterface: false, IsAbstract: false }))
+        {
+            var descriptor = TryBuildDescriptor(type, assemblyPath, isExternalAssembly, allowedIds, logger);
+            if (descriptor is not null)
+                descriptors.Add(descriptor);
+        }
+
+        return descriptors;
+    }
+
+    private static CalendarSourcePluginDescriptor? TryBuildDescriptor(
+        Type type,
+        string assemblyPath,
+        bool isExternalAssembly,
+        HashSet<string>? allowedIds,
+        ILogger? logger)
+    {
+        var attribute = type.GetCustomAttribute<CalendarSourcePluginAttribute>();
+        if (attribute is null)
+            return null;
+
+        var pluginId = attribute.Id.Trim().ToLowerInvariant();
+        if (isExternalAssembly && allowedIds is not null && !allowedIds.Contains(pluginId))
+        {
+            logger?.LogWarning(
+                "Rejected external plugin '{PluginId}' from assembly {AssemblyPath}: plugin ID is not on the startup allowlist. " +
+                "Add it to PluginAllowlist:AllowedPluginIds in appsettings to permit it.",
+                pluginId, assemblyPath);
+            return null;
+        }
+
+        var uiAttribute = type.GetCustomAttribute<CalendarSourcePluginUiAttribute>();
+        var actions = type.GetCustomAttributes<CalendarSourcePluginActionAttribute>()
+            .Select(a => new CalendarSourcePluginActionDescriptor(a.ActionId, a.Label, a.Hint))
+            .ToList();
+        var ui = new CalendarSourcePluginUiDescriptor(
+            uiAttribute?.SupportsMultipleInstances ?? true,
+            uiAttribute?.ConfigurationJsonTemplate,
+            uiAttribute?.SecretDataJsonTemplate,
+            uiAttribute?.SetupHint,
+            actions);
+
+        return new CalendarSourcePluginDescriptor(
+            pluginId,
+            attribute.DisplayName,
+            type,
+            isExternalAssembly,
+            ui);
+    }
+
+    private static IReadOnlyList<CalendarSourcePluginDescriptor> DeduplicateAndSort(
+        IEnumerable<CalendarSourcePluginDescriptor> descriptors) =>
+        descriptors
             .GroupBy(descriptor => descriptor.Id, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
             .OrderBy(descriptor => descriptor.Id, StringComparer.Ordinal)
             .ToList();
-    }
 
     private static IEnumerable<Type> GetLoadableTypes(Assembly assembly, ILogger? logger = null)
     {

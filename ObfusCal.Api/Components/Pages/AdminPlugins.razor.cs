@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.FluentUI.AspNetCore.Components;
-using ObfusCal.Api.Authorization;
-using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Components.Pages;
 
@@ -53,9 +51,8 @@ public partial class AdminPlugins : ComponentBase
             .ToList();
 
         foreach (var id in blockedIds)
-            if (!overrides.TryGetValue(id, out var entry))
-                continue;
-
+        {
+            var entry = overrides[id];
             _rows.Add(new PluginRow(
                 entry.PluginId,
                 entry.PluginId,

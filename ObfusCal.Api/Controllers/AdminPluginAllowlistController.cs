@@ -27,18 +27,9 @@ public sealed class AdminPluginAllowlistController(
 
         var allPluginIds = overrides.Keys.Union(catalogPlugins.Keys, StringComparer.OrdinalIgnoreCase);
 
-        var response = allPluginIds.Select(pluginId =>
-        {
-            var hasOverride = overrides.TryGetValue(pluginId, out var entry);
-            var hasMetadata = catalogPlugins.TryGetValue(pluginId, out var plugin);
-            return new PluginAllowlistStatusResponse(
-                pluginId,
-                hasMetadata ? plugin!.DisplayName : pluginId,
-                hasMetadata && plugin!.IsExternalPlugin,
-                IsEnabled: !hasOverride || entry!.IsEnabled,
-                HasOverride: hasOverride,
-                OverrideUpdatedAtUtc: hasOverride ? entry!.UpdatedAtUtc : null);
-        }).ToList();
+        var response = allPluginIds
+            .Select(pluginId => BuildStatusResponse(pluginId, overrides, catalogPlugins))
+            .ToList();
 
         return Ok(response);
     }
@@ -77,6 +68,28 @@ public sealed class AdminPluginAllowlistController(
     {
         await allowlistService.RemoveOverrideAsync(pluginId, ct);
         return NoContent();
+    }
+
+    private static PluginAllowlistStatusResponse BuildStatusResponse(
+        string pluginId,
+        IReadOnlyDictionary<string, PluginAllowlistEntry> overrides,
+        IReadOnlyDictionary<string, CalendarSourcePluginDescriptor> catalogPlugins)
+    {
+        var hasOverride = overrides.TryGetValue(pluginId, out var entry);
+        var hasMetadata = catalogPlugins.TryGetValue(pluginId, out var plugin);
+
+        var displayName = hasMetadata ? plugin!.DisplayName : pluginId;
+        var isExternalPlugin = hasMetadata && plugin!.IsExternalPlugin;
+        var isEnabled = !hasOverride || entry!.IsEnabled;
+        DateTimeOffset? overrideUpdatedAtUtc = hasOverride ? entry!.UpdatedAtUtc : null;
+
+        return new PluginAllowlistStatusResponse(
+            pluginId,
+            displayName,
+            isExternalPlugin,
+            IsEnabled: isEnabled,
+            HasOverride: hasOverride,
+            OverrideUpdatedAtUtc: overrideUpdatedAtUtc);
     }
 
     private sealed record PluginAllowlistStatusResponse(
