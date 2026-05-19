@@ -214,7 +214,12 @@ public sealed class CalendarOwnerAvailabilitySyncService(
 
             return JsonSerializer.Serialize(dtos, JsonOptions);
         }
-        catch (Exception)
+        catch (NotSupportedException)
+        {
+            // If serialization fails, don't crash - data persistence should continue
+            return null;
+        }
+        catch (JsonException)
         {
             // If serialization fails, don't crash - data persistence should continue
             return null;
