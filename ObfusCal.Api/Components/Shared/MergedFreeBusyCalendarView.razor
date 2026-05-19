@@ -95,6 +95,9 @@
                                             @if (!string.IsNullOrWhiteSpace(source.Title))
                                             {
                                                 <div class="source-event-title">@source.Title</div>
+                                            } else
+                                            {
+                                                <div class="source-event-title source-event-title--empty">(Busy)</div>
                                             }
                                             <div class="source-event-details">
                                                 @if (!string.IsNullOrWhiteSpace(source.Location))
