@@ -82,6 +82,7 @@ public partial class AdminPlugins : ComponentBase
             _statusMessage = $"Failed to update plugin '{pluginId}'.";
             _statusIntent = MessageIntent.Error;
         }
+
         await LoadAsync();
     }
 
@@ -99,6 +100,7 @@ public partial class AdminPlugins : ComponentBase
             _statusMessage = $"Failed to remove override for plugin '{pluginId}'.";
             _statusIntent = MessageIntent.Error;
         }
+
         await LoadAsync();
     }
 
@@ -110,5 +112,3 @@ public partial class AdminPlugins : ComponentBase
         bool HasOverride,
         DateTimeOffset? OverrideUpdatedAtUtc);
 }
-
-
