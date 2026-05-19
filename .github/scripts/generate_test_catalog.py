@@ -62,8 +62,6 @@ for group, classes in sorted(ns_groups.items()):
         lines.append(f"<details>\n<summary><b>{short}</b> - {passed}/{len(tests)}</summary>\n\n")
         lines.append("| Test | Result |\n|------|--------|\n")
         for test_name, icon in tests:
-            # Strip class prefix if present (MSTest sometimes qualifies the name)
-            display = test_name.split(".")[-1] if "." in test_name else test_name
             lines.append(f"| `{display}` | {icon} |\n")
         lines.append("\n</details>\n\n")
 
