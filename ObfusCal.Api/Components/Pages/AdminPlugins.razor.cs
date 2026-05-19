@@ -101,7 +101,7 @@ public partial class AdminPlugins : ComponentBase
             _statusMessage = $"Override for plugin '{pluginId}' has been removed; it reverts to its startup default.";
             _statusIntent = MessageIntent.Success;
         }
-        catch (Exception)
+        catch (InvalidOperationException)
         {
             _statusMessage = $"Failed to remove override for plugin '{pluginId}'.";
             _statusIntent = MessageIntent.Error;
