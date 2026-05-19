@@ -52,6 +52,8 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
                 .HasMaxLength(8192);
             e.Property(c => c.GraphRefreshTokenProtected)
                 .HasMaxLength(8192);
+            e.Property(c => c.GraphGrantedScopes)
+                .HasMaxLength(2048);
             e.HasIndex(c => c.EntraObjectId)
                 .IsUnique();
             e.Property(c => c.WriteBackPlaceholderTitle).HasMaxLength(256);

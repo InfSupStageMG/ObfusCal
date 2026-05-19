@@ -763,11 +763,11 @@ public class CalendarOwnerAvailabilitySyncServiceTests
 
     private sealed class StubGraphOAuthTokenClient : IGraphOAuthTokenClient
     {
-        public Task<GraphOAuthTokenResponse> ExchangeAuthorizationCodeAsync(string authorizationCode, string redirectUri, CancellationToken ct = default)
+        public Task<GraphOAuthTokenResponse> ExchangeAuthorizationCodeAsync(string authorizationCode, string redirectUri, string? scope = null, CancellationToken ct = default)
             => throw new NotSupportedException();
 
-        public Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(string refreshToken, CancellationToken ct = default)
-            => Task.FromResult(new GraphOAuthTokenResponse("access-token", refreshToken, DateTimeOffset.UtcNow.AddHours(1)));
+        public Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(string refreshToken, string? scope = null, CancellationToken ct = default)
+            => Task.FromResult(new GraphOAuthTokenResponse("access-token", refreshToken, scope, DateTimeOffset.UtcNow.AddHours(1)));
     }
 
     private sealed class StubGoogleOAuthTokenClient : IGoogleOAuthTokenClient

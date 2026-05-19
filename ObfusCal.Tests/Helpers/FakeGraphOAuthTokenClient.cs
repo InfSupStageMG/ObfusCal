@@ -11,6 +11,7 @@ public sealed class FakeGraphOAuthTokenClient : IGraphOAuthTokenClient
     public Task<GraphOAuthTokenResponse> ExchangeAuthorizationCodeAsync(
         string authorizationCode,
         string redirectUri,
+        string? scope = null,
         CancellationToken ct = default)
     {
         if (!Uri.TryCreate(redirectUri, UriKind.Absolute, out _))
@@ -22,10 +23,11 @@ public sealed class FakeGraphOAuthTokenClient : IGraphOAuthTokenClient
         return Task.FromResult(new GraphOAuthTokenResponse(
             AccessToken,
             RefreshToken,
+            scope ?? "https://graph.microsoft.com/Calendars.ReadWrite offline_access",
             DateTimeOffset.UtcNow.AddHours(1)));
     }
 
-    public Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(string refreshToken, CancellationToken ct = default)
+    public Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(string refreshToken, string? scope = null, CancellationToken ct = default)
     {
         if (!string.Equals(refreshToken, RefreshToken, StringComparison.Ordinal))
             throw new InvalidOperationException("The refresh token is invalid or expired.");
@@ -33,6 +35,7 @@ public sealed class FakeGraphOAuthTokenClient : IGraphOAuthTokenClient
         return Task.FromResult(new GraphOAuthTokenResponse(
             AccessToken,
             RefreshToken,
+            scope ?? "https://graph.microsoft.com/Calendars.ReadWrite offline_access",
             DateTimeOffset.UtcNow.AddHours(1)));
     }
 }

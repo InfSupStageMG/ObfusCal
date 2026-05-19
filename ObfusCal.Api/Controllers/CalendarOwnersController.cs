@@ -343,6 +343,7 @@ public sealed class CalendarOwnersController(
         Guid id,
         Guid sourceInstanceId,
         [FromQuery] RedirectUriQuery query,
+        [FromQuery] GraphConsentModeQuery mode,
         CancellationToken ct)
     {
         var accessResult = await EnsureCalendarOwnerAccessAsync(id, ct);
@@ -354,7 +355,12 @@ public sealed class CalendarOwnersController(
 
         try
         {
-            var authorizationUrl = await consentServices.Graph.BuildAuthorizationUrlAsync(id, sourceInstanceId, query.RedirectUri, ct);
+            var authorizationUrl = await consentServices.Graph.BuildAuthorizationUrlAsync(
+                id,
+                sourceInstanceId,
+                query.RedirectUri,
+                mode.AccessLevel,
+                ct);
             return Ok(new CalendarConsentUrlResponse(authorizationUrl));
         }
         catch (InvalidOperationException ex)
@@ -592,6 +598,8 @@ public sealed class CalendarOwnersController(
 
     public sealed record RedirectUriQuery(
         [param: Required, MaxLength(2048), Url] string RedirectUri);
+
+    public sealed record GraphConsentModeQuery(GraphConsentAccessLevel AccessLevel = GraphConsentAccessLevel.ReadWrite);
 
     public sealed class TimeWindowQuery
     {

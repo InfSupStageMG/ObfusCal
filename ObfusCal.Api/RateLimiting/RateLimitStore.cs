@@ -50,9 +50,11 @@ internal static class RateLimitStore
 
         foreach (var kvp in Buckets)
         {
+            if (kvp.Value.WindowStartedAt == default ||
+                now - kvp.Value.WindowStartedAt < ExpiredBucketThreshold) continue;
             lock (kvp.Value.Gate)
             {
-                if (kvp.Value.WindowStartedAt != default && now - kvp.Value.WindowStartedAt >= ExpiredBucketThreshold)
+                if (now - kvp.Value.WindowStartedAt >= ExpiredBucketThreshold)
                     Buckets.TryRemove(kvp.Key, out _);
             }
         }

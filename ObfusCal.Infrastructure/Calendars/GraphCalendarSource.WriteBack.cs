@@ -26,6 +26,14 @@ public sealed partial class GraphCalendarSource
         if (owner is null)
             return;
 
+        if (!AllowsWriteBack(owner.GraphGrantedScopes))
+        {
+            _logger.LogInformation(
+                "Write-back skipped for calendar owner {CalendarOwnerId}: Graph consent is read-only.",
+                calendarOwnerId);
+            return;
+        }
+
         var tokenSession = await CreateOwnerTokenSessionAsync(owner, ct);
         if (tokenSession is null)
         {
@@ -46,6 +54,18 @@ public sealed partial class GraphCalendarSource
         DateTimeOffset windowEnd,
         CancellationToken ct = default)
     {
+        var secretData = ParseSecretData(instance.SecretDataJson);
+
+        var instanceScopes = secretData?.GrantedScopes;
+        if (string.IsNullOrWhiteSpace(instanceScopes)
+            || !instanceScopes.Contains("Calendars.ReadWrite", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogInformation(
+                "Write-back skipped for calendar source instance {CalendarSourceInstanceId}: Graph consent is read-only.",
+                instance.Id);
+            return;
+        }
+
         var tokenSession = await CreateInstanceTokenSessionAsync(instance, ct);
         if (tokenSession is null)
         {

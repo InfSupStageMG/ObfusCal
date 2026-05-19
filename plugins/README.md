@@ -102,10 +102,11 @@ public sealed class AcmeCalendarSource : ICalendarSource { ... }
 
 #### Built-in action IDs handled by the UI
 
-| Action ID                 | Behaviour                                                                                                                |
-|---------------------------|--------------------------------------------------------------------------------------------------------------------------|
-| `google-instance-consent` | Calls `ICalendarOwnerGoogleConsentService.BuildAuthorizationUrlAsync` for the instance and navigates to the returned URL |
-| `graph-instance-consent`  | Calls `ICalendarOwnerGraphConsentService.BuildAuthorizationUrlAsync` for the instance and navigates to the returned URL  |
+| Action ID                         | Behaviour                                                                                                                    |
+|-----------------------------------|------------------------------------------------------------------------------------------------------------------------------|
+| `google-instance-consent`         | Calls `ICalendarOwnerGoogleConsentService.BuildAuthorizationUrlAsync` for the instance and navigates to the returned URL     |
+| `graph-instance-consent-readonly` | Calls `ICalendarOwnerGraphConsentService.BuildAuthorizationUrlAsync` with read-only access and navigates to the returned URL |
+| `graph-instance-consent`          | Calls `ICalendarOwnerGraphConsentService.BuildAuthorizationUrlAsync` for the instance and navigates to the returned URL      |
 
 Actions with an **unrecognised ID** show a warning message. To add support for a new action ID, open
 `CalendarOwnerDetail.razor` and add a `case` to `InvokePluginActionAsync`.

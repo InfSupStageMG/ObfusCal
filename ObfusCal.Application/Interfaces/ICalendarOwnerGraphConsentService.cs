@@ -12,7 +12,14 @@ public interface ICalendarOwnerGraphConsentService
 
     string BuildAuthorizationUrl(string redirectUri);
 
-    Task<string> BuildAuthorizationUrlAsync(Guid calendarOwnerId, Guid calendarSourceInstanceId, string redirectUri, CancellationToken ct = default);
+    string BuildAuthorizationUrl(string redirectUri, GraphConsentAccessLevel accessLevel);
+
+    Task<string> BuildAuthorizationUrlAsync(
+        Guid calendarOwnerId,
+        Guid calendarSourceInstanceId,
+        string redirectUri,
+        GraphConsentAccessLevel accessLevel,
+        CancellationToken ct = default);
 
     Task CompleteConsentAsync(
         Guid calendarOwnerId,
@@ -41,6 +48,9 @@ public interface ICalendarOwnerGraphConsentService
 
 public sealed record CalendarOwnerGraphConsentStatus(
     bool HasGraphConsent,
+    GraphConsentAccessLevel AccessLevel,
+    bool CanWriteBack,
+    string? GrantedScopes,
     DateTimeOffset? GrantedAtUtc,
     DateTimeOffset? TokenExpiresAtUtc,
     DateTimeOffset? TokenLastRefreshedAtUtc);

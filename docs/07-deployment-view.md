@@ -85,6 +85,17 @@ the API container.
 The API container remains single-purpose for the API process. Runtime still depends on external infrastructure
 (PostgreSQL, TLS key material, and environment-provided secrets).
 
+### Loading Custom Plugins
+To load third-party calendar providers or custom obfuscation transformers, compile your plugin DLL and mount it into the `/app/plugins` directory of the `api` container.
+
+Add the following to your `docker-compose.yaml` under the `api` service volumes:
+```yaml
+volumes:
+  - ./my-custom-plugins:/app/plugins:ro
+```
+
+ObfusCal will automatically scan and register plugins found in this directory on startup.
+
 ### Container runtime hardening
 
 The API service in `docker-compose.yaml` is hardened with runtime defaults that reduce blast radius if the process is

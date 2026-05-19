@@ -301,6 +301,37 @@ public class CalendarOwnerGraphConsentServiceTests
     }
 
     [TestMethod]
+    public void BuildAuthorizationUrl_EmptyAuthorityTenant_FallsBackToAzureAdTenantId()
+    {
+        var db = TestDbContextFactory.CreateInMemory();
+        var dpProvider = DataProtectionProvider.Create("authority-tenant-empty");
+        var secretProvider = CreateSecretProvider(
+            "https://login.microsoftonline.com/",
+            "tenant-from-azuread",
+            "client-id");
+        var options = Options.Create(new GraphConsentOptions
+        {
+            ClientId = "client-id",
+            AuthorityTenant = ""
+        });
+
+        var instanceService = new FakeCalendarSourceInstanceService();
+        var svc = new CalendarOwnerGraphConsentService(
+            db,
+            dpProvider,
+            secretProvider,
+            options,
+            instanceService,
+            instanceService,
+            new FakeGraphOAuthTokenClient());
+
+        var url = svc.BuildAuthorizationUrl("https://localhost/callback");
+
+        Assert.IsTrue(url.Contains("/tenant-from-azuread/oauth2/v2.0/authorize", StringComparison.Ordinal),
+            "Empty AuthorityTenant should not produce a double-slash tenant segment in the Microsoft authorize URL.");
+    }
+
+    [TestMethod]
     public async Task BuildAuthorizationUrlAsync_IncludesStatePrefixedWithGraph()
     {
         var db = TestDbContextFactory.CreateInMemory();
@@ -319,7 +350,7 @@ public class CalendarOwnerGraphConsentServiceTests
         var created = await instanceSvc.CreateAsync(ownerId, new CreateCalendarSourceInstanceInput("graph", "Microsoft Graph"));
         var instanceId = created!.Id;
 
-        var url = await consoleSvc.BuildAuthorizationUrlAsync(ownerId, instanceId, "https://localhost/consent-callback");
+        var url = await consoleSvc.BuildAuthorizationUrlAsync(ownerId, instanceId, "https://localhost/consent-callback", GraphConsentAccessLevel.ReadWrite);
 
         // The state is URI-escaped in the URL; the "graph." prefix survives escaping as-is
         Assert.Contains("state=graph.", url,
@@ -347,7 +378,7 @@ public class CalendarOwnerGraphConsentServiceTests
         var instanceId = created!.Id;
 
         // Build the authorization URL (which embeds calendarOwnerId + instanceId in the state)
-        var url = await consoleSvc.BuildAuthorizationUrlAsync(ownerId, instanceId, "https://localhost/consent-callback");
+        var url = await consoleSvc.BuildAuthorizationUrlAsync(ownerId, instanceId, "https://localhost/consent-callback", GraphConsentAccessLevel.ReadWrite);
 
         // Extract the raw state value from the URL
         var rawState = url.Split("state=")[1].Split('&')[0];
@@ -485,32 +516,34 @@ public class CalendarOwnerGraphConsentServiceTests
     private sealed class NullRefreshTokenClient : IGraphOAuthTokenClient
     {
         public Task<GraphOAuthTokenResponse> ExchangeAuthorizationCodeAsync(
-            string authorizationCode, string redirectUri, CancellationToken ct = default)
+            string authorizationCode, string redirectUri, string? scope = null, CancellationToken ct = default)
         {
             return Task.FromResult(new GraphOAuthTokenResponse(
                 "access-token",
                 null, // no refresh token
+                scope,
                 DateTimeOffset.UtcNow.AddHours(1)));
         }
 
         public Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(
-            string refreshToken, CancellationToken ct = default)
+            string refreshToken, string? scope = null, CancellationToken ct = default)
             => throw new NotImplementedException();
     }
 
     private sealed class WhitespaceRefreshTokenClient : IGraphOAuthTokenClient
     {
         public Task<GraphOAuthTokenResponse> ExchangeAuthorizationCodeAsync(
-            string authorizationCode, string redirectUri, CancellationToken ct = default)
+            string authorizationCode, string redirectUri, string? scope = null, CancellationToken ct = default)
         {
             return Task.FromResult(new GraphOAuthTokenResponse(
                 "access-token",
                 "   ", // whitespace-only refresh token
+                scope,
                 DateTimeOffset.UtcNow.AddHours(1)));
         }
 
         public Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(
-            string refreshToken, CancellationToken ct = default)
+            string refreshToken, string? scope = null, CancellationToken ct = default)
             => throw new NotImplementedException();
     }
 

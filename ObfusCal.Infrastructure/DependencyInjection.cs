@@ -128,12 +128,16 @@ public static class DependencyInjection
         var options = provider.GetRequiredService<IOptions<PeerTransportSecurityOptions>>().Value;
         var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("PeerTransportHttpClient");
 
-        var handler = new SocketsHttpHandler();
+        var handler = new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(15)
+        };
+
         handler.SslOptions.RemoteCertificateValidationCallback =
             (sender, cert, chain, errors) => ValidatePeerRemoteCertificate(sender, cert as X509Certificate2, chain, errors, options, logger);
         handler.SslOptions.LocalCertificateSelectionCallback =
             (sender, targetHost, localCerts, remoteCert, issuers) =>
-            SelectPeerLocalCertificate(sender, targetHost, localCerts, remoteCert, issuers, logger);
+                SelectPeerLocalCertificate(sender, targetHost, localCerts, remoteCert, issuers, logger);
 
         return handler;
     }

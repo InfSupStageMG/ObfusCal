@@ -28,6 +28,7 @@ public sealed class CalendarSourcePluginUiAttribute(
 /// Built-in action IDs:
 /// <list type="bullet">
 ///   <item><c>google-instance-consent</c> — initiates Google OAuth for a source instance</item>
+///   <item><c>graph-instance-consent-readonly</c> — initiates Microsoft Graph OAuth (read-only) for a source instance</item>
 ///   <item><c>graph-instance-consent</c>  — initiates Microsoft Graph OAuth for a source instance</item>
 /// </list>
 /// </para>

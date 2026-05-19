@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:18
+    image: postgres:17
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -64,6 +64,7 @@ services:
       - ASPNETCORE_Kestrel__Certificates__Default__Password=${API_CERT_PASSWORD}
     volumes:
       - ./certs/api:/https:ro
+      - ./plugins:/app/plugins:ro
     healthcheck:
       test: ["CMD", "curl", "-fk", "https://localhost:8443/health"]
       interval: 30s
