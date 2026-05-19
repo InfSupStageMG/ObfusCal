@@ -53,13 +53,20 @@ internal sealed class CalendarSourcePluginCatalog(
             : null;
 
         var descriptors = new List<CalendarSourcePluginDescriptor>();
+        var pluginsRoot = Path.GetFullPath(Path.Join(AppContext.BaseDirectory, "plugins"))
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
 
         foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies().Where(assembly => !assembly.IsDynamic))
         {
+            var assemblyPath = string.IsNullOrWhiteSpace(assembly.Location)
+                ? string.Empty
+                : Path.GetFullPath(assembly.Location);
+
             var isExternalAssembly = includeExternalPlugins
                 && !string.IsNullOrWhiteSpace(assembly.Location)
-                && assembly.Location.StartsWith(
-                    Path.Combine(AppContext.BaseDirectory, "plugins"),
+                && assemblyPath.StartsWith(
+                    pluginsRoot,
                     StringComparison.OrdinalIgnoreCase);
 
             if (isExternalAssembly && allowedTokens is { Count: > 0 })
