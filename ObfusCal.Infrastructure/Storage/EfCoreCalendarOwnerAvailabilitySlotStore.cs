@@ -57,7 +57,7 @@ public sealed class EfCoreCalendarOwnerAvailabilitySlotStore(AppDbContext dbCont
                     dto.Location))
                 .ToList();
         }
-        catch
+        catch (JsonException)
         {
             // If deserialization fails, return null rather than crashing
             return null;
