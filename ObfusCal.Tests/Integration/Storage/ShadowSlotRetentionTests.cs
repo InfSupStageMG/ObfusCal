@@ -14,7 +14,7 @@ public class ShadowSlotRetentionTests
     [ClassInitialize]
     public static async Task InitializeAsync(TestContext _)
     {
-        _postgres = new PostgreSqlBuilder("postgres:17").Build();
+        _postgres = new PostgreSqlBuilder("postgres:18").Build();
         await _postgres.StartAsync();
         _connectionString = _postgres.GetConnectionString();
 

@@ -17,7 +17,7 @@ public class EfCoreShadowSlotStoreTests
     [ClassInitialize]
     public static async Task InitializeAsync(TestContext _)
     {
-        _postgres = new PostgreSqlBuilder("postgres:17")
+        _postgres = new PostgreSqlBuilder("postgres:18")
             .Build();
 
         await _postgres.StartAsync();

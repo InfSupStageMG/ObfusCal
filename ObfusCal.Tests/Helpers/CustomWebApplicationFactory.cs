@@ -27,7 +27,7 @@ public sealed class CustomWebApplicationFactory(
     public const string IntegrationTestPeerInstanceId = "peer-a";
     public const string IntegrationTestPeerApiKey = "integration-test-peer-api-key";
 
-    private static readonly PostgreSqlContainer Postgres = new PostgreSqlBuilder("postgres:17").Build();
+    private static readonly PostgreSqlContainer Postgres = new PostgreSqlBuilder("postgres:18").Build();
 
     static CustomWebApplicationFactory()
     {
