@@ -49,21 +49,11 @@ public class PluginAllowlistTests
     [TestMethod]
     public void Discover_DoesNotThrow_WhenSomeAssemblyTypesCannotBeLoaded()
     {
-        IReadOnlyList<CalendarSourcePluginDescriptor>? result = null;
-        Exception? thrown = null;
-        try
-        {
-            result = CalendarSourcePluginCatalog.Discover(
-                includeExternalPlugins: false,
-                allowlist: null,
-                logger: NullLogger.Instance);
-        }
-        catch (Exception ex)
-        {
-            thrown = ex;
-        }
+        var result = CalendarSourcePluginCatalog.Discover(
+            includeExternalPlugins: false,
+            allowlist: null,
+            logger: NullLogger.Instance);
 
-        Assert.IsNull(thrown, $"Discover() must not propagate exceptions; threw: {thrown?.Message}");
         Assert.IsNotNull(result);
         Assert.IsNotEmpty(result, "At least the built-in plugins should always be discovered");
     }
