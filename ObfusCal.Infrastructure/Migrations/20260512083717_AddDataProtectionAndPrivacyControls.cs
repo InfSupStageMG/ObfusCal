@@ -11,7 +11,7 @@ namespace ObfusCal.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Issue #83 — Data Protection and Privacy Controls
+            // Issue #83 - Data Protection and Privacy Controls
             // Adds CreatedAtUtc to BusySlot shadow-slot rows so the retention background
             // service can purge rows older than SyncOptions.ShadowSlotRetentionDays.
             // Column-level encryption (ApiKeyHash, SecretDataJson) is handled at the

@@ -856,7 +856,7 @@ public class GraphCalendarSourceTests
 
         const string futureGraphId = "future-graph-event-id";
         const string slotIdPropId = "String {e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0} Name ObfusCal.SlotId";
-        // The managed event starts 30 days from now — well outside the 14-day window.
+        // The managed event starts 30 days from now - well outside the 14-day window.
         var futureStart = DateTimeOffset.UtcNow.AddDays(30);
         var managedEventsJson = JsonSerializer.Serialize(new
         {
@@ -897,7 +897,7 @@ public class GraphCalendarSourceTests
             new CapturingLogger<GraphCalendarSource>(),
             dataProtectionProvider);
 
-        // Window covers today only — the future event is outside.
+        // Window covers today only - the future event is outside.
         var windowStart = DateTimeOffset.UtcNow;
         var windowEnd = DateTimeOffset.UtcNow.AddDays(14);
         await source.WriteBackSlotsAsync(ownerId, [], "Busy", windowStart, windowEnd);

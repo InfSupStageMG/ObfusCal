@@ -91,8 +91,8 @@ volume. Without key persistence:
 
 Each API instance must have its own isolated DataProtection key store; keys must never be shared between instances.
 
-**Column-level encryption:** Certain sensitive database columns — `PeerConnections.ApiKeyHash` and
-`CalendarSourceInstances.SecretDataJson` — are encrypted at rest using AES-256-GCM before the value reaches the
+**Column-level encryption:** Certain sensitive database columns; `PeerConnections.ApiKeyHash` and
+`CalendarSourceInstances.SecretDataJson` are encrypted at rest using AES-256-GCM before the value reaches the
 database. Each write uses a fresh random nonce so identical plaintext values produce different ciphertext. A database
 dump in isolation is useless without the encryption key.
 
@@ -220,7 +220,7 @@ At startup the API:
     - Implement `ICalendarSource` **and** carry `[CalendarSourcePlugin("id", "Display Name")]`
     - Implement `IObfuscationTransformerPlugin` or `IBusySlotTransformerPlugin`
 3. Registers discovered types into the ASP.NET Core DI container and builds the
-   `ICalendarSourceCatalog` — a queryable index keyed on stable lowercase plugin IDs.
+   `ICalendarSourceCatalog` - a queryable index keyed on stable lowercase plugin IDs.
 
 **Calendar-source plugin identity** is driven by the `[CalendarSourcePlugin]` attribute rather than a
 hardcoded provider switch. At runtime, `ICalendarSourceResolver` resolves the active adapter for a calendar

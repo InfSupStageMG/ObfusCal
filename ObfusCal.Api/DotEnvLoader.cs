@@ -1,12 +1,12 @@
 ﻿/// <summary>
 /// Minimal .env file loader. Reads a file of KEY=VALUE lines and injects each entry
 /// into the current process environment so that EnvironmentSecretProvider and
-/// IConfiguration can resolve them — identical to what docker-compose does automatically.
+/// IConfiguration can resolve them - identical to what docker-compose does automatically.
 ///
 /// Rules:
 /// - Lines starting with # are comments and are skipped.
 /// - Empty lines are skipped.
-/// - Inline comments (# after a value) are NOT stripped — keep values clean.
+/// - Inline comments (# after a value) are NOT stripped - keep values clean.
 /// - Surrounding quotes (" or ') on the value side are stripped once.
 /// - Existing environment variables are NOT overwritten (docker/OS always wins).
 /// - The file is optional; a missing file is silently ignored.

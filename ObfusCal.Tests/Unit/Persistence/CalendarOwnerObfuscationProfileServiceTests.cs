@@ -39,7 +39,7 @@ public class CalendarOwnerObfuscationProfileServiceTests
 
         var profiles = await svc.GetProfilesAsync(ownerId);
 
-        // OrderBy(Context) — Client=0, Internal=1
+        // OrderBy(Context) - Client=0, Internal=1
         Assert.IsTrue(profiles[0].Context <= profiles[1].Context,
             "Profiles should be sorted by Context enum value");
     }
@@ -231,7 +231,7 @@ public class CalendarOwnerObfuscationProfileServiceTests
         var svc = new CalendarOwnerObfuscationProfileService(db);
         var ownerId = SeedOwner(db);
 
-        // Don't call GetProfiles first — go directly to SetProfile
+        // Don't call GetProfiles first - go directly to SetProfile
         var updated = new ObfuscationProfileSettings(
             ObfuscationAuditContext.Internal,
             RemoveTitle: false,
@@ -255,7 +255,7 @@ public class CalendarOwnerObfuscationProfileServiceTests
         await using var db = TestDbContextFactory.CreateInMemory();
         var svc = new CalendarOwnerObfuscationProfileService(db);
 
-        // No owner seeded — EnsureDefaultProfiles does nothing, SingleOrDefault returns null
+        // No owner seeded - EnsureDefaultProfiles does nothing, SingleOrDefault returns null
         var profile = await svc.GetProfileAsync(Guid.NewGuid(), ObfuscationAuditContext.Internal);
 
         Assert.AreEqual(ObfuscationAuditContext.Internal, profile.Context);
@@ -296,9 +296,9 @@ public class CalendarOwnerObfuscationProfileServiceTests
         Assert.HasCount(2, profiles);
         // ObfuscationAuditContext.Internal = 0, Client = 1
         Assert.AreEqual(ObfuscationAuditContext.Internal, profiles[0].Context,
-            "First profile should be Internal (enum value 0) — OrderBy ascending");
+            "First profile should be Internal (enum value 0) - OrderBy ascending");
         Assert.AreEqual(ObfuscationAuditContext.Client, profiles[1].Context,
-            "Second profile should be Client (enum value 1) — OrderBy ascending");
+            "Second profile should be Client (enum value 1) - OrderBy ascending");
     }
 
     [TestMethod]
