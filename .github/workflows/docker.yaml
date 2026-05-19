@@ -62,20 +62,29 @@ jobs:
         if: github.event_name == 'push'
         permissions:
             contents: write
+            pull-requests: write
         steps:
             -   uses: actions/checkout@v6
             -   uses: actions/download-artifact@v4
                 with:
                     name: test-reports
                     path: ./downloaded
-            -   name: Commit test catalog to docs
+            -   name: Open or update test catalog PR
+                env:
+                    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                 run: |
                     cp ./downloaded/test-catalog.md docs/test-catalog.md
                     git config user.name "github-actions[bot]"
                     git config user.email "github-actions[bot]@users.noreply.github.com"
+                    git checkout -b chore/update-test-catalog
                     git add docs/test-catalog.md
-                    git diff --cached --quiet || git commit -m "chore: update test catalog [skip ci]"
-                    git push
+                    git diff --cached --quiet && exit 0
+                    git commit -m "chore: update test catalog"
+                    git push --force origin chore/update-test-catalog
+                    gh pr create --fill --base main --head chore/update-test-catalog \
+                      --title "chore: update test catalog" \
+                      --body "Auto-generated test catalog from CI." \
+                      2>/dev/null || true
 
     container-smoke:
         runs-on: ubuntu-latest
