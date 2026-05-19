@@ -62,7 +62,7 @@ for group, classes in sorted(ns_groups.items()):
         lines.append(f"<details>\n<summary><b>{short}</b> - {passed}/{len(tests)}</summary>\n\n")
         lines.append("| Test | Result |\n|------|--------|\n")
         for test_name, icon in tests:
-            lines.append(f"| `{display}` | {icon} |\n")
+            lines.append(f"| `{test_name}` | {icon} |\n")
         lines.append("\n</details>\n\n")
 
 os.makedirs("./TestResults", exist_ok=True)
