@@ -41,6 +41,7 @@ nav:
           - "0009: Blazor Server GUI": adr/0009-blazor-server-gui.md
           - "0010: Fluent UI Component Library": adr/0010-fluentui-blazor-component-library.md
           - "0011: Input Validation Strategy": adr/0011-input-validation-strategy.md
+          - "0012: CI/CD Test Reporting Strategy": adr/0012-test-reporting-strategy.md
           - "ADR Template": adr/9999-adr-template.md
 
       - "10. Quality Requirements": 10-quality-requirements.md

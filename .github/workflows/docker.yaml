@@ -29,7 +29,71 @@ jobs:
         run: dotnet restore
 
       - name: Run tests
-        run: dotnet test --no-restore --verbosity normal
+        run: |
+            dotnet test \
+              --no-restore \
+              --verbosity normal \
+              --logger "trx;LogFileName=test-results.trx" \
+              --results-directory ./TestResults
+
+      - name: Generate Rich Test Summary
+        if: always()
+        run: |
+            python3 -c '
+            import xml.etree.ElementTree as ET
+            import os
+
+            trx_file = "./TestResults/test-results.trx"
+            summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
+
+            with open(summary_file, "a", encoding="utf-8") as f:
+                f.write("### 🧪 Test Results Summary\n\n")
+
+                if not os.path.exists(trx_file):
+                    f.write("⚠️ **No test results file found.** The build likely failed before tests could run.\n")
+                    sys.exit(0)
+
+                # Parse the TRX XML (ignoring namespaces for simplicity)
+                tree = ET.parse(trx_file)
+                root = tree.getroot()
+
+                # Extract Counters
+                counters = list(root.iter("{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}Counters"))[0]
+                total = counters.attrib.get("total", "0")
+                passed = counters.attrib.get("passed", "0")
+                failed = int(counters.attrib.get("failed", "0"))
+
+                f.write(f"- **Total Tests:** {total}\n")
+                f.write(f"- **Passed:** ✅ {passed}\n")
+                f.write(f"- **Failed:** ❌ {failed}\n\n")
+
+                if failed > 0:
+                    f.write("#### ❌ Failed Tests Details\n")
+
+                    # Find all failed tests
+                    results = root.iter("{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}UnitTestResult")
+                    for result in results:
+                        if result.attrib.get("outcome") == "Failed":
+                            test_name = result.attrib.get("testName", "Unknown Test")
+
+                            # Extract error message
+                            error_info = result.find(".//{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}ErrorInfo")
+                            message = error_info.find("{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}Message").text if error_info is not None else "No error message"
+
+                            f.write(f"<details><summary><b>{test_name}</b></summary>\n\n")
+                            f.write("```text\n")
+                            f.write(f"{message}\n")
+                            f.write("```\n")
+                            f.write("</details>\n\n")
+            '
+
+      - name: Upload Test Results Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-test-results
+          path: ./TestResults/*.trx
+          retention-days: 14
 
   container-smoke:
     runs-on: ubuntu-latest
