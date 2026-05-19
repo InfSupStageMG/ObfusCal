@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.IO;
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ObfusCal.Domain.Obfuscation;
@@ -37,7 +38,11 @@ internal static class PluginDiscovery
         {
             return ex.Types.Where(type => type is not null)!;
         }
-        catch (Exception)
+        catch (FileLoadException)
+        {
+            return [];
+        }
+        catch (BadImageFormatException)
         {
             return [];
         }
