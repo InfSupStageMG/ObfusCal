@@ -392,8 +392,8 @@ internal sealed class CalendarOwnerGraphConsentService(
     }
 
     private static bool AllowsWriteBack(string? scopes)
-        => !string.IsNullOrWhiteSpace(scopes)
-           && scopes.Contains("Calendars.ReadWrite", StringComparison.OrdinalIgnoreCase);
+        => string.IsNullOrWhiteSpace(scopes)
+           || scopes.Contains("Calendars.ReadWrite", StringComparison.OrdinalIgnoreCase);
 
     private static GraphConsentAccessLevel ResolveAccessLevel(string? scopes)
         => !string.IsNullOrWhiteSpace(scopes)
