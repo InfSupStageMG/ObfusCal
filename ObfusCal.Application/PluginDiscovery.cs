@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using ObfusCal.Domain.Obfuscation;
 
 namespace ObfusCal.Application;
@@ -36,18 +37,31 @@ internal static class PluginDiscovery
         {
             return ex.Types.Where(type => type is not null)!;
         }
+        catch (Exception)
+        {
+            return [];
+        }
     }
 
-    internal static void RegisterDiscoveredEventTransformerPlugins(this IServiceCollection services)
+    internal static void RegisterDiscoveredEventTransformerPlugins(
+        this IServiceCollection services,
+        ILogger? logger = null)
     {
         foreach (var type in DiscoverEventTransformerPlugins())
+        {
+            logger?.LogDebug("Registering event transformer plugin {TypeName}", type.FullName);
             services.AddTransient(typeof(IObfuscationTransformer), type);
+        }
     }
 
-    internal static void RegisterDiscoveredBusySlotTransformerPlugins(this IServiceCollection services)
+    internal static void RegisterDiscoveredBusySlotTransformerPlugins(
+        this IServiceCollection services,
+        ILogger? logger = null)
     {
         foreach (var type in DiscoverBusySlotTransformerPlugins())
+        {
+            logger?.LogDebug("Registering busy-slot transformer plugin {TypeName}", type.FullName);
             services.AddTransient(typeof(IBusySlotTransformer), type);
+        }
     }
 }
-

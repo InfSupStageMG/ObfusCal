@@ -15,6 +15,7 @@ using ObfusCal.Infrastructure.Security;
 using ObfusCal.Infrastructure.Storage;
 using ObfusCal.Infrastructure.Sync;
 using Serilog;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace ObfusCal.Infrastructure;
 
@@ -29,7 +30,7 @@ public static class DependencyInjection
         RegisterCoreInfrastructure(services, config);
         RegisterHttpClients(services);
         RegisterDomainServices(services);
-        RegisterCalendarSourcePlugins(services);
+        RegisterCalendarSourcePlugins(services, config);
         RegisterCalendarSourceServices(services);
 
         return services;
@@ -79,6 +80,7 @@ public static class DependencyInjection
         services.Configure<ICloudCalendarOptions>(config.GetSection(ICloudCalendarOptions.SectionName));
         services.Configure<SyncOptions>(config.GetSection(SyncOptions.SectionName));
         services.Configure<PeerTransportSecurityOptions>(config.GetSection(PeerTransportSecurityOptions.SectionName));
+        services.Configure<PluginAllowlistOptions>(config.GetSection(PluginAllowlistOptions.SectionName));
 
         // Configure DataProtection with persistent key storage for credential encryption
         // Keys are stored in /dataprotection/keys (must be mounted as a persistent volume in containers)
@@ -239,12 +241,24 @@ public static class DependencyInjection
         services.AddHostedService<ShadowSlotRetentionBackgroundService>();
     }
 
-    private static void RegisterCalendarSourcePlugins(IServiceCollection services)
+    private static void RegisterCalendarSourcePlugins(IServiceCollection services, IConfiguration config)
     {
-        var catalog = new CalendarSourcePluginCatalog(CalendarSourcePluginCatalog.Discover(includeExternalPlugins: true));
+        var allowlist = config.GetSection(PluginAllowlistOptions.SectionName).Get<PluginAllowlistOptions>()
+                        ?? new PluginAllowlistOptions();
+
+        var cache = new PluginAllowlistCache();
+        services.AddSingleton(cache);
+        services.AddScoped<IPluginAllowlistAdminService, EfCorePluginAllowlistAdminService>();
+
+        var discovered = CalendarSourcePluginCatalog.Discover(
+            includeExternalPlugins: true,
+            allowlist: allowlist,
+            logger: Log.Logger.ForContext<CalendarSourcePluginCatalog>() as ILogger);
+
+        var catalog = new CalendarSourcePluginCatalog(discovered, cache);
         services.AddSingleton<ICalendarSourceCatalog>(catalog);
 
-        foreach (var plugin in catalog.GetPlugins())
+        foreach (var plugin in discovered)
         {
             if (services.Any(descriptor => descriptor.ServiceType == plugin.ImplementationType))
                 continue;
@@ -322,6 +336,20 @@ public static class DependencyInjection
         using var scope = services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await dbContext.Database.MigrateAsync();
+    }
+
+    public static async Task InitializePluginAllowlistAsync(this IServiceProvider services)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var cache = services.GetRequiredService<PluginAllowlistCache>();
+
+        var blockedIds = await db.PluginAllowlistOverrides
+            .Where(o => !o.IsEnabled)
+            .Select(o => o.PluginId)
+            .ToListAsync();
+
+        cache.Initialize(blockedIds);
     }
 }
 

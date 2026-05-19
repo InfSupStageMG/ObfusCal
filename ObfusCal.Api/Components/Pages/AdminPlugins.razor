@@ -1,0 +1,120 @@
+﻿@page "/admin/plugins"
+@attribute [Authorize]
+@using ObfusCal.Application.Interfaces
+@using ObfusCal.Api.Authorization
+@inject IPluginAllowlistAdminService AllowlistService
+@inject ICalendarSourceCatalog Catalog
+@inject CurrentUserContextAccessor CurrentUserContextAccessor
+
+<PageTitle>Plugin Allowlist — ObfusCal</PageTitle>
+
+<h1>Plugin Allowlist</h1>
+
+<FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
+
+    @if (!_isSysadmin)
+    {
+        <FluentMessageBar Intent="MessageIntent.Error" Title="Access denied">
+            This page is restricted to system administrators.
+        </FluentMessageBar>
+    }
+    else if (_loading)
+    {
+        <FluentProgress />
+    }
+    else
+    {
+        <section class="card">
+            <h3>Plugin supply-chain control</h3>
+            <p>
+                This page lists all calendar source plugins that were registered at startup (based on the
+                <code>PluginAllowlist</code> configuration in <code>appsettings</code>).
+                Use the toggles below to enable or disable individual plugins at runtime without restarting.
+                Changes take effect immediately for new requests.
+            </p>
+            <p>
+                <strong>Note:</strong> built-in plugins (not from the <code>plugins/</code> directory) are
+                always registered at startup. External plugins must also appear in
+                <code>PluginAllowlist:AllowedPluginIds</code> in <code>appsettings</code> to be loaded.
+            </p>
+        </section>
+
+        @if (_statusMessage is not null)
+        {
+            <FluentMessageBar Intent="@_statusIntent" Class="card-message">
+                @_statusMessage
+            </FluentMessageBar>
+        }
+
+        <section class="card">
+            <h3>Registered plugins</h3>
+            @if (_rows is { Count: 0 })
+            {
+                <p>No plugins are currently registered.</p>
+            }
+            else if (_rows is not null)
+            {
+                <FluentDataGrid Items="_rows.AsQueryable()" TGridItem="PluginRow" Class="app-data-grid">
+                    <PropertyColumn Property="@(r => r.PluginId)" Title="Plugin ID" Sortable="true" />
+                    <PropertyColumn Property="@(r => r.DisplayName)" Title="Display Name" Sortable="true" />
+                    <TemplateColumn Title="Origin">
+                        @if (context.IsExternal)
+                        {
+                            <FluentBadge Appearance="Appearance.Neutral">External</FluentBadge>
+                        }
+                        else
+                        {
+                            <FluentBadge Appearance="Appearance.Accent">Built-in</FluentBadge>
+                        }
+                    </TemplateColumn>
+                    <TemplateColumn Title="Runtime state">
+                        @if (context.IsEnabled)
+                        {
+                            <FluentBadge Appearance="Appearance.Accent" Color="Color.Success">Enabled</FluentBadge>
+                        }
+                        else
+                        {
+                            <FluentBadge Appearance="Appearance.Accent" Color="Color.Error">Disabled</FluentBadge>
+                        }
+                    </TemplateColumn>
+                    <TemplateColumn Title="Override">
+                        @if (context.HasOverride)
+                        {
+                            <span title="Override set @context.OverrideUpdatedAtUtc?.ToString("u")">Yes</span>
+                        }
+                        else
+                        {
+                            <span>—</span>
+                        }
+                    </TemplateColumn>
+                    <TemplateColumn Title="Actions">
+                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="4">
+                            @if (context.IsEnabled)
+                            {
+                                <FluentButton Appearance="Appearance.Outline"
+                                              OnClick="@(() => SetEnabledAsync(context.PluginId, false))">
+                                    Disable
+                                </FluentButton>
+                            }
+                            else
+                            {
+                                <FluentButton Appearance="Appearance.Accent"
+                                              OnClick="@(() => SetEnabledAsync(context.PluginId, true))">
+                                    Enable
+                                </FluentButton>
+                            }
+                            @if (context.HasOverride)
+                            {
+                                <FluentButton Appearance="Appearance.Outline"
+                                              OnClick="@(() => RemoveOverrideAsync(context.PluginId))">
+                                    Reset
+                                </FluentButton>
+                            }
+                        </FluentStack>
+                    </TemplateColumn>
+                </FluentDataGrid>
+            }
+        </section>
+    }
+</FluentStack>
+

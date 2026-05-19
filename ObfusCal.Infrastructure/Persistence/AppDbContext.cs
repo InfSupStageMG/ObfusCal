@@ -23,6 +23,7 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<BusySlot> BusySlots => Set<BusySlot>();
     public DbSet<CalendarOwnerAvailabilitySlot> CalendarOwnerAvailabilitySlots => Set<CalendarOwnerAvailabilitySlot>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+    public DbSet<PluginAllowlistOverride> PluginAllowlistOverrides => Set<PluginAllowlistOverride>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -173,6 +174,14 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
                 .HasColumnType("text[]");
             e.HasIndex(slot => slot.CalendarOwnerId);
             e.HasIndex(slot => new { slot.CalendarOwnerId, slot.Start, slot.End });
+        });
+
+        modelBuilder.Entity<PluginAllowlistOverride>(e =>
+        {
+            e.HasKey(o => o.PluginId);
+            e.Property(o => o.PluginId).HasMaxLength(128).IsRequired();
+            e.Property(o => o.IsEnabled).IsRequired();
+            e.Property(o => o.UpdatedAtUtc).IsRequired();
         });
     }
 }

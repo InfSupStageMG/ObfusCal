@@ -249,6 +249,7 @@ try
         .AddInteractiveServerRenderMode();
 
     await app.Services.MigrateDatabaseAsync();
+    await app.Services.InitializePluginAllowlistAsync();
 
     await app.RunAsync();
 }
