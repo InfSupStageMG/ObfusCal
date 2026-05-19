@@ -137,7 +137,28 @@ internal sealed class CalendarSourcePluginCatalog(
                 assembly.FullName);
             return ex.Types.Where(type => type is not null)!;
         }
-        catch (Exception ex)
+        catch (FileLoadException ex)
+        {
+            logger?.LogWarning(ex,
+                "Could not load types from assembly {AssemblyName}; the assembly will be skipped.",
+                assembly.FullName);
+            return [];
+        }
+        catch (FileNotFoundException ex)
+        {
+            logger?.LogWarning(ex,
+                "Could not load types from assembly {AssemblyName}; the assembly will be skipped.",
+                assembly.FullName);
+            return [];
+        }
+        catch (BadImageFormatException ex)
+        {
+            logger?.LogWarning(ex,
+                "Could not load types from assembly {AssemblyName}; the assembly will be skipped.",
+                assembly.FullName);
+            return [];
+        }
+        catch (NotSupportedException ex)
         {
             logger?.LogWarning(ex,
                 "Could not load types from assembly {AssemblyName}; the assembly will be skipped.",
