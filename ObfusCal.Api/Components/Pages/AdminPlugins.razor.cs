@@ -53,20 +53,16 @@ public partial class AdminPlugins : ComponentBase
             .ToList();
 
         foreach (var id in blockedIds)
-        {
-            if (_rows.Any(r => string.Equals(r.PluginId, id, StringComparison.OrdinalIgnoreCase)))
+            if (!overrides.TryGetValue(id, out var entry))
                 continue;
 
-            if (overrides.TryGetValue(id, out var entry))
-            {
-                _rows.Add(new PluginRow(
-                    entry.PluginId,
-                    entry.PluginId,
-                    IsExternal: true,
-                    IsEnabled: false,
-                    HasOverride: true,
-                    OverrideUpdatedAtUtc: entry.UpdatedAtUtc));
-            }
+            _rows.Add(new PluginRow(
+                entry.PluginId,
+                entry.PluginId,
+                IsExternal: true,
+                IsEnabled: false,
+                HasOverride: true,
+                OverrideUpdatedAtUtc: entry.UpdatedAtUtc));
         }
 
         _rows = [.. _rows.OrderBy(r => r.PluginId)];
