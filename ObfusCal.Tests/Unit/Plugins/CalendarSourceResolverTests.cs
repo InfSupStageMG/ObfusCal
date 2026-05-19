@@ -84,7 +84,7 @@ public class CalendarSourceResolverTests
     public async Task ResolveAsync_UsesConfiguredProvider_WhenOwnerIdNotInDatabase()
     {
         await using var db = TestDbContextFactory.CreateInMemory();
-        // DB is empty — owner does not exist
+        // DB is empty - owner does not exist
 
         var resolver = Build(db, [AlphaDescriptor, BetaDescriptor], configuredProvider: "alpha");
         var source = await resolver.ResolveAsync(calendarOwnerId: Guid.NewGuid());

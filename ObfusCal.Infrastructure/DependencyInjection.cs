@@ -68,7 +68,7 @@ public static class DependencyInjection
             options.UseNpgsql(
                 connectionString);
 
-            // Suppress the pending model changes warning — migrations are applied at startup
+            // Suppress the pending model changes warning - migrations are applied at startup
             options.ConfigureWarnings(w =>
                 w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         });

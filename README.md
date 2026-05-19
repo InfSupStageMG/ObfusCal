@@ -127,7 +127,7 @@ openssl pkcs12 -export `
 
    For Google Calendar OAuth, set `GOOGLECONSENT__REDIRECTURI` to a Google-registered callback such as
    `https://localhost/consent-callback` or a public HTTPS URI. Do not use `https://obfuscal.local/consent-callback`
-   for Google OAuth — Google rejects `.local` redirect domains.
+   for Google OAuth; Google rejects `.local` redirect domains.
 
 3. Optionally add a hosts entry for `obfuscal.local`:
 
@@ -251,7 +251,7 @@ Run all tests:
 dotnet test
 ```
 
-> Integration tests require Docker or Podman to be running — they spin up an ephemeral PostgreSQL container via
+> Integration tests require Docker or Podman to be running; they spin up an ephemeral PostgreSQL container via
 > Testcontainers.
 
 ### CI/CD Test Reports
@@ -310,7 +310,7 @@ match a redirect URI registered on the Google OAuth client exactly.
 - `AzureAd:TenantId`
 - `AzureAd:ClientId`
 - `GraphConsent:ClientId`
-- `ColumnEncryption:Key` — a 256-bit AES key used to encrypt sensitive database columns at rest
+- `ColumnEncryption:Key` - a 256-bit AES key used to encrypt sensitive database columns at rest
 
 **Generating the column encryption key**
 

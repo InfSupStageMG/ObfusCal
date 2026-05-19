@@ -58,7 +58,7 @@ public class PeerSyncBackgroundServiceTests
 
         await backgroundService.StopAsync(CancellationToken.None);
 
-        // Service should not have crashed — the catch block should handle the failure
+        // Service should not have crashed - the catch block should handle the failure
         Assert.IsTrue(throwingOutbound.WasInvoked, "Outbound sync should have been invoked even if it throws");
     }
 
@@ -72,7 +72,7 @@ public class PeerSyncBackgroundServiceTests
             .AddSingleton<IInboundPeerPullSyncService>(countingInbound)
             .BuildServiceProvider();
 
-        // Use a very small interval (0) — it should be clamped to at least 1 second
+        // Use a very small interval (0) - it should be clamped to at least 1 second
         using var backgroundService = new PeerSyncBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(new SyncOptions { SyncIntervalSeconds = 0 }),

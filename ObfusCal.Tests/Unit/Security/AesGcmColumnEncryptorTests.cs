@@ -94,7 +94,7 @@ public class AesGcmColumnEncryptorTests
     [TestMethod]
     public void Constructor_ThrowsInvalidOperation_WhenKeyIsTooShort()
     {
-        var shortKey = Convert.ToBase64String(new byte[16]); // 128-bit — too short for AES-256
+        var shortKey = Convert.ToBase64String(new byte[16]); // 128-bit - too short for AES-256
         var secretProvider = new LiteralSecretProvider(SecretKeys.ColumnEncryptionKey, shortKey);
 
         Assert.ThrowsExactly<InvalidOperationException>(

@@ -726,7 +726,7 @@ public class IcalFeedCalendarSourceTests
     [TestMethod]
     public async Task GetEventsAsync_ParsesPropertyWithSemicolonParameter()
     {
-        // DTSTART;TZID=Europe/Berlin:20260424T090000 — TZID must be respected.
+        // DTSTART;TZID=Europe/Berlin:20260424T090000 - TZID must be respected.
         // Europe/Berlin in April 2026 is CEST (UTC+2), so 09:00 local = 07:00 UTC.
         var ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n" +
                   "BEGIN:VEVENT\r\nUID:param-test\r\nSUMMARY:Param\r\n" +

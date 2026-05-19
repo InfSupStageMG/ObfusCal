@@ -4,7 +4,7 @@ namespace ObfusCal.Api.Components.Pages;
 
 public partial class CalendarOwnerDetail
 {
-    // Write-back state — initialised from _owner in OnInitializedAsync
+    // Write-back state - initialised from _owner in OnInitializedAsync
     private bool _writeBackEnabled;
     private string? _writeBackPlaceholderTitle;
     private bool _savingWriteBack;

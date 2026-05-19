@@ -210,7 +210,7 @@ internal static class IcsCalendarEventParser
                 }
                 catch (TimeZoneNotFoundException)
                 {
-                    // Unknown TZID on this host — treat as floating (UTC).
+                    // Unknown TZID on this host - treat as floating (UTC).
                     result = new DateTimeOffset(localDt, TimeSpan.Zero);
                     return true;
                 }

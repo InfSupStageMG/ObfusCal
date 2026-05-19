@@ -9,7 +9,7 @@ A failed or incompatible DLL is logged and skipped; all other plugins continue t
 
 ## Authoring a Calendar Source Plugin
 
-### 1 — Create a project
+### 1 - Create a project
 
 Name your project `ObfusCal.Plugins.<YourName>` and target `net10.0`:
 
@@ -21,7 +21,7 @@ Name your project `ObfusCal.Plugins.<YourName>` and target `net10.0`:
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <!-- reference only Application and Domain — never Infrastructure -->
+    <!-- reference only Application and Domain - never Infrastructure -->
     <PackageReference Include="ObfusCal.Application" Version="*" />
   </ItemGroup>
 </Project>
@@ -33,7 +33,7 @@ Name your project `ObfusCal.Plugins.<YourName>` and target `net10.0`:
 
 ---
 
-### 2 — Implement the calendar source contract
+### 2 - Implement the calendar source contract
 
 Implement `ICalendarSource` from `ObfusCal.Application.Interfaces` and annotate your class with
 `[CalendarSourcePlugin]`:
@@ -55,13 +55,13 @@ public sealed class AcmeCalendarSource : ICalendarSource
 }
 ```
 
-The first argument to `[CalendarSourcePlugin]` is the stable **plugin ID** — lowercase, no spaces.
+The first argument to `[CalendarSourcePlugin]` is the stable **plugin ID**; lowercase, no spaces.
 It is stored in database records, config files, and API responses. **Changing it after deployment
 requires a data migration.**
 
 ---
 
-### 3 — Provide setup UI metadata (optional but recommended)
+### 3 - Provide setup UI metadata (optional but recommended)
 
 Add `[CalendarSourcePluginUi]` to describe how the generic owner-detail UI should render your plugin's
 setup form:
@@ -85,7 +85,7 @@ public sealed class AcmeCalendarSource : ICalendarSource { ... }
 
 ---
 
-### 4 — Declare plugin action buttons (optional)
+### 4 - Declare plugin action buttons (optional)
 
 If your plugin has a setup step that requires navigation (e.g. an OAuth consent flow), declare it with
 `[CalendarSourcePluginAction]`. The attribute may be applied multiple times.
@@ -117,7 +117,7 @@ completion service.
 
 ---
 
-### 5 — Readiness evaluation (optional)
+### 5 - Readiness evaluation (optional)
 
 If a source instance requires configuration before it can be used, also implement
 `ICalendarSourceInstanceReadinessEvaluator`:
@@ -146,7 +146,7 @@ Legacy owner-level readiness uses `ICalendarSourceReadinessEvaluator` (no `insta
 
 ---
 
-### 6 — Build and deploy
+### 6 - Build and deploy
 
 **During development** (if your project follows the naming convention `ObfusCal.Plugins.*`):
 
@@ -155,7 +155,7 @@ dotnet build ObfusCal.slnx
 # The plugin DLL is automatically copied to ObfusCal.Api/bin/.../plugins/
 ```
 
-**For production** — copy the plugin DLL and its dependencies into the `plugins/` sub-folder alongside
+**For production**; copy the plugin DLL and its dependencies into the `plugins/` sub-folder alongside
 `ObfusCal.Api.dll`, then restart the API process.
 
 ---
@@ -179,7 +179,7 @@ public sealed class RedactSubjectTransformer : IObfuscationTransformerPlugin
 }
 ```
 
-No attribute is needed — the plugin system discovers any concrete class that implements the interface.
+No attribute is needed. The plugin system discovers any concrete class that implements the interface.
 
 ---
 

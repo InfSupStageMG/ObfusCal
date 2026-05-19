@@ -26,7 +26,7 @@ We use **Blazor Server embedded in the existing `ObfusCal.Api` project**, served
 
 * **Single container:** No additional service, Dockerfile, or orchestration complexity. The GUI publishes alongside the
   API in one `dotnet publish` step.
-* **Shared authentication:** The same Azure AD / JWT middleware protects both API endpoints and Razor components — no
+* **Shared authentication:** The same Azure AD / JWT middleware protects both API endpoints and Razor components. No
   token relay or CORS configuration needed.
 * **Direct service access:** Razor components can inject application use-case services directly, calling use-cases
   without HTTP round-trips for the internal UI.
@@ -38,11 +38,11 @@ We use **Blazor Server embedded in the existing `ObfusCal.Api` project**, served
 ## Consequences
 
 * **Positive:** Zero additional containers or build targets; same CI/CD pipeline.
-* **Positive:** Authentication is shared — no separate login flow for the UI.
+* **Positive:** Authentication is shared. No separate login flow for the UI.
 * **Positive:** Minimal Dockerfile change (static assets bundled automatically).
 * **Negative:** Requires a persistent SignalR WebSocket connection per browser tab; nginx must proxy `/_blazor` with
   `Upgrade` headers.
-* **Negative:** Not suitable for offline/PWA scenarios (acceptable — this is an always-connected corporate tool).
+* **Negative:** Not suitable for offline/PWA scenarios (acceptable; this is an always-connected corporate tool).
 * **Negative:** UI latency is slightly higher than Blazor WebAssembly for each interaction (acceptable for admin/demo
   use).
 

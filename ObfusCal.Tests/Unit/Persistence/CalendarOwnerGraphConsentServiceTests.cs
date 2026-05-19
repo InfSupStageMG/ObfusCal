@@ -387,7 +387,7 @@ public class CalendarOwnerGraphConsentServiceTests
         Assert.IsTrue(state.StartsWith("graph.", StringComparison.Ordinal),
             "State must start with 'graph.' prefix");
 
-        // Complete consent using the state — no owner/instance IDs needed by the caller
+        // Complete consent using the state - no owner/instance IDs needed by the caller
         var returnedOwnerId = await consoleSvc.CompleteConsentFromStateAsync(FakeGraphOAuthTokenClient.ValidAuthorizationCode, state);
 
         Assert.AreEqual(ownerId, returnedOwnerId, "CompleteConsentFromStateAsync should return the calendar owner ID");

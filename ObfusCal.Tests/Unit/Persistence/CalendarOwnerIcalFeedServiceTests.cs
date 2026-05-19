@@ -179,11 +179,11 @@ public class CalendarOwnerIcalFeedServiceTests
         var feedA = await svc.AddFeedAsync(ownerA, "https://a.com/feed.ics");
         var feedB = await svc.AddFeedAsync(ownerB, "https://b.com/feed.ics");
 
-        // Try deleting feedA using ownerB — should fail
+        // Try deleting feedA using ownerB - should fail
         var result1 = await svc.DeleteFeedAsync(ownerB, feedA.FeedId!.Value);
         Assert.AreEqual(DeleteCalendarOwnerIcalFeedOutcome.FeedNotFound, result1.Outcome);
 
-        // Try deleting feedB using ownerA — should fail
+        // Try deleting feedB using ownerA - should fail
         var result2 = await svc.DeleteFeedAsync(ownerA, feedB.FeedId!.Value);
         Assert.AreEqual(DeleteCalendarOwnerIcalFeedOutcome.FeedNotFound, result2.Outcome);
 

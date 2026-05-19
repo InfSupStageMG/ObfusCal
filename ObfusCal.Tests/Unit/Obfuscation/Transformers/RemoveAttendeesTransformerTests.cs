@@ -9,7 +9,7 @@ public class RemoveAttendeesTransformerTests
     private static CalendarEvent MakeSensitiveEvent(string id = "evt-1") => new(
         Id: id,
         Title: "Confidential: Q3 Strategy Review",
-        Description: "Board-level discussion — do not share.",
+        Description: "Board-level discussion - do not share.",
         Start: new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero),
         End: new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero),
         AttendeeEmails: ["alice@example.com", "bob@client.com"],

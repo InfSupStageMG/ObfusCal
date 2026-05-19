@@ -138,7 +138,7 @@ local sign-out cycle.
 | `API_CERT_PASSWORD`                                   | Passed to `docker compose` via `.env`; sets the Kestrel cert password                                         |
 | `API_MEM_LIMIT`                                       | API container memory limit used by Compose (default `512m`)                                                   |
 | `API_CPUS`                                            | API container CPU quota used by Compose (default `4.0`)                                                       |
-| `DATAPROTECTION_KEYS_PATH`                            | *Removed* — keys are now persisted to PostgreSQL via `DataProtectionKeys` table                               |
+| `DATAPROTECTION_KEYS_PATH`                            | *Removed* - keys are now persisted to PostgreSQL via `DataProtectionKeys` table                               |
 | `PeerConnections.ApiKeyHash` (database)               | Salted PBKDF2-SHA256 hash of peer API keys used by peer authentication                                        |
 | `PeerConnections.Scopes` (database)                   | Space-separated peer scopes (`push_shadow_slots`, `pull_busy_slots`)                                          |
 | `PeerConnections.RevokedAt` (database)                | Revocation timestamp; non-null peers are rejected by peer authentication                                      |
@@ -188,7 +188,7 @@ callback URI that is registered on the Google OAuth client. Google rejects `.loc
 DataProtection keys are persisted to the **`DataProtectionKeys` table in PostgreSQL** via `IDataProtectionKeyContext`.
 This means:
 
-- Keys survive container rebuilds, restarts, and pod reschedules automatically — no separate filesystem volume is
+- Keys survive container rebuilds, restarts, and pod reschedules automatically. No separate filesystem volume is
   required.
 - The `AddDataProtectionKeys` EF Core migration creates the table at startup via `MigrateDatabaseAsync()`.
 - Keys are scoped to the `ObfusCal` application name; sharing the database with another application does not cause key
