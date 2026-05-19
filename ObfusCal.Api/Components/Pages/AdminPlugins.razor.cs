@@ -84,7 +84,7 @@ public partial class AdminPlugins : ComponentBase
                 : $"Plugin '{pluginId}' has been disabled. Existing active sessions are not affected.";
             _statusIntent = MessageIntent.Success;
         }
-        catch (Exception)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _statusMessage = $"Failed to update plugin '{pluginId}'.";
             _statusIntent = MessageIntent.Error;
