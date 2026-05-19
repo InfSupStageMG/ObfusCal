@@ -187,7 +187,8 @@ dotnet run --project ObfusCal.Api
    After browser sign-in completes, the app will auto-create the matching calendar owner if it does not already exist.
 
 > **Important Note for Open-Source Users:** While ObfusCal can synchronize calendar events from multiple providers (
-> Google, iCloud, generic iCal), the **Administration Dashboard currently requires a Microsoft Entra ID (Azure AD) tenant
+> Google, iCloud, generic iCal), the **Administration Dashboard currently requires a Microsoft Entra ID (Azure AD)
+> tenant
 ** for user sign-in. Generic OIDC providers (e.g., Keycloak, Auth0) are not yet supported for the admin UI.
 
 ---
@@ -252,6 +253,17 @@ dotnet test
 
 > Integration tests require Docker or Podman to be running — they spin up an ephemeral PostgreSQL container via
 > Testcontainers.
+
+### CI/CD Test Reports
+
+Every push or pull request triggers an automated test run via GitHub Actions.
+To view test results:
+
+1. Navigate to the **Actions** tab in GitHub and select the workflow run.
+2. A high-level **Test Results Summary** is rendered natively on the summary page.
+3. Detailed `.trx` (Visual Studio Test Results) files are stored as **Artifacts** at the bottom of the summary page and
+   are retained for 14 days. You can download these and open them in Visual Studio or Rider for deeper analysis of
+   failed tests.
 
 ## Secret management
 

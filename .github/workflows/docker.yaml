@@ -29,7 +29,30 @@ jobs:
         run: dotnet restore
 
       - name: Run tests
-        run: dotnet test --no-restore --verbosity normal
+        run: |
+            dotnet test \
+              --no-restore \
+              --verbosity normal \
+              --logger "trx;LogFileName=test-results.trx" \
+              --results-directory ./TestResults \
+              | tee test-output.log
+
+      - name: Generate Test Summary
+        if: always()
+        run: |
+            echo "### Test Results Summary" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            # Extract the summary line(s) from the dotnet test output
+            grep -E "(Passed|Failed).*Total:" test-output.log >> $GITHUB_STEP_SUMMARY || echo "No test summary line found." >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Test Results Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-test-results
+          path: ./TestResults/*.trx
+          retention-days: 14
 
   container-smoke:
     runs-on: ubuntu-latest
