@@ -156,13 +156,11 @@ public sealed partial class GraphCalendarSource(
         }
 
         var canWriteBack = AllowsWriteBack(owner.GraphGrantedScopes);
-        return hasConsent
-            ? CalendarSourceReadiness.Ready(
-                canWriteBack ? "Connected (write-back enabled)." : "Connected (read-only).",
-                canWriteBack
-                    ? "Microsoft Graph consent includes calendar write permissions."
-                    : "Microsoft Graph consent is read-only; write-back placeholders are disabled for this connection.")
-            : CalendarSourceReadiness.NotReady("Microsoft Graph consent required.");
+        return CalendarSourceReadiness.Ready(
+            canWriteBack ? "Connected (write-back enabled)." : "Connected (read-only).",
+            canWriteBack
+                ? "Microsoft Graph consent includes calendar write permissions."
+                : "Microsoft Graph consent is read-only; write-back placeholders are disabled for this connection.");
     }
 
     public Task<CalendarSourceReadiness> GetReadinessAsync(CalendarSourceInstanceContext instance, CancellationToken ct = default)
@@ -180,13 +178,11 @@ public sealed partial class GraphCalendarSource(
 
         var canWriteBack = AllowsWriteBack(secretData?.GrantedScopes);
 
-        return Task.FromResult(hasConsent
-            ? CalendarSourceReadiness.Ready(
-                canWriteBack ? "Connected (write-back enabled)." : "Connected (read-only).",
-                canWriteBack
-                    ? "Microsoft Graph consent includes calendar write permissions."
-                    : "Microsoft Graph consent is read-only; write-back placeholders are disabled for this source instance.")
-            : CalendarSourceReadiness.NotReady("Microsoft Graph consent required."));
+        return Task.FromResult(CalendarSourceReadiness.Ready(
+            canWriteBack ? "Connected (write-back enabled)." : "Connected (read-only).",
+            canWriteBack
+                ? "Microsoft Graph consent includes calendar write permissions."
+                : "Microsoft Graph consent is read-only; write-back placeholders are disabled for this source instance."));
     }
 
 
@@ -580,6 +576,6 @@ public sealed partial class GraphCalendarSource(
     }
 
     private static bool AllowsWriteBack(string? grantedScopes)
-        => string.IsNullOrWhiteSpace(grantedScopes)
-           || grantedScopes.Contains("Calendars.ReadWrite", StringComparison.OrdinalIgnoreCase);
+        => !string.IsNullOrWhiteSpace(grantedScopes)
+           && grantedScopes.Contains("Calendars.ReadWrite", StringComparison.OrdinalIgnoreCase);
 }
