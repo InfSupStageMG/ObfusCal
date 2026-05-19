@@ -83,41 +83,92 @@
                     @foreach (var evt in _selectedDayEvents)
                     {
                         <div class="event-item">
-                            <div class="event-item-header">
-                                <div class="event-time-range">
-                                    <strong>@FormatInTimeZone(evt.Start, "HH:mm")</strong>
-                                    <span class="event-separator">–</span>
-                                    <strong>@FormatInTimeZone(evt.End, "HH:mm")</strong>
-                                    <span class="event-duration">(@CalculateDuration(evt))</span>
-                                </div>
-                            </div>
-                            @if (!string.IsNullOrWhiteSpace(evt.Title))
+                            @if (evt.SourceSlots?.Count > 1)
                             {
-                                <div class="event-title">@evt.Title</div>
+                                <!-- Merged block with multiple source events -->
+                                <div class="event-item-header">
+                                    <div class="event-time-range">
+                                        <strong>@FormatInTimeZone(evt.Start, "HH:mm")</strong>
+                                        <span class="event-separator">–</span>
+                                        <strong>@FormatInTimeZone(evt.End, "HH:mm")</strong>
+                                        <span class="event-duration">(@CalculateDuration(evt))</span>
+                                    </div>
+                                    <span class="merged-block-badge">@evt.SourceSlots.Count events merged</span>
+                                </div>
+                                <div class="merged-sources">
+                                    @foreach (var source in evt.SourceSlots)
+                                    {
+                                        <div class="source-event">
+                                            @if (!string.IsNullOrWhiteSpace(source.Title))
+                                            {
+                                                <div class="source-event-title">@source.Title</div>
+                                            } else
+                                            {
+                                                <div class="source-event-title source-event-title--empty">(Busy)</div>
+                                            }
+                                            <div class="source-event-details">
+                                                @if (!string.IsNullOrWhiteSpace(source.Location))
+                                                {
+                                                    <div class="source-event-detail">
+                                                        <span class="detail-icon">📍</span>
+                                                        <span class="detail-text">@source.Location</span>
+                                                    </div>
+                                                }
+                                                @if (source.AttendeeEmails?.Count > 0)
+                                                {
+                                                    <div class="source-event-detail">
+                                                        <span class="detail-icon">👥</span>
+                                                        <span class="detail-text">@string.Join(", ", source.AttendeeEmails)</span>
+                                                    </div>
+                                                }
+                                            </div>
+                                            @if (!string.IsNullOrWhiteSpace(source.Description))
+                                            {
+                                                <div class="source-event-description">@source.Description</div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
                             }
                             else
                             {
-                                <div class="event-title event-title--empty">(Busy)</div>
-                            }
-                            <div class="event-meta">
-                                @if (!string.IsNullOrWhiteSpace(evt.Location))
-                                {
-                                    <div class="event-detail">
-                                        <span class="event-detail-icon">📍</span>
-                                        <span class="event-detail-text">@evt.Location</span>
+                                <!-- Single event or no source data -->
+                                <div class="event-item-header">
+                                    <div class="event-time-range">
+                                        <strong>@FormatInTimeZone(evt.Start, "HH:mm")</strong>
+                                        <span class="event-separator">–</span>
+                                        <strong>@FormatInTimeZone(evt.End, "HH:mm")</strong>
+                                        <span class="event-duration">(@CalculateDuration(evt))</span>
                                     </div>
-                                }
-                                @if (evt.AttendeeEmails?.Count > 0)
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(evt.Title))
                                 {
-                                    <div class="event-detail">
-                                        <span class="event-detail-icon">👥</span>
-                                        <span class="event-detail-text event-detail-text--attendees">@string.Join(", ", evt.AttendeeEmails)</span>
-                                    </div>
+                                    <div class="event-title">@evt.Title</div>
                                 }
-                            </div>
-                            @if (!string.IsNullOrWhiteSpace(evt.Description))
-                            {
-                                <div class="event-description">@evt.Description</div>
+                                else
+                                {
+                                    <div class="event-title event-title--empty">(Busy)</div>
+                                }
+                                <div class="event-meta">
+                                    @if (!string.IsNullOrWhiteSpace(evt.Location))
+                                    {
+                                        <div class="event-detail">
+                                            <span class="event-detail-icon">📍</span>
+                                            <span class="event-detail-text">@evt.Location</span>
+                                        </div>
+                                    }
+                                    @if (evt.AttendeeEmails?.Count > 0)
+                                    {
+                                        <div class="event-detail">
+                                            <span class="event-detail-icon">👥</span>
+                                            <span class="event-detail-text event-detail-text--attendees">@string.Join(", ", evt.AttendeeEmails)</span>
+                                        </div>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(evt.Description))
+                                {
+                                    <div class="event-description">@evt.Description</div>
+                                }
                             }
                         </div>
                     }

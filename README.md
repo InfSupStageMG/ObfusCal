@@ -387,6 +387,10 @@ Use `.env.example` as the authoritative placeholder list for local/compose confi
     - hosts resolving to private, loopback, or link-local IP ranges are rejected
 - Query windows for `busy-slots` and `merged-freebusy` are bounded by `Sync:MaxQueryWindowDays` (default `90`).
 - Shadow-slot push payloads are bounded by `Sync:MaxShadowSlotsPerRequest` (default `500`).
+- Calendar-owner scoped API endpoints enforce object-level ownership checks and return `404 Not Found` for cross-owner
+  access attempts to prevent tenant ID enumeration.
+- Peer sync owner-scoped shadow-slot pushes are accepted only when the authenticated peer is mapped to the requested
+  `calendarOwnerRef`; mismatches are rejected with `403 Forbidden`.
 
 Run mutation tests with Stryker:
 

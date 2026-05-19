@@ -51,7 +51,17 @@ public sealed class ShadowSlotsController(
             : await peerCalendarOwnerResolver.ResolveAllCalendarOwnerIdsAsync(peerId, ct);
 
         if (calendarOwnerIds.Count == 0)
+        {
+            if (parsedPayload.CalendarOwnerRef is { } unmappedOwnerRef)
+            {
+                logger.LogWarning(
+                    "Rejected shadow-slot push because peer {PeerId} is not mapped to requested calendar owner ref {CalendarOwnerRef}",
+                    peerId,
+                    unmappedOwnerRef);
+            }
+
             return Forbid();
+        }
 
         await pushShadowSlotsUseCase.ExecuteAsync(new PushShadowSlotsCommand(peerId, calendarOwnerIds, parsedPayload.Slots), ct);
 

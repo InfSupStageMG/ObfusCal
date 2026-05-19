@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ObfusCal.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using ObfusCal.Infrastructure.Persistence;
 namespace ObfusCal.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260518122340_AddSourceSlotsJsonToCalendarOwnerAvailabilitySlots")]
+    partial class AddSourceSlotsJsonToCalendarOwnerAvailabilitySlots
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -113,10 +116,6 @@ namespace ObfusCal.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("GraphConsentGrantedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("GraphGrantedScopes")
-                        .HasMaxLength(2048)
-                        .HasColumnType("character varying(2048)");
-
                     b.Property<string>("GraphRefreshTokenProtected")
                         .HasMaxLength(8192)
                         .HasColumnType("character varying(8192)");
@@ -148,13 +147,6 @@ namespace ObfusCal.Infrastructure.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<bool>("WriteBackEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("WriteBackPlaceholderTitle")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
 
                     b.HasKey("Id");
 
