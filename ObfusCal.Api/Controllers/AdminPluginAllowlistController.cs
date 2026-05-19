@@ -31,7 +31,7 @@ public sealed class AdminPluginAllowlistController(
                 plugin.Id,
                 plugin.DisplayName,
                 plugin.IsExternalPlugin,
-                IsEnabled: hasOverride ? entry!.IsEnabled : true,
+                IsEnabled: !hasOverride || entry!.IsEnabled,
                 HasOverride: hasOverride,
                 OverrideUpdatedAtUtc: hasOverride ? entry!.UpdatedAtUtc : null);
         }).ToList();
