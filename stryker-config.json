@@ -1,6 +1,5 @@
 {
     "stryker-config": {
-        "solution": "ObfusCal.slnx",
         "test-projects": [
             "ObfusCal.Tests/ObfusCal.Tests.csproj"
         ],
@@ -22,8 +21,13 @@
         "reporters": [
             "Progress",
             "Html",
-            "Json"
+            "Json",
+            "dashboard"
         ],
+        "dashboard": {
+            "project": "github.com/InfSupStageMG/ObfusCal",
+            "version": "main"
+        },
         "thresholds": {
             "high": 80,
             "low": 75,

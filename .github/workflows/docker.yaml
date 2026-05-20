@@ -146,6 +146,41 @@ jobs:
                     docker rm -f obfuscal-ci-api obfuscal-ci-db || true
                     docker network rm obfuscal-ci || true
 
+    mutation-testing:
+        runs-on: ubuntu-latest
+        needs: [ test ]
+
+        steps:
+            -   name: Checkout repository
+                uses: actions/checkout@v6
+                with:
+                    fetch-depth: 0
+
+            -   name: Setup .NET
+                uses: actions/setup-dotnet@v5
+                with:
+                    global-json-file: global.json
+
+            -   name: Restore dependencies
+                run: dotnet restore
+
+            -   name: Build solution
+                run: dotnet build --no-restore --no-incremental
+
+            -   name: Install Stryker .NET tool
+                run: dotnet tool restore
+
+            -   name: Run Stryker mutation tests
+                env:
+                    STRYKER_DASHBOARD_API_KEY: ${{ secrets.STRYKER_DASHBOARD_API_KEY }}
+                run: |
+                    if [ "${{ github.event_name }}" = "pull_request" ]; then
+                      VERSION="${{ github.head_ref }}"
+                    else
+                      VERSION="${{ github.ref_name }}"
+                    fi
+                    dotnet stryker --version "$VERSION"
+
     build:
         runs-on: ubuntu-latest
         needs: [ test, container-smoke ]
