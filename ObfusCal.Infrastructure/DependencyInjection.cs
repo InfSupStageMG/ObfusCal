@@ -422,8 +422,10 @@ public static class DependencyInjection
         if (missing.Length == 0)
             return;
 
-        throw new InvalidOperationException(
-            $"Required plugins are missing from startup registration: {string.Join(", ", missing)}.");
+        Log.Warning(
+            "Default plugins were not discovered during startup registration: {MissingPluginIds}. " +
+            "Startup will continue because these plugins may be intentionally disabled or not deployed.",
+            string.Join(", ", missing));
     }
 
     private static string ResolveConfiguredCalendarProvider(string? configuredProvider, IHostEnvironment environment)
