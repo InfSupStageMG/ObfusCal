@@ -36,7 +36,7 @@ public partial class CalendarOwnerDetail
     private string? _sourceMessage;
     private MessageIntent _sourceMessageIntent = MessageIntent.Info;
     private Guid? _lastActionInstanceId;
-    private bool _canConfigureGraphWriteBack;
+    private bool _hasWriteBackCapableSource;
 
 
     private string? _profileMessage;

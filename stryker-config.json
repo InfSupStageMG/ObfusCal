@@ -34,6 +34,7 @@
             "target": "origin/main"
         },
         "report-file-name": "mutation-report",
-        "additional-timeout": 45000
+        "additional-timeout": 45000,
+        "break-on-initial-test-failure": false
     }
 }

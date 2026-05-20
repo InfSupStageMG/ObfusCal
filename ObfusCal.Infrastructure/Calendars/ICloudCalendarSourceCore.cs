@@ -17,7 +17,7 @@ using ObfusCal.Infrastructure.Persistence;
 
 namespace ObfusCal.Infrastructure.Calendars;
 
-public sealed class ICloudCalendarSourceCore(
+public sealed partial class ICloudCalendarSourceCore(
     HttpClient httpClient,
     AppDbContext dbContext,
     IDataProtectionProvider dataProtectionProvider,

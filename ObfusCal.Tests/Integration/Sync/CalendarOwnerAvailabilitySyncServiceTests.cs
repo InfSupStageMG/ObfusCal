@@ -510,6 +510,177 @@ public class CalendarOwnerAvailabilitySyncServiceTests
         Assert.AreEqual("/calendar/v3/calendars/primary/events", requests[0].Path);
     }
 
+    [TestMethod]
+    public async Task RunSyncForOwnerAsync_WithWriteBackEnabled_WritesManagedICloudPlaceholderUsingConfiguredTitle()
+    {
+        await using var dbContext = SyncIntegrationTestHelpers.CreateDbContext();
+        var ownerId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "iCloud owner",
+            WriteBackEnabled = true,
+            WriteBackPlaceholderTitle = "Niet beschikbaar",
+            ICloudCalendarUrl = "https://caldav.icloud.com/user/calendar/",
+            ICloudAppleIdProtected = "user@icloud.com",
+            ICloudAppSpecificPasswordProtected = "app-specific-pw"
+        });
+        await dbContext.SaveChangesAsync();
+
+        var shadowSlot = new BusySlot("peer-slot-1", now.AddMinutes(15), now.AddMinutes(75));
+        var putRequests = new List<(string Uri, string Body)>();
+        var emptyReportXml =
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+            "<d:multistatus xmlns:d=\"DAV:\" xmlns:cal=\"urn:ietf:params:xml:ns:caldav\"></d:multistatus>";
+
+        var source = CreateICloudSource(dbContext, async request =>
+        {
+            if (request.Method != HttpMethod.Put || request.Content is null)
+                return new HttpResponseMessage(HttpStatusCode.MultiStatus)
+                {
+                    Content = new StringContent(emptyReportXml, Encoding.UTF8, "application/xml")
+                };
+            var body = await request.Content.ReadAsStringAsync();
+            putRequests.Add((request.RequestUri!.ToString(), body));
+            return new HttpResponseMessage(HttpStatusCode.Created);
+
+        });
+
+        var service = CreateService(dbContext, source, new CapturingLogger<CalendarOwnerAvailabilitySyncService>(),
+            new StubShadowSlotStore([shadowSlot]));
+
+        await service.RunSyncForOwnerAsync(ownerId);
+
+        Assert.HasCount(1, putRequests);
+        Assert.Contains("X-OBFUSCAL-MANAGED:TRUE", putRequests[0].Body);
+        Assert.Contains("SUMMARY:Niet beschikbaar", putRequests[0].Body);
+    }
+
+    [TestMethod]
+    public async Task RunSyncForOwnerAsync_WithWriteBackEnabled_DeletesStaleManagedICloudPlaceholder()
+    {
+        await using var dbContext = SyncIntegrationTestHelpers.CreateDbContext();
+        var ownerId = Guid.NewGuid();
+        var staleStart = DateTimeOffset.UtcNow.AddMinutes(30);
+        var staleSlotId = "stale-icloud-slot";
+        var staleUid = ICloudCalendarSourceCore.GetManagedEventUid(staleSlotId);
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "iCloud owner",
+            WriteBackEnabled = true,
+            ICloudCalendarUrl = "https://caldav.icloud.com/user/calendar/",
+            ICloudAppleIdProtected = "user@icloud.com",
+            ICloudAppSpecificPasswordProtected = "app-specific-pw"
+        });
+        await dbContext.SaveChangesAsync();
+
+        var staleIcs =
+            "BEGIN:VCALENDAR\r\nVERSION:2.0\r\n" +
+            "BEGIN:VEVENT\r\n" +
+            $"UID:{staleUid}\r\n" +
+            "SUMMARY:Old Busy\r\n" +
+            $"DTSTART:{staleStart.UtcDateTime:yyyyMMdd'T'HHmmss'Z'}\r\n" +
+            $"DTEND:{staleStart.AddHours(1).UtcDateTime:yyyyMMdd'T'HHmmss'Z'}\r\n" +
+            "X-OBFUSCAL-MANAGED:TRUE\r\n" +
+            $"X-OBFUSCAL-SLOT-ID:{staleSlotId}\r\n" +
+            "END:VEVENT\r\n" +
+            "END:VCALENDAR";
+
+        var reportXml =
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+            "<d:multistatus xmlns:d=\"DAV:\" xmlns:cal=\"urn:ietf:params:xml:ns:caldav\">" +
+            $"<d:response><d:href>/user/calendar/{staleUid}.ics</d:href>" +
+            "<d:propstat><d:prop>" +
+            $"<cal:calendar-data>{staleIcs}</cal:calendar-data>" +
+            "</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>" +
+            "</d:multistatus>";
+
+        var deleteUris = new List<string>();
+        var source = CreateICloudSource(dbContext, request =>
+        {
+            if (request.Method != HttpMethod.Delete)
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.MultiStatus)
+                {
+                    Content = new StringContent(reportXml, Encoding.UTF8, "application/xml")
+                });
+            deleteUris.Add(request.RequestUri!.ToString());
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
+
+        });
+
+        var service = CreateService(dbContext, source, new CapturingLogger<CalendarOwnerAvailabilitySyncService>(),
+            new StubShadowSlotStore([]));
+
+        await service.RunSyncForOwnerAsync(ownerId);
+
+        Assert.HasCount(1, deleteUris);
+        Assert.Contains(staleUid, deleteUris[0]);
+    }
+
+    [TestMethod]
+    public async Task RunSyncForOwnerAsync_WithWriteBackDisabled_DoesNotInvokeICloudWriteBack()
+    {
+        await using var dbContext = SyncIntegrationTestHelpers.CreateDbContext();
+        var ownerId = Guid.NewGuid();
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "iCloud owner",
+            WriteBackEnabled = false,
+            ICloudCalendarUrl = "https://caldav.icloud.com/user/calendar/",
+            ICloudAppleIdProtected = "user@icloud.com",
+            ICloudAppSpecificPasswordProtected = "app-specific-pw"
+        });
+        await dbContext.SaveChangesAsync();
+
+        var requestMethods = new List<HttpMethod>();
+        var emptyReportXml =
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+            "<d:multistatus xmlns:d=\"DAV:\" xmlns:cal=\"urn:ietf:params:xml:ns:caldav\"></d:multistatus>";
+
+        var source = CreateICloudSource(dbContext, request =>
+        {
+            requestMethods.Add(request.Method);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.MultiStatus)
+            {
+                Content = new StringContent(emptyReportXml, Encoding.UTF8, "application/xml")
+            });
+        });
+
+        var service = CreateService(dbContext, source, new CapturingLogger<CalendarOwnerAvailabilitySyncService>(),
+            new StubShadowSlotStore([new BusySlot("peer-slot-1", DateTimeOffset.UtcNow.AddMinutes(10), DateTimeOffset.UtcNow.AddMinutes(40))]));
+
+        await service.RunSyncForOwnerAsync(ownerId);
+
+        Assert.DoesNotContain(HttpMethod.Put, requestMethods, "PUT must not be issued when write-back is disabled.");
+        Assert.DoesNotContain(HttpMethod.Delete, requestMethods, "DELETE must not be issued when write-back is disabled.");
+    }
+
+    private static ICalendarSource CreateICloudSource(
+        AppDbContext dbContext,
+        Func<HttpRequestMessage, Task<HttpResponseMessage>> handler)
+    {
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var secretProtector = new CalendarSourceSecretProtector(dataProtectionProvider);
+        var messageHandler = new DelegatingHttpMessageHandler(handler);
+        var httpClient = new HttpClient(messageHandler, disposeHandler: true);
+
+        var core = new ICloudCalendarSourceCore(
+            httpClient,
+            dbContext,
+            dataProtectionProvider,
+            secretProtector,
+            Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 }),
+            NullLogger<ICloudCalendarSourceCore>.Instance);
+
+        return new PerCallICloudCalendarSource(core);
+    }
+
     private static CalendarOwnerAvailabilitySyncService CreateService(
         AppDbContext dbContext,
         ICalendarSource calendarSource,
@@ -783,5 +954,25 @@ public class CalendarOwnerAvailabilitySyncServiceTests
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             => handler(request);
+    }
+
+    private sealed class PerCallICloudCalendarSource(ICloudCalendarSourceCore core)
+        : ICalendarSource, ICalendarWriteBack
+    {
+        public Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(
+            DateTimeOffset from,
+            DateTimeOffset to,
+            Guid? calendarOwnerId = null,
+            CancellationToken ct = default)
+            => core.GetEventsAsync(from, to, calendarOwnerId, ct);
+
+        public Task WriteBackSlotsAsync(
+            Guid calendarOwnerId,
+            IReadOnlyList<BusySlot> busySlots,
+            string placeholderTitle,
+            DateTimeOffset windowStart,
+            DateTimeOffset windowEnd,
+            CancellationToken ct = default)
+            => core.WriteBackSlotsAsync(calendarOwnerId, busySlots, placeholderTitle, windowStart, windowEnd, ct);
     }
 }

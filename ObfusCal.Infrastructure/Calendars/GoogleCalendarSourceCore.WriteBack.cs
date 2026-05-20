@@ -102,9 +102,25 @@ public sealed partial class GoogleCalendarSourceCore
             windowEnd,
             ct);
 
-        return managedEvents
-            .Where(e => e.GoogleId is not null && e.SlotId is not null)
-            .ToDictionary(e => e.SlotId!, e => e, StringComparer.Ordinal);
+        var bySlotId = new Dictionary<string, ManagedGoogleEventRecord>(StringComparer.Ordinal);
+        var duplicates = managedEvents.Where(e => e.GoogleId is not null && e.SlotId is not null)
+            .Where(e => !bySlotId.TryAdd(e.SlotId!, e)).ToList();
+        foreach (var e in duplicates)
+        {
+            logger.LogWarning(
+                "Duplicate managed Google event found for SlotId {SlotId} in calendar source instance {CalendarSourceInstanceId}; removing the extra copy.",
+                e.SlotId,
+                instance.Id);
+            await DeleteEventAsync(
+                instance,
+                queryContext.CalendarId,
+                queryContext.SecretData,
+                queryContext.AccessToken,
+                e.GoogleId!,
+                ct);
+        }
+
+        return bySlotId;
     }
 
     private async Task UpsertPlaceholderEventsAsync(
@@ -214,7 +230,7 @@ public sealed partial class GoogleCalendarSourceCore
                 return [];
 
             var payload = await response.Content.ReadFromJsonAsync<GoogleCalendarEventsResponse>(JsonOptions, ct)
-                ?? new GoogleCalendarEventsResponse(null, []);
+                          ?? new GoogleCalendarEventsResponse(null, []);
 
             events.AddRange(payload.Items
                 .Select(item =>
@@ -247,7 +263,8 @@ public sealed partial class GoogleCalendarSourceCore
             instance,
             secretData,
             accessToken,
-            token => CreateGoogleWriteRequest(HttpMethod.Post, token, calendarId, null, slot, placeholderTitle, includeSlotMetadata: true),
+            token => CreateGoogleWriteRequest(HttpMethod.Post, token, calendarId, null, slot, placeholderTitle,
+                includeSlotMetadata: true),
             ct);
 
         if (response.IsSuccessStatusCode)
@@ -274,7 +291,8 @@ public sealed partial class GoogleCalendarSourceCore
             instance,
             secretData,
             accessToken,
-            token => CreateGoogleWriteRequest(new HttpMethod("PATCH"), token, calendarId, googleEventId, slot, placeholderTitle, includeSlotMetadata: false),
+            token => CreateGoogleWriteRequest(new HttpMethod("PATCH"), token, calendarId, googleEventId, slot,
+                placeholderTitle, includeSlotMetadata: false),
             ct);
 
         if (response.IsSuccessStatusCode)
@@ -394,5 +412,3 @@ public sealed partial class GoogleCalendarSourceCore
         return request;
     }
 }
-
-
