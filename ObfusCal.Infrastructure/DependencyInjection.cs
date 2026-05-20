@@ -1,5 +1,6 @@
 ﻿using System.Runtime.Loader;
 using System.Security.Cryptography.X509Certificates;
+using System.Reflection;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
@@ -21,6 +22,12 @@ namespace ObfusCal.Infrastructure;
 
 public static class DependencyInjection
 {
+    private static readonly string[] RequiredDefaultPluginIds = ["graph", "ical", "mock", "google", "icloud"];
+    private static readonly string[] OfficialPluginAssemblyNames = [
+        "ObfusCal.Plugins.GoogleCalendar",
+        "ObfusCal.Plugins.ICloudCalendar"
+    ];
+
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
         IConfiguration config)
@@ -245,6 +252,7 @@ public static class DependencyInjection
     {
         var allowlist = config.GetSection(PluginAllowlistOptions.SectionName).Get<PluginAllowlistOptions>()
                         ?? new PluginAllowlistOptions();
+        EnsureDefaultPluginIds(allowlist);
 
         var cache = new PluginAllowlistCache();
         services.AddSingleton(cache);
@@ -254,6 +262,7 @@ public static class DependencyInjection
             includeExternalPlugins: true,
             allowlist: allowlist,
             logger: Log.Logger.ForContext<CalendarSourcePluginCatalog>() as ILogger);
+        EnsureRequiredPluginsDiscovered(discovered);
 
         var catalog = new CalendarSourcePluginCatalog(discovered, cache);
         services.AddSingleton<ICalendarSourceCatalog>(catalog);
@@ -292,14 +301,74 @@ public static class DependencyInjection
 
     private static void LoadPluginAssemblies()
     {
-        // Load plugin assemblies from the plugins/ directory alongside the executable.
-        var pluginFolder = Path.Combine(AppContext.BaseDirectory, "plugins");
-        if (!Directory.Exists(pluginFolder))
-            return;
+        // Prefer dependency-context loading for official plugins, then fall back to plugins/ folder probing.
+        LoadOfficialPluginsFromDependencyContext();
 
-        foreach (var dll in Directory.GetFiles(pluginFolder, "*.dll"))
+        foreach (var pluginFolder in GetPluginFolders())
         {
-            LoadPluginAssembly(dll);
+            var dllFiles = Directory.GetFiles(pluginFolder, "*.dll");
+            if (dllFiles.Length == 0)
+                continue;
+
+            Log.ForContext("PluginFolder", pluginFolder)
+                .ForContext("DllCount", dllFiles.Length)
+                .Information("Loading plugin assemblies from folder");
+
+            foreach (var dll in dllFiles)
+                LoadPluginAssembly(dll);
+        }
+
+        EnsureOfficialPluginAssembliesLoaded();
+    }
+
+    private static IEnumerable<string> GetPluginFolders()
+    {
+        var candidateFolders = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "plugins"),
+            Path.Combine(Directory.GetCurrentDirectory(), "plugins")
+        };
+
+        foreach (var folder in candidateFolders
+                     .Select(Path.GetFullPath)
+                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (Directory.Exists(folder))
+                yield return folder;
+        }
+    }
+
+    private static void LoadOfficialPluginsFromDependencyContext()
+    {
+        foreach (var assemblyName in OfficialPluginAssemblyNames)
+        {
+            if (IsAssemblyLoaded(assemblyName))
+                continue;
+
+            try
+            {
+                AssemblyLoadContext.Default.LoadFromAssemblyName(new AssemblyName(assemblyName));
+                Log.ForContext("AssemblyName", assemblyName)
+                    .Information("Loaded official plugin assembly via dependency context");
+            }
+            catch (Exception ex)
+            {
+                Log.ForContext("AssemblyName", assemblyName)
+                    .Debug(ex, "Official plugin assembly not resolved from dependency context; folder probing will continue");
+            }
+        }
+    }
+
+    private static void EnsureOfficialPluginAssembliesLoaded()
+    {
+        foreach (var assemblyName in OfficialPluginAssemblyNames)
+        {
+            if (IsAssemblyLoaded(assemblyName))
+                continue;
+
+            throw new InvalidOperationException(
+                $"Official plugin assembly '{assemblyName}' is not loaded. " +
+                "Google and iCloud plugins must be available at startup.");
         }
     }
 
@@ -307,16 +376,56 @@ public static class DependencyInjection
     {
         try
         {
+            var assemblyName = Path.GetFileNameWithoutExtension(dll);
+            if (IsAssemblyLoaded(assemblyName))
+                return;
+
             AssemblyLoadContext.Default.LoadFromAssemblyPath(dll);
 
-            Log.ForContext("PluginAssemblyPath", dll)
-                .Information("Loaded plugin assembly");
+            Log.ForContext("AssemblyName", assemblyName)
+                .ForContext("PluginAssemblyPath", dll)
+                .Information("Successfully loaded plugin assembly");
         }
         catch (Exception ex)
         {
             Log.ForContext("PluginAssemblyPath", dll)
                 .Error(ex, "Failed to load plugin assembly");
         }
+    }
+
+    private static bool IsAssemblyLoaded(string assemblyName) =>
+        AppDomain.CurrentDomain.GetAssemblies().Any(a =>
+            string.Equals(a.GetName().Name, assemblyName, StringComparison.OrdinalIgnoreCase));
+
+    private static void EnsureDefaultPluginIds(PluginAllowlistOptions allowlist)
+    {
+        if (!allowlist.Enabled)
+            return;
+
+        foreach (var requiredPluginId in RequiredDefaultPluginIds)
+        {
+            if (allowlist.AllowedPluginIds.Any(id =>
+                    string.Equals(id?.Trim(), requiredPluginId, StringComparison.OrdinalIgnoreCase)))
+                continue;
+
+            allowlist.AllowedPluginIds.Add(requiredPluginId);
+        }
+    }
+
+    private static void EnsureRequiredPluginsDiscovered(IReadOnlyList<CalendarSourcePluginDescriptor> discovered)
+    {
+        var discoveredIds = discovered.Select(plugin => plugin.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var missing = RequiredDefaultPluginIds
+            .Where(requiredId => !discoveredIds.Contains(requiredId))
+            .ToArray();
+
+        if (missing.Length == 0)
+            return;
+
+        throw new InvalidOperationException(
+            $"Required plugins are missing from startup registration: {string.Join(", ", missing)}.");
     }
 
     private static string ResolveConfiguredCalendarProvider(string? configuredProvider, IHostEnvironment environment)
