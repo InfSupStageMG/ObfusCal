@@ -401,12 +401,11 @@ public static class DependencyInjection
         if (!allowlist.Enabled)
             return;
 
+        if (allowlist.AllowedPluginIds.Count > 0)
+            return;
+
         foreach (var requiredPluginId in RequiredDefaultPluginIds)
         {
-            if (allowlist.AllowedPluginIds.Any(id =>
-                    string.Equals(id?.Trim(), requiredPluginId, StringComparison.OrdinalIgnoreCase)))
-                continue;
-
             allowlist.AllowedPluginIds.Add(requiredPluginId);
         }
     }
