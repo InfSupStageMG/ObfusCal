@@ -1,0 +1,2759 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Privacy-first, cross-domain calendar synchronization.">
+      
+      
+      
+        <link rel="canonical" href="https://infsupstagemg.github.io/ObfusCal/clean-architecture/">
+      
+      
+        <link rel="prev" href="../test-catalog/">
+      
+      
+        <link rel="next" href="../sbom/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Clean Architecture Guide - ObfusCal Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#clean-architecture-project-structure-rules" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="ObfusCal Documentation" class="md-header__button md-logo" aria-label="ObfusCal Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ObfusCal Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Clean Architecture Guide
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/InfSupStageMG/ObfusCal" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="ObfusCal Documentation" class="md-nav__button md-logo" aria-label="ObfusCal Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ObfusCal Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/InfSupStageMG/ObfusCal" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-introduction-goals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Introduction & Goals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-architecture-constraints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Architecture Constraints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-context-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Context & Scope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-solution-strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Solution Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-building-block-view/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Building Block View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-runtime-view/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. Runtime View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07-deployment-view/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Deployment View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08-cross-cutting-concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Cross-cutting Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_9" id="__nav_2_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    9. Architectural Decisions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    9. Architectural Decisions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0001-federated-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0001: Federated Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0002-language-selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0002: Language Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0003-deployment-docker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0003: Deployment - Docker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0004-cicd-github-actions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0004: CI/CD - GitHub Actions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0005-calendar-libraries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0005: Calendar Libraries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0006-plugin-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0006: Plugin Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0007-testing-framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0007: Testing Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0008-project-structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0008: Project Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0009-blazor-server-gui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0009: Blazor Server GUI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0010-fluentui-blazor-component-library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0010: Fluent UI Component Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0011-input-validation-strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0011: Input Validation Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0012-test-reporting-strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0012: CI/CD Test Reporting Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/9999-adr-template/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR Template
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10-quality-requirements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    10. Quality Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../11-risks-technical-debt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    11. Risks & Technical Debt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../12-glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    12. Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides & References
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides & References
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../test-catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clean Architecture Guide
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clean Architecture Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project Layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-domain-obfuscaldomain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Domain - ObfusCal.Domain
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Domain - ObfusCal.Domain">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#allowed-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allowed contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#folder-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Folder structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-application-obfuscalapplication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Application - ObfusCal.Application
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Application - ObfusCal.Application">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rules_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#allowed-contents_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allowed contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#forbidden-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forbidden contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#folder-structure_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Folder structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-patterns_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-infrastructure-obfuscalinfrastructure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Infrastructure - ObfusCal.Infrastructure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Infrastructure - ObfusCal.Infrastructure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rules_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#allowed-contents_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allowed contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#forbidden-contents_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forbidden contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#folder-structure_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Folder structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-patterns_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-presentation-obfuscalapi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Presentation - ObfusCal.Api
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Presentation - ObfusCal.Api">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rules_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#allowed-contents_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allowed contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#forbidden-contents_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forbidden contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#folder-structure_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Folder structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-patterns_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependency-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependency Graph
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cross-cutting-concerns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-Cutting Concerns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cross-Cutting Concerns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#domain-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Domain Events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Strategy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#nuget-package-ownership-by-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NuGet Package Ownership by Layer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rules-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sbom/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SBOM (Software Bill of Materials)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../icloud-caldav-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iCloud CalDAV Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#project-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Project Layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-domain-obfuscaldomain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Domain - ObfusCal.Domain
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Domain - ObfusCal.Domain">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#allowed-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allowed contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#folder-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Folder structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-application-obfuscalapplication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Application - ObfusCal.Application
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Application - ObfusCal.Application">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rules_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#allowed-contents_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allowed contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#forbidden-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forbidden contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#folder-structure_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Folder structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-patterns_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-infrastructure-obfuscalinfrastructure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Infrastructure - ObfusCal.Infrastructure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Infrastructure - ObfusCal.Infrastructure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rules_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#allowed-contents_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allowed contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#forbidden-contents_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forbidden contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#folder-structure_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Folder structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-patterns_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-presentation-obfuscalapi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Presentation - ObfusCal.Api
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Presentation - ObfusCal.Api">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rules_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#allowed-contents_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allowed contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#forbidden-contents_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forbidden contents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#folder-structure_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Folder structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-patterns_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dependency-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dependency Graph
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cross-cutting-concerns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-Cutting Concerns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cross-Cutting Concerns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#domain-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Domain Events
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#transactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Transactions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#testing-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Strategy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#nuget-package-ownership-by-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NuGet Package Ownership by Layer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rules-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="clean-architecture-project-structure-rules">Clean Architecture - Project Structure &amp; Rules</h1>
+<p>This document defines the architectural conventions for this codebase. It is intended for both human developers and AI
+assistants working on the project. All contributions must adhere to these rules.</p>
+<blockquote>
+<p>This is a <strong>target architecture guide</strong> for ObfusCal. Some examples describe the desired end state, not the current
+implementation.</p>
+</blockquote>
+<hr />
+<h2 id="overview">Overview</h2>
+<p>This project follows <strong>Clean Architecture</strong> as described by Robert C. Martin. The core principle is the <strong>Dependency
+Rule</strong>:</p>
+<blockquote>
+<p>Source code dependencies may only point <strong>inward</strong>. An inner layer must never reference anything from an outer layer.</p>
+</blockquote>
+<p>The architecture is divided into four layers, each with a strict and well-defined responsibility:</p>
+<div class="highlight"><pre><span></span><code>        ┌─────────────────────────────────┐
+        │         Infrastructure          │  ← Outer layer: frameworks, DB, external APIs
+        │   ┌─────────────────────────┐   │
+        │   │       Application       │   │  ← Use cases, business orchestration
+        │   │   ┌─────────────────┐   │   │
+        │   │   │      Domain     │   │   │  ← Core business rules, always framework-free
+        │   │   └─────────────────┘   │   │
+        │   └─────────────────────────┘   │
+        └─────────────────────────────────┘
+                         ▲
+                         │
+                    Presentation          ← API controllers/endpoints
+</code></pre></div>
+<hr />
+<h2 id="project-layout">Project Layout</h2>
+<p>Target structure:</p>
+<div class="highlight"><pre><span></span><code>src/
+├── ObfusCal.Domain/
+├── ObfusCal.Application/
+├── ObfusCal.Infrastructure/
+└── ObfusCal.Api/
+
+tests/
+├── ObfusCal.Domain.Tests/
+├── ObfusCal.Application.Tests/
+└── ObfusCal.Integration.Tests/
+</code></pre></div>
+<p>Current repository projects are <code>ObfusCal.Domain</code>, <code>ObfusCal.Application</code>, <code>ObfusCal.Infrastructure</code>, <code>ObfusCal.Api</code>,
+<code>ObfusCal.Plugins.GoogleCalendar</code>, <code>ObfusCal.Plugins.ICloudCalendar</code>, and <code>ObfusCal.Tests</code>.</p>
+<hr />
+<h2 id="layer-reference">Layer Reference</h2>
+<h3 id="1-domain-obfuscaldomain">1. Domain - <code>ObfusCal.Domain</code></h3>
+<p><strong>The innermost layer. Contains all enterprise business rules.</strong></p>
+<h4 id="rules">Rules</h4>
+<ul>
+<li>Has <strong>zero external NuGet dependencies</strong>. Only the .NET BCL is allowed.</li>
+<li>Contains no references to any other project in the solution.</li>
+<li>All business logic that is intrinsic to the domain (invariants, rules, state transitions) lives here and nowhere else.</li>
+<li>Never references EF Core, ASP.NET, or any framework.</li>
+</ul>
+<h4 id="allowed-contents">Allowed contents</h4>
+<ul>
+<li><strong>Entities / aggregates</strong> - e.g., <code>CalendarOwner</code>, <code>SyncPeer</code>, <code>ShadowSlotBatch</code>.</li>
+<li><strong>Value objects</strong> - e.g., <code>BusyWindow</code>, <code>CalendarOwnerId</code>, <code>PeerId</code>.</li>
+<li><strong>Domain events</strong> - e.g., <code>BusySlotsObfuscatedEvent</code>, <code>ShadowSlotsPushedEvent</code>.</li>
+<li><strong>Domain errors</strong> - typed constants like <code>CalendarOwnerErrors.InvalidRange</code>.</li>
+<li><strong>Common base types</strong> - <code>Entity&lt;TId&gt;</code>, <code>AggregateRoot&lt;TId&gt;</code>, <code>ValueObject</code>, <code>DomainEvent</code>, <code>Result&lt;T&gt;</code>, <code>Error</code>.</li>
+</ul>
+<h4 id="folder-structure">Folder structure</h4>
+<div class="highlight"><pre><span></span><code>ObfusCal.Domain/
+├── Common/
+│   ├── Entity.cs
+│   ├── AggregateRoot.cs
+│   ├── ValueObject.cs
+│   ├── DomainEvent.cs
+│   └── Result.cs
+├── CalendarOwners/
+│   ├── CalendarOwner.cs
+│   ├── CalendarOwnerId.cs
+│   ├── CalendarOwnerErrors.cs
+│   └── Events/
+│       └── BusySlotsObfuscatedEvent.cs
+├── BusySlots/
+│   ├── BusyWindow.cs
+│   ├── ObfuscationPolicy.cs
+│   └── BusySlotErrors.cs
+└── Sync/
+    ├── SyncPeer.cs
+    ├── PeerId.cs
+    └── ShadowSlotBatch.cs
+</code></pre></div>
+<h4 id="key-patterns">Key patterns</h4>
+<p><strong>Aggregate roots protect invariants and return <code>Result&lt;T&gt;</code> for business failures:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">public</span><span class="w"> </span><span class="k">sealed</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">CalendarOwner</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">AggregateRoot</span><span class="o">&lt;</span><span class="n">CalendarOwnerId</span><span class="o">&gt;</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">private</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">List</span><span class="o">&lt;</span><span class="n">BusyWindow</span><span class="o">&gt;</span><span class="w"> </span><span class="n">_shadowSlots</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="p">();</span>
+
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="n">Result</span><span class="w"> </span><span class="nf">AddShadowSlots</span><span class="p">(</span><span class="n">PeerId</span><span class="w"> </span><span class="n">peerId</span><span class="p">,</span><span class="w"> </span><span class="n">IEnumerable</span><span class="o">&lt;</span><span class="n">BusyWindow</span><span class="o">&gt;</span><span class="w"> </span><span class="n">slots</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">slots</span><span class="p">.</span><span class="n">Any</span><span class="p">(</span><span class="n">s</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">End</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">Start</span><span class="p">))</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">Result</span><span class="p">.</span><span class="n">Failure</span><span class="p">(</span><span class="n">CalendarOwnerErrors</span><span class="p">.</span><span class="n">InvalidBusyWindow</span><span class="p">);</span>
+
+<span class="w">        </span><span class="n">_shadowSlots</span><span class="p">.</span><span class="n">AddRange</span><span class="p">(</span><span class="n">slots</span><span class="p">);</span>
+<span class="w">        </span><span class="n">RaiseDomainEvent</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">ShadowSlotsPushedEvent</span><span class="p">(</span><span class="n">Id</span><span class="p">,</span><span class="w"> </span><span class="n">peerId</span><span class="p">,</span><span class="w"> </span><span class="n">slots</span><span class="p">.</span><span class="n">Count</span><span class="p">()));</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">Result</span><span class="p">.</span><span class="n">Success</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>Domain errors are typed constants, never raw strings:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">CalendarOwnerErrors</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">Error</span><span class="w"> </span><span class="n">InvalidBusyWindow</span><span class="w"> </span><span class="o">=</span>
+<span class="w">        </span><span class="k">new</span><span class="p">(</span><span class="s">&quot;CalendarOwner.InvalidBusyWindow&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Busy slot end must be after start.&quot;</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">readonly</span><span class="w"> </span><span class="n">Error</span><span class="w"> </span><span class="n">UnknownPeer</span><span class="w"> </span><span class="o">=</span>
+<span class="w">        </span><span class="k">new</span><span class="p">(</span><span class="s">&quot;CalendarOwner.UnknownPeer&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;The pushing peer is not known for this owner.&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr />
+<h3 id="2-application-obfuscalapplication">2. Application - <code>ObfusCal.Application</code></h3>
+<p><strong>Orchestrates domain objects to fulfill use cases. Contains no business logic of its own.</strong></p>
+<h4 id="rules_1">Rules</h4>
+<ul>
+<li>References only <code>ObfusCal.Domain</code>. Never references <code>Infrastructure</code> or <code>Api</code>.</li>
+<li>Defines <strong>interfaces</strong> for external dependencies (calendar providers, storage, clock, peer directory).</li>
+<li>Organizes use cases using <strong>CQRS</strong>: commands mutate state, queries read state.</li>
+<li>Contains pipeline behaviors for validation/logging/transactions.</li>
+<li>Uses explicit hand-written mappings (no AutoMapper).</li>
+</ul>
+<h4 id="allowed-contents_1">Allowed contents</h4>
+<ul>
+<li><strong>Commands and command handlers</strong> - e.g., push incoming shadow slots.</li>
+<li><strong>Queries and query handlers</strong> - e.g., get merged free/busy view.</li>
+<li><strong>Validators</strong> - one per command/query.</li>
+<li><strong>Response DTOs</strong> returned to presentation.</li>
+<li><strong>Repository and service interfaces</strong> - e.g., <code>IShadowSlotStore</code>, <code>ICalendarSource</code>.</li>
+<li><strong>Pipeline behaviors</strong> - <code>ValidationBehavior</code>, <code>LoggingBehavior</code>, <code>TransactionBehavior</code>.</li>
+<li><strong>Domain event handlers</strong>.</li>
+</ul>
+<h4 id="forbidden-contents">Forbidden contents</h4>
+<ul>
+<li>EF Core, SQL, or persistence implementation details.</li>
+<li>Direct HTTP clients or SDK usage.</li>
+<li>References to <code>Infrastructure</code> or <code>Api</code> projects.</li>
+</ul>
+<h4 id="folder-structure_1">Folder structure</h4>
+<div class="highlight"><pre><span></span><code>ObfusCal.Application/
+├── Common/
+│   ├── Abstractions/
+│   │   ├── ICommand.cs
+│   │   ├── IQuery.cs
+│   │   ├── ICommandHandler.cs
+│   │   ├── IQueryHandler.cs
+│   │   └── IUnitOfWork.cs
+│   ├── Behaviors/
+│   │   ├── ValidationBehavior.cs
+│   │   ├── LoggingBehavior.cs
+│   │   └── TransactionBehavior.cs
+│   └── Exceptions/
+│       └── ValidationException.cs
+├── CalendarOwners/
+│   ├── Abstractions/
+│   │   └── ICalendarOwnerRepository.cs
+│   ├── Queries/
+│   │   ├── GetBusySlots/
+│   │   │   ├── GetBusySlotsQuery.cs
+│   │   │   ├── GetBusySlotsHandler.cs
+│   │   │   └── BusySlotResponse.cs
+│   │   └── GetMergedFreeBusy/
+│   │       ├── GetMergedFreeBusyQuery.cs
+│   │       ├── GetMergedFreeBusyHandler.cs
+│   │       └── MergedFreeBusyResponse.cs
+├── ShadowSlots/
+│   ├── Abstractions/
+│   │   └── IShadowSlotStore.cs
+│   └── Commands/
+│       └── PushShadowSlots/
+│           ├── PushShadowSlotsCommand.cs
+│           ├── PushShadowSlotsHandler.cs
+│           └── PushShadowSlotsValidator.cs
+└── Obfuscation/
+    ├── Abstractions/
+    │   └── IObfuscationService.cs
+    └── EventHandlers/
+        └── BusySlotsObfuscatedEventHandler.cs
+</code></pre></div>
+<h4 id="key-patterns_1">Key patterns</h4>
+<p><strong>Commands and queries use marker interfaces for pipeline behavior targeting:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">public</span><span class="w"> </span><span class="k">interface</span><span class="w"> </span><span class="n">ICommand</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IRequest</span><span class="o">&lt;</span><span class="n">Result</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="k">public</span><span class="w"> </span><span class="k">interface</span><span class="w"> </span><span class="n">ICommand</span><span class="o">&lt;</span><span class="n">TResponse</span><span class="o">&gt;</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IRequest</span><span class="o">&lt;</span><span class="n">Result</span><span class="o">&lt;</span><span class="n">TResponse</span><span class="o">&gt;&gt;</span><span class="p">;</span>
+<span class="k">public</span><span class="w"> </span><span class="k">interface</span><span class="w"> </span><span class="n">IQuery</span><span class="o">&lt;</span><span class="n">TResponse</span><span class="o">&gt;</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IRequest</span><span class="o">&lt;</span><span class="n">Result</span><span class="o">&lt;</span><span class="n">TResponse</span><span class="o">&gt;&gt;</span><span class="p">;</span>
+</code></pre></div>
+<p><strong>Handlers depend only on abstractions and orchestrate use cases:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">internal</span><span class="w"> </span><span class="k">sealed</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nf">GetMergedFreeBusyHandler</span><span class="p">(</span>
+<span class="w">    </span><span class="n">ICalendarSource</span><span class="w"> </span><span class="n">calendarSource</span><span class="p">,</span>
+<span class="w">    </span><span class="n">IObfuscationService</span><span class="w"> </span><span class="n">obfuscationService</span><span class="p">,</span>
+<span class="w">    </span><span class="n">IShadowSlotStore</span><span class="w"> </span><span class="n">shadowSlotStore</span><span class="p">)</span>
+<span class="w">    </span><span class="p">:</span><span class="w"> </span><span class="n">IQueryHandler</span><span class="o">&lt;</span><span class="n">GetMergedFreeBusyQuery</span><span class="p">,</span><span class="w"> </span><span class="n">IReadOnlyList</span><span class="o">&lt;</span><span class="n">BusySlotResponse</span><span class="o">&gt;&gt;</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="n">Task</span><span class="o">&lt;</span><span class="n">Result</span><span class="o">&lt;</span><span class="n">IReadOnlyList</span><span class="o">&lt;</span><span class="n">BusySlotResponse</span><span class="o">&gt;&gt;&gt;</span><span class="w"> </span><span class="n">Handle</span><span class="p">(</span><span class="n">GetMergedFreeBusyQuery</span><span class="w"> </span><span class="n">query</span><span class="p">,</span><span class="w"> </span><span class="n">CancellationToken</span><span class="w"> </span><span class="n">ct</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">var</span><span class="w"> </span><span class="n">events</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="n">calendarSource</span><span class="p">.</span><span class="n">GetEventsAsync</span><span class="p">(</span><span class="n">query</span><span class="p">.</span><span class="n">From</span><span class="p">,</span><span class="w"> </span><span class="n">query</span><span class="p">.</span><span class="n">To</span><span class="p">,</span><span class="w"> </span><span class="n">ct</span><span class="p">);</span>
+<span class="w">        </span><span class="kt">var</span><span class="w"> </span><span class="n">ownSlots</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">obfuscationService</span><span class="p">.</span><span class="n">Obfuscate</span><span class="p">(</span><span class="n">events</span><span class="p">);</span>
+<span class="w">        </span><span class="kt">var</span><span class="w"> </span><span class="n">shadowSlots</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="n">shadowSlotStore</span><span class="p">.</span><span class="n">GetAllSlotsAsync</span><span class="p">(</span><span class="n">query</span><span class="p">.</span><span class="n">From</span><span class="p">,</span><span class="w"> </span><span class="n">query</span><span class="p">.</span><span class="n">To</span><span class="p">,</span><span class="w"> </span><span class="n">ct</span><span class="p">);</span>
+
+<span class="w">        </span><span class="kt">var</span><span class="w"> </span><span class="n">merged</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ownSlots</span>
+<span class="w">            </span><span class="p">.</span><span class="n">Concat</span><span class="p">(</span><span class="n">shadowSlots</span><span class="p">)</span>
+<span class="w">            </span><span class="p">.</span><span class="n">OrderBy</span><span class="p">(</span><span class="n">s</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">Start</span><span class="p">)</span>
+<span class="w">            </span><span class="p">.</span><span class="n">Select</span><span class="p">(</span><span class="n">s</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">BusySlotResponse</span><span class="p">(</span><span class="n">s</span><span class="p">.</span><span class="n">Start</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">End</span><span class="p">))</span>
+<span class="w">            </span><span class="p">.</span><span class="n">ToList</span><span class="p">();</span>
+
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">Result</span><span class="o">&lt;</span><span class="n">IReadOnlyList</span><span class="o">&lt;</span><span class="n">BusySlotResponse</span><span class="o">&gt;&gt;</span><span class="p">.</span><span class="n">Success</span><span class="p">(</span><span class="n">merged</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>Interfaces belong to Application, implementation belongs to Infrastructure:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="c1">// ObfusCal.Application/ShadowSlots/Abstractions/IShadowSlotStore.cs</span>
+<span class="k">public</span><span class="w"> </span><span class="k">interface</span><span class="w"> </span><span class="n">IShadowSlotStore</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="n">Task</span><span class="w"> </span><span class="nf">SetSlotsAsync</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">peerId</span><span class="p">,</span><span class="w"> </span><span class="n">IReadOnlyList</span><span class="o">&lt;</span><span class="n">BusySlot</span><span class="o">&gt;</span><span class="w"> </span><span class="n">slots</span><span class="p">,</span><span class="w"> </span><span class="n">CancellationToken</span><span class="w"> </span><span class="n">ct</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">default</span><span class="p">);</span>
+<span class="w">    </span><span class="n">Task</span><span class="o">&lt;</span><span class="n">IReadOnlyList</span><span class="o">&lt;</span><span class="n">BusySlot</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">GetAllSlotsAsync</span><span class="p">(</span><span class="n">DateTimeOffset</span><span class="w"> </span><span class="k">from</span><span class="p">,</span><span class="w"> </span><span class="n">DateTimeOffset</span><span class="w"> </span><span class="n">to</span><span class="p">,</span><span class="w"> </span><span class="n">CancellationToken</span><span class="w"> </span><span class="n">ct</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">default</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr />
+<h3 id="3-infrastructure-obfuscalinfrastructure">3. Infrastructure - <code>ObfusCal.Infrastructure</code></h3>
+<p><strong>Implements all interfaces defined in Application. Contains all framework and I/O concerns.</strong></p>
+<h4 id="rules_2">Rules</h4>
+<ul>
+<li>References both <code>ObfusCal.Domain</code> and <code>ObfusCal.Application</code>.</li>
+<li>Is not referenced from feature code in <code>ObfusCal.Api</code>; wiring happens at composition root (<code>Program.cs</code>).</li>
+<li>Classes in this layer primarily exist to implement Application abstractions.</li>
+<li>EF Core configuration, migrations, and persistence logic live here.</li>
+<li>External service clients (calendar APIs, HTTP peers, storage) live here.</li>
+</ul>
+<h4 id="allowed-contents_2">Allowed contents</h4>
+<ul>
+<li><strong>DbContext</strong> and EF Core mappings.</li>
+<li><strong>Migrations</strong>.</li>
+<li><strong>Repository/storage implementations</strong>.</li>
+<li><strong>Unit of Work implementation</strong>.</li>
+<li><strong>External service adapters</strong> (calendar providers, peer clients).</li>
+<li><strong>Domain event dispatcher</strong>.</li>
+<li><strong><code>DependencyInjection.cs</code></strong> extension method (target end state).</li>
+</ul>
+<h4 id="forbidden-contents_1">Forbidden contents</h4>
+<ul>
+<li>Business logic.</li>
+<li>Direct references to <code>ObfusCal.Api</code> feature code.</li>
+<li>Use-case orchestration.</li>
+</ul>
+<h4 id="folder-structure_2">Folder structure</h4>
+<div class="highlight"><pre><span></span><code>ObfusCal.Infrastructure/
+├── Persistence/
+│   ├── AppDbContext.cs
+│   ├── AppDbContextFactory.cs
+│   ├── Migrations/
+│   └── Configurations/
+│       └── ShadowSlotEntityConfiguration.cs
+├── Storage/
+│   ├── EfCoreShadowSlotStore.cs
+│   └── InMemoryShadowSlotStore.cs
+├── Calendars/
+│   ├── MockCalendarSource.cs
+│   └── MicrosoftGraphCalendarSource.cs
+└── DependencyInjection.cs
+</code></pre></div>
+<h4 id="key-patterns_2">Key patterns</h4>
+<p><strong>Implement interfaces from Application/Core contracts only:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">internal</span><span class="w"> </span><span class="k">sealed</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nf">EfCoreShadowSlotStore</span><span class="p">(</span><span class="n">AppDbContext</span><span class="w"> </span><span class="n">dbContext</span><span class="p">)</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">IShadowSlotStore</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="n">Task</span><span class="w"> </span><span class="nf">SetSlotsAsync</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">peerId</span><span class="p">,</span><span class="w"> </span><span class="n">IReadOnlyList</span><span class="o">&lt;</span><span class="n">BusySlot</span><span class="o">&gt;</span><span class="w"> </span><span class="n">slots</span><span class="p">,</span><span class="w"> </span><span class="n">CancellationToken</span><span class="w"> </span><span class="n">ct</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">default</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">var</span><span class="w"> </span><span class="n">existing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="n">dbContext</span><span class="p">.</span><span class="n">ShadowSlots</span><span class="p">.</span><span class="n">Where</span><span class="p">(</span><span class="n">s</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">PeerId</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">peerId</span><span class="p">).</span><span class="n">ToListAsync</span><span class="p">(</span><span class="n">ct</span><span class="p">);</span>
+<span class="w">        </span><span class="n">dbContext</span><span class="p">.</span><span class="n">ShadowSlots</span><span class="p">.</span><span class="n">RemoveRange</span><span class="p">(</span><span class="n">existing</span><span class="p">);</span>
+<span class="w">        </span><span class="n">dbContext</span><span class="p">.</span><span class="n">ShadowSlots</span><span class="p">.</span><span class="n">AddRange</span><span class="p">(</span><span class="n">slots</span><span class="p">.</span><span class="n">Select</span><span class="p">(</span><span class="n">s</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">ShadowSlotEntity</span><span class="p">.</span><span class="n">FromDomain</span><span class="p">(</span><span class="n">peerId</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">)));</span>
+<span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="n">dbContext</span><span class="p">.</span><span class="n">SaveChangesAsync</span><span class="p">(</span><span class="n">ct</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>Centralize registrations in one extension method (target):</strong></p>
+<div class="highlight"><pre><span></span><code><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nc">DependencyInjection</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">IServiceCollection</span><span class="w"> </span><span class="nf">AddInfrastructure</span><span class="p">(</span><span class="k">this</span><span class="w"> </span><span class="n">IServiceCollection</span><span class="w"> </span><span class="n">services</span><span class="p">,</span><span class="w"> </span><span class="n">IConfiguration</span><span class="w"> </span><span class="n">config</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">services</span><span class="p">.</span><span class="n">AddDbContext</span><span class="o">&lt;</span><span class="n">AppDbContext</span><span class="o">&gt;</span><span class="p">(</span><span class="n">options</span><span class="w"> </span><span class="o">=&gt;</span>
+<span class="w">            </span><span class="n">options</span><span class="p">.</span><span class="n">UseNpgsql</span><span class="p">(</span><span class="n">config</span><span class="p">.</span><span class="n">GetConnectionString</span><span class="p">(</span><span class="s">&quot;DefaultConnection&quot;</span><span class="p">)));</span>
+
+<span class="w">        </span><span class="n">services</span><span class="p">.</span><span class="n">AddScoped</span><span class="o">&lt;</span><span class="n">IShadowSlotStore</span><span class="p">,</span><span class="w"> </span><span class="n">EfCoreShadowSlotStore</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">        </span><span class="n">services</span><span class="p">.</span><span class="n">AddScoped</span><span class="o">&lt;</span><span class="n">ICalendarSource</span><span class="p">,</span><span class="w"> </span><span class="n">MockCalendarSource</span><span class="o">&gt;</span><span class="p">();</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">services</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<hr />
+<h3 id="4-presentation-obfuscalapi">4. Presentation - <code>ObfusCal.Api</code></h3>
+<p><strong>The entry point of the application. Translates HTTP to application commands/queries and back.</strong></p>
+<h4 id="rules_3">Rules</h4>
+<ul>
+<li>References only <code>ObfusCal.Application</code> in the target architecture.</li>
+<li>The composition root (<code>Program.cs</code>) is the place where Application and Infrastructure meet.</li>
+<li>Controllers/endpoints are thin: receive input, dispatch command/query, translate result.</li>
+<li>Validation is handled in Application via pipeline behaviors.</li>
+</ul>
+<h4 id="allowed-contents_3">Allowed contents</h4>
+<ul>
+<li>Controllers or Minimal APIs.</li>
+<li>Middleware (exception handling, request logging, correlation IDs).</li>
+<li><code>Program.cs</code> composition root.</li>
+<li>Result-to-ProblemDetails mapping extensions.</li>
+</ul>
+<h4 id="forbidden-contents_2">Forbidden contents</h4>
+<ul>
+<li>Business logic.</li>
+<li>Direct database access.</li>
+<li>Domain entity construction in controllers.</li>
+<li>Direct use of infrastructure implementations (<code>EfCoreShadowSlotStore</code>, <code>AppDbContext</code>, etc.).</li>
+</ul>
+<h4 id="folder-structure_3">Folder structure</h4>
+<div class="highlight"><pre><span></span><code>ObfusCal.Api/
+├── Program.cs
+├── appsettings.json
+├── Controllers/
+│   ├── CalendarOwnersController.cs
+│   └── ShadowSlotsController.cs
+├── Middleware/
+│   └── ExceptionHandlingMiddleware.cs
+└── Extensions/
+    └── ResultExtensions.cs
+</code></pre></div>
+<h4 id="key-patterns_3">Key patterns</h4>
+<p><strong>Controllers are delivery mechanisms only:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="na">[ApiController]</span>
+<span class="na">[Route(&quot;api/calendar-owners&quot;)]</span>
+<span class="k">public</span><span class="w"> </span><span class="k">sealed</span><span class="w"> </span><span class="k">class</span><span class="w"> </span><span class="nf">CalendarOwnersController</span><span class="p">(</span><span class="n">ISender</span><span class="w"> </span><span class="n">sender</span><span class="p">)</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">ControllerBase</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="na">[HttpGet(&quot;{id}/busy-slots&quot;)]</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="n">Task</span><span class="o">&lt;</span><span class="n">IActionResult</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetBusySlots</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">FromQuery</span><span class="p">]</span><span class="w"> </span><span class="n">DateTimeOffset</span><span class="w"> </span><span class="k">from</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">FromQuery</span><span class="p">]</span><span class="w"> </span><span class="n">DateTimeOffset</span><span class="w"> </span><span class="n">to</span><span class="p">,</span><span class="w"> </span><span class="n">CancellationToken</span><span class="w"> </span><span class="n">ct</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">var</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="n">sender</span><span class="p">.</span><span class="n">Send</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">GetBusySlotsQuery</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="k">from</span><span class="p">,</span><span class="w"> </span><span class="n">to</span><span class="p">),</span><span class="w"> </span><span class="n">ct</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">IsSuccess</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">Ok</span><span class="p">(</span><span class="n">result</span><span class="p">.</span><span class="n">Value</span><span class="p">)</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">ToProblemDetails</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="na">[HttpGet(&quot;{id}/merged-freebusy&quot;)]</span>
+<span class="w">    </span><span class="k">public</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="n">Task</span><span class="o">&lt;</span><span class="n">IActionResult</span><span class="o">&gt;</span><span class="w"> </span><span class="n">GetMergedFreeBusy</span><span class="p">(</span><span class="kt">string</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">FromQuery</span><span class="p">]</span><span class="w"> </span><span class="n">DateTimeOffset</span><span class="w"> </span><span class="k">from</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">FromQuery</span><span class="p">]</span><span class="w"> </span><span class="n">DateTimeOffset</span><span class="w"> </span><span class="n">to</span><span class="p">,</span><span class="w"> </span><span class="n">CancellationToken</span><span class="w"> </span><span class="n">ct</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="kt">var</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="n">sender</span><span class="p">.</span><span class="n">Send</span><span class="p">(</span><span class="k">new</span><span class="w"> </span><span class="n">GetMergedFreeBusyQuery</span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="k">from</span><span class="p">,</span><span class="w"> </span><span class="n">to</span><span class="p">),</span><span class="w"> </span><span class="n">ct</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">IsSuccess</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="n">Ok</span><span class="p">(</span><span class="n">result</span><span class="p">.</span><span class="n">Value</span><span class="p">)</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">result</span><span class="p">.</span><span class="n">ToProblemDetails</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>Composition root wires all layers (target):</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">builder</span><span class="p">.</span><span class="n">Services</span>
+<span class="w">    </span><span class="p">.</span><span class="n">AddApplication</span><span class="p">()</span><span class="w">                          </span><span class="c1">// validators, behaviors</span>
+<span class="w">    </span><span class="p">.</span><span class="n">AddInfrastructure</span><span class="p">(</span><span class="n">builder</span><span class="p">.</span><span class="n">Configuration</span><span class="p">);</span><span class="w"> </span><span class="c1">// DbContext, stores, adapters</span>
+</code></pre></div>
+<hr />
+<h2 id="dependency-graph">Dependency Graph</h2>
+<p>The arrows represent "references / depends on":</p>
+<div class="highlight"><pre><span></span><code>ObfusCal.Api
+    │
+    └──► ObfusCal.Application
+                │
+                └──► ObfusCal.Domain
+
+ObfusCal.Infrastructure
+    │
+    ├──► ObfusCal.Application   (implements interfaces defined here)
+    └──► ObfusCal.Domain        (persists and reads entities/value objects)
+</code></pre></div>
+<p><code>ObfusCal.Api</code> and <code>ObfusCal.Infrastructure</code> should not depend on each other's feature code. They connect at runtime
+through DI.</p>
+<hr />
+<h2 id="cross-cutting-concerns">Cross-Cutting Concerns</h2>
+<h3 id="error-handling">Error Handling</h3>
+<p>Use a <code>Result&lt;T&gt;</code> / <code>Error</code> pattern throughout. Never use exceptions to communicate business rule violations.</p>
+<ul>
+<li>Domain methods return <code>Result&lt;T&gt;</code>.</li>
+<li>Application handlers propagate <code>Result&lt;T&gt;</code> to the API layer.</li>
+<li>The API maps failure results to RFC 9457 problem details responses.</li>
+<li>Exceptions are reserved for unrecoverable failures (for example: DB connection failure) and handled by middleware.</li>
+</ul>
+<h3 id="validation">Validation</h3>
+<ul>
+<li><code>ValidationBehavior&lt;TRequest, TResponse&gt;</code> runs validators before handlers.</li>
+<li>Domain rule validation is in domain methods and returned as <code>Result</code> failures.</li>
+</ul>
+<h3 id="domain-events">Domain Events</h3>
+<ul>
+<li>Aggregates raise events like <code>BusySlotsObfuscatedEvent</code>.</li>
+<li>Events are dispatched after persistence succeeds.</li>
+<li>Event handlers live in Application and handle side effects (notifications, read-model updates, telemetry).</li>
+</ul>
+<h3 id="transactions">Transactions</h3>
+<ul>
+<li><code>TransactionBehavior&lt;TRequest, TResponse&gt;</code> wraps commands in a transaction.</li>
+<li>Queries do not run inside write transactions.</li>
+<li>Handlers do not begin transactions manually.</li>
+</ul>
+<hr />
+<h2 id="testing-strategy">Testing Strategy</h2>
+<p>Each layer should have a dedicated test project and strategy.</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Test project</th>
+<th>Strategy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Domain</td>
+<td><code>ObfusCal.Domain.Tests</code></td>
+<td>Pure unit tests for invariants and value objects.</td>
+</tr>
+<tr>
+<td>Application</td>
+<td><code>ObfusCal.Application.Tests</code></td>
+<td>Unit tests with mocked interfaces (<code>ICalendarSource</code>, <code>IShadowSlotStore</code>).</td>
+</tr>
+<tr>
+<td>Integration</td>
+<td><code>ObfusCal.Integration.Tests</code></td>
+<td>End-to-end HTTP tests via <code>WebApplicationFactory&lt;Program&gt;</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Current state: tests are centralized in <code>ObfusCal.Tests</code>. Split by layer incrementally while preserving coverage.</p>
+<hr />
+<h2 id="nuget-package-ownership-by-layer">NuGet Package Ownership by Layer</h2>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Allowed in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>Domain</td>
+</tr>
+<tr>
+<td>Microsoft.Extensions.DependencyInjection.Abstractions</td>
+<td>Application</td>
+</tr>
+<tr>
+<td>Entity Framework Core</td>
+<td>Infrastructure</td>
+</tr>
+<tr>
+<td>Npgsql.EntityFrameworkCore.PostgreSQL</td>
+<td>Infrastructure</td>
+</tr>
+<tr>
+<td>Serilog</td>
+<td>Infrastructure</td>
+</tr>
+<tr>
+<td>Calendar provider SDKs / HTTP clients</td>
+<td>Infrastructure</td>
+</tr>
+<tr>
+<td>Microsoft.AspNetCore</td>
+<td>Api</td>
+</tr>
+<tr>
+<td>Swashbuckle</td>
+<td>Api</td>
+</tr>
+</tbody>
+</table>
+<p>If you want to add a NuGet package to <code>ObfusCal.Domain</code>, stop and reconsider first.</p>
+<hr />
+<h2 id="rules-summary">Rules Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Dependency direction</strong></td>
+<td>Always inward. Never outward.</td>
+</tr>
+<tr>
+<td><strong>Domain has no dependencies</strong></td>
+<td>Zero external NuGet packages. Zero project references.</td>
+</tr>
+<tr>
+<td><strong>Interfaces in Application</strong></td>
+<td>Repository/service interfaces are defined in <code>Application</code>, implemented in <code>Infrastructure</code>.</td>
+</tr>
+<tr>
+<td><strong>Infrastructure not used directly in Api features</strong></td>
+<td>They meet at the composition root in <code>Program.cs</code>.</td>
+</tr>
+<tr>
+<td><strong>No logic in controllers</strong></td>
+<td>Controllers dispatch commands/queries and map results.</td>
+</tr>
+<tr>
+<td><strong>No business logic in Application</strong></td>
+<td>Handlers orchestrate; domain rules stay in domain.</td>
+</tr>
+<tr>
+<td><strong>No persistence in Application</strong></td>
+<td>Handlers call abstractions, never EF/SQL directly.</td>
+</tr>
+<tr>
+<td><strong>Result pattern, not exceptions</strong></td>
+<td>Business rule violations return <code>Result.Failure(error)</code>.</td>
+</tr>
+<tr>
+<td><strong>One handler per use case</strong></td>
+<td>Every command/query has one handler.</td>
+</tr>
+<tr>
+<td><strong>Validators in Application</strong></td>
+<td>One validator per command/query, executed via pipeline.</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "content.code.annotate", "content.tabs.link", "content.code.copy", "content.code.select", "content.code.highlight", "content.code.render"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,1995 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Privacy-first, cross-domain calendar synchronization.">
+      
+      
+      
+        <link rel="canonical" href="https://infsupstagemg.github.io/ObfusCal/07-deployment-view/">
+      
+      
+        <link rel="prev" href="../06-runtime-view/">
+      
+      
+        <link rel="next" href="../08-cross-cutting-concepts/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>7. Deployment View - ObfusCal Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="light-blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#7-deployment-view" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="ObfusCal Documentation" class="md-header__button md-logo" aria-label="ObfusCal Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ObfusCal Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              7. Deployment View
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/InfSupStageMG/ObfusCal" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="ObfusCal Documentation" class="md-nav__button md-logo" aria-label="ObfusCal Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    ObfusCal Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/InfSupStageMG/ObfusCal" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01-introduction-goals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    1. Introduction & Goals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02-architecture-constraints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    2. Architecture Constraints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03-context-scope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3. Context & Scope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04-solution-strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    4. Solution Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05-building-block-view/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    5. Building Block View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06-runtime-view/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    6. Runtime View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Deployment View
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    7. Deployment View
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#infrastructure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Infrastructure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deployment-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deployment Steps
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Deployment Steps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#loading-custom-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loading Custom Plugins
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#container-runtime-hardening" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Container runtime hardening
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Variables
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Environment Variables">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dataprotection-key-persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DataProtection Key Persistence
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cicd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CI/CD
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#poc-vs-production-differences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PoC vs Production Differences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PoC vs Production Differences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#peer-transport-security-operations-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Peer transport security operations checklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08-cross-cutting-concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    8. Cross-cutting Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_9" id="__nav_2_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    9. Architectural Decisions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    9. Architectural Decisions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0001-federated-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0001: Federated Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0002-language-selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0002: Language Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0003-deployment-docker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0003: Deployment - Docker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0004-cicd-github-actions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0004: CI/CD - GitHub Actions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0005-calendar-libraries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0005: Calendar Libraries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0006-plugin-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0006: Plugin Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0007-testing-framework/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0007: Testing Framework
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0008-project-structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0008: Project Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0009-blazor-server-gui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0009: Blazor Server GUI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0010-fluentui-blazor-component-library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0010: Fluent UI Component Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0011-input-validation-strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0011: Input Validation Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0012-test-reporting-strategy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0012: CI/CD Test Reporting Strategy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/9999-adr-template/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR Template
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10-quality-requirements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    10. Quality Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../11-risks-technical-debt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    11. Risks & Technical Debt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../12-glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    12. Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides & References
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides & References
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../test-catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Test Catalog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../clean-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Clean Architecture Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sbom/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SBOM (Software Bill of Materials)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../icloud-caldav-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    iCloud CalDAV Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#infrastructure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Infrastructure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#deployment-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deployment Steps
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Deployment Steps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#loading-custom-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loading Custom Plugins
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#container-runtime-hardening" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Container runtime hardening
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Variables
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Environment Variables">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dataprotection-key-persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DataProtection Key Persistence
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cicd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CI/CD
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#poc-vs-production-differences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PoC vs Production Differences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PoC vs Production Differences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#peer-transport-security-operations-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Peer transport security operations checklist
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="7-deployment-view">7. Deployment View</h1>
+<h2 id="infrastructure">Infrastructure</h2>
+<p>Each participating organisation deploys a single Docker container running the ObfusCal API. There is no shared
+infrastructure between organisations.</p>
+<p>Peer-to-peer traffic is sent directly to each peer's HTTPS endpoint. The application enforces <code>https://</code> peer base
+URLs, rejects private-network targets, validates upstream certificates by default, and can optionally present a client
+certificate for mTLS groundwork.</p>
+<pre class="mermaid"><code>flowchart TB
+
+%% Company Network
+subgraph CN["Company Network"]
+    subgraph DH1["Docker Host"]
+        NGINX1["nginx reverse-proxy\n:80 (→ HTTPS) / :443"]
+        API1["obfuscal-api (.NET 10)\n:8443 (internal)"]
+        DB["PostgreSQL"]
+        NGINX1 --&gt; API1
+        API1 --&gt; DB
+    end
+end
+
+%% Client Network
+subgraph CL["Client Network (e.g. Client A)"]
+    subgraph DH2["Docker Host"]
+        NGINX2["nginx reverse-proxy\n:80 / :443"]
+        API2["obfuscal-api\n:8443 (internal)"]
+        NGINX2 --&gt; API2
+    end
+end
+
+%% Connection
+NGINX1 -- "HTTPS (peer ID validated via X-Peer-Id)" --&gt; NGINX2</code></pre>
+<h2 id="deployment-steps">Deployment Steps</h2>
+<p>Before starting the containers:</p>
+<ol>
+<li>Ensure certificates exist under <code>certs/nginx</code> and <code>certs/api</code> (see <code>certs/README.md</code>).</li>
+<li>Create a <code>.env</code> file from <code>.env.example</code> with PostgreSQL, API certificate, and application secret placeholders.</li>
+<li><strong>Generate a column encryption key</strong> and set it as <code>COLUMNENCRYPTION__KEY</code> in <code>.env</code>. The application refuses to
+   start without it. Generate it once and back it up:</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="c"># PowerShell</span>
+<span class="no">[Convert]</span><span class="p">::</span><span class="n">ToBase64String</span><span class="p">(</span><span class="no">[System.Security.Cryptography.RandomNumberGenerator]</span><span class="p">::</span><span class="n">GetBytes</span><span class="p">(</span><span class="n">32</span><span class="p">))</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># bash / openssl</span>
+openssl<span class="w"> </span>rand<span class="w"> </span>-base64<span class="w"> </span><span class="m">32</span>
+</code></pre></div>
+<blockquote>
+<p>Losing this key makes all encrypted column values (peer API key hashes, calendar source credentials)
+unreadable. Back it up alongside your DataProtection keys.</p>
+</blockquote>
+<ol>
+<li>Decide how peer transport should be handled in the current environment:<ul>
+<li><strong>Production / staging:</strong> keep <code>PeerTransportSecurity__AllowSelfSignedCerts=false</code> and use CA-issued peer certs.</li>
+<li><strong>Development / local compose:</strong> set <code>PeerTransportSecurity__AllowSelfSignedCerts=true</code> so self-signed peer
+  certificates are accepted.</li>
+<li><strong>Optional pinning:</strong> populate <code>PeerConnections.PinnedCertificateThumbprint</code> for each peer if you want the peer
+  TLS certificate to be fixed to a known leaf certificate.</li>
+<li><strong>Optional mTLS groundwork:</strong> store <code>PeerConnections.ClientCertificateThumbprint</code> for peers that should present a
+  client certificate, and make sure the certificate is available in the local machine/user certificate store.</li>
+</ul>
+</li>
+<li>Ensure the Entra ID app role <code>Sysadmin</code> exists on the API app registration and is assigned to designated
+   administrators.</li>
+</ol>
+<p>Bring up a full instance (reverse proxy + API + PostgreSQL):</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Docker</span>
+docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--build
+
+<span class="c1"># Podman</span>
+podman<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--build
+</code></pre></div>
+<p>The <code>docker-compose.yaml</code> at the repository root wires the API to PostgreSQL and waits for a healthy DB before starting
+the API container.</p>
+<p>The API container remains single-purpose for the API process. Runtime still depends on external infrastructure
+(PostgreSQL, TLS key material, and environment-provided secrets).</p>
+<h3 id="loading-custom-plugins">Loading Custom Plugins</h3>
+<p>To load third-party calendar providers or custom obfuscation transformers, compile your plugin DLL and mount it into the <code>/app/plugins</code> directory of the <code>api</code> container.</p>
+<p>Add the following to your <code>docker-compose.yaml</code> under the <code>api</code> service volumes:
+<div class="highlight"><pre><span></span><code><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./my-custom-plugins:/app/plugins:ro</span>
+</code></pre></div></p>
+<p>ObfusCal will automatically scan and register plugins found in this directory on startup.</p>
+<h3 id="container-runtime-hardening">Container runtime hardening</h3>
+<p>The API service in <code>docker-compose.yaml</code> is hardened with runtime defaults that reduce blast radius if the process is
+compromised:</p>
+<ul>
+<li>Runs as non-root (<code>USER 1000</code>) from the runtime stage in <code>Dockerfile</code></li>
+<li><code>read_only: true</code> root filesystem</li>
+<li><code>tmpfs: /tmp</code> for ephemeral writable scratch space</li>
+<li><code>cap_drop: [ALL]</code> and <code>security_opt: ["no-new-privileges:true"]</code></li>
+<li>No direct host port publish on the API service (reachable only on the internal compose network via reverse proxy)</li>
+<li>Resource limits via <code>mem_limit</code> / <code>cpus</code></li>
+</ul>
+<p>Peer sync traffic is additionally throttled in-process: authenticated peers are rate limited by peer ID, unauthenticated
+API calls fall back to an IP-based backstop, and peer sync request bodies are capped at 1 MB by default.</p>
+<p>Runtime authorization semantics are part of deployment validation: calendar-owner scoped endpoints should return <code>404</code>
+for cross-owner requests (anti-enumeration), and owner-scoped peer shadow-slot pushes should return <code>403</code> when the peer
+is not mapped to the requested <code>calendarOwnerRef</code>.</p>
+<p>For local API-only debugging, start PostgreSQL first and then run <code>dotnet run --project ObfusCal.Api</code> outside
+containers. Use the HTTPS development URL:</p>
+<ul>
+<li><code>https://localhost:7001/</code> for the browser SSO flow (<code>/signin-oidc</code>)</li>
+<li><code>https://localhost:7001/swagger</code> for Swagger OAuth (<code>/swagger/oauth2-redirect.html</code>)</li>
+</ul>
+<p>Both redirect URIs must be registered on the Entra app registration because the browser origin must match exactly.</p>
+<p>When the browser session is already authenticated, the ObfusCal header's <strong>Switch user</strong> action triggers a fresh OIDC
+challenge with Entra's account picker (<code>prompt=select_account</code>) so operators can test multiple users without a full
+local sign-out cycle.</p>
+<h2 id="environment-variables">Environment Variables</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ASPNETCORE_ENVIRONMENT</code></td>
+<td>Set to <code>Development</code> for Swagger UI; <code>Production</code> for live deployments</td>
+</tr>
+<tr>
+<td><code>ASPNETCORE_URLS</code></td>
+<td>Kestrel listen URL inside the container (e.g. <code>https://+:8443</code>)</td>
+</tr>
+<tr>
+<td><code>ASPNETCORE_Kestrel__Certificates__Default__Path</code></td>
+<td>Path to the PFX certificate file mounted into the container</td>
+</tr>
+<tr>
+<td><code>ASPNETCORE_Kestrel__Certificates__Default__Password</code></td>
+<td>Password for the PFX certificate (sourced from <code>.env</code>)</td>
+</tr>
+<tr>
+<td><code>API_CERT_PASSWORD</code></td>
+<td>Passed to <code>docker compose</code> via <code>.env</code>; sets the Kestrel cert password</td>
+</tr>
+<tr>
+<td><code>API_MEM_LIMIT</code></td>
+<td>API container memory limit used by Compose (default <code>512m</code>)</td>
+</tr>
+<tr>
+<td><code>API_CPUS</code></td>
+<td>API container CPU quota used by Compose (default <code>4.0</code>)</td>
+</tr>
+<tr>
+<td><code>DATAPROTECTION_KEYS_PATH</code></td>
+<td><em>Removed</em> - keys are now persisted to PostgreSQL via <code>DataProtectionKeys</code> table</td>
+</tr>
+<tr>
+<td><code>PeerConnections.ApiKeyHash</code> (database)</td>
+<td>Salted PBKDF2-SHA256 hash of peer API keys used by peer authentication</td>
+</tr>
+<tr>
+<td><code>PeerConnections.Scopes</code> (database)</td>
+<td>Space-separated peer scopes (<code>push_shadow_slots</code>, <code>pull_busy_slots</code>)</td>
+</tr>
+<tr>
+<td><code>PeerConnections.RevokedAt</code> (database)</td>
+<td>Revocation timestamp; non-null peers are rejected by peer authentication</td>
+</tr>
+<tr>
+<td><code>ConnectionStrings__DefaultConnection</code></td>
+<td>PostgreSQL connection string (<strong>required at startup</strong>)</td>
+</tr>
+<tr>
+<td><code>AzureAd__TenantId</code></td>
+<td>Entra tenant ID (<strong>required at startup</strong>)</td>
+</tr>
+<tr>
+<td><code>AzureAd__ClientId</code></td>
+<td>Entra app/client ID (<strong>required at startup</strong>)</td>
+</tr>
+<tr>
+<td><code>AzureAd__ClientSecret</code></td>
+<td>Entra web-app client secret for browser SSO (<strong>required at startup</strong>)</td>
+</tr>
+<tr>
+<td><code>GraphConsent__ClientId</code></td>
+<td>Microsoft Graph consent client ID (<strong>required at startup</strong>)</td>
+</tr>
+<tr>
+<td><code>GraphConsent__ClientSecret</code></td>
+<td>Microsoft Graph consent client secret (optional depending on tenant app registration)</td>
+</tr>
+<tr>
+<td><code>GraphConsent__Scope</code></td>
+<td>Graph OAuth scope set; keep <code>https://graph.microsoft.com/Calendars.ReadWrite offline_access</code> for two-way sync</td>
+</tr>
+<tr>
+<td><code>GoogleConsent__ClientId</code></td>
+<td>Google OAuth client ID (required for Google Calendar source)</td>
+</tr>
+<tr>
+<td><code>GoogleConsent__ClientSecret</code></td>
+<td>Google OAuth client secret (required for Google Calendar source)</td>
+</tr>
+<tr>
+<td><code>GoogleConsent__Scope</code></td>
+<td>Google OAuth scope set; keep <code>https://www.googleapis.com/auth/calendar.events</code> for Google two-way sync</td>
+</tr>
+<tr>
+<td><code>GoogleConsent__RedirectUri</code></td>
+<td>Optional Google OAuth callback override; must exactly match the URI registered in Google Cloud</td>
+</tr>
+<tr>
+<td><code>ColumnEncryption__Key</code></td>
+<td>Base64-encoded 256-bit AES key for column-level encryption (<strong>required at startup</strong>)</td>
+</tr>
+<tr>
+<td><code>Sync__InstanceId</code></td>
+<td>Local instance identifier used in peer sync headers</td>
+</tr>
+<tr>
+<td><code>Sync__ApiKey</code></td>
+<td>Shared API key used for peer sync authentication</td>
+</tr>
+<tr>
+<td><code>Sync__PeerRequestTimestampToleranceSeconds</code></td>
+<td>Replay window tolerance for <code>X-Peer-Timestamp</code> (default <code>300</code>)</td>
+</tr>
+<tr>
+<td><code>Sync__PeerRequestRateLimitPermitLimit</code></td>
+<td>Global peer/IP backstop request limit for API traffic (default <code>240</code> per <code>60</code> seconds)</td>
+</tr>
+<tr>
+<td><code>Sync__PeerRequestRateLimitWindowSeconds</code></td>
+<td>Window for the peer/IP backstop (default <code>60</code>)</td>
+</tr>
+<tr>
+<td><code>Sync__PushShadowSlotsRateLimitPermitLimit</code></td>
+<td>Per-peer limit for <code>POST /api/shadow-slots</code> (default <code>60</code> per <code>60</code> seconds)</td>
+</tr>
+<tr>
+<td><code>Sync__PushShadowSlotsRateLimitWindowSeconds</code></td>
+<td>Window for <code>POST /api/shadow-slots</code> rate limiting (default <code>60</code>)</td>
+</tr>
+<tr>
+<td><code>Sync__PullBusySlotsRateLimitPermitLimit</code></td>
+<td>Per-peer limit for <code>GET /api/sync/busy-slots/{calendarOwnerRef}</code> (default <code>120</code> per <code>60</code> s)</td>
+</tr>
+<tr>
+<td><code>Sync__PullBusySlotsRateLimitWindowSeconds</code></td>
+<td>Window for <code>GET /api/sync/busy-slots/{calendarOwnerRef}</code> rate limiting (default <code>60</code>)</td>
+</tr>
+<tr>
+<td><code>Sync__MaxRequestBodySizeBytes</code></td>
+<td>Maximum API request body size (default <code>1048576</code> bytes)</td>
+</tr>
+<tr>
+<td><code>Sync__SyncIntervalSeconds</code></td>
+<td>How often the background sync runs (default: <code>900</code> = 15 minutes)</td>
+</tr>
+<tr>
+<td><code>Sync__MaxQueryWindowDays</code></td>
+<td>Maximum allowed inbound query window in days for busy/free-busy endpoints (default <code>90</code>)</td>
+</tr>
+<tr>
+<td><code>Sync__MaxShadowSlotsPerRequest</code></td>
+<td>Maximum allowed shadow slots in one push payload (default <code>500</code>)</td>
+</tr>
+<tr>
+<td><code>Sync__ShadowSlotRetentionDays</code></td>
+<td>Days to retain received shadow slots before automatic purge (default <code>90</code>)</td>
+</tr>
+<tr>
+<td><code>Sync__WriteBackLookAheadDays</code></td>
+<td>Provider-managed placeholder reconciliation horizon in days (default <code>90</code>)</td>
+</tr>
+<tr>
+<td><code>Sync__WriteBackPlaceholderTitle</code></td>
+<td>Fallback title used for write-back placeholders (default <code>Busy</code>)</td>
+</tr>
+<tr>
+<td><code>PeerTransportSecurity__AllowSelfSignedCerts</code></td>
+<td>Accept self-signed peer certificates when <code>true</code> (default <code>false</code>)</td>
+</tr>
+<tr>
+<td><code>PeerConnections.PinnedCertificateThumbprint</code></td>
+<td>Optional peer leaf certificate thumbprint used to pin the expected server certificate</td>
+</tr>
+<tr>
+<td><code>PeerConnections.ClientCertificateThumbprint</code></td>
+<td>Optional peer client certificate thumbprint used as mTLS groundwork</td>
+</tr>
+<tr>
+<td><code>Secrets__Provider</code></td>
+<td>Secret provider mode (<code>Environment</code> default, <code>External</code> stub)</td>
+</tr>
+</tbody>
+</table>
+<p>At startup, ObfusCal validates required secrets and fails fast with a descriptive error when one is missing. This now
+includes the Entra browser-login client secret because the Blazor UI signs users in with the server-side OpenID
+Connect code flow.</p>
+<p>For Google Calendar OAuth in local development, prefer <code>https://localhost/consent-callback</code> or another public HTTPS
+callback URI that is registered on the Google OAuth client. Google rejects <code>.local</code> redirect domains such as
+<code>https://obfuscal.local/consent-callback</code>.</p>
+<h3 id="dataprotection-key-persistence">DataProtection Key Persistence</h3>
+<p>DataProtection keys are persisted to the <strong><code>DataProtectionKeys</code> table in PostgreSQL</strong> via <code>IDataProtectionKeyContext</code>.
+This means:</p>
+<ul>
+<li>Keys survive container rebuilds, restarts, and pod reschedules automatically. No separate filesystem volume is
+  required.</li>
+<li>The <code>AddDataProtectionKeys</code> EF Core migration creates the table at startup via <code>MigrateDatabaseAsync()</code>.</li>
+<li>Keys are scoped to the <code>ObfusCal</code> application name; sharing the database with another application does not cause key
+  conflicts.</li>
+</ul>
+<blockquote>
+<p><strong>If the database is dropped and recreated</strong>, all DataProtection-sealed values (OAuth tokens, iCloud passwords) become
+unreadable and must be re-entered. Back up your PostgreSQL data alongside any other persistent state.</p>
+</blockquote>
+<h2 id="cicd">CI/CD</h2>
+<p>Every push to <code>main</code> on GitHub triggers a GitHub Actions workflow that:</p>
+<ol>
+<li>Runs <code>dotnet build</code> and <code>dotnet test</code></li>
+<li>Builds the Docker image using the multi-stage <code>Dockerfile</code></li>
+<li>Pushes the image to GitHub Container Registry (GHCR) tagged with <code>latest</code> and the commit SHA</li>
+</ol>
+<p>Deploying an update on a running server:</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/infsupstagemg/obfuscal-api:latest
+docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--build
+</code></pre></div>
+<h2 id="poc-vs-production-differences">PoC vs Production Differences</h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>PoC</th>
+<th>Production</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Storage</td>
+<td>In-memory shadow-slot store</td>
+<td>PostgreSQL via EF Core</td>
+</tr>
+<tr>
+<td>TLS</td>
+<td>Terminated at nginx sidecar (self-signed)</td>
+<td>Terminated at reverse proxy with valid cert</td>
+</tr>
+<tr>
+<td>Auth</td>
+<td>API key + scope + timestamp replay checks + Entra ID OIDC</td>
+<td>Strong peer auth + Entra ID OIDC</td>
+</tr>
+<tr>
+<td>Secrets</td>
+<td><code>ISecretProvider</code> using env/config placeholders</td>
+<td><code>ISecretProvider</code> with external secret store backend</td>
+</tr>
+</tbody>
+</table>
+<h3 id="peer-transport-security-operations-checklist">Peer transport security operations checklist</h3>
+<ul>
+<li>Ensure every peer base URL is <code>https://</code>.</li>
+<li>Keep <code>PeerTransportSecurity__AllowSelfSignedCerts=false</code> in production.</li>
+<li>Use <code>PeerConnections.PinnedCertificateThumbprint</code> if you need to fail closed on certificate rotation.</li>
+<li>Use <code>PeerConnections.ClientCertificateThumbprint</code> only when the remote peer is ready for mTLS.</li>
+<li>Remember that the client certificate must be installed on the host running ObfusCal; the application only selects it
+  by thumbprint.</li>
+<li>If you are fronting ObfusCal with nginx or another reverse proxy, ensure it forwards <code>X-Forwarded-Proto</code> so the API
+  can apply HTTPS redirection without looping.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "content.code.annotate", "content.tabs.link", "content.code.copy", "content.code.select", "content.code.highlight", "content.code.render"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://unpkg.com/mermaid@10/dist/mermaid.min.js"></script>
+      
+    
+  </body>
+</html>
