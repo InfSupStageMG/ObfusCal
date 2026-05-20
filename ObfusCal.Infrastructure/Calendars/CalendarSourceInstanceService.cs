@@ -257,7 +257,7 @@ internal sealed class CalendarSourceInstanceService(
         if (string.IsNullOrWhiteSpace(configurationJson))
             return;
 
-        string? feedUrl;
+        string? feedUrl = null;
         try
         {
             using var doc = JsonDocument.Parse(configurationJson);

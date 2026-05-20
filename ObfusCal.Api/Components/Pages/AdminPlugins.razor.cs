@@ -1,10 +1,16 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.FluentUI.AspNetCore.Components;
+using ObfusCal.Api.Authorization;
+using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Components.Pages;
 
 public partial class AdminPlugins : ComponentBase
 {
+    [Inject] private IPluginAllowlistAdminService AllowlistService { get; set; } = default!;
+    [Inject] private ICalendarSourceCatalog Catalog { get; set; } = default!;
+    [Inject] private CurrentUserContextAccessor CurrentUserContextAccessor { get; set; } = default!;
+
     private bool _isSysadmin;
     private bool _loading = true;
     private List<PluginRow>? _rows;

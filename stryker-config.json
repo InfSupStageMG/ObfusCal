@@ -1,6 +1,5 @@
 {
     "stryker-config": {
-        "solution": "ObfusCal.slnx",
         "test-projects": [
             "ObfusCal.Tests/ObfusCal.Tests.csproj"
         ],
@@ -22,16 +21,22 @@
         "reporters": [
             "Progress",
             "Html",
-            "Json"
+            "Json",
+            "dashboard"
         ],
-        "thresholds": {
-            "high": 80,
-            "low": 75,
-            "break": 0
+        "project-info": {
+            "name": "github.com/InfSupStageMG/ObfusCal",
+            "version": "local"
         },
         "since": {
             "enabled": true,
             "target": "origin/main"
+        },
+        "coverage-analysis": "off",
+        "thresholds": {
+            "high": 80,
+            "low": 75,
+            "break": 0
         },
         "report-file-name": "mutation-report",
         "additional-timeout": 45000,
