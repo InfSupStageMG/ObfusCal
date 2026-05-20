@@ -114,6 +114,10 @@ internal static class IcsCalendarEventParser
     {
         calendarEvent = null!;
 
+        var managedFlag = TryGetFirst(values, "X-OBFUSCAL-MANAGED");
+        if (string.Equals(managedFlag, "TRUE", StringComparison.OrdinalIgnoreCase))
+            return false;
+
         if (!values.TryGetValue("DTSTART", out var startValues)
             || !TryParseIcsDateTime(startValues[0], TryGetFirst(values, "DTSTART#TZID"), out var start))
         {
@@ -149,7 +153,9 @@ internal static class IcsCalendarEventParser
             }
         }
 
-        var id = TryGetFirst(values, "UID") ?? Guid.NewGuid().ToString("N");
+        var uid = TryGetFirst(values, "UID") ?? Guid.NewGuid().ToString("N");
+        var recurrenceId = TryGetFirst(values, "RECURRENCE-ID");
+        var id = recurrenceId is not null ? $"{uid}:{recurrenceId}" : uid;
         var title = TryGetFirst(values, "SUMMARY") ?? "Busy";
         var description = TryGetFirst(values, "DESCRIPTION");
         var location = TryGetFirst(values, "LOCATION");

@@ -102,9 +102,24 @@ public sealed partial class GoogleCalendarSourceCore
             windowEnd,
             ct);
 
-        return managedEvents
-            .Where(e => e.GoogleId is not null && e.SlotId is not null)
-            .ToDictionary(e => e.SlotId!, e => e, StringComparer.Ordinal);
+        var bySlotId = new Dictionary<string, ManagedGoogleEventRecord>(StringComparer.Ordinal);
+        foreach (var e in managedEvents.Where(e => e.GoogleId is not null && e.SlotId is not null))
+        {
+            if (bySlotId.TryAdd(e.SlotId!, e)) continue;
+            logger.LogWarning(
+                "Duplicate managed Google event found for SlotId {SlotId} in calendar source instance {CalendarSourceInstanceId}; removing the extra copy.",
+                e.SlotId,
+                instance.Id);
+            await DeleteEventAsync(
+                instance,
+                queryContext.CalendarId,
+                queryContext.SecretData,
+                queryContext.AccessToken,
+                e.GoogleId!,
+                ct);
+        }
+
+        return bySlotId;
     }
 
     private async Task UpsertPlaceholderEventsAsync(

@@ -391,6 +391,97 @@ public class GoogleCalendarSourceCoreTests
     }
 
     [TestMethod]
+    public async Task WriteBackSlotsAsync_HandlesDuplicateManagedSlotIds_DeletesExtraAndContinues()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        dbContext.CalendarOwners.Add(new CalendarOwner { Id = ownerId, Name = "Owner" });
+        await dbContext.SaveChangesAsync();
+
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var secretProtector = new CalendarSourceSecretProtector(dataProtectionProvider);
+        var instances = new FakeCalendarSourceInstanceService(id => id == ownerId);
+
+        var created = await instances.CreateAsync(ownerId,
+            new CreateCalendarSourceInstanceInput(
+                "google",
+                "Google Calendar",
+                "{\"calendarId\":\"primary\"}",
+                SerializeSecret(secretProtector, "access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))));
+        Assert.IsNotNull(created);
+        var instance = await instances.GetAsync(ownerId, created.Id);
+        Assert.IsNotNull(instance);
+
+        const string duplicateSlotId = "slot-dup";
+        var from = new DateTimeOffset(2026, 6, 10, 8, 0, 0, TimeSpan.Zero);
+        var to = from.AddHours(1);
+
+        var getManagedJson = $$"""
+            {
+              "items": [
+                {
+                  "id": "google-evt-A",
+                  "summary": "Busy",
+                  "start": { "dateTime": "{{from:O}}" },
+                  "end":   { "dateTime": "{{to:O}}" },
+                  "extendedProperties": {
+                    "private": { "ObfusCal.Managed": "1", "ObfusCal.SlotId": "{{duplicateSlotId}}" }
+                  }
+                },
+                {
+                  "id": "google-evt-B",
+                  "summary": "Busy",
+                  "start": { "dateTime": "{{from:O}}" },
+                  "end":   { "dateTime": "{{to:O}}" },
+                  "extendedProperties": {
+                    "private": { "ObfusCal.Managed": "1", "ObfusCal.SlotId": "{{duplicateSlotId}}" }
+                  }
+                }
+              ]
+            }
+            """;
+
+        var deletedIds = new List<string>();
+        var handler = new DelegatingHttpMessageHandler(async request =>
+        {
+            await Task.CompletedTask;
+            if (request.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(getManagedJson, Encoding.UTF8, "application/json")
+                };
+            }
+
+            if (request.Method != HttpMethod.Delete)
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"id\":\"patched\"}", Encoding.UTF8, "application/json")
+                };
+            var deletedId = request.RequestUri!.Segments.Last().TrimEnd('/');
+            deletedIds.Add(deletedId);
+            return new HttpResponseMessage(HttpStatusCode.NoContent);
+
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var source = CreateSource(
+            dbContext, instances, secretProtector, new StubGoogleOAuthTokenClient(),
+            httpClient, new CapturingLogger<GoogleCalendarSourceCore>());
+
+        await source.WriteBackSlotsAsync(
+            instance,
+            [new Domain.Models.BusySlot(duplicateSlotId, from, to)],
+            "Busy",
+            from.AddHours(-1),
+            to.AddHours(1));
+
+        Assert.HasCount(1, deletedIds, "Exactly one duplicate event should have been deleted.");
+        Assert.Contains(deletedIds[0], "google-evt-Agoogle-evt-B",
+            "The deleted event must be one of the two duplicate managed events.");
+    }
+
+    [TestMethod]
     public async Task GetEventsAsync_Throws_WhenGoogleApiBaseUrlIsMissing()
     {
         await using var dbContext = TestDbContextFactory.CreateInMemory();

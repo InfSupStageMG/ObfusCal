@@ -57,8 +57,14 @@ public partial class CalendarOwnerDetail
             });
         }
 
-        _canConfigureGraphWriteBack = _sourceInstances.Any(instance =>
-            instance.IsEnabled && string.Equals(instance.PluginId, "graph", StringComparison.OrdinalIgnoreCase));
+        _hasWriteBackCapableSource = _sourceInstances.Any(instance =>
+        {
+            if (!instance.IsEnabled)
+                return false;
+            var plugin = CalendarSourceCatalog.GetPlugin(instance.PluginId);
+            return plugin is not null
+                && typeof(ICalendarWriteBack).IsAssignableFrom(plugin.ImplementationType);
+        });
     }
 
     private void ApplyPluginDefaults()
