@@ -11,9 +11,6 @@ namespace ObfusCal.Tests.Unit.Plugins;
 [TestClass]
 public class GoogleICloudPluginIntegrationTests
 {
-    /// <summary>
-    /// Verifies that the plugins/ folder exists in the test output directory.
-    /// </summary>
     [TestMethod]
     public void PluginFolder_ShouldExist()
     {
@@ -21,9 +18,6 @@ public class GoogleICloudPluginIntegrationTests
         Assert.IsTrue(Directory.Exists(pluginFolder), $"Plugin folder should exist at: {pluginFolder}");
     }
 
-    /// <summary>
-    /// Verifies that the Google and iCloud plugin DLLs exist in the plugins/ folder.
-    /// </summary>
     [TestMethod]
     public void GoogleAndICloudDlls_ShouldExistInPluginFolder()
     {
@@ -35,16 +29,9 @@ public class GoogleICloudPluginIntegrationTests
         Assert.IsTrue(File.Exists(icloudDll), $"iCloud plugin DLL not found at: {icloudDll}");
     }
 
-    /// <summary>
-    /// Verifies that when plugin assemblies are explicitly loaded (as they should be during app startup),
-    /// Google and iCloud plugins are discovered properly.
-    /// </summary>
     [TestMethod]
     public void GoogleICloudPlugins_ShouldBeDiscovered_WhenAssembliesAreLoaded()
     {
-        // This test verifies the behavior that should occur during app startup:
-        // 1. DependencyInjection.LoadPluginAssemblies() loads all DLLs from plugins/ folder
-        // 2. CalendarSourcePluginCatalog.Discover() discovers them
 
         var pluginFolder = Path.Join(AppContext.BaseDirectory, "plugins");
 

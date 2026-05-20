@@ -9,12 +9,6 @@ namespace ObfusCal.Tests.Unit.Plugins;
 [TestClass]
 public class PluginLoadingTests
 {
-    /// <summary>
-    /// Simulates what happens at application startup:
-    /// 1. Plugins are loaded from a directory
-    /// 2. Discovery finds them
-    /// 3. They should appear in the allowlist
-    /// </summary>
     [TestMethod]
     public void SimulatesStartup_LoadsAndDiscoversGoogleAndICloudPlugins()
     {
