@@ -24,8 +24,9 @@
             "Json",
             "dashboard"
         ],
-        "dashboard": {
-            "project": "github.com/InfSupStageMG/ObfusCal",
+        "baseline": {
+            "enabled": true,
+            "provider": "Dashboard",
             "version": "main"
         },
         "thresholds": {
@@ -34,7 +35,6 @@
             "break": 0
         },
         "since": {
-            "enabled": true,
             "target": "origin/main"
         },
         "report-file-name": "mutation-report",
