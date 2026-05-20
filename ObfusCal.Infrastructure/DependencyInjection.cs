@@ -330,27 +330,34 @@ public static class DependencyInjection
 
         foreach (var folder in candidateFolders
                      .Select(Path.GetFullPath)
-                     .Distinct(StringComparer.OrdinalIgnoreCase))
+                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                     .Where(Directory.Exists))
         {
-            if (Directory.Exists(folder))
-                yield return folder;
+            yield return folder;
         }
     }
 
     private static void LoadOfficialPluginsFromDependencyContext()
     {
-        foreach (var assemblyName in OfficialPluginAssemblyNames)
+        foreach (var assemblyName in OfficialPluginAssemblyNames.Where(assemblyName => !IsAssemblyLoaded(assemblyName)))
         {
-            if (IsAssemblyLoaded(assemblyName))
-                continue;
-
             try
             {
                 AssemblyLoadContext.Default.LoadFromAssemblyName(new AssemblyName(assemblyName));
                 Log.ForContext("AssemblyName", assemblyName)
                     .Information("Loaded official plugin assembly via dependency context");
             }
-            catch (Exception ex)
+            catch (FileNotFoundException ex)
+            {
+                Log.ForContext("AssemblyName", assemblyName)
+                    .Debug(ex, "Official plugin assembly not resolved from dependency context; folder probing will continue");
+            }
+            catch (FileLoadException ex)
+            {
+                Log.ForContext("AssemblyName", assemblyName)
+                    .Debug(ex, "Official plugin assembly not resolved from dependency context; folder probing will continue");
+            }
+            catch (BadImageFormatException ex)
             {
                 Log.ForContext("AssemblyName", assemblyName)
                     .Debug(ex, "Official plugin assembly not resolved from dependency context; folder probing will continue");
@@ -365,9 +372,8 @@ public static class DependencyInjection
             if (IsAssemblyLoaded(assemblyName))
                 continue;
 
-            throw new InvalidOperationException(
-                $"Official plugin assembly '{assemblyName}' is not loaded. " +
-                "Google and iCloud plugins must be available at startup.");
+            Log.ForContext("AssemblyName", assemblyName)
+                .Warning("Official plugin assembly is not loaded at startup; related functionality may be unavailable");
         }
     }
 

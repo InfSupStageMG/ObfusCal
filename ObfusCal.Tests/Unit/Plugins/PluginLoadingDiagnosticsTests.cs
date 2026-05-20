@@ -55,7 +55,7 @@ public class GoogleICloudPluginIntegrationTests
             {
                 AssemblyLoadContext.Default.LoadFromAssemblyPath(dll);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is FileNotFoundException or FileLoadException or BadImageFormatException)
             {
                 Assert.Fail($"Failed to load {Path.GetFileName(dll)}: {ex.Message}");
             }

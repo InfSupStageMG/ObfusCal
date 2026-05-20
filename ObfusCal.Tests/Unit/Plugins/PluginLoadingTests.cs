@@ -22,7 +22,7 @@ public class PluginLoadingTests
         var pluginDir = FindPluginDirectory();
         if (!Directory.Exists(pluginDir))
         {
-            Assert.Inconclusive($"Plugin directory not found at {pluginDir}");
+            Assert.Fail($"Plugin directory not found at {pluginDir}");
         }
 
         // Load the plugins just like the app does
@@ -58,7 +58,27 @@ public class PluginLoadingTests
             {
                 AssemblyLoadContext.Default.LoadFromAssemblyPath(dll);
             }
-            catch (Exception ex)
+            catch (FileLoadException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load plugin: {dll}, Error: {ex.Message}");
+            }
+            catch (BadImageFormatException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load plugin: {dll}, Error: {ex.Message}");
+            }
+            catch (FileNotFoundException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load plugin: {dll}, Error: {ex.Message}");
+            }
+            catch (ArgumentException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load plugin: {dll}, Error: {ex.Message}");
+            }
+            catch (NotSupportedException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load plugin: {dll}, Error: {ex.Message}");
+            }
+            catch (PathTooLongException ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to load plugin: {dll}, Error: {ex.Message}");
             }
