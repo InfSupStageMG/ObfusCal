@@ -175,10 +175,12 @@ jobs:
                     STRYKER_DASHBOARD_API_KEY: ${{ secrets.STRYKER_DASHBOARD_API_KEY }}
                 run: |
                     if [ "${{ github.event_name }}" = "pull_request" ]; then
-                      VERSION="${{ github.head_ref }}"
+                      ISSUE="${{ github.head_ref }}"
                     else
-                      VERSION="${{ github.ref_name }}"
+                      ISSUE="${{ github.ref_name }}"
                     fi
+                    COMMIT=$(git log -1 --format=%s | tr ' ' '-')
+                    VERSION="${ISSUE}/${COMMIT}"
                     dotnet stryker --version "$VERSION"
 
     build:

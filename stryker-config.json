@@ -24,18 +24,19 @@
             "Json",
             "dashboard"
         ],
+        "project-info": {
+            "name": "github.com/InfSupStageMG/ObfusCal",
+            "version": "local"
+        },
         "baseline": {
             "enabled": true,
             "provider": "Dashboard",
-            "version": "main"
+            "fallback-version": "main"
         },
         "thresholds": {
             "high": 80,
             "low": 75,
             "break": 0
-        },
-        "since": {
-            "target": "origin/main"
         },
         "report-file-name": "mutation-report",
         "additional-timeout": 45000
