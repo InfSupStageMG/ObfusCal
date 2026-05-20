@@ -28,11 +28,11 @@
             "name": "github.com/InfSupStageMG/ObfusCal",
             "version": "local"
         },
-        "baseline": {
+        "since": {
             "enabled": true,
-            "provider": "Dashboard",
-            "fallback-version": "main"
+            "target": "origin/main"
         },
+        "coverage-analysis": "off",
         "thresholds": {
             "high": 80,
             "low": 75,
