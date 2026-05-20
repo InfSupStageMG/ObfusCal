@@ -23,6 +23,8 @@
   <ItemGroup>
     <ProjectReference Include="..\ObfusCal.Application\ObfusCal.Application.csproj" />
     <ProjectReference Include="..\ObfusCal.Infrastructure\ObfusCal.Infrastructure.csproj" />
+    <ProjectReference Include="..\ObfusCal.Plugins.GoogleCalendar\ObfusCal.Plugins.GoogleCalendar.csproj" />
+    <ProjectReference Include="..\ObfusCal.Plugins.ICloudCalendar\ObfusCal.Plugins.ICloudCalendar.csproj" />
   </ItemGroup>
 
   <ItemGroup>
