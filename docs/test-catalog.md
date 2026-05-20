@@ -1,5 +1,5 @@
 # Test Catalog
-_Auto-generated from CI run. 574 tests across 60 classes._
+_Auto-generated from CI run. 578 tests across 62 classes._
 
 ## Integration (172/172)
 
@@ -319,7 +319,7 @@ _Auto-generated from CI run. 574 tests across 60 classes._
 
 </details>
 
-## Unit (402/402)
+## Unit (406/406)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 1/1</summary>
@@ -829,6 +829,17 @@ Object name: 'AppDbContext'.")` | ✅ |
 </details>
 
 <details>
+<summary><b>GoogleICloudPluginIntegrationTests</b> - 3/3</summary>
+
+| Test | Result |
+|------|--------|
+| `GoogleAndICloudDlls_ShouldExistInPluginFolder` | ✅ |
+| `GoogleICloudPlugins_ShouldBeDiscovered_WhenAssembliesAreLoaded` | ✅ |
+| `PluginFolder_ShouldExist` | ✅ |
+
+</details>
+
+<details>
 <summary><b>PluginAllowlistTests</b> - 14/14</summary>
 
 | Test | Result |
@@ -847,6 +858,15 @@ Object name: 'AppDbContext'.")` | ✅ |
 | `GetPlugins_FiltersBlockedPlugins_ViaCache` | ✅ |
 | `GetPlugins_ReflectsRuntimeToggle_ImmediatelyAfterCacheUpdate` | ✅ |
 | `GetPlugins_ReturnsAll_WhenCacheIsNull` | ✅ |
+
+</details>
+
+<details>
+<summary><b>PluginLoadingTests</b> - 1/1</summary>
+
+| Test | Result |
+|------|--------|
+| `SimulatesStartup_LoadsAndDiscoversGoogleAndICloudPlugins` | ✅ |
 
 </details>
 
