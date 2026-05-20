@@ -325,8 +325,7 @@ public static class DependencyInjection
     {
         var candidateFolders = new[]
         {
-            Path.Combine(AppContext.BaseDirectory, "plugins"),
-            Path.Combine(Directory.GetCurrentDirectory(), "plugins")
+            Path.Combine(AppContext.BaseDirectory, "plugins")
         };
 
         foreach (var folder in candidateFolders
