@@ -507,7 +507,54 @@ public class ICloudCalendarSourceCoreWriteBackTests
         Assert.IsFalse(httpCalled);
     }
 
-    private sealed class StubHttpMessageHandler(
+    [TestMethod]
+    public void ResolveCalDavHref_WithAbsolutePath_ResolvesAgainstServerOrigin()
+    {
+        // Regression: Uri.TryCreate("/some/path", UriKind.Absolute, ...) returns true on Linux
+        // and produces a file:// URI. ResolveCalDavHref must ignore that and prepend the server origin.
+        var calendarUri = new Uri("https://p185-caldav.icloud.com/8351100632/calendars/CALENDAR-UUID/");
+        const string href = "/8351100632/calendars/CALENDAR-UUID/obfuscal-abc123.ics";
+
+        var result = ICloudCalendarSourceCore.ResolveCalDavHref(href, calendarUri);
+
+        Assert.AreEqual("https://p185-caldav.icloud.com/8351100632/calendars/CALENDAR-UUID/obfuscal-abc123.ics",
+            result.ToString());
+    }
+
+    [TestMethod]
+    public void ResolveCalDavHref_WithRelativePathNoLeadingSlash_PrependsMissingSlash()
+    {
+        var calendarUri = new Uri("https://caldav.example.com/user/calendar/");
+        const string href = "user/calendar/event.ics";
+
+        var result = ICloudCalendarSourceCore.ResolveCalDavHref(href, calendarUri);
+
+        Assert.AreEqual("https://caldav.example.com/user/calendar/event.ics", result.ToString());
+    }
+
+    [TestMethod]
+    public void ResolveCalDavHref_WithAbsoluteHttpsUrl_UsesItDirectly()
+    {
+        var calendarUri = new Uri("https://p185-caldav.icloud.com/user/calendar/");
+        const string href = "https://p99-caldav.icloud.com/user/calendar/event.ics";
+
+        var result = ICloudCalendarSourceCore.ResolveCalDavHref(href, calendarUri);
+
+        Assert.AreEqual(href, result.ToString());
+    }
+
+    [TestMethod]
+    public void ResolveCalDavHref_WithAbsoluteHttpUrl_UsesItDirectly()
+    {
+        var calendarUri = new Uri("https://caldav.example.com/user/calendar/");
+        const string href = "http://caldav.example.com/user/calendar/event.ics";
+
+        var result = ICloudCalendarSourceCore.ResolveCalDavHref(href, calendarUri);
+
+        Assert.AreEqual(href, result.ToString());
+    }
+
+            private sealed class StubHttpMessageHandler(
         Func<HttpRequestMessage, Task<HttpResponseMessage>> handler) : HttpMessageHandler
     {
         public StubHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler)

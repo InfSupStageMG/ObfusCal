@@ -251,9 +251,6 @@ public sealed partial class ICloudCalendarSourceCore
         string href,
         CancellationToken ct)
     {
-        // On Linux, Uri.TryCreate("/absolute/path", UriKind.Absolute, ...) succeeds and produces
-        // a file:/// URI, which is wrong for CalDAV hrefs. Avoid that by only accepting hrefs that
-        // already carry an explicit http(s) scheme; everything else is resolved against the server origin.
         var deleteUri = ResolveCalDavHref(href, configuration.CalendarUri);
 
         using var request = new HttpRequestMessage(HttpMethod.Delete, deleteUri);
@@ -286,6 +283,19 @@ public sealed partial class ICloudCalendarSourceCore
                 href,
                 calendarOwnerId);
         }
+    }
+
+    internal static Uri ResolveCalDavHref(string href, Uri calendarUri)
+    {
+        if (href.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            || href.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+        {
+            return new Uri(href);
+        }
+
+        var origin = calendarUri.GetLeftPart(UriPartial.Authority);
+        var path = href.StartsWith('/') ? href : "/" + href;
+        return new Uri(origin + path);
     }
 
     internal static IReadOnlyList<ManagedCalDavEvent> ParseManagedCalDavEvents(string responseBody)
