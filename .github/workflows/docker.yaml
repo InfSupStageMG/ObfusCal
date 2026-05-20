@@ -1,4 +1,4 @@
-﻿name: Build and publish Docker image
+name: Build and publish Docker image
 
 on:
     push:
@@ -79,6 +79,39 @@ jobs:
                     git diff --cached --quiet && exit 0
                     git commit -m "chore: update test catalog [skip ci]"
                     git push
+
+    deploy-docs:
+        runs-on: ubuntu-latest
+        needs: [ test ]
+        if: github.event_name == 'push'
+        permissions:
+            contents: write
+        steps:
+            -   name: Checkout repository
+                uses: actions/checkout@v6
+
+            -   name: Download test reports artifact
+                uses: actions/download-artifact@v8
+                with:
+                    name: test-reports
+                    path: ./downloaded
+
+            -   name: Inject fresh test catalog into docs
+                run: cp ./downloaded/test-catalog.md docs/test-catalog.md
+
+            -   name: Set up Python
+                uses: actions/setup-python@v5
+                with:
+                    python-version: '3.x'
+
+            -   name: Install MkDocs Material
+                run: pip install mkdocs-material
+
+            -   name: Deploy docs to GitHub Pages
+                run: |
+                    git config user.name "github-actions[bot]"
+                    git config user.email "github-actions[bot]@users.noreply.github.com"
+                    mkdocs gh-deploy --force
 
     container-smoke:
         runs-on: ubuntu-latest
