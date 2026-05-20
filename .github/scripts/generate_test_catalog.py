@@ -34,18 +34,14 @@ for test_name, class_name in class_map.items():
     tree[class_name].append((test_name, icon))
 
 # Sort classes; strip method name from test_name for display
-# (MSTest stores the method name as the testName, but qualified names appear
-# in className, so the display name is just test_name itself)
 lines = [
-    "# Test Catalog\n",
+    "# Test Catalog\n\n",
     f"_Auto-generated from CI run. {sum(len(v) for v in tree.values())} tests across {len(tree)} classes._\n\n",
 ]
 
 # Group by top-level namespace segment for collapsible sections
 ns_groups = defaultdict(list)
 for class_name in sorted(tree.keys()):
-    # e.g. "ObfusCal.Tests.Domain.ObfuscationPipelineTests"
-    #  -> group by "Domain" (third segment), or "Root" if flat
     parts = class_name.split(".")
     group = parts[2] if len(parts) > 2 else parts[-1]
     ns_groups[group].append(class_name)
@@ -59,11 +55,20 @@ for group, classes in sorted(ns_groups.items()):
         short = class_name.split(".")[-1]
         tests = sorted(tree[class_name], key=lambda t: t[0])
         passed = sum(1 for _, icon in tests if icon == "✅")
+
+        # Start HTML details block
         lines.append(f"<details>\n<summary><b>{short}</b> - {passed}/{len(tests)}</summary>\n\n")
-        lines.append("| Test | Result |\n|------|--------|\n")
+
+        lines.append("<table>\n")
+        lines.append("  <thead>\n    <tr><th>Test</th><th>Result</th></tr>\n  </thead>\n")
+        lines.append("  <tbody>\n")
+
         for test_name, icon in tests:
-            lines.append(f"| `{test_name}` | {icon} |\n")
-        lines.append("\n</details>\n\n")
+            lines.append(f"    <tr><td><code>{test_name}</code></td><td>{icon}</td></tr>\n")
+
+        lines.append("  </tbody>\n")
+        lines.append("</table>\n\n")
+        lines.append("</details>\n\n")
 
 os.makedirs("./TestResults", exist_ok=True)
 with open(out_md, "w", encoding="utf-8") as f:
