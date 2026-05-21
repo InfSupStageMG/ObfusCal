@@ -17,19 +17,22 @@ Rule**:
 
 The architecture is divided into four layers, each with a strict and well-defined responsibility:
 
-```
-        ┌─────────────────────────────────┐
-        │         Infrastructure          │  ← Outer layer: frameworks, DB, external APIs
-        │   ┌─────────────────────────┐   │
-        │   │       Application       │   │  ← Use cases, business orchestration
-        │   │   ┌─────────────────┐   │   │
-        │   │   │      Domain     │   │   │  ← Core business rules, always framework-free
-        │   │   └─────────────────┘   │   │
-        │   └─────────────────────────┘   │
-        └─────────────────────────────────┘
-                         ▲
-                         │
-                    Presentation          ← API controllers/endpoints
+```mermaid
+flowchart TD
+    API["ObfusCal.Api"]
+    APP["ObfusCal.Application"]
+    DOM["ObfusCal.Domain"]
+    INF["ObfusCal.Infrastructure"]
+
+    API -->|References| APP
+    APP -->|References| DOM
+
+    INF -.->|Implements interfaces from| APP
+    INF -->|Reads/Persists| DOM
+
+    %% Styling
+    classDef layer fill:#f0f7ff,stroke:#0050A0,stroke-width:2px,color:#000;
+    class API,APP,DOM,INF layer;
 ```
 
 ---
@@ -79,63 +82,72 @@ Current repository projects are `ObfusCal.Domain`, `ObfusCal.Application`, `Obfu
 
 #### Folder structure
 
-```
+<!-- START_TREE path="ObfusCal.Domain" max_depth="2" -->
+```text
 ObfusCal.Domain/
-├── Common/
-│   ├── Entity.cs
-│   ├── AggregateRoot.cs
-│   ├── ValueObject.cs
-│   ├── DomainEvent.cs
-│   └── Result.cs
-├── CalendarOwners/
-│   ├── CalendarOwner.cs
-│   ├── CalendarOwnerId.cs
-│   ├── CalendarOwnerErrors.cs
-│   └── Events/
-│       └── BusySlotsObfuscatedEvent.cs
-├── BusySlots/
-│   ├── BusyWindow.cs
-│   ├── ObfuscationPolicy.cs
-│   └── BusySlotErrors.cs
-└── Sync/
-    ├── SyncPeer.cs
-    ├── PeerId.cs
-    └── ShadowSlotBatch.cs
+├── Models/
+│   ├── BusySlot.cs
+│   └── CalendarEvent.cs
+├── Obfuscation/
+│   ├── Transformers/
+│   ├── IBusySlotTransformer.cs
+│   ├── IObfuscationTransformer.cs
+│   └── ITransformerPlugin.cs
+└── ObfusCal.Domain.csproj
 ```
+<!-- END_TREE -->
 
 #### Key patterns
 
-**Aggregate roots protect invariants and return `Result<T>` for business failures:**
+**Domain models are lightweight immutable records — no inheritance, no framework dependencies:**
 
-```csharp
-public sealed class CalendarOwner : AggregateRoot<CalendarOwnerId>
+<!-- START_SNIPPET path="ObfusCal.Domain/Models/CalendarEvent.cs" -->
+```cs
+﻿namespace ObfusCal.Domain.Models;
+
+public record CalendarEvent(
+    string Id,
+    string Title,
+    string? Description,
+    DateTimeOffset Start,
+    DateTimeOffset End,
+    IReadOnlyList<string> AttendeeEmails,
+    string? Location
+);
+```
+<!-- END_SNIPPET -->
+
+<!-- START_SNIPPET path="ObfusCal.Domain/Models/BusySlot.cs" -->
+```cs
+﻿namespace ObfusCal.Domain.Models;
+
+public record BusySlot(
+    string SourceEventId,
+    DateTimeOffset Start,
+    DateTimeOffset End,
+    string? Title = null,
+    string? Description = null,
+    IReadOnlyList<string>? AttendeeEmails = null,
+    string? Location = null,
+    IReadOnlyList<BusySlot>? SourceSlots = null
+);
+```
+<!-- END_SNIPPET -->
+
+**Obfuscation contracts are defined in Domain — declared here, implemented in Infrastructure or loaded as plugins:**
+
+<!-- START_SNIPPET path="ObfusCal.Domain/Obfuscation/IObfuscationTransformer.cs" -->
+```cs
+﻿using ObfusCal.Domain.Models;
+
+namespace ObfusCal.Domain.Obfuscation;
+
+public interface IObfuscationTransformer
 {
-    private readonly List<BusyWindow> _shadowSlots = new();
-
-    public Result AddShadowSlots(PeerId peerId, IEnumerable<BusyWindow> slots)
-    {
-        if (slots.Any(s => s.End <= s.Start))
-            return Result.Failure(CalendarOwnerErrors.InvalidBusyWindow);
-
-        _shadowSlots.AddRange(slots);
-        RaiseDomainEvent(new ShadowSlotsPushedEvent(Id, peerId, slots.Count()));
-        return Result.Success();
-    }
+    CalendarEvent Transform(CalendarEvent calendarEvent);
 }
 ```
-
-**Domain errors are typed constants, never raw strings:**
-
-```csharp
-public static class CalendarOwnerErrors
-{
-    public static readonly Error InvalidBusyWindow =
-        new("CalendarOwner.InvalidBusyWindow", "Busy slot end must be after start.");
-
-    public static readonly Error UnknownPeer =
-        new("CalendarOwner.UnknownPeer", "The pushing peer is not known for this owner.");
-}
-```
+<!-- END_SNIPPET -->
 
 ---
 
@@ -169,94 +181,134 @@ public static class CalendarOwnerErrors
 
 #### Folder structure
 
-```
+<!-- START_TREE path="ObfusCal.Application" max_depth="2" -->
+```text
 ObfusCal.Application/
-├── Common/
-│   ├── Abstractions/
-│   │   ├── ICommand.cs
-│   │   ├── IQuery.cs
-│   │   ├── ICommandHandler.cs
-│   │   ├── IQueryHandler.cs
-│   │   └── IUnitOfWork.cs
-│   ├── Behaviors/
-│   │   ├── ValidationBehavior.cs
-│   │   ├── LoggingBehavior.cs
-│   │   └── TransactionBehavior.cs
-│   └── Exceptions/
-│       └── ValidationException.cs
-├── CalendarOwners/
-│   ├── Abstractions/
-│   │   └── ICalendarOwnerRepository.cs
-│   ├── Queries/
-│   │   ├── GetBusySlots/
-│   │   │   ├── GetBusySlotsQuery.cs
-│   │   │   ├── GetBusySlotsHandler.cs
-│   │   │   └── BusySlotResponse.cs
-│   │   └── GetMergedFreeBusy/
-│   │       ├── GetMergedFreeBusyQuery.cs
-│   │       ├── GetMergedFreeBusyHandler.cs
-│   │       └── MergedFreeBusyResponse.cs
-├── ShadowSlots/
-│   ├── Abstractions/
-│   │   └── IShadowSlotStore.cs
-│   └── Commands/
-│       └── PushShadowSlots/
-│           ├── PushShadowSlotsCommand.cs
-│           ├── PushShadowSlotsHandler.cs
-│           └── PushShadowSlotsValidator.cs
-└── Obfuscation/
-    ├── Abstractions/
-    │   └── IObfuscationService.cs
-    └── EventHandlers/
-        └── BusySlotsObfuscatedEventHandler.cs
+├── Configuration/
+│   ├── CalendarSourceOptions.cs
+│   ├── GoogleConsentOptions.cs
+│   ├── GraphConsentOptions.cs
+│   ├── ICloudCalendarOptions.cs
+│   ├── PeerTransportSecurityOptions.cs
+│   ├── PluginAllowlistOptions.cs
+│   ├── SecretKeys.cs
+│   ├── SecretProviderOptions.cs
+│   ├── SecretValidationOptions.cs
+│   └── SyncOptions.cs
+├── Interfaces/
+│   ├── GraphConsentAccessLevel.cs
+│   ├── ICalendarOwnerAvailabilitySlotStore.cs
+│   ├── ICalendarOwnerAvailabilitySyncService.cs
+│   ├── ICalendarOwnerClientBusySlotService.cs
+│   ├── ICalendarOwnerGoogleConsentService.cs
+│   ├── ICalendarOwnerGraphConsentService.cs
+│   ├── ICalendarOwnerICloudConfigurationService.cs
+│   ├── ICalendarOwnerIcalFeedService.cs
+│   ├── ICalendarOwnerObfuscationProfileService.cs
+│   ├── ICalendarOwnerProvisioningService.cs
+│   ├── ICalendarOwnerScopeResolver.cs
+│   ├── ICalendarOwnerService.cs
+│   ├── ICalendarSource.cs
+│   ├── ICalendarSourceInstances.cs
+│   ├── ICalendarSourcePlugin.cs
+│   ├── ICalendarWriteBack.cs
+│   ├── IColumnEncryptor.cs
+│   ├── IGoogleOAuthTokenClient.cs
+│   ├── IGraphOAuthTokenClient.cs
+│   ├── IInboundPeerPullSyncService.cs
+│   ├── ILogRedactor.cs
+│   ├── IOutboundPeerSyncService.cs
+│   ├── IPeerApiKeyAuthenticator.cs
+│   ├── IPeerCalendarOwnerResolver.cs
+│   ├── IPeerConnectionService.cs
+│   ├── IPluginAllowlistAdminService.cs
+│   ├── ISecretProvider.cs
+│   ├── IShadowSlotStore.cs
+│   ├── IStatusService.cs
+│   ├── ISyncRuntimeOptionsProvider.cs
+│   ├── IUrlSafetyValidator.cs
+│   └── PeerApiScopes.cs
+├── Obfuscation/
+│   ├── ObfuscationAuditContext.cs
+│   ├── ObfuscationPipeline.cs
+│   └── ObfuscationProfileSettings.cs
+├── UseCases/
+│   ├── GetBusySlots/
+│   ├── GetMergedFreeBusy/
+│   ├── PushShadowSlots/
+│   └── Validation/
+├── DependencyInjection.cs
+├── ObfusCal.Application.csproj
+└── PluginDiscovery.cs
 ```
+<!-- END_TREE -->
 
 #### Key patterns
 
-**Commands and queries use marker interfaces for pipeline behavior targeting:**
+**Use cases are declared as interfaces in Application — controllers and callers depend only on the interface:**
 
 ```csharp
-public interface ICommand : IRequest<Result>;
-public interface ICommand<TResponse> : IRequest<Result<TResponse>>;
-public interface IQuery<TResponse> : IRequest<Result<TResponse>>;
+public interface IGetMergedFreeBusyUseCase
+{
+    Task<IReadOnlyList<MergedFreeBusyResponse>> ExecuteAsync(
+        GetMergedFreeBusyQuery query, CancellationToken ct);
+}
 ```
 
-**Handlers depend only on abstractions and orchestrate use cases:**
+**Implementations inject only Application-layer abstractions and orchestrate work without business logic:**
 
 ```csharp
-internal sealed class GetMergedFreeBusyHandler(
-    ICalendarSource calendarSource,
-    IObfuscationService obfuscationService,
-    IShadowSlotStore shadowSlotStore)
-    : IQueryHandler<GetMergedFreeBusyQuery, IReadOnlyList<BusySlotResponse>>
+public sealed class GetMergedFreeBusyUseCase(
+    ICalendarSourceResolver calendarSourceResolver,
+    ObfuscationPipeline obfuscationPipeline,
+    IShadowSlotStore shadowSlotStore,
+    ICalendarOwnerObfuscationProfileService obfuscationProfileService)
+    : IGetMergedFreeBusyUseCase
 {
-    public async Task<Result<IReadOnlyList<BusySlotResponse>>> Handle(GetMergedFreeBusyQuery query, CancellationToken ct)
+    public async Task<IReadOnlyList<MergedFreeBusyResponse>> ExecuteAsync(
+        GetMergedFreeBusyQuery query, CancellationToken ct)
     {
-        var events = await calendarSource.GetEventsAsync(query.From, query.To, ct);
-        var ownSlots = obfuscationService.Obfuscate(events);
-        var shadowSlots = await shadowSlotStore.GetAllSlotsAsync(query.From, query.To, ct);
+        var calendarSource = await calendarSourceResolver.ResolveAsync(query.CalendarOwnerId, ct);
+        var events = await calendarSource.GetEventsAsync(query.From, query.To, query.CalendarOwnerId, ct);
+        var profile = await obfuscationProfileService.GetProfileAsync(
+            query.CalendarOwnerId, ObfuscationAuditContext.Internal, ct);
+        var own = obfuscationPipeline.Process(
+            events, query.CalendarOwnerId.ToString(), ObfuscationAuditContext.Internal, profile);
+        var shadow = await shadowSlotStore.GetAllSlotsAsync(
+            query.CalendarOwnerId, query.From, query.To, ct);
 
-        var merged = ownSlots
-            .Concat(shadowSlots)
-            .OrderBy(s => s.Start)
-            .Select(s => new BusySlotResponse(s.Start, s.End))
+        return own.Concat(shadow).OrderBy(s => s.Start)
+            .Select(s => new MergedFreeBusyResponse(s.Start, s.End, s.Title, s.Description,
+                s.AttendeeEmails, s.Location, s.SourceSlots))
             .ToList();
-
-        return Result<IReadOnlyList<BusySlotResponse>>.Success(merged);
     }
 }
 ```
 
 **Interfaces belong to Application, implementation belongs to Infrastructure:**
 
-```csharp
-// ObfusCal.Application/ShadowSlots/Abstractions/IShadowSlotStore.cs
+<!-- START_SNIPPET path="ObfusCal.Application/Interfaces/IShadowSlotStore.cs" -->
+```cs
+﻿using ObfusCal.Domain.Models;
+
+namespace ObfusCal.Application.Interfaces;
+
 public interface IShadowSlotStore
 {
     Task SetSlotsAsync(string peerId, IReadOnlyList<BusySlot> slots, CancellationToken ct = default);
-    Task<IReadOnlyList<BusySlot>> GetAllSlotsAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
+    Task SetSlotsAsync(string peerId, Guid calendarOwnerId, IReadOnlyList<BusySlot> slots, CancellationToken ct = default);
+    Task<IReadOnlyList<BusySlot>> GetSlotsAsync(string peerId, CancellationToken ct = default);
+    Task<IReadOnlyList<BusySlot>> GetSlotsAsync(string peerId, Guid calendarOwnerId, CancellationToken ct = default);
+    Task<IReadOnlyList<BusySlot>> GetAllSlotsAsync(
+        DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default);
+    Task<IReadOnlyList<BusySlot>> GetAllSlotsAsync(
+        Guid calendarOwnerId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        CancellationToken ct = default);
 }
 ```
+<!-- END_SNIPPET -->
 
 ---
 
@@ -290,22 +342,83 @@ public interface IShadowSlotStore
 
 #### Folder structure
 
-```
+<!-- START_TREE path="ObfusCal.Infrastructure" max_depth="2" -->
+```text
 ObfusCal.Infrastructure/
+├── Calendars/
+│   ├── AggregateCalendarSource.cs
+│   ├── CalendarOwnerCalendarSourceService.cs
+│   ├── CalendarSourceInstanceService.cs
+│   ├── CalendarSourcePluginCatalog.cs
+│   ├── CalendarSourceResolver.cs
+│   ├── EfCorePeerCalendarOwnerResolver.cs
+│   ├── EfCorePluginAllowlistAdminService.cs
+│   ├── GoogleCalendarSourceCore.WriteBack.cs
+│   ├── GoogleCalendarSourceCore.cs
+│   ├── GoogleOAuthTokenClient.cs
+│   ├── GraphCalendarSource.Models.cs
+│   ├── GraphCalendarSource.WriteBack.cs
+│   ├── GraphCalendarSource.cs
+│   ├── GraphOAuthTokenClient.cs
+│   ├── ICalFeedCalendarSource.cs
+│   ├── ICloudCalendarSourceCore.WriteBack.cs
+│   ├── ICloudCalendarSourceCore.cs
+│   ├── IcsCalendarEventParser.cs
+│   ├── MockCalendarSource.cs
+│   └── PluginAllowlistCache.cs
 ├── Persistence/
 │   ├── AppDbContext.cs
 │   ├── AppDbContextFactory.cs
-│   ├── Migrations/
-│   └── Configurations/
-│       └── ShadowSlotEntityConfiguration.cs
+│   ├── BusySlot.cs
+│   ├── CalendarOwner.cs
+│   ├── CalendarOwnerAvailabilitySlot.cs
+│   ├── CalendarOwnerGoogleConsentService.cs
+│   ├── CalendarOwnerGraphConsentService.cs
+│   ├── CalendarOwnerICalFeed.cs
+│   ├── CalendarOwnerICloudConfigurationService.cs
+│   ├── CalendarOwnerIcalFeedService.cs
+│   ├── CalendarOwnerObfuscationProfileService.cs
+│   ├── CalendarOwnerPeerMapping.cs
+│   ├── CalendarOwnerProvisioningService.cs
+│   ├── CalendarOwnerService.cs
+│   ├── CalendarSourceInstance.cs
+│   ├── EfCoreCalendarOwnerScopeResolver.cs
+│   ├── EncryptedStringConverter.cs
+│   ├── ObfuscationProfile.cs
+│   ├── PeerConnection.cs
+│   ├── PeerConnectionService.cs
+│   ├── PluginAllowlistOverride.cs
+│   └── StatusService.cs
+├── Security/
+│   ├── AesGcmColumnEncryptor.cs
+│   ├── CalendarSourceSecretProtector.cs
+│   ├── ConfiguredSecretProvider.cs
+│   ├── DefaultLogRedactor.cs
+│   ├── EfCorePeerApiKeyAuthenticator.cs
+│   ├── EnvironmentSecretProvider.cs
+│   ├── ExternalSecretProvider.cs
+│   ├── PassthroughColumnEncryptor.cs
+│   ├── PeerApiKeySecurity.cs
+│   ├── PeerTransportSecurity.cs
+│   ├── SecretStartupValidator.cs
+│   ├── SyncRuntimeOptionsProvider.cs
+│   └── UrlSafetyValidator.cs
 ├── Storage/
+│   ├── EfCoreCalendarOwnerAvailabilitySlotStore.cs
 │   ├── EfCoreShadowSlotStore.cs
 │   └── InMemoryShadowSlotStore.cs
-├── Calendars/
-│   ├── MockCalendarSource.cs
-│   └── MicrosoftGraphCalendarSource.cs
-└── DependencyInjection.cs
+├── Sync/
+│   ├── CalendarOwnerAvailabilityBackgroundService.cs
+│   ├── CalendarOwnerAvailabilitySyncService.cs
+│   ├── CalendarOwnerClientBusySlotService.cs
+│   ├── InboundPeerPullSyncService.cs
+│   ├── OutboundPeerSyncService.cs
+│   ├── PeerSyncBackgroundService.cs
+│   └── ShadowSlotRetentionBackgroundService.cs
+├── DependencyInjection.cs
+└── ObfusCal.Infrastructure.csproj
 ```
+<!-- END_TREE -->
 
 #### Key patterns
 
@@ -370,50 +483,96 @@ public static class DependencyInjection
 
 #### Folder structure
 
-```
+<!-- START_TREE path="ObfusCal.Api" max_depth="2" -->
+```text
 ObfusCal.Api/
-├── Program.cs
-├── appsettings.json
+├── Authentication/
+│   ├── PeerApiAuthorizationPolicies.cs
+│   ├── PeerApiKeyAuthenticationDefaults.cs
+│   ├── PeerApiKeyAuthenticationHandler.cs
+│   └── PeerApiKeyClaimTypes.cs
+├── Authorization/
+│   ├── AppAuthorizationPolicies.cs
+│   ├── CalendarOwnerAccessEvaluator.cs
+│   ├── CurrentUserContextAccessor.cs
+│   └── UserIdentityExtensions.cs
+├── Components/
+│   ├── Layout/
+│   ├── Pages/
+│   ├── Shared/
+│   ├── App.razor
+│   ├── App.razor.cs
+│   ├── Routes.razor
+│   └── _Imports.razor
 ├── Controllers/
+│   ├── AccountController.cs
+│   ├── AdminPeerConnectionsController.cs
+│   ├── AdminPluginAllowlistController.cs
+│   ├── CalendarConsentServices.cs
+│   ├── CalendarOwnerGoogleConsentController.cs
+│   ├── CalendarOwnerObfuscationProfilesController.cs
 │   ├── CalendarOwnersController.cs
-│   └── ShadowSlotsController.cs
-├── Middleware/
-│   └── ExceptionHandlingMiddleware.cs
-└── Extensions/
-    └── ResultExtensions.cs
+│   ├── PeerConnectionsController.cs
+│   ├── PeerSyncController.cs
+│   ├── ShadowSlotsController.cs
+│   ├── StatusController.cs
+│   └── SyncController.cs
+├── Properties/
+│   └── launchSettings.json
+├── RateLimiting/
+│   ├── ApiRequestRateLimitEnforcer.cs
+│   ├── PeerRateLimitIdentityCapture.cs
+│   ├── PeerRateLimiting.cs
+│   ├── RateLimitBucketEvictionService.cs
+│   ├── RateLimitRejectionHandler.cs
+│   ├── RateLimitStore.cs
+│   ├── RateLimitSubjectResolver.cs
+│   └── RateLimitingContextKeys.cs
+├── wwwroot/
+│   ├── css/
+│   ├── js/
+│   └── favicon.png
+├── DotEnvLoader.cs
+├── ObfusCal.Api.csproj
+├── ObfusCal.Api.http
+├── Program.cs
+├── ProgramSetup.cs
+├── SecurityHeadersMiddleware.cs
+├── appsettings.Development.json
+└── appsettings.json
 ```
+<!-- END_TREE -->
 
 #### Key patterns
 
-**Controllers are delivery mechanisms only:**
+**Controllers are delivery mechanisms only — inject use case interfaces, never infrastructure implementations:**
 
 ```csharp
 [ApiController]
+[Authorize]
 [Route("api/calendar-owners")]
-public sealed class CalendarOwnersController(ISender sender) : ControllerBase
+public sealed class CalendarOwnersController(
+    IGetBusySlotsUseCase getBusySlotsUseCase,
+    IGetMergedFreeBusyUseCase getMergedFreeBusyUseCase,
+    CalendarOwnerAccessEvaluator accessEvaluator) : ControllerBase
 {
     [HttpGet("{id}/busy-slots")]
-    public async Task<IActionResult> GetBusySlots(string id, [FromQuery] DateTimeOffset from, [FromQuery] DateTimeOffset to, CancellationToken ct)
+    public async Task<IActionResult> GetBusySlots(
+        string id, [FromQuery] DateTimeOffset from, [FromQuery] DateTimeOffset to, CancellationToken ct)
     {
-        var result = await sender.Send(new GetBusySlotsQuery(id, from, to), ct);
-        return result.IsSuccess ? Ok(result.Value) : result.ToProblemDetails();
-    }
-
-    [HttpGet("{id}/merged-freebusy")]
-    public async Task<IActionResult> GetMergedFreeBusy(string id, [FromQuery] DateTimeOffset from, [FromQuery] DateTimeOffset to, CancellationToken ct)
-    {
-        var result = await sender.Send(new GetMergedFreeBusyQuery(id, from, to), ct);
-        return result.IsSuccess ? Ok(result.Value) : result.ToProblemDetails();
+        await accessEvaluator.AssertOwnerAccessAsync(id, User, ct);
+        var result = await getBusySlotsUseCase.ExecuteAsync(new GetBusySlotsQuery(id, from, to), ct);
+        return Ok(result);
     }
 }
 ```
 
-**Composition root wires all layers (target):**
+**Composition root wires all layers:**
 
 ```csharp
 builder.Services
-    .AddApplication()                          // validators, behaviors
-    .AddInfrastructure(builder.Configuration); // DbContext, stores, adapters
+    .AddInfrastructure(builder.Configuration)  // DbContext, stores, adapters, plugin loading
+    .AddApplication();                          // Use cases, obfuscation pipeline
 ```
 
 ---
@@ -444,17 +603,21 @@ through DI.
 
 ### Error Handling
 
-Use a `Result<T>` / `Error` pattern throughout. Never use exceptions to communicate business rule violations.
+Validation failures are communicated via `RequestValidationException` thrown by use-case code, caught by global
+exception middleware, and mapped to `400 ValidationProblemDetails`. Unexpected failures (DB unreachable, calendar
+API errors) propagate as exceptions and are returned as `500` problem details without stack traces or internal detail.
 
-- Domain methods return `Result<T>`.
-- Application handlers propagate `Result<T>` to the API layer.
-- The API maps failure results to RFC 9457 problem details responses.
-- Exceptions are reserved for unrecoverable failures (for example: DB connection failure) and handled by middleware.
+- Domain is free of error types — it defines records and interfaces only.
+- Use cases surface input-validation failures via `RequestValidationException`.
+- The API maps these to RFC 9457 problem detail responses (`ValidationProblemDetails` or `ProblemDetails`).
+- Unhandled exceptions are caught by the ASP.NET Core exception handler middleware.
 
 ### Validation
 
-- `ValidationBehavior<TRequest, TResponse>` runs validators before handlers.
-- Domain rule validation is in domain methods and returned as `Result` failures.
+- Use cases validate inputs at the start of `ExecuteAsync` and throw `RequestValidationException` for constraint
+  violations (window too large, slot end before start, etc.).
+- DataAnnotations on controller request DTOs are checked by the ASP.NET Core model binder before the action runs,
+  returning `400 ValidationProblemDetails` automatically.
 
 ### Domain Events
 

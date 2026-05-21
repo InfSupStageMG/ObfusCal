@@ -4,14 +4,29 @@
 
 The solution follows Clean Architecture. Dependencies point strictly inward.
 
-```
-ObfusCal.Api  ──────────────────►  ObfusCal.Application  ──►  ObfusCal.Domain
-                                            ▲
-ObfusCal.Infrastructure  ─────────────────►┘
-                         also references ──────────────────►  ObfusCal.Domain
+```mermaid
+flowchart LR
+    API["ObfusCal.Api"]
+    APP["ObfusCal.Application"]
+    DOM["ObfusCal.Domain"]
+    INFRA["ObfusCal.Infrastructure"]
+    PLUG_GOOG["ObfusCal.Plugins.GoogleCalendar"]
+    PLUG_ICLOUD["ObfusCal.Plugins.ICloudCalendar"]
 
-ObfusCal.Plugins.GoogleCalendar   ──►  ObfusCal.Application / ObfusCal.Infrastructure (core types)
-ObfusCal.Plugins.ICloudCalendar   ──►  ObfusCal.Application / ObfusCal.Infrastructure (core types)
+    API --> APP
+    APP --> DOM
+    INFRA --> APP
+    INFRA --> DOM
+
+    PLUG_GOOG -.-> APP
+    PLUG_ICLOUD -.-> APP
+
+    %% Styling
+    classDef core fill:#dae8fc,stroke:#0050A0,stroke-width:2px,color:#000;
+    classDef plugins fill:#fff2cc,stroke:#d6b656,stroke-width:2px,stroke-dasharray: 5 5,color:#000;
+
+    class API,APP,DOM,INFRA core;
+    class PLUG_GOOG,PLUG_ICLOUD plugins;
 ```
 
 `ObfusCal.Domain` has zero external NuGet dependencies. `ObfusCal.Infrastructure` implements interfaces defined in

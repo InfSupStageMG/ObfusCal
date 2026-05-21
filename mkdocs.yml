@@ -58,6 +58,7 @@ nav:
 markdown_extensions:
     - attr_list
     - tables
+    - pymdownx.snippets
     -   pymdownx.superfences:
             custom_fences:
                 -   name: mermaid
