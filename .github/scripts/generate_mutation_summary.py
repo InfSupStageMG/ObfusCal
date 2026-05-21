@@ -24,6 +24,8 @@ def _find_html_report() -> str | None:
 
 
 def _collect_mutant_statuses(report: dict) -> Counter:
+    statuses = Counter()
+    files = report.get("files")
     if not isinstance(files, dict):
         return statuses
     for file_info in files.values():

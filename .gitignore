@@ -28,3 +28,6 @@ site/
 # Security Audit output
 SecurityAudit/
 
+# pycache
+__pycache__/
+*.pyc

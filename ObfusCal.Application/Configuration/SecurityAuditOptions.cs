@@ -9,7 +9,14 @@ public sealed class SecurityAuditOptions
 	public string ResolveFilePath()
 	{
 		if (!string.IsNullOrWhiteSpace(FilePath))
-			return FilePath.Trim();
+		{
+			var trimmedPath = FilePath.Trim();
+			// Sanitize path to prevent traversal attacks
+			if (trimmedPath.Contains("..") || trimmedPath.Contains("../") || trimmedPath.Contains(@"\.."))
+				throw new InvalidOperationException("FilePath cannot contain '..' sequences to prevent path traversal attacks.");
+
+			return trimmedPath;
+		}
 
 		return Path.Join(Path.GetTempPath(), "ObfusCal", "security-audit.ndjson");
 	}
