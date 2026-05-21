@@ -11,7 +11,7 @@ public sealed class SecurityAuditOptions
 		if (!string.IsNullOrWhiteSpace(FilePath))
 			return FilePath.Trim();
 
-		return Path.Combine(Path.GetTempPath(), "ObfusCal", "security-audit.ndjson");
+		return Path.Join(Path.GetTempPath(), "ObfusCal", "security-audit.ndjson");
 	}
 }
 

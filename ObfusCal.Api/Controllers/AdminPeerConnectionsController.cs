@@ -188,7 +188,7 @@ public sealed class AdminPeerConnectionsController(
                     }),
                 HttpContext.RequestAborted);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex,
                 "Failed to write security audit event {EventCode} for peer connection {PeerConnectionId}.",

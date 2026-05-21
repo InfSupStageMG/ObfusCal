@@ -118,7 +118,14 @@ public sealed class PeerApiKeyAuthenticationHandler(
                     }),
                 Context.RequestAborted);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException ex) when (Context.RequestAborted.IsCancellationRequested)
+        {
+            auditLogger.LogDebug(ex,
+                "Security audit write was canceled for event {EventCode} on path {RequestPath}.",
+                eventCode,
+                Request.Path);
+        }
+        catch (InvalidOperationException ex)
         {
             auditLogger.LogWarning(ex,
                 "Failed to write security audit event {EventCode} for peer authentication path {RequestPath}.",

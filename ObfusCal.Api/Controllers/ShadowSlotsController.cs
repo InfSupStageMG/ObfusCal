@@ -185,7 +185,14 @@ public sealed class ShadowSlotsController(
                     mergedMetadata),
                 HttpContext.RequestAborted);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException ex) when (HttpContext.RequestAborted.IsCancellationRequested)
+        {
+            logger.LogWarning(ex,
+                "Failed to write security audit event {EventCode} for peer {PeerId}.",
+                eventCode,
+                actorIdentity);
+        }
+        catch (InvalidOperationException ex)
         {
             logger.LogWarning(ex,
                 "Failed to write security audit event {EventCode} for peer {PeerId}.",

@@ -541,7 +541,7 @@ public class ShadowSlotsControllerTests
 
     private static (CustomWebApplicationFactory Factory, string AuditFilePath) CreateFactoryWithAuditFile()
     {
-        var auditFilePath = Path.Combine(Path.GetTempPath(), "ObfusCal", "tests", $"audit-{Guid.NewGuid():N}.ndjson");
+        var auditFilePath = Path.Join(Path.GetTempPath(), "ObfusCal", "tests", $"audit-{Guid.NewGuid():N}.ndjson");
         var overrides = new Dictionary<string, string?>
         {
             ["SecurityAudit:FilePath"] = auditFilePath

@@ -36,7 +36,7 @@ public sealed class StatusController(
                     }),
                 ct);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Failed to write status read audit event.");
         }

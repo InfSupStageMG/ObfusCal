@@ -24,18 +24,18 @@ def _find_html_report() -> str | None:
 
 
 def _collect_mutant_statuses(report: dict) -> Counter:
-    statuses: Counter = Counter()
-    files = report.get("files")
-    if isinstance(files, dict):
-        for file_info in files.values():
-            mutants = file_info.get("mutants") if isinstance(file_info, dict) else None
-            if isinstance(mutants, list):
-                for mutant in mutants:
-                    if not isinstance(mutant, dict):
-                        continue
-                    status = mutant.get("status")
-                    if isinstance(status, str) and status:
-                        statuses[status] += 1
+    if not isinstance(files, dict):
+        return statuses
+    for file_info in files.values():
+        mutants = file_info.get("mutants") if isinstance(file_info, dict) else None
+        if not isinstance(mutants, list):
+            continue
+        for mutant in mutants:
+            if not isinstance(mutant, dict):
+                continue
+            status = mutant.get("status")
+            if isinstance(status, str) and status:
+                statuses[status] += 1
     return statuses
 
 

@@ -109,7 +109,13 @@ public sealed class PeerConnectionsController(
                     }),
                 HttpContext.RequestAborted);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException ex)
+        {
+            logger.LogWarning(ex,
+                "Failed to write security audit event for requested peer connection {PeerConnectionId}.",
+                peerConnectionId);
+        }
+        catch (InvalidOperationException ex)
         {
             logger.LogWarning(ex,
                 "Failed to write security audit event for requested peer connection {PeerConnectionId}.",
