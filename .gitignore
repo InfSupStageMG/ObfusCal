@@ -25,3 +25,6 @@ StrykerOutput/
 # Site build output
 site/
 
+# Security Audit output
+SecurityAudit/
+

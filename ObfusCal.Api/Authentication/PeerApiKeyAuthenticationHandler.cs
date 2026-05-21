@@ -12,7 +12,9 @@ public sealed class PeerApiKeyAuthenticationHandler(
     ILoggerFactory logger,
     UrlEncoder encoder,
     IPeerApiKeyAuthenticator peerApiKeyAuthenticator,
-    ISyncRuntimeOptionsProvider syncRuntimeOptionsProvider)
+    ISyncRuntimeOptionsProvider syncRuntimeOptionsProvider,
+    ISecurityAuditService securityAuditService,
+    ILogger<PeerApiKeyAuthenticationHandler> auditLogger)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     private const string PeerTimestampHeaderName = "X-Peer-Timestamp";
@@ -30,18 +32,27 @@ public sealed class PeerApiKeyAuthenticationHandler(
 
         var providedApiKey = authorizationHeader[expectedPrefix.Length..].Trim();
         if (string.IsNullOrWhiteSpace(providedApiKey))
+        {
+            await WriteAuditAsync(SecurityAuditEventCodes.AuthFailure, SecurityAuditOutcomes.Failure, "missing_api_key");
             return AuthenticateResult.Fail("Missing API key.");
+        }
 
         if (RequiresReplayTimestampValidation(Request.Path)
             && !IsRequestTimestampWithinTolerance(syncRuntimeOptionsProvider.Get()))
         {
+            await WriteAuditAsync(SecurityAuditEventCodes.AuthFailure, SecurityAuditOutcomes.Failure, "invalid_replay_timestamp");
             return AuthenticateResult.Fail("Invalid API key.");
         }
 
         var peer = await peerApiKeyAuthenticator.AuthenticateAsync(providedApiKey, Context.RequestAborted);
 
         if (peer is null)
+        {
+            await WriteAuditAsync(SecurityAuditEventCodes.AuthFailure, SecurityAuditOutcomes.Failure, "invalid_api_key");
             return AuthenticateResult.Fail("Invalid API key.");
+        }
+
+        await WriteAuditAsync(SecurityAuditEventCodes.AuthSuccess, SecurityAuditOutcomes.Success, "authenticated", peer.PeerInstanceId);
 
         var claims = new List<Claim>
         {
@@ -87,5 +98,41 @@ public sealed class PeerApiKeyAuthenticationHandler(
     private static bool RequiresReplayTimestampValidation(PathString requestPath)
         => requestPath.StartsWithSegments("/api/shadow-slots", StringComparison.OrdinalIgnoreCase)
            || requestPath.StartsWithSegments("/api/sync/busy-slots", StringComparison.OrdinalIgnoreCase);
+
+    private async Task WriteAuditAsync(string eventCode, string outcome, string reason, string? actorIdentity = null)
+    {
+        try
+        {
+            await securityAuditService.WriteAsync(
+                new SecurityAuditEvent(
+                    eventCode,
+                    outcome,
+                    actorIdentity ?? ResolveActorIdentity(),
+                    Request.Path.Value ?? "<unknown>",
+                    null,
+                    Context.TraceIdentifier,
+                    new Dictionary<string, string?>
+                    {
+                        ["reason"] = reason,
+                        ["method"] = Request.Method
+                    }),
+                Context.RequestAborted);
+        }
+        catch (Exception ex)
+        {
+            auditLogger.LogWarning(ex,
+                "Failed to write security audit event {EventCode} for peer authentication path {RequestPath}.",
+                eventCode,
+                Request.Path);
+        }
+    }
+
+    private string ResolveActorIdentity()
+    {
+        if (Request.Headers.TryGetValue("X-Peer-Id", out var peerHeader) && !string.IsNullOrWhiteSpace(peerHeader.ToString()))
+            return peerHeader.ToString();
+
+        return "unknown-peer";
+    }
 }
 

@@ -131,6 +131,38 @@ public class ShadowSlotsControllerTests
     }
 
     [TestMethod]
+    public async Task PushShadowSlots_WithInvalidApiKey_WritesAuthFailureAuditEventWithoutCredentialValue()
+    {
+        var (factory, auditFilePath) = CreateFactoryWithAuditFile();
+        await using var _ = factory;
+        using var client = factory.CreateClient();
+        await factory.SeedPeerConnectionAsync();
+
+        var providedCredential = "api-key=super-secret-test-value";
+        var payload = new[]
+        {
+            new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(30) }
+        };
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", providedCredential);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
+
+        var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
+
+        var events = await ReadAuditEventsAsync(auditFilePath);
+        var authFailure = events.SingleOrDefault(e =>
+            string.Equals(e.EventCode, SecurityAuditEventCodes.AuthFailure, StringComparison.Ordinal));
+
+        Assert.IsNotNull(authFailure);
+        Assert.AreEqual(SecurityAuditOutcomes.Failure, authFailure.Outcome);
+        Assert.IsFalse(
+            authFailure.RawLine.Contains("super-secret-test-value", StringComparison.Ordinal),
+            "Audit sink should not include raw credential values.");
+    }
+
+    [TestMethod]
     public async Task PushShadowSlots_WithoutApiKeyHeader_ReturnsUnauthorized()
     {
         await using var factory = new CustomWebApplicationFactory("Development");
@@ -168,6 +200,37 @@ public class ShadowSlotsControllerTests
         var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task PushShadowSlots_WithValidApiKeyButNoOwnerMappings_WritesPeerSlotRejectedAuditEvent()
+    {
+        var (factory, auditFilePath) = CreateFactoryWithAuditFile();
+        await using var _ = factory;
+        using var client = factory.CreateClient();
+        var instanceId = $"peer-no-mapping-{Guid.NewGuid():N}";
+        var apiKey = $"test-key-{Guid.NewGuid():N}";
+        await factory.SeedPeerConnectionAsync(instanceId, apiKey);
+
+        var payload = new[]
+        {
+            new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(30) }
+        };
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("ApiKey", apiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
+
+        var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
+
+        var events = await ReadAuditEventsAsync(auditFilePath);
+        var rejectionEvent = events.LastOrDefault(e =>
+            string.Equals(e.EventCode, SecurityAuditEventCodes.PeerSlotRejected, StringComparison.Ordinal));
+
+        Assert.IsNotNull(rejectionEvent);
+        Assert.AreEqual(SecurityAuditOutcomes.Failure, rejectionEvent.Outcome);
+        Assert.IsTrue(rejectionEvent.RawLine.Contains(instanceId, StringComparison.Ordinal));
     }
 
     [TestMethod]
@@ -475,4 +538,38 @@ public class ShadowSlotsControllerTests
         client.DefaultRequestHeaders.Remove(PeerTimestampHeaderName);
         client.DefaultRequestHeaders.Add(PeerTimestampHeaderName, timestamp.ToUnixTimeSeconds().ToString());
     }
+
+    private static (CustomWebApplicationFactory Factory, string AuditFilePath) CreateFactoryWithAuditFile()
+    {
+        var auditFilePath = Path.Combine(Path.GetTempPath(), "ObfusCal", "tests", $"audit-{Guid.NewGuid():N}.ndjson");
+        var overrides = new Dictionary<string, string?>
+        {
+            ["SecurityAudit:FilePath"] = auditFilePath
+        };
+
+        var factory = new CustomWebApplicationFactory("Development", additionalConfiguration: overrides);
+        return (factory, auditFilePath);
+    }
+
+    private static async Task<IReadOnlyList<AuditEntry>> ReadAuditEventsAsync(string filePath)
+    {
+        if (!File.Exists(filePath))
+            return [];
+
+        var lines = await File.ReadAllLinesAsync(filePath);
+        var result = new List<AuditEntry>(lines.Length);
+        foreach (var line in lines.Where(line => !string.IsNullOrWhiteSpace(line)))
+        {
+            using var json = JsonDocument.Parse(line);
+            var root = json.RootElement;
+            result.Add(new AuditEntry(
+                root.GetProperty("eventCode").GetString() ?? string.Empty,
+                root.GetProperty("outcome").GetString() ?? string.Empty,
+                line));
+        }
+
+        return result;
+    }
+
+    private sealed record AuditEntry(string EventCode, string Outcome, string RawLine);
 }

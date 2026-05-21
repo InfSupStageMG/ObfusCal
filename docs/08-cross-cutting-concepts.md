@@ -65,6 +65,13 @@ scope checks per endpoint (`push_shadow_slots` for `POST /api/shadow-slots`, `pu
 `GET /api/sync/busy-slots/{calendarOwnerRef}`). Peer sync requests include `X-Peer-Timestamp` and are accepted only
 within `Sync:PeerRequestTimestampToleranceSeconds` (default 300 seconds) to limit naive replay attacks.
 
+**Security audit taxonomy and sink:** Security-relevant code paths emit dedicated audit events with stable event codes
+(`AUTH_SUCCESS`, `AUTH_FAILURE`, `PEER_SLOT_PUSH`, `PEER_SLOT_REJECTED`, `CONFIG_CHANGE`, `KEY_ROTATION`,
+`KEY_REVOCATION`). These events are written to a dedicated append-only NDJSON sink configured by
+`SecurityAudit:FilePath` and include UTC timestamp, actor identity, target resource, outcome, and correlation ID.
+Each persisted audit entry carries `previousEntryHash` and `entryHash` so tampering can be detected via hash-chain
+verification.
+
 **Rate limiting and payload caps:** Peer sync traffic is rate limited in-process with a peer-ID partition when the
 peer is authenticated and an IP-based backstop for unauthenticated API requests. `POST /api/shadow-slots` and
 `GET /api/sync/busy-slots/{calendarOwnerRef}` use separate configurable fixed windows, and API request bodies are
@@ -209,6 +216,8 @@ Sensitive data (event titles, attendee emails, tokens) must never appear in any 
 
 `ILogRedactor` is registered globally and used on error paths to scrub common secret patterns (Bearer tokens, API
 keys, OAuth codes/secrets, connection string passwords) before writing logs.
+
+Security audit events also pass through redaction and never include raw credential values or calendar payload fields.
 
 ## Extensibility (Plugin System)
 

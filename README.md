@@ -275,6 +275,8 @@ startup.
 - Startup fail-fast: app startup stops when required secrets are missing
 - Log safety: `ILogRedactor` masks known sensitive patterns (bearer tokens, api keys, OAuth secrets/codes,
   connection-string passwords) before they are logged
+- Security audit trail: `ISecurityAuditService` writes append-only NDJSON audit events to a dedicated sink
+  (`SecurityAudit:FilePath`) with hash chaining (`previousEntryHash` -> `entryHash`) for tamper-evidence
 
 Environment variable names use the standard double-underscore mapping (for example `GRAPHCONSENT__CLIENTSECRET` and
 `CONNECTIONSTRINGS__DEFAULTCONNECTION`).
@@ -350,6 +352,10 @@ Use `.env.example` as the authoritative placeholder list for local/compose confi
   during a sync cycle (default `90`).
 - `Sync__WriteBackPlaceholderTitle` provides the fallback title for write-back placeholders when a calendar owner has
   not set a custom title in the UI (default `Busy`).
+- Security audit events are emitted with a stable taxonomy including `AUTH_SUCCESS`, `AUTH_FAILURE`,
+  `PEER_SLOT_PUSH`, `PEER_SLOT_REJECTED`, `CONFIG_CHANGE`, `KEY_ROTATION`, and `KEY_REVOCATION`.
+- Alert templates are documented in `docs/security-alerting-template.md`.
+- Incident handling runbooks are documented in `docs/incident-response.md`.
 - Per-owner write-back remains opt-in through the **Calendar Write-Back** section in `CalendarOwnerDetail`; turning the
   flag off stops future placeholder reconciliation without deleting existing managed events immediately.
 

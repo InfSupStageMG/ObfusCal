@@ -17,6 +17,7 @@ public sealed class ShadowSlotsController(
     IGetBusySlotsUseCase getBusySlotsUseCase,
     IPushShadowSlotsUseCase pushShadowSlotsUseCase,
     IPeerCalendarOwnerResolver peerCalendarOwnerResolver,
+    ISecurityAuditService securityAuditService,
     ILogger<ShadowSlotsController> logger) : ControllerBase
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -35,6 +36,12 @@ public sealed class ShadowSlotsController(
         var peerId = User.FindFirst(PeerApiKeyClaimTypes.PeerInstanceId)?.Value;
         if (string.IsNullOrWhiteSpace(peerId))
         {
+            await WriteAuditAsync(
+                SecurityAuditEventCodes.PeerSlotRejected,
+                SecurityAuditOutcomes.Failure,
+                "unknown-peer",
+                null,
+                "missing_peer_authentication_context");
             logger.LogWarning("Rejected shadow-slot push because peer authentication context is missing");
             return Unauthorized();
         }
@@ -60,10 +67,29 @@ public sealed class ShadowSlotsController(
                     unmappedOwnerRef);
             }
 
+            await WriteAuditAsync(
+                SecurityAuditEventCodes.PeerSlotRejected,
+                SecurityAuditOutcomes.Failure,
+                peerId,
+                parsedPayload.CalendarOwnerRef,
+                "peer_not_mapped_to_requested_owner");
+
             return Forbid();
         }
 
         await pushShadowSlotsUseCase.ExecuteAsync(new PushShadowSlotsCommand(peerId, calendarOwnerIds, parsedPayload.Slots), ct);
+
+        await WriteAuditAsync(
+            SecurityAuditEventCodes.PeerSlotPush,
+            SecurityAuditOutcomes.Success,
+            peerId,
+            parsedPayload.CalendarOwnerRef,
+            "shadow_slots_accepted",
+            new Dictionary<string, string?>
+            {
+                ["slotCount"] = parsedPayload.Slots.Count.ToString(),
+                ["calendarOwnerCount"] = calendarOwnerIds.Count.ToString()
+            });
 
         return Created($"/api/shadow-slots/{peerId}", null);
     }
@@ -124,4 +150,47 @@ public sealed class ShadowSlotsController(
     private sealed record PushShadowSlotsRequest(
         [property: Required] Guid? CalendarOwnerRef,
         [property: Required, MinLength(1)] IReadOnlyList<ShadowSlotInput> Slots);
+
+    private async Task WriteAuditAsync(
+        string eventCode,
+        string outcome,
+        string actorIdentity,
+        Guid? calendarOwnerRef,
+        string reason,
+        IReadOnlyDictionary<string, string?>? metadata = null)
+    {
+        try
+        {
+            var mergedMetadata = new Dictionary<string, string?>
+            {
+                ["reason"] = reason,
+                ["method"] = HttpContext.Request.Method,
+                ["endpoint"] = HttpContext.Request.Path.Value
+            };
+
+            if (metadata is not null)
+            {
+                foreach (var pair in metadata)
+                    mergedMetadata[pair.Key] = pair.Value;
+            }
+
+            await securityAuditService.WriteAsync(
+                new SecurityAuditEvent(
+                    eventCode,
+                    outcome,
+                    actorIdentity,
+                    "shadow-slots",
+                    calendarOwnerRef?.ToString(),
+                    HttpContext.TraceIdentifier,
+                    mergedMetadata),
+                HttpContext.RequestAborted);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex,
+                "Failed to write security audit event {EventCode} for peer {PeerId}.",
+                eventCode,
+                actorIdentity);
+        }
+    }
 }
