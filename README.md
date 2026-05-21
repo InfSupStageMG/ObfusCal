@@ -38,23 +38,101 @@ capped at 1 MB by default to reduce DoS risk.
 
 ## Project structure
 
-```
+<!-- START_TREE path="." max_depth="2" -->
+```text
 ObfusCal/
-├── ObfusCal.Domain/                  # Core business rules, domain models, obfuscation transformers
-├── ObfusCal.Application/             # Use cases (CQRS), interfaces, obfuscation pipeline
-├── ObfusCal.Infrastructure/          # Calendar adapters, EF Core persistence, storage implementations
-├── ObfusCal.Api/                     # ASP.NET Core entry point, controllers, DI composition root
-├── ObfusCal.Plugins.GoogleCalendar/  # Google Calendar source plugin (built alongside Api, output to plugins/)
-├── ObfusCal.Plugins.ICloudCalendar/  # iCloud CalDAV source plugin (built alongside Api, output to plugins/)
-├── ObfusCal.Tests/                   # Unit and integration tests
-├── docs/                             # arc42 architecture documentation (served via MkDocs)
-├── plugins/                          # Plugin DLL drop folder scanned at startup
-├── docker-compose.yaml
+├── ObfusCal.Api/                      # ASP.NET Core entry point, controllers, DI composition root
+│   ├── Authentication/
+│   ├── Authorization/
+│   ├── Components/
+│   ├── Controllers/
+│   ├── Properties/
+│   ├── RateLimiting/
+│   ├── wwwroot/
+│   ├── DotEnvLoader.cs
+│   ├── ObfusCal.Api.csproj
+│   ├── ObfusCal.Api.http
+│   ├── Program.cs
+│   ├── ProgramSetup.cs
+│   ├── SecurityHeadersMiddleware.cs
+│   ├── appsettings.Development.json
+│   └── appsettings.json
+├── ObfusCal.Application/              # Use cases (CQRS), interfaces, obfuscation pipeline
+│   ├── Configuration/
+│   ├── Interfaces/
+│   ├── Obfuscation/
+│   ├── UseCases/
+│   ├── DependencyInjection.cs
+│   ├── ObfusCal.Application.csproj
+│   └── PluginDiscovery.cs
+├── ObfusCal.Domain/                   # Core business rules, domain models, obfuscation transformers
+│   ├── Models/
+│   ├── Obfuscation/
+│   └── ObfusCal.Domain.csproj
+├── ObfusCal.Infrastructure/           # Calendar adapters, EF Core persistence, storage implementations
+│   ├── Calendars/
+│   ├── Persistence/
+│   ├── Security/
+│   ├── Storage/
+│   ├── Sync/
+│   ├── DependencyInjection.cs
+│   └── ObfusCal.Infrastructure.csproj
+├── ObfusCal.Plugins.GoogleCalendar/   # Google Calendar source plugin (built alongside Api, output to plugins/)
+│   ├── GoogleCalendarSourcePlugin.cs
+│   └── ObfusCal.Plugins.GoogleCalendar.csproj
+├── ObfusCal.Plugins.ICloudCalendar/   # iCloud CalDAV source plugin (built alongside Api, output to plugins/)
+│   ├── ICloudCalendarSourcePlugin.cs
+│   └── ObfusCal.Plugins.ICloudCalendar.csproj
+├── ObfusCal.Tests/                    # Unit and integration tests
+│   ├── Helpers/
+│   ├── Integration/
+│   ├── Unit/
+│   └── ObfusCal.Tests.csproj
+├── docs/                              # arc42 architecture documentation (served via MkDocs)
+│   ├── adr/
+│   ├── img/
+│   ├── sbom/
+│   ├── 01-introduction-goals.md
+│   ├── 02-architecture-constraints.md
+│   ├── 03-context-scope.md
+│   ├── 04-solution-strategy.md
+│   ├── 05-building-block-view.md
+│   ├── 06-runtime-view.md
+│   ├── 07-deployment-view.md
+│   ├── 08-cross-cutting-concepts.md
+│   ├── 10-quality-requirements.md
+│   ├── 11-risks-technical-debt.md
+│   ├── 12-glossary.md
+│   ├── clean-architecture.md
+│   ├── icloud-caldav-setup.md
+│   ├── index.md
+│   └── test-catalog.md
+├── downloaded/
+│   ├── test-catalog.md
+│   ├── test-results.html
+│   └── test-results.trx
+├── plugins/                           # Plugin DLL drop folder scanned at startup
+│   └── README.md
+├── .dockerignore
+├── .editorconfig
+├── .env.example
+├── .gitignore
+├── .gitmessage
+├── AGENTS.md
 ├── Dockerfile
+├── LICENSE.md
+├── ObfusCal.slnx
+├── README.md
+├── build.log
+├── docker-compose.yaml
+├── dotnet-tools.json
+├── global.json
+├── mkdocs.yml
 ├── nginx.conf
-├── certs/                            # Local TLS material (gitignored except README)
-└── ObfusCal.slnx
+├── renovate.json
+└── stryker-config.json
 ```
+<!-- END_TREE -->
 
 ### Layer dependencies
 

@@ -12,28 +12,39 @@ certificate for mTLS groundwork.
 ```mermaid
 flowchart TB
 
-%% Company Network
-subgraph CN["Company Network"]
-    subgraph DH1["Docker Host"]
-        NGINX1["nginx reverse-proxy\n:80 (→ HTTPS) / :443"]
-        API1["obfuscal-api (.NET 10)\n:8443 (internal)"]
-        DB["PostgreSQL"]
-        NGINX1 --> API1
-        API1 --> DB
-    end
-end
+    %% Company Network
+    subgraph CN["Company Network"]
+        subgraph DH1["Docker Host"]
+            NGINX1["Reverse Proxy (nginx)<br/>:80 (→ HTTPS) / :443"]
+            API1["ObfusCal Server (.NET 10)<br/>:8443 (internal)"]
+            DB[("PostgreSQL")]
 
-%% Client Network
-subgraph CL["Client Network (e.g. Client A)"]
-    subgraph DH2["Docker Host"]
-        NGINX2["nginx reverse-proxy\n:80 / :443"]
-        API2["obfuscal-api\n:8443 (internal)"]
-        NGINX2 --> API2
+            NGINX1 -->|"Proxies inbound"| API1
+            API1 <-->|"Reads/Writes"| DB
+        end
     end
-end
 
-%% Connection
-NGINX1 -- "HTTPS (peer ID validated via X-Peer-Id)" --> NGINX2
+    %% Client Network
+    subgraph CL["Client Network (e.g. Client A)"]
+        subgraph DH2["Docker Host"]
+            NGINX2["Reverse Proxy (nginx)<br/>:80 / :443"]
+            API2["ObfusCal Server<br/>:8443 (internal)"]
+
+            NGINX2 --> API2
+        end
+    end
+
+    %% Connection: API initiates outbound sync to peer's reverse proxy
+    API1 -->|"HTTPS (peer ID validated via X-Peer-Id)"| NGINX2
+
+    %% Styling
+    classDef proxy fill:#d5e8d4,stroke:#82b366,stroke-width:2px,color:#000;
+    classDef api fill:#dae8fc,stroke:#0050A0,stroke-width:2px,color:#000;
+    classDef db fill:#dae8fc,stroke:#0050A0,stroke-width:2px,color:#000;
+
+    class NGINX1,NGINX2 proxy;
+    class API1,API2 api;
+    class DB db;
 ```
 
 ## Deployment Steps
