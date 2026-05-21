@@ -107,18 +107,20 @@ ObfusCal/
 │   ├── icloud-caldav-setup.md
 │   ├── index.md
 │   └── test-catalog.md
+├── downloaded/
+│   ├── test-catalog.md
+│   ├── test-results.html
+│   └── test-results.trx
 ├── plugins/                           # Plugin DLL drop folder scanned at startup
 │   └── README.md
 ├── .dockerignore
 ├── .editorconfig
-├── .env
 ├── .env.example
 ├── .gitignore
 ├── .gitmessage
 ├── AGENTS.md
 ├── Dockerfile
 ├── LICENSE.md
-├── ObfusCal.sln.DotSettings.user
 ├── ObfusCal.slnx
 ├── README.md
 ├── build.log
