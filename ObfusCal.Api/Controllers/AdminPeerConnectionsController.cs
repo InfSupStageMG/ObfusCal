@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.Identity.Web;
 using ObfusCal.Api.Authorization;
 using ObfusCal.Application.Interfaces;
 
@@ -9,7 +10,10 @@ namespace ObfusCal.Api.Controllers;
 [ApiController]
 [Authorize(Policy = AppAuthorizationPolicies.Sysadmin)]
 [Route("api/admin/peer-connections")]
-public sealed class AdminPeerConnectionsController(IPeerConnectionService peerConnectionService) : ControllerBase
+public sealed class AdminPeerConnectionsController(
+    IPeerConnectionService peerConnectionService,
+    ISecurityAuditService securityAuditService,
+    ILogger<AdminPeerConnectionsController> logger) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<AdminPeerConnectionResponse>), StatusCodes.Status200OK)]
@@ -47,7 +51,7 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
             request.PinnedCertificateThumbprint,
             request.ClientCertificateThumbprint,
             ct);
-        return result.Outcome switch
+        IActionResult actionResult = result.Outcome switch
         {
             ApprovePeerConnectionOutcome.Approved => Ok(new ApprovePeerConnectionResponse(result.PlaintextApiKey!)),
             ApprovePeerConnectionOutcome.NotFound => NotFound(),
@@ -65,6 +69,11 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
             }),
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
+
+        if (result.Outcome == ApprovePeerConnectionOutcome.Approved)
+            await WriteAuditAsync(SecurityAuditEventCodes.ConfigChange, SecurityAuditOutcomes.Success, id, "peer_connection_approved");
+
+        return actionResult;
     }
 
     [HttpPost("{id:guid}/rotate-key")]
@@ -76,7 +85,7 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
     public async Task<IActionResult> RotateApiKey(Guid id, CancellationToken ct)
     {
         var result = await peerConnectionService.RotateApiKeyAsync(id, ct);
-        return result.Outcome switch
+        IActionResult actionResult = result.Outcome switch
         {
             RotatePeerApiKeyOutcome.Rotated => Ok(new RotatePeerConnectionApiKeyResponse(result.PlaintextApiKey!)),
             RotatePeerApiKeyOutcome.NotFound => NotFound(),
@@ -92,6 +101,11 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
             }),
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
+
+        if (result.Outcome == RotatePeerApiKeyOutcome.Rotated)
+            await WriteAuditAsync(SecurityAuditEventCodes.KeyRotation, SecurityAuditOutcomes.Success, id, "peer_api_key_rotated");
+
+        return actionResult;
     }
 
     [HttpPost("{id:guid}/revoke")]
@@ -103,7 +117,7 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
     public async Task<IActionResult> Revoke(Guid id, CancellationToken ct)
     {
         var result = await peerConnectionService.RevokeAsync(id, ct);
-        return result.Outcome switch
+        IActionResult actionResult = result.Outcome switch
         {
             RevokePeerConnectionOutcome.Revoked => NoContent(),
             RevokePeerConnectionOutcome.NotFound => NotFound(),
@@ -114,6 +128,11 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
             }),
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
+
+        if (result.Outcome == RevokePeerConnectionOutcome.Revoked)
+            await WriteAuditAsync(SecurityAuditEventCodes.KeyRevocation, SecurityAuditOutcomes.Success, id, "peer_revoked");
+
+        return actionResult;
     }
 
     [HttpPost("{id:guid}/suspend")]
@@ -147,5 +166,35 @@ public sealed class AdminPeerConnectionsController(IPeerConnectionService peerCo
 
     private sealed record ApprovePeerConnectionResponse(string ApiKey);
     private sealed record RotatePeerConnectionApiKeyResponse(string ApiKey);
+
+    private async Task WriteAuditAsync(string eventCode, string outcome, Guid peerConnectionId, string reason)
+    {
+        try
+        {
+            var actorIdentity = User.GetObjectId() ?? "unknown-operator";
+            await securityAuditService.WriteAsync(
+                new SecurityAuditEvent(
+                    eventCode,
+                    outcome,
+                    actorIdentity,
+                    "admin-peer-connections",
+                    peerConnectionId.ToString(),
+                    HttpContext.TraceIdentifier,
+                    new Dictionary<string, string?>
+                    {
+                        ["reason"] = reason,
+                        ["method"] = HttpContext.Request.Method,
+                        ["endpoint"] = HttpContext.Request.Path.Value
+                    }),
+                HttpContext.RequestAborted);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex,
+                "Failed to write security audit event {EventCode} for peer connection {PeerConnectionId}.",
+                eventCode,
+                peerConnectionId);
+        }
+    }
 }
 

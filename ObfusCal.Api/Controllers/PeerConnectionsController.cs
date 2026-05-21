@@ -12,7 +12,9 @@ namespace ObfusCal.Api.Controllers;
 [Route("api/peer-connections")]
 public sealed class PeerConnectionsController(
     ICalendarOwnerProvisioningService calendarOwnerProvisioningService,
-    IPeerConnectionService peerConnectionService) : ControllerBase
+    IPeerConnectionService peerConnectionService,
+    ISecurityAuditService securityAuditService,
+    ILogger<PeerConnectionsController> logger) : ControllerBase
 {
     [HttpPost("request")]
     [ProducesResponseType(typeof(CreatePeerConnectionRequestResponse), StatusCodes.Status201Created)]
@@ -31,7 +33,7 @@ public sealed class PeerConnectionsController(
             request.ClientOrganisationName,
             ct);
 
-        return result.Outcome switch
+        IActionResult actionResult = result.Outcome switch
         {
             CreatePeerConnectionRequestOutcome.Created => Created(
                 $"/api/peer-connections/{result.PeerConnectionId}",
@@ -45,6 +47,11 @@ public sealed class PeerConnectionsController(
             CreatePeerConnectionRequestOutcome.CalendarOwnerNotFound => NotFound(),
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
+
+        if (result.Outcome == CreatePeerConnectionRequestOutcome.Created)
+            await WriteAuditAsync(calendarOwnerScope.CalendarOwnerId, result.PeerConnectionId!.Value, request.ClientOrganisationName);
+
+        return actionResult;
     }
 
     [HttpGet]
@@ -81,5 +88,39 @@ public sealed class PeerConnectionsController(
     private sealed record CreatePeerConnectionRequestResponse(Guid Id);
 
     private sealed record PeerConnectionRequestResponse(Guid Id, string ClientOrganisationName, string Status);
+
+    private async Task WriteAuditAsync(Guid calendarOwnerId, Guid peerConnectionId, string clientOrganisationName)
+    {
+        try
+        {
+            await securityAuditService.WriteAsync(
+                new SecurityAuditEvent(
+                    SecurityAuditEventCodes.ConfigChange,
+                    SecurityAuditOutcomes.Success,
+                    User.GetObjectId() ?? "unknown-owner",
+                    "peer-connection-request",
+                    peerConnectionId.ToString(),
+                    HttpContext.TraceIdentifier,
+                    new Dictionary<string, string?>
+                    {
+                        ["calendarOwnerId"] = calendarOwnerId.ToString(),
+                        ["clientOrganisationName"] = clientOrganisationName,
+                        ["endpoint"] = HttpContext.Request.Path.Value
+                    }),
+                HttpContext.RequestAborted);
+        }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogWarning(ex,
+                "Failed to write security audit event for requested peer connection {PeerConnectionId}.",
+                peerConnectionId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex,
+                "Failed to write security audit event for requested peer connection {PeerConnectionId}.",
+                peerConnectionId);
+        }
+    }
 }
 

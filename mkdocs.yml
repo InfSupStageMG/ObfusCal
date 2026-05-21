@@ -52,6 +52,8 @@ nav:
     -   Guides & References:
             -   "Test Catalog": test-catalog.md
             -   "Clean Architecture Guide": clean-architecture.md
+            -   "Security Alerting Template": security-alerting-template.md
+            -   "Incident Response Playbook": incident-response.md
             -   "SBOM (Software Bill of Materials)": sbom/index.md
             -   "iCloud CalDAV Setup": icloud-caldav-setup.md
 

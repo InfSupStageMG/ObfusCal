@@ -184,6 +184,9 @@ jobs:
     mutation-testing:
         runs-on: ubuntu-latest
         needs: [ test ]
+        env:
+            MUTATION_ARTIFACT_NAME: mutation-reports
+            GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
         steps:
             -   name: Checkout repository
@@ -217,6 +220,21 @@ jobs:
                     COMMIT=$(git log -1 --format=%s | tr ' ' '-')
                     VERSION="${ISSUE}/${COMMIT}"
                     dotnet stryker --version "$VERSION"
+
+            -   name: Generate Mutation Summary
+                if: always()
+                run: python3 .github/scripts/generate_mutation_summary.py
+
+            -   name: Upload Mutation Reports Artifact
+                if: always()
+                uses: actions/upload-artifact@v7
+                with:
+                    name: ${{ env.MUTATION_ARTIFACT_NAME }}
+                    path: |
+                        ./StrykerOutput/**/reports/mutation-report.html
+                        ./StrykerOutput/**/reports/mutation-report.json
+                    if-no-files-found: warn
+                    retention-days: 14
 
     build:
         runs-on: ubuntu-latest

@@ -50,6 +50,7 @@ public static class DependencyInjection
         services.AddSingleton<ExternalSecretProvider>();
         services.AddSingleton<ISecretProvider, ConfiguredSecretProvider>();
         services.AddSingleton<ILogRedactor, DefaultLogRedactor>();
+        services.AddSingleton<ISecurityAuditService, FileSecurityAuditService>();
         services.AddSingleton<IColumnEncryptor>(provider =>
             new AesGcmColumnEncryptor(provider.GetRequiredService<ISecretProvider>()));
         services.AddSingleton<ICalendarSourceSecretProtector, CalendarSourceSecretProtector>();
@@ -87,6 +88,7 @@ public static class DependencyInjection
         services.Configure<ICloudCalendarOptions>(config.GetSection(ICloudCalendarOptions.SectionName));
         services.Configure<SyncOptions>(config.GetSection(SyncOptions.SectionName));
         services.Configure<PeerTransportSecurityOptions>(config.GetSection(PeerTransportSecurityOptions.SectionName));
+        services.Configure<SecurityAuditOptions>(config.GetSection(SecurityAuditOptions.SectionName));
         services.Configure<PluginAllowlistOptions>(config.GetSection(PluginAllowlistOptions.SectionName));
 
         // Configure DataProtection with persistent key storage for credential encryption
