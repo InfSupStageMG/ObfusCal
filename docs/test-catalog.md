@@ -1,8 +1,8 @@
 # Test Catalog
 
-_Auto-generated from CI run. 609 tests across 64 classes._
+_Auto-generated from CI run. 611 tests across 64 classes._
 
-## Integration (175/175)
+## Integration (177/177)
 
 <details>
 <summary><b>AdminPeerConnectionsControllerTests</b> - 7/7</summary>
@@ -138,7 +138,7 @@ _Auto-generated from CI run. 609 tests across 64 classes._
 </details>
 
 <details>
-<summary><b>ShadowSlotsControllerTests</b> - 17/17</summary>
+<summary><b>ShadowSlotsControllerTests</b> - 19/19</summary>
 
 <table>
   <thead>
@@ -155,11 +155,13 @@ _Auto-generated from CI run. 609 tests across 64 classes._
     <tr><td><code>PushShadowSlots_WhenPeerExceedsRateLimit_ReturnsTooManyRequestsAndKeepsOtherPeersUnthrottled</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WithExpiredReplayTimestamp_ReturnsUnauthorized</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WithInvalidApiKey_ReturnsUnauthorizedAndStoresNothing</code></td><td>✅</td></tr>
+    <tr><td><code>PushShadowSlots_WithInvalidApiKey_WritesAuthFailureAuditEventWithoutCredentialValue</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WithMissingPushScope_ReturnsForbidden</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WithOwnerScopedPayloadForUnmappedOwner_ReturnsForbidden</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WithOwnerScopedPayload_StoresSlotsAndReturnsCreated</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WithRevokedPeer_ReturnsUnauthorized</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WithValidApiKeyButNoOwnerMappings_ReturnsForbidden</code></td><td>✅</td></tr>
+    <tr><td><code>PushShadowSlots_WithValidApiKeyButNoOwnerMappings_WritesPeerSlotRejectedAuditEvent</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WithValidApiKey_StoresSlotsAndReturnsCreated</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WithoutApiKeyHeader_ReturnsUnauthorized</code></td><td>✅</td></tr>
   </tbody>
