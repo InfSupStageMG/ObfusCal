@@ -4,8 +4,8 @@ ObfusCal is an open-source calendar synchronisation tool that lets users stay in
 exposing sensitive information. Events from external domains appear in your calendar as obfuscated busy blocks where
 metadata is filtered by per-owner, per-context obfuscation settings.
 
-It is designed for consultants and professionals who maintain calendars in multiple organisations and need a
-privacy-preserving way to keep everyone in the loop.
+It is designed for professionals who maintain calendars in multiple organisations and need a privacy-preserving way to
+keep everyone in the loop.
 
 ---
 
@@ -13,7 +13,7 @@ privacy-preserving way to keep everyone in the loop.
 
 Each organisation runs their own instance of ObfusCal within their own network. Instances exchange only obfuscated busy
 slots over a secured API. Peer endpoints are expected to use HTTPS; the application rejects `http://` peer base URLs and
-validates the upstream certificate chain by default. No raw event data ever crosses a domain boundary. Consultants
+validates the upstream certificate chain by default. No raw event data ever crosses a domain boundary. Calendar owners
 authenticate with their existing company credentials via Entra ID (Azure AD), and the system fetches their calendar
 automatically on a configurable schedule. Supported calendar sources include Microsoft Graph (Microsoft 365), Google
 Calendar, iCloud CalDAV, and read-only iCal (`.ics`) feeds.

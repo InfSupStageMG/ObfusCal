@@ -16,7 +16,7 @@ public class PeerConnectionsControllerTests
     public TestContext TestContext { get; set; } = null!;
 
     [TestMethod]
-    public async Task RequestPeerConnection_CreatesRequestedRecord_ForAuthenticatedConsultant()
+    public async Task RequestPeerConnection_CreatesRequestedRecord_ForAuthenticatedCalendarOwner()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
         var objectId = Guid.NewGuid().ToString();
@@ -56,7 +56,7 @@ public class PeerConnectionsControllerTests
     }
 
     [TestMethod]
-    public async Task RequestPeerConnection_ReturnsConflict_WhenDuplicateForSameConsultant()
+    public async Task RequestPeerConnection_ReturnsConflict_WhenDuplicateForSameCalendarOwner()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
         var objectId = Guid.NewGuid().ToString();
@@ -115,7 +115,7 @@ public class PeerConnectionsControllerTests
     }
 
     [TestMethod]
-    public async Task ListPeerConnections_ReturnsOnlyCurrentConsultantRequests()
+    public async Task ListPeerConnections_ReturnsOnlyCurrentCalendarOwnerRequests()
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
 

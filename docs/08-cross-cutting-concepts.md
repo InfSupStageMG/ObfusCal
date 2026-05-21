@@ -146,9 +146,9 @@ behavior predictable for operators.
 principal and used as a strict data boundary. Non-admin users are scoped to their own calendar owner in both the API
 and the Blazor UI. If no calendar owner exists yet for that object ID, one is created automatically on first access.
 
-Calendar-owner endpoints enforce object-level checks against the authenticated owner context. When an authenticated caller
-requests another owner's resource, the API intentionally returns `404 Not Found` (instead of `403 Forbidden`) to reduce
-tenant enumeration risk.
+Calendar-owner endpoints enforce object-level checks against the authenticated owner context. When an authenticated
+caller requests another owner's resource, the API intentionally returns `404 Not Found` (instead of `403 Forbidden`) to
+reduce tenant enumeration risk.
 
 For peer traffic, owner-scoped shadow-slot pushes (`POST /api/shadow-slots` with `calendarOwnerRef`) are accepted only
 when the authenticated peer has an active `CalendarOwnerPeerMapping` for that owner ref; unmapped pushes are rejected

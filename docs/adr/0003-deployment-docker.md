@@ -21,8 +21,9 @@ We deploy as a **Docker image**, run via `docker compose up`.
 ## Decision rationale
 
 A self-contained installer requires distributing and re-running an update on every device on each release. With
-potentially hundreds of consultant laptops, this is not maintainable. Docker eliminates OS-specific packaging entirely
-and makes updates a single image pull. `docker compose up` is sufficient for any IT department to bring up an instance.
+potentially hundreds of calendar owner laptops, this is not maintainable. Docker eliminates OS-specific packaging
+entirely and makes updates a single image pull. `docker compose up` is sufficient for any IT department to bring up an
+instance.
 
 ## Consequences
 
