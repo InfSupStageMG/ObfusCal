@@ -1,14 +1,6 @@
 ﻿@page "/calendar-owners/{Id:guid}"
 @attribute [Authorize]
 @using ObfusCal.Application.Interfaces
-@inject ICalendarOwnerService CalendarOwnerService
-@inject ICalendarSourceCatalog CalendarSourceCatalog
-@inject ICalendarSourceInstanceService CalendarSourceInstanceService
-@inject ICalendarOwnerGoogleConsentService GoogleConsentService
-@inject ICalendarOwnerGraphConsentService GraphConsentService
-@inject ICalendarOwnerObfuscationProfileService ObfuscationProfileService
-@inject ICalendarOwnerAvailabilitySyncService AvailabilitySyncService
-@inject NavigationManager Navigation
 
 <PageTitle>Calendar Owner - ObfusCal</PageTitle>
 
