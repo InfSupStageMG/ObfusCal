@@ -13,7 +13,7 @@ assignees: ''
      Use the format: As a [role], I want [goal], so that [reason]. -->
 
 **User story**
-As a _[consultant / client / system]_,
+As a _[calendar owner / client / system]_,
 I want _[capability or action]_,
 so that _[business value or outcome]_.
 

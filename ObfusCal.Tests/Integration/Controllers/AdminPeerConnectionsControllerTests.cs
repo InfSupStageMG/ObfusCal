@@ -24,11 +24,11 @@ public class AdminPeerConnectionsControllerTests
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
 
-        var consultantObjectId = Guid.NewGuid().ToString();
-        await factory.SeedCalendarOwnerAsync(consultantObjectId);
+        var calendarOwnerObjectId = Guid.NewGuid().ToString();
+        await factory.SeedCalendarOwnerAsync(calendarOwnerObjectId);
 
-        using var consultantClient = factory.CreateAuthenticatedClient(consultantObjectId);
-        var requestResponse = await consultantClient.PostAsJsonAsync(
+        using var calendarOwnerClient = factory.CreateAuthenticatedClient(calendarOwnerObjectId);
+        var requestResponse = await calendarOwnerClient.PostAsJsonAsync(
             "/api/peer-connections/request",
             new PeerConnectionsController.RequestPeerConnectionRequest("Contoso"),
             TestContext.CancellationToken);
@@ -77,11 +77,11 @@ public class AdminPeerConnectionsControllerTests
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
 
-        var consultantObjectId = Guid.NewGuid().ToString();
-        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(consultantObjectId);
+        var calendarOwnerObjectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(calendarOwnerObjectId);
 
-        using var consultantClient = factory.CreateAuthenticatedClient(consultantObjectId);
-        var requestResponse = await consultantClient.PostAsJsonAsync(
+        using var calendarOwnerClient = factory.CreateAuthenticatedClient(calendarOwnerObjectId);
+        var requestResponse = await calendarOwnerClient.PostAsJsonAsync(
             "/api/peer-connections/request",
             new PeerConnectionsController.RequestPeerConnectionRequest("Fabrikam"),
             TestContext.CancellationToken);
@@ -245,11 +245,11 @@ public class AdminPeerConnectionsControllerTests
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
 
-        var consultantObjectId = Guid.NewGuid().ToString();
-        await factory.SeedCalendarOwnerAsync(consultantObjectId);
-        using var consultantClient = factory.CreateAuthenticatedClient(consultantObjectId);
+        var calendarOwnerObjectId = Guid.NewGuid().ToString();
+        await factory.SeedCalendarOwnerAsync(calendarOwnerObjectId);
+        using var calendarOwnerClient = factory.CreateAuthenticatedClient(calendarOwnerObjectId);
 
-        var requestResponse = await consultantClient.PostAsJsonAsync(
+        var requestResponse = await calendarOwnerClient.PostAsJsonAsync(
             "/api/peer-connections/request",
             new PeerConnectionsController.RequestPeerConnectionRequest("Contoso"),
             TestContext.CancellationToken);
@@ -271,11 +271,11 @@ public class AdminPeerConnectionsControllerTests
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
 
-        var consultantObjectId = Guid.NewGuid().ToString();
-        await factory.SeedCalendarOwnerAsync(consultantObjectId);
-        using var consultantClient = factory.CreateAuthenticatedClient(consultantObjectId);
+        var calendarOwnerObjectId = Guid.NewGuid().ToString();
+        await factory.SeedCalendarOwnerAsync(calendarOwnerObjectId);
+        using var calendarOwnerClient = factory.CreateAuthenticatedClient(calendarOwnerObjectId);
 
-        var requestResponse = await consultantClient.PostAsJsonAsync(
+        var requestResponse = await calendarOwnerClient.PostAsJsonAsync(
             "/api/peer-connections/request",
             new PeerConnectionsController.RequestPeerConnectionRequest("Contoso"),
             TestContext.CancellationToken);

@@ -8,7 +8,7 @@ outside its originating organisation.
 
 ## Background
 
-Software consultants frequently hold active accounts in two or more separate calendar environments simultaneously. One
+Professionals frequently hold active accounts in two or more separate calendar environments simultaneously. One
 belonging to their employer and one or more belonging to client organisations. These environments are isolated by
 design, a consequence of standard enterprise identity and data governance policies. When a meeting invitation arrives in
 one calendar, there is no automated way to verify whether that time is already claimed elsewhere. The conflict only
@@ -32,7 +32,7 @@ raw events and persisted data (see chapters 4 and 5).
 
 | Role                                          | Concern                                                                                 |
 |-----------------------------------------------|-----------------------------------------------------------------------------------------|
-| Consultant                                    | Correct availability is visible to colleagues without leaking sensitive meeting details |
+| Calendar owner                                | Correct availability is visible to colleagues without leaking sensitive meeting details |
 | System Administrator                          | System is secure, auditable, and maintainable within company network policies           |
 | Client IT Department                          | Instance can be deployed and operated without understanding application internals       |
 | internship company (Coach / Assignment Owner) | Solution is open-source, architecturally sound, and demonstrates privacy-by-design      |

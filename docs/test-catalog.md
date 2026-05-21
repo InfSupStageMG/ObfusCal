@@ -126,10 +126,10 @@ _Auto-generated from CI run. 609 tests across 64 classes._
     <tr><th>Test</th><th>Result</th></tr>
   </thead>
   <tbody>
-    <tr><td><code>ListPeerConnections_ReturnsOnlyCurrentConsultantRequests</code></td><td>✅</td></tr>
+    <tr><td><code>ListPeerConnections_ReturnsOnlyCurrentCalendarOwnerRequests</code></td><td>✅</td></tr>
     <tr><td><code>RequestPeerConnection_AutoProvisionsCalendarOwner_WhenMissing</code></td><td>✅</td></tr>
-    <tr><td><code>RequestPeerConnection_CreatesRequestedRecord_ForAuthenticatedConsultant</code></td><td>✅</td></tr>
-    <tr><td><code>RequestPeerConnection_ReturnsConflict_WhenDuplicateForSameConsultant</code></td><td>✅</td></tr>
+    <tr><td><code>RequestPeerConnection_CreatesRequestedRecord_ForAuthenticatedCalendarOwner</code></td><td>✅</td></tr>
+    <tr><td><code>RequestPeerConnection_ReturnsConflict_WhenDuplicateForSameCalendarOwner</code></td><td>✅</td></tr>
     <tr><td><code>RequestPeerConnection_ReturnsUnauthorized_WhenUnauthenticated</code></td><td>✅</td></tr>
     <tr><td><code>RequestPeerConnection_ReturnsValidationProblemDetails_WhenClientOrganisationNameMissing</code></td><td>✅</td></tr>
   </tbody>
@@ -770,7 +770,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>Process_MergesWithRoundingTransformer</code></td><td>✅</td></tr>
     <tr><td><code>Process_TransformersAppliedInRegistrationOrder</code></td><td>✅</td></tr>
     <tr><td><code>Process_WithCustomRoundingInterval_UsesProfileInterval</code></td><td>✅</td></tr>
-    <tr><td><code>Process_WithEmptyConsultantId_ThrowsArgumentException</code></td><td>✅</td></tr>
+    <tr><td><code>Process_WithEmptyCalendarOwnerId_ThrowsArgumentException</code></td><td>✅</td></tr>
     <tr><td><code>Process_WithEmptyEventList_ReturnsEmptyList</code></td><td>✅</td></tr>
     <tr><td><code>Process_WithExplicitProfile_UsesProvidedProfile</code></td><td>✅</td></tr>
     <tr><td><code>Process_WithFullPipeline_OutputContainsNoSensitiveFields</code></td><td>✅</td></tr>
@@ -779,7 +779,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>Process_WithIEnumerableEvents_StillWorks</code></td><td>✅</td></tr>
     <tr><td><code>Process_WithMultipleEvents_ReturnsOneSlotPerEvent</code></td><td>✅</td></tr>
     <tr><td><code>Process_WithNone_StillProducesBusySlotsWithCorrectWindow</code></td><td>✅</td></tr>
-    <tr><td><code>Process_WithNullConsultantId_ThrowsArgumentException</code></td><td>✅</td></tr>
+    <tr><td><code>Process_WithNullCalendarOwnerId_ThrowsArgumentException</code></td><td>✅</td></tr>
     <tr><td><code>Process_WithNullProfile_UsesDefaultProfile</code></td><td>✅</td></tr>
     <tr><td><code>Process_WithProfileDisablingAttendees_KeepsAttendees</code></td><td>✅</td></tr>
     <tr><td><code>Process_WithProfileDisablingDescription_KeepsDescription</code></td><td>✅</td></tr>
@@ -787,7 +787,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>Process_WithProfileDisablingMergeBlocks_KeepsSeparateSlots</code></td><td>✅</td></tr>
     <tr><td><code>Process_WithProfileDisablingRoundTimes_KeepsOriginalTimes</code></td><td>✅</td></tr>
     <tr><td><code>Process_WithProfileDisablingTitle_KeepsTitle</code></td><td>✅</td></tr>
-    <tr><td><code>Process_WithWhitespaceConsultantId_ThrowsArgumentException</code></td><td>✅</td></tr>
+    <tr><td><code>Process_WithWhitespaceCalendarOwnerId_ThrowsArgumentException</code></td><td>✅</td></tr>
   </tbody>
 </table>
 

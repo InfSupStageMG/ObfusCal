@@ -27,9 +27,9 @@ public class EntraIdSysadminRoleTests
     {
         await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
 
-        var consultantObjectId = Guid.NewGuid().ToString();
-        using var consultantClient = factory.CreateAuthenticatedClient(consultantObjectId);
-        var response = await consultantClient.GetAsync("/api/admin/peer-connections", TestContext.CancellationToken);
+        var calendarOwnerObjectId = Guid.NewGuid().ToString();
+        using var calendarOwnerClient = factory.CreateAuthenticatedClient(calendarOwnerObjectId);
+        var response = await calendarOwnerClient.GetAsync("/api/admin/peer-connections", TestContext.CancellationToken);
 
         Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
     }

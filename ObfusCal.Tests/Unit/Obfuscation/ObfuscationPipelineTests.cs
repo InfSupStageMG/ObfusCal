@@ -9,7 +9,7 @@ namespace ObfusCal.Tests.Unit.Obfuscation;
 [TestClass]
 public class ObfuscationPipelineTests
 {
-    private const string DefaultConsultantId = "consultant-1";
+    private const string DefaultCalendarOwnerId = "calendar-owner-1";
 
     private static CalendarEvent MakeSensitiveEvent(string id = "evt-1") => new(
         Id: id,
@@ -28,11 +28,11 @@ public class ObfuscationPipelineTests
         new(transformers, [], NullLogger<ObfuscationPipeline>.Instance);
 
     private static IReadOnlyList<BusySlot> Process(ObfuscationPipeline pipeline, IEnumerable<CalendarEvent> events) =>
-        pipeline.Process(events, DefaultConsultantId, ObfuscationAuditContext.Internal);
+        pipeline.Process(events, DefaultCalendarOwnerId, ObfuscationAuditContext.Internal);
 
 
     [TestMethod]
-    public void Process_WithNullConsultantId_ThrowsArgumentException()
+    public void Process_WithNullCalendarOwnerId_ThrowsArgumentException()
     {
         var pipeline = BuildPipeline();
         Assert.ThrowsExactly<ArgumentNullException>(() =>
@@ -40,7 +40,7 @@ public class ObfuscationPipelineTests
     }
 
     [TestMethod]
-    public void Process_WithEmptyConsultantId_ThrowsArgumentException()
+    public void Process_WithEmptyCalendarOwnerId_ThrowsArgumentException()
     {
         var pipeline = BuildPipeline();
         Assert.ThrowsExactly<ArgumentException>(() =>
@@ -48,7 +48,7 @@ public class ObfuscationPipelineTests
     }
 
     [TestMethod]
-    public void Process_WithWhitespaceConsultantId_ThrowsArgumentException()
+    public void Process_WithWhitespaceCalendarOwnerId_ThrowsArgumentException()
     {
         var pipeline = BuildPipeline();
         Assert.ThrowsExactly<ArgumentException>(() =>
@@ -63,7 +63,7 @@ public class ObfuscationPipelineTests
         var pipeline = BuildPipeline(new RemoveTitleTransformer());
         var evt = MakeSensitiveEvent();
 
-        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, null);
+        var slots = pipeline.Process([evt], DefaultCalendarOwnerId, ObfuscationAuditContext.Client, null);
 
         Assert.AreEqual(string.Empty, slots[0].Title, "Default profile should enable title removal");
     }
@@ -84,7 +84,7 @@ public class ObfuscationPipelineTests
             RoundingIntervalMinutes: 15,
             MergeBlocks: false);
 
-        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+        var slots = pipeline.Process([evt], DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 
         Assert.AreEqual(evt.Title, slots[0].Title, "Explicit profile with RemoveTitle=false should keep title");
     }
@@ -125,7 +125,7 @@ public class ObfuscationPipelineTests
             RoundingIntervalMinutes: 15,
             MergeBlocks: false);
 
-        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+        var slots = pipeline.Process([evt], DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 
         Assert.AreEqual(evt.Title, slots[0].Title, "Title should be preserved when RemoveTitle=false");
         Assert.IsNull(slots[0].Description, "Description should still be removed");
@@ -150,7 +150,7 @@ public class ObfuscationPipelineTests
             RoundingIntervalMinutes: 15,
             MergeBlocks: false);
 
-        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+        var slots = pipeline.Process([evt], DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 
         Assert.AreEqual(evt.Description, slots[0].Description, "Description should be preserved when RemoveDescription=false");
     }
@@ -174,7 +174,7 @@ public class ObfuscationPipelineTests
             RoundingIntervalMinutes: 15,
             MergeBlocks: false);
 
-        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+        var slots = pipeline.Process([evt], DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 
         Assert.AreEqual(evt.Location, slots[0].Location, "Location should be preserved when RemoveLocation=false");
     }
@@ -198,7 +198,7 @@ public class ObfuscationPipelineTests
             RoundingIntervalMinutes: 15,
             MergeBlocks: false);
 
-        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+        var slots = pipeline.Process([evt], DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 
         Assert.IsNotNull(slots[0].AttendeeEmails);
         Assert.AreEqual(2, slots[0].AttendeeEmails!.Count, "Attendees should be preserved when RemoveAttendees=false");
@@ -225,7 +225,7 @@ public class ObfuscationPipelineTests
             RoundingIntervalMinutes: 30, // 30-minute rounding
             MergeBlocks: false);
 
-        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+        var slots = pipeline.Process([evt], DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 
         // 9:10 rounded down to 30-min boundary = 9:00
         Assert.AreEqual(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero), slots[0].Start);
@@ -499,7 +499,7 @@ public class ObfuscationPipelineTests
             RoundingIntervalMinutes: 15,
             MergeBlocks: true);
 
-        var slots = pipeline.Process([evt], DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+        var slots = pipeline.Process([evt], DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 
         Assert.AreEqual(evt.Start, slots[0].Start);
         Assert.AreEqual(evt.End, slots[0].End);
@@ -532,7 +532,7 @@ public class ObfuscationPipelineTests
             RoundingIntervalMinutes: 15,
             MergeBlocks: false);
 
-        var slots = pipeline.Process(events, DefaultConsultantId, ObfuscationAuditContext.Client, profile);
+        var slots = pipeline.Process(events, DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 
         Assert.HasCount(2, slots);
     }

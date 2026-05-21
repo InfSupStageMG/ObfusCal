@@ -11,7 +11,7 @@ mean we must use local desktop apps, or can we deploy domain-specific servers?
 
 ## Considered options
 
-* Option 1: Local desktop app per consultant laptop (`.msi` / `.pkg`)
+* Option 1: Local desktop app per calendar owner laptop (`.msi` / `.pkg`)
 * Option 2: Federated model (single Dockerized server per company domain)
 
 ## Decision outcome
@@ -21,12 +21,12 @@ own network.
 
 ## Decision rationale
 
-A per-laptop deployment fails when the consultant's laptop is offline (holidays, weekends). A domain-level server runs
-continuously and handles sync regardless of individual device state. A domain-specific server does not violate the "no
-central global server" constraint.
+A per-laptop deployment fails when the calendar owner's laptop is offline (holidays, weekends). A domain-level server
+runs continuously and handles sync regardless of individual device state. A domain-specific server does not violate
+the "no central global server" constraint.
 
 ## Consequences
 
-* **Positive:** Sync continues when consultant laptops are offline.
+* **Positive:** Sync continues when calendar owner laptops are offline.
 * **Positive:** Updates are deployed once per server, avoiding per-device rollout.
 * **Negative:** Requires a persistent database and multi-user support on the server.

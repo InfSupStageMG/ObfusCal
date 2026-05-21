@@ -46,12 +46,12 @@ An authenticated calendar owner requests their own obfuscated availability windo
 
 This scenario occurs when a client organization does not run an ObfusCal peer instance.
 
-1. The consultant provides a read-only .ics sharing link from their client-side calendar (e.g., Outlook Web).
+1. The calendar owner provides a read-only .ics sharing link from their client-side calendar (e.g., Outlook Web).
 2. During the background sync cycle, the ICalFeedCalendarSource fetches and parses this feed into raw CalendarEvent
    objects.
 3. The events are passed through the obfuscation pipeline, producing obfuscated BusySlot data.
 4. The resulting slots are stored locally as ShadowSlots in the IShadowSlotStore.
 5. Since no peer instance is available, the system does not attempt to push BusySlots via a REST API.
-6. Client contacts access availability through the consultant’s booking link or a generated .ics subscription.
+6. Client contacts access availability through the calendar owner’s booking link or a generated .ics subscription.
 7. When accessed, the system queries local data, merges internal commitments with stored shadow slots, and renders a
    unified free/busy view.

@@ -86,9 +86,12 @@ The API container remains single-purpose for the API process. Runtime still depe
 (PostgreSQL, TLS key material, and environment-provided secrets).
 
 ### Loading Custom Plugins
-To load third-party calendar providers or custom obfuscation transformers, compile your plugin DLL and mount it into the `/app/plugins` directory of the `api` container.
+
+To load third-party calendar providers or custom obfuscation transformers, compile your plugin DLL and mount it into the
+`/app/plugins` directory of the `api` container.
 
 Add the following to your `docker-compose.yaml` under the `api` service volumes:
+
 ```yaml
 volumes:
   - ./my-custom-plugins:/app/plugins:ro

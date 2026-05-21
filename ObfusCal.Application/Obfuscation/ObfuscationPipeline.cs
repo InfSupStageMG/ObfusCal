@@ -19,11 +19,11 @@ public sealed class ObfuscationPipeline(
 
     public IReadOnlyList<BusySlot> Process(
         IEnumerable<CalendarEvent> events,
-        string consultantId,
+        string calendarOwnerId,
         ObfuscationAuditContext context,
         ObfuscationProfileSettings? profile = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(consultantId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarOwnerId);
 
         profile ??= ObfuscationProfileSettings.CreateDefault(context);
 
@@ -68,8 +68,8 @@ public sealed class ObfuscationPipeline(
         });
 
         logger.LogInformation(
-            "Obfuscation audit completed for consultant {ConsultantId} in {Context} context: {EventCount} event(s) -> {FinalSlotCount} busy slot(s). Transformers: {TransformersAppliedSummary}",
-            consultantId,
+            "Obfuscation audit completed for calendar owner {CalendarOwnerId} in {Context} context: {EventCount} event(s) -> {FinalSlotCount} busy slot(s). Transformers: {TransformersAppliedSummary}",
+            calendarOwnerId,
             context,
             inputEvents.Count,
             finalSlots.Count,

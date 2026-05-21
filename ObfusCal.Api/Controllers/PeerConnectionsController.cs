@@ -40,7 +40,7 @@ public sealed class PeerConnectionsController(
             {
                 Status = StatusCodes.Status409Conflict,
                 Title = "Peer connection request already exists.",
-                Detail = "A request for this client organisation already exists for the current consultant."
+                Detail = "A request for this client organisation already exists for the current calendar owner."
             }),
             CreatePeerConnectionRequestOutcome.CalendarOwnerNotFound => NotFound(),
             _ => StatusCode(StatusCodes.Status500InternalServerError)

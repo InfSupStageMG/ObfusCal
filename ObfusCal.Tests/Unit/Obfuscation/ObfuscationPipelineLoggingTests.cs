@@ -26,13 +26,13 @@ public class ObfuscationPipelineLoggingTests
             AttendeeEmails: ["alice@example.com"],
             Location: "Secret room");
 
-        _ = pipeline.Process([sensitiveEvent], "consultant-42", ObfuscationAuditContext.Client);
+        _ = pipeline.Process([sensitiveEvent], "calendar-owner-42", ObfuscationAuditContext.Client);
 
         var logEntry = capturingLogger.Entries.Single(e =>
             e.Level == LogLevel.Information
             && e.Message.Contains("Obfuscation audit completed", StringComparison.Ordinal));
 
-        Assert.AreEqual("consultant-42", logEntry.State["ConsultantId"]);
+        Assert.AreEqual("calendar-owner-42", logEntry.State["CalendarOwnerId"]);
         Assert.AreEqual(nameof(ObfuscationAuditContext.Client), logEntry.State["Context"]?.ToString());
         Assert.IsTrue(logEntry.State.ContainsKey("EventCount"), "EventCount structured property should be present");
         Assert.AreEqual(1, logEntry.State["EventCount"], "EventCount should equal the number of processed events");
@@ -80,7 +80,7 @@ public class ObfuscationPipelineLoggingTests
         var capturingLogger = new CapturingLogger<ObfuscationPipeline>();
         var pipeline = new ObfuscationPipeline([], [], capturingLogger);
 
-        var busySlots = pipeline.Process([], "consultant-empty", ObfuscationAuditContext.Internal);
+        var busySlots = pipeline.Process([], "calendar-owner-empty", ObfuscationAuditContext.Internal);
 
         Assert.IsEmpty(busySlots);
 
@@ -90,7 +90,7 @@ public class ObfuscationPipelineLoggingTests
 
         Assert.AreEqual(0, logEntry.State["EventCount"]);
         Assert.AreEqual(0, logEntry.State["FinalSlotCount"]);
-        Assert.AreEqual("consultant-empty", logEntry.State["ConsultantId"]);
+        Assert.AreEqual("calendar-owner-empty", logEntry.State["CalendarOwnerId"]);
         Assert.AreEqual(nameof(ObfuscationAuditContext.Internal), logEntry.State["Context"]?.ToString());
 
         var transformerNames = ((IEnumerable<string>)logEntry.State["TransformersApplied"]!).ToArray();
