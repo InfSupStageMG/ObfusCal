@@ -194,6 +194,7 @@ ObfusCal.Application/
 │   ├── SecretKeys.cs
 │   ├── SecretProviderOptions.cs
 │   ├── SecretValidationOptions.cs
+│   ├── SecurityAuditOptions.cs
 │   └── SyncOptions.cs
 ├── Interfaces/
 │   ├── GraphConsentAccessLevel.cs
@@ -223,6 +224,7 @@ ObfusCal.Application/
 │   ├── IPeerConnectionService.cs
 │   ├── IPluginAllowlistAdminService.cs
 │   ├── ISecretProvider.cs
+│   ├── ISecurityAuditService.cs
 │   ├── IShadowSlotStore.cs
 │   ├── IStatusService.cs
 │   ├── ISyncRuntimeOptionsProvider.cs
@@ -397,6 +399,7 @@ ObfusCal.Infrastructure/
 │   ├── EfCorePeerApiKeyAuthenticator.cs
 │   ├── EnvironmentSecretProvider.cs
 │   ├── ExternalSecretProvider.cs
+│   ├── FileSecurityAuditService.cs
 │   ├── PassthroughColumnEncryptor.cs
 │   ├── PeerApiKeySecurity.cs
 │   ├── PeerTransportSecurity.cs
