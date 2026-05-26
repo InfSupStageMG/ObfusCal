@@ -11,6 +11,10 @@ using CoreBusySlot = ObfusCal.Domain.Models.BusySlot;
 
 namespace ObfusCal.Infrastructure.Sync;
 
+/// <summary>
+/// Background job component that pulls external shadow slots from trusted peer instances
+/// and stores them locally.
+/// </summary>
 public sealed class InboundPeerPullSyncService(
     AppDbContext dbContext,
     IShadowSlotStore shadowSlotStore,
@@ -25,7 +29,7 @@ public sealed class InboundPeerPullSyncService(
     private const string PeerApiKeyScheme = "ApiKey";
     private const string BusySlotsRelativePath = "api/sync/busy-slots";
 
-    public async Task RunSyncCycleAsync(CancellationToken ct = default)
+    public async Task RunSyncCycleAsync(CancellationToken ct = default, IProgress<SyncProgressUpdate>? progress = null)
     {
         var options = syncOptions.Value;
         var instanceId = secretProvider.GetSecret(SecretKeys.SyncInstanceId) ?? options.InstanceId;
@@ -55,8 +59,14 @@ public sealed class InboundPeerPullSyncService(
                 mapping.PeerConnection.ClientCertificateThumbprint))
             .ToListAsync(ct);
 
-        foreach (var mapping in mappings)
+        var total = mappings.Count;
+        for (var i = 0; i < total; i++)
         {
+            var mapping = mappings[i];
+            progress?.Report(new SyncProgressUpdate(
+                $"Pulling from peer {mapping.PeerInstanceId} ({i + 1} of {total})…",
+                i,
+                total));
             try
             {
                 await PullFromPeerAsync(mapping, syncWindowStart, syncWindowEnd, instanceId, apiKey, ct);
@@ -75,6 +85,8 @@ public sealed class InboundPeerPullSyncService(
                 await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
             }
         }
+
+        progress?.Report(new SyncProgressUpdate("Inbound pull complete.", total, total));
     }
 
     private async Task PullFromPeerAsync(

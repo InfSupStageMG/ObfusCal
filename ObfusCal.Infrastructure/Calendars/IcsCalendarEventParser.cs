@@ -139,6 +139,9 @@ internal static class IcsCalendarEventParser
 
         if (end <= start)
         {
+            // Some calendar systems (e.g., older Outlook versions) output all-day events
+            // with identical DATE-only DTSTART and DTEND values. We normalize these
+            // to span exactly 1 day so they are not discarded as zero-duration invalid events.
             if (end == start
                 && IsDateOnlyValue(startValues[0])
                 && values.TryGetValue("DTEND", out var rawEndValues)

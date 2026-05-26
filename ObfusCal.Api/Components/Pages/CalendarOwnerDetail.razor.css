@@ -118,10 +118,19 @@
     flex: 1;
 }
 
+.sync-progress-container {
+    margin-top: 0.75rem;
+}
+
+.sync-progress-label {
+    margin: 0.4rem 0 0 0;
+    font-size: 0.875rem;
+    color: var(--neutral-foreground-rest);
+}
+
 @media (max-width: 640px) {
     .profile-rounding-field {
         flex: 1 1 100%;
         width: 100%;
     }
 }
-

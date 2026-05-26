@@ -1,8 +1,5 @@
 ﻿namespace ObfusCal.Api;
 
-/// <summary>
-/// Adds security-related HTTP response headers to every response.
-/// </summary>
 internal sealed class SecurityHeadersMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext context)

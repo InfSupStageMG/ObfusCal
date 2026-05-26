@@ -4,6 +4,9 @@
 @inject IPeerConnectionService PeerConnectionService
 @inject IOutboundPeerSyncService OutboundSyncService
 @inject IInboundPeerPullSyncService InboundSyncService
+@inject ISyncProgressMonitor SyncProgressMonitor
+@inject ISyncRuntimeOptionsProvider SyncRuntimeOptionsProvider
+@implements IDisposable
 
 <PageTitle>Sync Status - ObfusCal</PageTitle>
 
@@ -12,19 +15,76 @@
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
     <section class="card">
         <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
-            <FluentButton Appearance="Appearance.Accent" OnClick="RefreshAsync">
+            <FluentButton Appearance="Appearance.Accent" OnClick="RefreshAsync" Disabled="_syncing">
                 Refresh
             </FluentButton>
-            <FluentButton Appearance="Appearance.Outline" OnClick="TriggerSyncAsync" Disabled="_syncing">
-                @(_syncing ? "Syncing..." : "Trigger Sync Now")
+            <FluentButton Appearance="Appearance.Outline" OnClick="TriggerSyncAsync" Disabled="_syncing || SyncProgressMonitor.IsPeerSyncInProgress">
+                @if (SyncProgressMonitor.IsPeerSyncInProgress && !_syncing)
+                {
+                    <span>Sync already in progress</span>
+                }
+                else
+                {
+                    <span>@(_syncing ? "Syncing…" : "Trigger Sync Now")</span>
+                }
             </FluentButton>
         </FluentStack>
+
+        @if (SyncProgressMonitor.IsPeerSyncInProgress && !_syncing)
+        {
+            <FluentMessageBar Intent="MessageIntent.Info" Class="card-message">
+                A sync cycle is currently running in the background. Please wait for it to complete.
+            </FluentMessageBar>
+        }
+
+        @if (_syncing)
+        {
+            <div class="sync-progress-container">
+                @if (_syncProgress is { IsIndeterminate: false })
+                {
+                    <FluentProgress Value="@_syncProgress.PercentComplete" Min="0" Max="100"/>
+                }
+                else
+                {
+                    <FluentProgress/>
+                }
+                @if (_syncProgress is not null)
+                {
+                    <p class="sync-progress-label">@_syncProgress.Message</p>
+                }
+            </div>
+        }
+
         @if (_syncMessage is not null)
         {
-            <FluentMessageBar Intent="MessageIntent.Success" Class="card-message">
+            <FluentMessageBar Intent="@_syncMessageIntent" Class="card-message">
                 @_syncMessage
             </FluentMessageBar>
         }
+
+        <p class="hint-text sync-schedule-label">
+            @{
+                var intervalMinutes = SyncRuntimeOptionsProvider.Get().SyncIntervalSeconds / 60;
+                var lastCompleted = SyncProgressMonitor.LastPeerSyncCompletedAt;
+                if (lastCompleted is null)
+                {
+                    <span>Sync interval: every @intervalMinutes min. No background sync has run yet this session.</span>
+                }
+                else
+                {
+                    var nextAt = lastCompleted.Value.AddSeconds(SyncRuntimeOptionsProvider.Get().SyncIntervalSeconds);
+                    var remaining = nextAt - DateTimeOffset.UtcNow;
+                    if (remaining > TimeSpan.Zero)
+                    {
+                        <span>Next scheduled sync in approximately @((int)remaining.TotalMinutes) min @(remaining.Seconds) sec (every @intervalMinutes min).</span>
+                    }
+                    else
+                    {
+                        <span>Next scheduled sync is imminent (every @intervalMinutes min, last completed @lastCompleted.Value.ToString("HH:mm:ss") UTC).</span>
+                    }
+                }
+            }
+        </p>
     </section>
 
     @if (_loading)
@@ -62,10 +122,18 @@
     private bool _loading = true;
     private bool _syncing;
     private string? _syncMessage;
+    private MessageIntent _syncMessageIntent = MessageIntent.Success;
+    private SyncProgressUpdate? _syncProgress;
+    private System.Threading.Timer? _countdownTimer;
 
     protected override async Task OnInitializedAsync()
     {
         await RefreshAsync();
+        _countdownTimer = new System.Threading.Timer(
+            _ => InvokeAsync(StateHasChanged),
+            null,
+            TimeSpan.FromSeconds(30),
+            TimeSpan.FromSeconds(30));
     }
 
     private async Task RefreshAsync()
@@ -77,26 +145,42 @@
 
     private async Task TriggerSyncAsync()
     {
+        if (SyncProgressMonitor.IsPeerSyncInProgress)
+            return;
+
         _syncing = true;
         _syncMessage = null;
+        _syncProgress = null;
         StateHasChanged();
+
+        var progress = new Progress<SyncProgressUpdate>(update =>
+        {
+            _syncProgress = update;
+            InvokeAsync(StateHasChanged);
+        });
 
         try
         {
-            await OutboundSyncService.RunSyncCycleAsync(CancellationToken.None);
-            await InboundSyncService.RunSyncCycleAsync(CancellationToken.None);
+            await OutboundSyncService.RunSyncCycleAsync(CancellationToken.None, progress);
+            await InboundSyncService.RunSyncCycleAsync(CancellationToken.None, progress);
             _syncMessage = $"Sync completed at {DateTimeOffset.UtcNow:HH:mm:ss} UTC.";
+            _syncMessageIntent = MessageIntent.Success;
         }
         catch (Exception ex)
         {
             _syncMessage = $"Sync failed: {ex.Message}";
+            _syncMessageIntent = MessageIntent.Error;
         }
         finally
         {
             _syncing = false;
+            _syncProgress = null;
             await RefreshAsync();
         }
     }
+
+    public void Dispose()
+    {
+        _countdownTimer?.Dispose();
+    }
 }
-
-

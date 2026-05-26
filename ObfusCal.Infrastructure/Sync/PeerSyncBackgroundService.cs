@@ -9,6 +9,7 @@ namespace ObfusCal.Infrastructure.Sync;
 
 public sealed class PeerSyncBackgroundService(
     IServiceScopeFactory scopeFactory,
+    SyncProgressMonitor progressMonitor,
     IOptions<SyncOptions> syncOptions,
     ILogger<PeerSyncBackgroundService> logger)
     : BackgroundService
@@ -17,22 +18,34 @@ public sealed class PeerSyncBackgroundService(
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            try
+            if (progressMonitor.TryBeginPeerSync())
             {
-                using var scope = scopeFactory.CreateScope();
-                var outboundSyncService = scope.ServiceProvider.GetRequiredService<IOutboundPeerSyncService>();
-                var inboundSyncService = scope.ServiceProvider.GetRequiredService<IInboundPeerPullSyncService>();
+                try
+                {
+                    using var scope = scopeFactory.CreateScope();
+                    var outboundSyncService = scope.ServiceProvider.GetRequiredService<IOutboundPeerSyncService>();
+                    var inboundSyncService = scope.ServiceProvider.GetRequiredService<IInboundPeerPullSyncService>();
 
-                await outboundSyncService.RunSyncCycleAsync(stoppingToken);
-                await inboundSyncService.RunSyncCycleAsync(stoppingToken);
+                    await outboundSyncService.RunSyncCycleAsync(stoppingToken);
+                    await inboundSyncService.RunSyncCycleAsync(stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    progressMonitor.EndPeerSync();
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
+                }
+                finally
+                {
+                    progressMonitor.EndPeerSync();
+                }
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            else
             {
-                break;
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
+                logger.LogDebug("Scheduled peer sync skipped: a sync cycle is already in progress.");
             }
 
             var intervalSeconds = Math.Max(1, syncOptions.Value.SyncIntervalSeconds);

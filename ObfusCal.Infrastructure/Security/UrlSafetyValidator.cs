@@ -4,6 +4,10 @@ using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Infrastructure.Security;
 
+/// <summary>
+/// Validates user-provided URLs to prevent Server-Side Request Forgery (SSRF)
+/// by blocking private, loopback, and link-local IP ranges.
+/// </summary>
 internal sealed class UrlSafetyValidator : IUrlSafetyValidator
 {
     public Task<UrlSafetyValidationResult> ValidateAsync(string url, CancellationToken ct = default)

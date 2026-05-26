@@ -2,6 +2,6 @@
 
 public interface ICalendarOwnerAvailabilitySyncService
 {
-    Task RunSyncCycleAsync(CancellationToken ct = default);
-    Task RunSyncForOwnerAsync(Guid calendarOwnerId, CancellationToken ct = default);
+    Task RunSyncCycleAsync(CancellationToken ct = default, IProgress<SyncProgressUpdate>? progress = null);
+    Task RunSyncForOwnerAsync(Guid calendarOwnerId, CancellationToken ct = default, IProgress<SyncProgressUpdate>? progress = null);
 }

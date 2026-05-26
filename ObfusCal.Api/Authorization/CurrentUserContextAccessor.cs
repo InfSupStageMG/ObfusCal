@@ -4,6 +4,10 @@ using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Authorization;
 
+/// <summary>
+/// Resolves and caches the current authenticated user's context (e.g., Sysadmin role,
+/// Calendar Owner ID) for the lifetime of an HTTP request.
+/// </summary>
 public sealed class CurrentUserContextAccessor(
     AuthenticationStateProvider authenticationStateProvider,
     ICalendarOwnerProvisioningService calendarOwnerProvisioningService)

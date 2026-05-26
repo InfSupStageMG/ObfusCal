@@ -11,6 +11,10 @@ using BusySlot = ObfusCal.Domain.Models.BusySlot;
 
 namespace ObfusCal.Infrastructure.Sync;
 
+/// <summary>
+/// Background job component that processes raw events through the obfuscation pipeline,
+/// stores the resulting snapshot locally, and triggers outbound calendar write-back if enabled.
+/// </summary>
 public sealed class CalendarOwnerAvailabilitySyncService(
     AppDbContext dbContext,
     ICalendarSourceResolver calendarSourceResolver,
@@ -23,7 +27,7 @@ public sealed class CalendarOwnerAvailabilitySyncService(
     : ICalendarOwnerAvailabilitySyncService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-    public async Task RunSyncCycleAsync(CancellationToken ct = default)
+    public async Task RunSyncCycleAsync(CancellationToken ct = default, IProgress<SyncProgressUpdate>? progress = null)
     {
         var options = syncOptions.Value;
         var syncWindowStart = DateTimeOffset.UtcNow;
@@ -34,8 +38,11 @@ public sealed class CalendarOwnerAvailabilitySyncService(
             .Select(owner => owner.Id)
             .ToListAsync(ct);
 
-        foreach (var calendarOwnerId in ownerIds)
+        var total = ownerIds.Count;
+        for (var i = 0; i < total; i++)
         {
+            var calendarOwnerId = ownerIds[i];
+            progress?.Report(new SyncProgressUpdate($"Syncing owner {i + 1} of {total}…", i, total));
             try
             {
                 var busySlots = await SyncCalendarOwnerAsync(calendarOwnerId, syncWindowStart, syncWindowEnd, ct);
@@ -57,9 +64,11 @@ public sealed class CalendarOwnerAvailabilitySyncService(
                 await RecordSyncResultAsync(calendarOwnerId, succeeded: false);
             }
         }
+
+        progress?.Report(new SyncProgressUpdate("Availability sync complete.", total, total));
     }
 
-    public async Task RunSyncForOwnerAsync(Guid calendarOwnerId, CancellationToken ct = default)
+    public async Task RunSyncForOwnerAsync(Guid calendarOwnerId, CancellationToken ct = default, IProgress<SyncProgressUpdate>? progress = null)
     {
         var options = syncOptions.Value;
         var syncWindowStart = DateTimeOffset.UtcNow;
@@ -67,7 +76,8 @@ public sealed class CalendarOwnerAvailabilitySyncService(
 
         try
         {
-            var busySlots = await SyncCalendarOwnerAsync(calendarOwnerId, syncWindowStart, syncWindowEnd, ct);
+            progress?.Report(new SyncProgressUpdate("Fetching calendar events…", 0, 0));
+            var busySlots = await SyncCalendarOwnerAsync(calendarOwnerId, syncWindowStart, syncWindowEnd, ct, progress);
             logger.LogInformation(
                 "Availability sync succeeded for calendar owner {CalendarOwnerId} with {BusySlotCount} busy slot(s).",
                 calendarOwnerId,
@@ -91,10 +101,12 @@ public sealed class CalendarOwnerAvailabilitySyncService(
         Guid calendarOwnerId,
         DateTimeOffset from,
         DateTimeOffset to,
-        CancellationToken ct)
+        CancellationToken ct,
+        IProgress<SyncProgressUpdate>? progress = null)
     {
         var calendarSource = await calendarSourceResolver.ResolveAsync(calendarOwnerId, ct);
         var events = await calendarSource.GetEventsAsync(from, to, calendarOwnerId, ct);
+        progress?.Report(new SyncProgressUpdate("Applying obfuscation profile…", 0, 0));
         var profile = await obfuscationProfileService.GetProfileAsync(
             calendarOwnerId,
             ObfuscationAuditContext.Internal,
@@ -105,6 +117,7 @@ public sealed class CalendarOwnerAvailabilitySyncService(
             ObfuscationAuditContext.Internal,
             profile);
 
+        progress?.Report(new SyncProgressUpdate("Saving availability snapshot…", 0, 0));
         await ReplaceAvailabilitySnapshotAsync(calendarOwnerId, busySlots, ct);
 
         if (calendarSource is not ICalendarWriteBack writeBack) return busySlots;
@@ -116,6 +129,7 @@ public sealed class CalendarOwnerAvailabilitySyncService(
 
             if (owner?.WriteBackEnabled == true)
             {
+                progress?.Report(new SyncProgressUpdate("Writing back to calendar…", 0, 0));
                 var writeBackEnd = DateTimeOffset.UtcNow.AddDays(Math.Max(1, syncOptions.Value.WriteBackLookAheadDays));
                 var shadowSlots = await shadowSlotStore.GetAllSlotsAsync(calendarOwnerId, from, writeBackEnd, ct);
 

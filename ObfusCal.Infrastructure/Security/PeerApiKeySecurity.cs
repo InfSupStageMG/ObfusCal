@@ -3,6 +3,9 @@ using System.Text;
 
 namespace ObfusCal.Infrastructure.Security;
 
+/// <summary>
+/// Handles the generation, PBKDF2-SHA256 hashing, and constant-time verification of peer API keys.
+/// </summary>
 public static class PeerApiKeySecurity
 {
     private const int SaltSizeBytes = 16;

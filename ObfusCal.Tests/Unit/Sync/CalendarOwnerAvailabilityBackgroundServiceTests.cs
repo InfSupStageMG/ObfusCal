@@ -35,17 +35,16 @@ public class CalendarOwnerAvailabilityBackgroundServiceTests
     {
         public TaskCompletionSource InvocationObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public Task RunSyncCycleAsync(CancellationToken ct = default)
+        public Task RunSyncCycleAsync(CancellationToken ct = default, IProgress<SyncProgressUpdate>? progress = null)
         {
             InvocationObserved.TrySetResult();
             return Task.CompletedTask;
         }
 
-        public Task RunSyncForOwnerAsync(Guid calendarOwnerId, CancellationToken ct = default)
+        public Task RunSyncForOwnerAsync(Guid calendarOwnerId, CancellationToken ct = default, IProgress<SyncProgressUpdate>? progress = null)
         {
             InvocationObserved.TrySetResult();
             return Task.CompletedTask;
         }
     }
 }
-
