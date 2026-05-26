@@ -1,6 +1,6 @@
 # Test Catalog
 
-_Auto-generated from CI run. 611 tests across 64 classes._
+_Auto-generated from CI run. 620 tests across 65 classes._
 
 ## Integration (177/177)
 
@@ -415,7 +415,7 @@ _Auto-generated from CI run. 611 tests across 64 classes._
 
 </details>
 
-## Unit (434/434)
+## Unit (443/443)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 1/1</summary>
@@ -634,6 +634,28 @@ _Auto-generated from CI run. 611 tests across 64 classes._
     <tr><td><code>GetEventsAsync_ReturnsOnlyEventsInsideRequestedWindow</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_ThrowsOperationCanceledException_WhenCancelled</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_WithFourteenDayWindowStartingToday_ReturnsAtLeastThreeEvents</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>CalendarGridOffsetTests</b> - 9/9</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Grid_MondayStart_ProducesZeroFillCells</code></td><td>✅</td></tr>
+    <tr><td><code>Grid_SundayStart_ProducesSixFillCells</code></td><td>✅</td></tr>
+    <tr><td><code>Offset_Friday_IsFour</code></td><td>✅</td></tr>
+    <tr><td><code>Offset_Monday_IsZero</code></td><td>✅</td></tr>
+    <tr><td><code>Offset_Saturday_IsFive</code></td><td>✅</td></tr>
+    <tr><td><code>Offset_Sunday_IsSix</code></td><td>✅</td></tr>
+    <tr><td><code>Offset_Thursday_IsThree</code></td><td>✅</td></tr>
+    <tr><td><code>Offset_Tuesday_IsOne</code></td><td>✅</td></tr>
+    <tr><td><code>Offset_Wednesday_IsTwo</code></td><td>✅</td></tr>
   </tbody>
 </table>
 

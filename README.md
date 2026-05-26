@@ -105,7 +105,9 @@ ObfusCal/
 │   ├── 12-glossary.md
 │   ├── clean-architecture.md
 │   ├── icloud-caldav-setup.md
+│   ├── incident-response.md
 │   ├── index.md
+│   ├── security-alerting-template.md
 │   └── test-catalog.md
 ├── downloaded/
 │   ├── test-catalog.md
