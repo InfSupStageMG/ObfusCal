@@ -205,9 +205,11 @@ public sealed partial class GraphCalendarSource
         Guid calendarOwnerId,
         CancellationToken ct)
     {
+        var eventTitle = !string.IsNullOrWhiteSpace(slot.Title) ? slot.Title : placeholderTitle;
+
         if (existing.Start == slot.Start
             && existing.End == slot.End
-            && string.Equals(existing.Subject, placeholderTitle, StringComparison.Ordinal))
+            && string.Equals(existing.Subject, eventTitle, StringComparison.Ordinal))
         {
             return;
         }

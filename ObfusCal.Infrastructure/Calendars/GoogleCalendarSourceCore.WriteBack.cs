@@ -159,9 +159,11 @@ public sealed partial class GoogleCalendarSourceCore
         string placeholderTitle,
         CancellationToken ct)
     {
+        var eventSummary = !string.IsNullOrWhiteSpace(slot.Title) ? slot.Title : placeholderTitle;
+
         if (existing.Start == slot.Start
             && existing.End == slot.End
-            && string.Equals(existing.Summary, placeholderTitle, StringComparison.Ordinal))
+            && string.Equals(existing.Summary, eventSummary, StringComparison.Ordinal))
         {
             return;
         }

@@ -119,6 +119,12 @@ public sealed class CalendarOwnerAvailabilitySyncService(
                 var writeBackEnd = DateTimeOffset.UtcNow.AddDays(Math.Max(1, syncOptions.Value.WriteBackLookAheadDays));
                 var shadowSlots = await shadowSlotStore.GetAllSlotsAsync(calendarOwnerId, from, writeBackEnd, ct);
 
+                if (shadowSlots.Count == 0)
+                {
+                    await writeBack.WriteBackSlotsAsync(calendarOwnerId, [], owner.WriteBackPlaceholderTitle ?? syncOptions.Value.WriteBackPlaceholderTitle, from, writeBackEnd, ct);
+                    return busySlots;
+                }
+
                 // Apply client-level obfuscation to shadow slots before write-back
                 var obfuscatedShadowSlots = ApplyClientObfuscation(shadowSlots, calendarOwnerId);
 
@@ -127,12 +133,6 @@ public sealed class CalendarOwnerAvailabilitySyncService(
                     logger.LogInformation(
                         "Triggering write-back for calendar owner {CalendarOwnerId}: {ObfuscatedShadowSlotCount} obfuscated shadow slot(s) in window [{WriteBackStart:O}, {WriteBackEnd:O}).",
                         calendarOwnerId, obfuscatedShadowSlots.Count, from, writeBackEnd);
-                }
-                else
-                {
-                    logger.LogInformation(
-                        "Write-back will proceed for calendar owner {CalendarOwnerId}: no shadow slots remain after client obfuscation (may clean up stale events).",
-                        calendarOwnerId);
                 }
 
                 await writeBack.WriteBackSlotsAsync(calendarOwnerId, obfuscatedShadowSlots, owner.WriteBackPlaceholderTitle ?? syncOptions.Value.WriteBackPlaceholderTitle, from, writeBackEnd, ct);
@@ -273,7 +273,7 @@ public sealed class CalendarOwnerAvailabilitySyncService(
     private IReadOnlyList<BusySlot> ApplyClientObfuscation(IReadOnlyList<BusySlot> shadowSlots, Guid calendarOwnerId)
     {
         // Convert BusySlots back to CalendarEvents so we can run them through the obfuscation pipeline
-        var eventsFromSlots = shadowSlots.Select(slot => new ObfusCal.Domain.Models.CalendarEvent(
+        var eventsFromSlots = shadowSlots.Select(slot => new Domain.Models.CalendarEvent(
             slot.SourceEventId,
             slot.Title ?? string.Empty,
             slot.Description,
