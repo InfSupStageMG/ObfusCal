@@ -186,7 +186,7 @@
     public required TimeZoneInfo TimeZone { get; set; }
 
     [Parameter]
-    public DateTime? DisplayDate { get; set; } = DateTime.UtcNow;
+    public DateTime? DisplayDate { get; set; }
 
     private string _monthYear = "";
     private List<(DateTime? Date, bool HasEvents, List<MergedFreeBusyResponse> Events)> _calendarDays = [];
@@ -194,13 +194,13 @@
     private DateTime? _selectedDate;
     private bool _showModal;
 
-    private DateTime _viewMonth = DateTime.Today;
+    private DateTime _viewMonth = DateTime.UtcNow.Date;
     private List<MergedFreeBusyResponse>? _lastSeenSlots;
     private DateTime? _lastDisplayDate;
 
     protected override void OnParametersSet()
     {
-        var nextDisplayDate = DisplayDate?.Date ?? DateTime.Today;
+        var nextDisplayDate = DisplayDate?.Date ?? DateTime.UtcNow.Date;
 
         if (!ReferenceEquals(_lastSeenSlots, Slots) || _lastDisplayDate != nextDisplayDate)
         {
@@ -294,9 +294,8 @@
                 var startDate = startInTz.Date;
                 var endDate = endInTz.Date;
 
-                // Event spans across this date or starts on this date
-                return (startDate <= date && endDate >= date) ||
-                       (startDate >= date && startDate <= date);
+                // Event spans this date: slot starts on or before date, and ends on or after date
+                return startDate <= date && endDate >= date;
             })
             .OrderBy(s => TimeZoneInfo.ConvertTime(s.Start, TimeZone))
             .ToList();
