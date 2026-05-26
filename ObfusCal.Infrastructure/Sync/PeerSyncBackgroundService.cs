@@ -18,46 +18,49 @@ public sealed class PeerSyncBackgroundService(
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            if (progressMonitor.TryBeginPeerSync())
-            {
-                try
-                {
-                    using var scope = scopeFactory.CreateScope();
-                    var outboundSyncService = scope.ServiceProvider.GetRequiredService<IOutboundPeerSyncService>();
-                    var inboundSyncService = scope.ServiceProvider.GetRequiredService<IInboundPeerPullSyncService>();
-
-                    await outboundSyncService.RunSyncCycleAsync(stoppingToken);
-                    await inboundSyncService.RunSyncCycleAsync(stoppingToken);
-                }
-                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-                {
-                    progressMonitor.EndPeerSync();
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
-                }
-                finally
-                {
-                    progressMonitor.EndPeerSync();
-                }
-            }
-            else
+            if (!progressMonitor.TryBeginPeerSync())
             {
                 logger.LogDebug("Scheduled peer sync skipped: a sync cycle is already in progress.");
+                await DelayAsync(stoppingToken);
+                continue;
             }
 
-            var intervalSeconds = Math.Max(1, syncOptions.Value.SyncIntervalSeconds);
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
+                using var scope = scopeFactory.CreateScope();
+                var outboundSyncService = scope.ServiceProvider.GetRequiredService<IOutboundPeerSyncService>();
+                var inboundSyncService = scope.ServiceProvider.GetRequiredService<IInboundPeerPullSyncService>();
+
+                await outboundSyncService.RunSyncCycleAsync(stoppingToken);
+                await inboundSyncService.RunSyncCycleAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 break;
             }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
+            }
+            finally
+            {
+                progressMonitor.EndPeerSync();
+            }
+
+            await DelayAsync(stoppingToken);
+        }
+    }
+
+    private async Task DelayAsync(CancellationToken stoppingToken)
+    {
+        var intervalSeconds = Math.Max(1, syncOptions.Value.SyncIntervalSeconds);
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // This is expected when the service is stopping, so we just exit the loop.
         }
     }
 }
-
