@@ -7,6 +7,10 @@ using ObfusCal.Application.UseCases.Validation;
 
 namespace ObfusCal.Application.UseCases.GetBusySlots;
 
+/// <summary>
+/// Retrieves and obfuscates a calendar owner's events based on their 'Client' profile,
+/// preparing them for exposure to external peers.
+/// </summary>
 public sealed class GetBusySlotsUseCase(
     ICalendarSourceResolver calendarSourceResolver,
     ObfuscationPipeline obfuscationPipeline,

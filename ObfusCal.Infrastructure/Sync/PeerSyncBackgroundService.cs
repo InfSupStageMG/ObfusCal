@@ -9,6 +9,7 @@ namespace ObfusCal.Infrastructure.Sync;
 
 public sealed class PeerSyncBackgroundService(
     IServiceScopeFactory scopeFactory,
+    SyncProgressMonitor progressMonitor,
     IOptions<SyncOptions> syncOptions,
     ILogger<PeerSyncBackgroundService> logger)
     : BackgroundService
@@ -17,6 +18,13 @@ public sealed class PeerSyncBackgroundService(
     {
         while (!stoppingToken.IsCancellationRequested)
         {
+            if (!progressMonitor.TryBeginPeerSync())
+            {
+                logger.LogDebug("Scheduled peer sync skipped: a sync cycle is already in progress.");
+                await DelayAsync(stoppingToken);
+                continue;
+            }
+
             try
             {
                 using var scope = scopeFactory.CreateScope();
@@ -30,21 +38,40 @@ public sealed class PeerSyncBackgroundService(
             {
                 break;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
             }
+            catch (IOException ex)
+            {
+                logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
+            }
+            catch (TimeoutException ex)
+            {
+                logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
+            }
+            {
+                progressMonitor.EndPeerSync();
+            }
 
-            var intervalSeconds = Math.Max(1, syncOptions.Value.SyncIntervalSeconds);
-            try
-            {
-                await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
+            await DelayAsync(stoppingToken);
+        }
+    }
+
+    private async Task DelayAsync(CancellationToken stoppingToken)
+    {
+        var intervalSeconds = Math.Max(1, syncOptions.Value.SyncIntervalSeconds);
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // This is expected when the service is stopping, so we just exit the loop.
         }
     }
 }
-

@@ -18,13 +18,17 @@ internal static class ProgramSetup
 {
     public static string SelectAuthenticationScheme(HttpContext context)
     {
+        // UI requests use cookies. API endpoints evaluate headers.
         if (!context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
             return CookieAuthenticationDefaults.AuthenticationScheme;
 
         if (!AuthenticationHeaderValue.TryParse(context.Request.Headers.Authorization, out var authorizationHeader))
             return JwtBearerDefaults.AuthenticationScheme;
 
-        return string.Equals(authorizationHeader.Scheme, PeerApiKeyAuthenticationDefaults.SchemeName, StringComparison.OrdinalIgnoreCase) ? PeerApiKeyAuthenticationDefaults.SchemeName : JwtBearerDefaults.AuthenticationScheme;
+        // Differentiate between Entra ID human users (JWT) and machine-to-machine peer traffic (ApiKey)
+        return string.Equals(authorizationHeader.Scheme, PeerApiKeyAuthenticationDefaults.SchemeName, StringComparison.OrdinalIgnoreCase)
+            ? PeerApiKeyAuthenticationDefaults.SchemeName
+            : JwtBearerDefaults.AuthenticationScheme;
     }
 
     public static void ConfigureAuthorizationPolicies(Microsoft.AspNetCore.Authorization.AuthorizationOptions options)

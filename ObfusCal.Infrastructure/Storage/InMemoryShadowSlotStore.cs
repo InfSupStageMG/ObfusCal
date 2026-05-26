@@ -5,6 +5,10 @@ using Serilog;
 
 namespace ObfusCal.Infrastructure.Storage;
 
+/// <summary>
+/// Thread-safe in-memory implementation of IShadowSlotStore.
+/// Used primarily for testing and local development without a database.
+/// </summary>
 public sealed class InMemoryShadowSlotStore(ILogger logger) : IShadowSlotStore
 {
     private const string PeerIdLogProperty = "PeerId";

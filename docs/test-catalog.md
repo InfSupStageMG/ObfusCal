@@ -1,6 +1,6 @@
 # Test Catalog
 
-_Auto-generated from CI run. 620 tests across 65 classes._
+_Auto-generated from CI run. 637 tests across 68 classes._
 
 ## Integration (177/177)
 
@@ -415,7 +415,7 @@ _Auto-generated from CI run. 620 tests across 65 classes._
 
 </details>
 
-## Unit (443/443)
+## Unit (460/460)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 1/1</summary>
@@ -1410,6 +1410,62 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>ExecuteAsync_WithNegativeInterval_ClampsToOneSecond</code></td><td>✅</td></tr>
     <tr><td><code>StartAsync_InvokesOutboundAndInboundSyncServices</code></td><td>✅</td></tr>
     <tr><td><code>StopAsync_StopsGracefully</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>PeerSyncProgressIntegrationTests</b> - 3/3</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>PeerSyncBackgroundService_ReleasesLock_AfterFailedCycle</code></td><td>✅</td></tr>
+    <tr><td><code>PeerSyncBackgroundService_ReleasesLock_AfterSuccessfulCycle</code></td><td>✅</td></tr>
+    <tr><td><code>PeerSyncBackgroundService_SkipsCycle_WhenLockAlreadyHeld</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>SyncProgressMonitorTests</b> - 8/8</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>IsPeerSyncInProgress_IsFalse_AfterEnd</code></td><td>✅</td></tr>
+    <tr><td><code>IsPeerSyncInProgress_IsFalse_Initially</code></td><td>✅</td></tr>
+    <tr><td><code>IsPeerSyncInProgress_IsTrue_AfterBegin</code></td><td>✅</td></tr>
+    <tr><td><code>LastPeerSyncCompletedAt_IsNull_Initially</code></td><td>✅</td></tr>
+    <tr><td><code>LastPeerSyncCompletedAt_IsSet_AfterEnd</code></td><td>✅</td></tr>
+    <tr><td><code>TryBeginPeerSync_Reacquirable_AfterEndSync</code></td><td>✅</td></tr>
+    <tr><td><code>TryBeginPeerSync_ReturnsFalse_WhenAlreadyRunning</code></td><td>✅</td></tr>
+    <tr><td><code>TryBeginPeerSync_ReturnsTrue_WhenIdle</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>SyncProgressUpdateTests</b> - 6/6</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>IsIndeterminate_IsFalse_WhenTotalIsPositive</code></td><td>✅</td></tr>
+    <tr><td><code>IsIndeterminate_IsTrue_WhenTotalIsZero</code></td><td>✅</td></tr>
+    <tr><td><code>PercentComplete_Is0_WhenCurrentIsZero</code></td><td>✅</td></tr>
+    <tr><td><code>PercentComplete_Is100_WhenCurrentEqualsTotal</code></td><td>✅</td></tr>
+    <tr><td><code>PercentComplete_Is50_WhenHalfwayThrough</code></td><td>✅</td></tr>
+    <tr><td><code>PercentComplete_IsNull_WhenIndeterminate</code></td><td>✅</td></tr>
   </tbody>
 </table>
 

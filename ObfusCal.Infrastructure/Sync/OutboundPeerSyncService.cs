@@ -8,6 +8,10 @@ using ObfusCal.Infrastructure.Security;
 
 namespace ObfusCal.Infrastructure.Sync;
 
+/// <summary>
+/// Background job component that pushes the local owner's obfuscated busy slots
+/// to configured external peer instances.
+/// </summary>
 public sealed class OutboundPeerSyncService(
     AppDbContext dbContext,
     ICalendarOwnerClientBusySlotService clientBusySlotService,
@@ -21,7 +25,7 @@ public sealed class OutboundPeerSyncService(
     private const string PeerApiKeyScheme = "ApiKey";
     private const string ShadowSlotsRelativePath = "api/shadow-slots";
 
-    public async Task RunSyncCycleAsync(CancellationToken ct = default)
+    public async Task RunSyncCycleAsync(CancellationToken ct = default, IProgress<SyncProgressUpdate>? progress = null)
     {
         var options = syncRuntimeOptionsProvider.Get();
         var instanceId = options.InstanceId;
@@ -42,11 +46,14 @@ public sealed class OutboundPeerSyncService(
             .Select(owner => owner.Id)
             .ToListAsync(ct);
 
-        foreach (var calendarOwnerId in ownerIds)
+        var total = ownerIds.Count;
+        for (var i = 0; i < total; i++)
         {
+            var calendarOwnerId = ownerIds[i];
+            progress?.Report(new SyncProgressUpdate($"Pushing slots for owner {i + 1} of {total}…", i, total));
             try
             {
-                await SyncCalendarOwnerAsync(calendarOwnerId, syncWindowStart, syncWindowEnd, instanceId, apiKey, ct);
+                await SyncCalendarOwnerAsync(calendarOwnerId, syncWindowStart, syncWindowEnd, instanceId, apiKey, ct, progress, i, total);
             }
             catch (OperationCanceledException)
             {
@@ -60,6 +67,8 @@ public sealed class OutboundPeerSyncService(
                     calendarOwnerId);
             }
         }
+
+        progress?.Report(new SyncProgressUpdate("Outbound sync complete.", total, total));
     }
 
     private async Task SyncCalendarOwnerAsync(
@@ -68,7 +77,10 @@ public sealed class OutboundPeerSyncService(
         DateTimeOffset to,
         string instanceId,
         string apiKey,
-        CancellationToken ct)
+        CancellationToken ct,
+        IProgress<SyncProgressUpdate>? progress = null,
+        int ownerIndex = 0,
+        int ownerTotal = 0)
     {
         var mappings = await dbContext.CalendarOwnerPeerMappings
             .AsNoTracking()
@@ -89,8 +101,15 @@ public sealed class OutboundPeerSyncService(
 
         var busySlots = await clientBusySlotService.BuildAsync(calendarOwnerId, from, to, ct);
 
-        foreach (var mapping in mappings)
+        for (var peerIndex = 0; peerIndex < mappings.Count; peerIndex++)
+        {
+            var mapping = mappings[peerIndex];
+            progress?.Report(new SyncProgressUpdate(
+                $"Pushing to peer {mapping.PeerInstanceId} (owner {ownerIndex + 1} of {ownerTotal})…",
+                ownerIndex,
+                ownerTotal));
             await PushToPeerAsync(mapping, busySlots, instanceId, apiKey, ct);
+        }
 
         logger.LogInformation(
             "Completed outbound peer sync for calendar owner {CalendarOwnerId} to {PeerCount} peer(s).",
