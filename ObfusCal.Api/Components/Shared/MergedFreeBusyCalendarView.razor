@@ -21,7 +21,7 @@
         </div>
 
         <div class="calendar-weekdays">
-            @foreach (var day in new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" })
+            @foreach (var day in new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" })
             {
                 <div class="calendar-weekday">@day</div>
             }
@@ -254,7 +254,8 @@
         _calendarDays = [];
 
         // Add days from previous month
-        var startDayOfWeek = (int)firstDay.DayOfWeek;
+        // ((dow + 6) % 7) maps Monday = 0 ... Sunday = 6 (ISO 8601 week start)
+        var startDayOfWeek = ((int)firstDay.DayOfWeek + 6) % 7;
 
         for (var i = startDayOfWeek - 1; i >= 0; i--)
         {
