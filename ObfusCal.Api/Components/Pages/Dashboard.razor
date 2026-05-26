@@ -17,7 +17,19 @@
 
 <PageTitle>Dashboard - ObfusCal</PageTitle>
 
-<h1>Dashboard</h1>
+<header class="page-header">
+    <h1>Dashboard</h1>
+    <p class="page-subtitle">
+        @if (_isSysadmin)
+        {
+            <span>Manage calendar owners, peer connectivity, sync operations, and health across the instance.</span>
+        }
+        else
+        {
+            <span>Manage your calendar sources, obfuscation settings, and review peer status.</span>
+        }
+    </p>
+</header>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
     @if (_accessMessage is not null)
@@ -28,18 +40,8 @@
     }
 
     <section class="card dashboard-role-card">
-        <h3>@(_isSysadmin ? "Admin workspace" : "My workspace")</h3>
-        <p class="dashboard-role-description">
-            @if (_isSysadmin)
-            {
-                <span>Administrators manage calendar owners, peer connectivity, sync operations, and health visibility for the whole instance.</span>
-            }
-            else
-            {
-                <span>Normal users work inside their own calendar owner: manage calendar sources, maintain obfuscation settings, and review their peer status.</span>
-            }
-        </p>
-        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" Wrap="true" Class="dashboard-role-actions">
+        <h3 class="section-title">@(_isSysadmin ? "Quick Actions" : "My Workspace")</h3>
+        <div class="action-row">
             @if (_isSysadmin)
             {
                 <FluentButton Appearance="Appearance.Accent" OnClick="NavigateToCalendarOwners">
@@ -61,11 +63,12 @@
                     View My Peers
                 </FluentButton>
             }
-        </FluentStack>
+        </div>
     </section>
 
     <section class="card combined-calendar-card">
-        <h3>Combined Calendar</h3>
+        <h3 class="section-title">Combined Calendar</h3>
+        <p class="section-subtitle">View the merged free/busy availability for a calendar owner.</p>
 
         <div class="combined-calendar-controls" role="group" aria-label="Combined calendar filters">
             <div class="combined-calendar-field combined-calendar-field--owner app-form-field">
@@ -124,9 +127,13 @@
     }
     else if (_loaded)
     {
-        <FluentMessageBar Intent="MessageIntent.Info" Title="No slots">
-            No busy slots found for the selected period.
-        </FluentMessageBar>
+        <section class="card">
+            <div class="empty-state">
+                <span class="empty-state-icon">📅</span>
+                <p class="empty-state-title">No busy slots found</p>
+                <p class="empty-state-description">There are no busy slots for the selected period. Try refreshing or check that calendar sources are configured.</p>
+            </div>
+        </section>
     }
 </FluentStack>
 
