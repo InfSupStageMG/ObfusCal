@@ -119,15 +119,23 @@ public sealed class CalendarOwnerAvailabilitySyncService(
                 var writeBackEnd = DateTimeOffset.UtcNow.AddDays(Math.Max(1, syncOptions.Value.WriteBackLookAheadDays));
                 var shadowSlots = await shadowSlotStore.GetAllSlotsAsync(calendarOwnerId, from, writeBackEnd, ct);
 
-                logger.LogInformation(
-                    "Write-back starting for calendar owner {CalendarOwnerId}: {ShadowSlotCount} shadow slot(s) found in window [{WriteBackStart:O}, {WriteBackEnd:O}).",
-                    calendarOwnerId, shadowSlots.Count, from, writeBackEnd);
+                if (shadowSlots.Count == 0)
+                {
+                    await writeBack.WriteBackSlotsAsync(calendarOwnerId, [], owner.WriteBackPlaceholderTitle ?? syncOptions.Value.WriteBackPlaceholderTitle, from, writeBackEnd, ct);
+                    return busySlots;
+                }
 
-                var placeholderTitle = string.IsNullOrWhiteSpace(owner.WriteBackPlaceholderTitle)
-                    ? syncOptions.Value.WriteBackPlaceholderTitle
-                    : owner.WriteBackPlaceholderTitle;
+                // Apply client-level obfuscation to shadow slots before write-back
+                var obfuscatedShadowSlots = ApplyClientObfuscation(shadowSlots, calendarOwnerId);
 
-                await writeBack.WriteBackSlotsAsync(calendarOwnerId, shadowSlots, placeholderTitle, from, writeBackEnd, ct);
+                if (obfuscatedShadowSlots.Count > 0)
+                {
+                    logger.LogInformation(
+                        "Triggering write-back for calendar owner {CalendarOwnerId}: {ObfuscatedShadowSlotCount} obfuscated shadow slot(s) in window [{WriteBackStart:O}, {WriteBackEnd:O}).",
+                        calendarOwnerId, obfuscatedShadowSlots.Count, from, writeBackEnd);
+                }
+
+                await writeBack.WriteBackSlotsAsync(calendarOwnerId, obfuscatedShadowSlots, owner.WriteBackPlaceholderTitle ?? syncOptions.Value.WriteBackPlaceholderTitle, from, writeBackEnd, ct);
             }
         }
         catch (OperationCanceledException)
@@ -260,6 +268,30 @@ public sealed class CalendarOwnerAvailabilitySyncService(
             // If serialization fails, don't crash - data persistence should continue
             return null;
         }
+    }
+
+    private IReadOnlyList<BusySlot> ApplyClientObfuscation(IReadOnlyList<BusySlot> shadowSlots, Guid calendarOwnerId)
+    {
+        // Convert BusySlots back to CalendarEvents so we can run them through the obfuscation pipeline
+        var eventsFromSlots = shadowSlots.Select(slot => new Domain.Models.CalendarEvent(
+            slot.SourceEventId,
+            slot.Title ?? string.Empty,
+            slot.Description,
+            slot.Start,
+            slot.End,
+            slot.AttendeeEmails ?? [],
+            slot.Location
+        )).ToList();
+
+        // Apply client-level obfuscation to the slots
+        var clientProfile = ObfuscationProfileSettings.CreateDefault(ObfuscationAuditContext.Client);
+        var obfuscatedSlots = obfuscationPipeline.Process(
+            eventsFromSlots,
+            calendarOwnerId.ToString(),
+            ObfuscationAuditContext.Client,
+            clientProfile);
+
+        return obfuscatedSlots;
     }
 }
 

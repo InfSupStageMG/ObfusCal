@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ObfusCal.Application.Interfaces;
@@ -204,9 +205,11 @@ public sealed partial class GraphCalendarSource
         Guid calendarOwnerId,
         CancellationToken ct)
     {
+        var eventTitle = !string.IsNullOrWhiteSpace(slot.Title) ? slot.Title : placeholderTitle;
+
         if (existing.Start == slot.Start
             && existing.End == slot.End
-            && string.Equals(existing.Subject, placeholderTitle, StringComparison.Ordinal))
+            && string.Equals(existing.Subject, eventTitle, StringComparison.Ordinal))
         {
             return;
         }
@@ -244,11 +247,16 @@ public sealed partial class GraphCalendarSource
         Guid calendarOwnerId,
         CancellationToken ct)
     {
+        // Use obfuscated title if available, otherwise use placeholder
+        var eventTitle = !string.IsNullOrWhiteSpace(slot.Title) ? slot.Title : placeholderTitle;
+
         var body = new
         {
-            subject = placeholderTitle,
+            subject = eventTitle,
+            description = slot.Description,
             start = new { dateTime = slot.Start.UtcDateTime.ToString("O", CultureInfo.InvariantCulture), timeZone = "UTC" },
             end = new { dateTime = slot.End.UtcDateTime.ToString("O", CultureInfo.InvariantCulture), timeZone = "UTC" },
+            location = string.IsNullOrWhiteSpace(slot.Location) ? null : new { displayName = slot.Location },
             showAs = "busy",
             isReminderOn = false,
             singleValueExtendedProperties = new[]
@@ -260,7 +268,8 @@ public sealed partial class GraphCalendarSource
 
         using var request = new HttpRequestMessage(HttpMethod.Post, GraphEventsPath);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenSession.AccessToken);
-        request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+        var options = new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
+        request.Content = new StringContent(JsonSerializer.Serialize(body, options), Encoding.UTF8, "application/json");
 
         using var response = await _httpClient.SendAsync(request, ct);
         if (response.IsSuccessStatusCode)
@@ -281,16 +290,22 @@ public sealed partial class GraphCalendarSource
         Guid calendarOwnerId,
         CancellationToken ct)
     {
+        // Use obfuscated title if available, otherwise use placeholder
+        var eventTitle = !string.IsNullOrWhiteSpace(slot.Title) ? slot.Title : placeholderTitle;
+
         var body = new
         {
-            subject = placeholderTitle,
+            subject = eventTitle,
+            description = slot.Description,
             start = new { dateTime = slot.Start.UtcDateTime.ToString("O", CultureInfo.InvariantCulture), timeZone = "UTC" },
-            end = new { dateTime = slot.End.UtcDateTime.ToString("O", CultureInfo.InvariantCulture), timeZone = "UTC" }
+            end = new { dateTime = slot.End.UtcDateTime.ToString("O", CultureInfo.InvariantCulture), timeZone = "UTC" },
+            location = string.IsNullOrWhiteSpace(slot.Location) ? null : new { displayName = slot.Location }
         };
 
         using var request = new HttpRequestMessage(HttpMethod.Patch, $"{GraphEventsPath}/{Uri.EscapeDataString(graphEventId)}");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenSession.AccessToken);
-        request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+        var options = new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
+        request.Content = new StringContent(JsonSerializer.Serialize(body, options), Encoding.UTF8, "application/json");
 
         using var response = await _httpClient.SendAsync(request, ct);
         if (response.IsSuccessStatusCode)
