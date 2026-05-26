@@ -159,16 +159,19 @@ public sealed partial class ICloudCalendarSourceCore
     {
         foreach (var slot in busySlots)
         {
+            // Use obfuscated title if available, otherwise use placeholder
+            var eventSummary = !string.IsNullOrWhiteSpace(slot.Title) ? slot.Title : placeholderTitle;
+
             // Skip if already up-to-date
             if (managedBySlotId.TryGetValue(slot.SourceEventId, out var existing)
                 && existing.Start == slot.Start
                 && existing.End == slot.End
-                && string.Equals(existing.Summary, placeholderTitle, StringComparison.Ordinal))
+                && string.Equals(existing.Summary, eventSummary, StringComparison.Ordinal))
             {
                 continue;
             }
 
-            await PutPlaceholderEventAsync(calendarOwnerId, configuration, slot, placeholderTitle, ct);
+            await PutPlaceholderEventAsync(calendarOwnerId, configuration, slot, eventSummary, ct);
         }
     }
 
@@ -440,9 +443,13 @@ public sealed partial class ICloudCalendarSourceCore
         var startStamp = slot.Start.UtcDateTime.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
         var endStamp = slot.End.UtcDateTime.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
         var dtstamp = DateTimeOffset.UtcNow.UtcDateTime.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
-        var escapedTitle = EscapeIcsText(placeholderTitle);
 
-        return string.Join("\r\n", [
+        // Use obfuscated title if available, otherwise use placeholder
+        var eventTitle = !string.IsNullOrWhiteSpace(slot.Title) ? slot.Title : placeholderTitle;
+        var escapedTitle = EscapeIcsText(eventTitle);
+
+        var lines = new List<string>
+        {
             "BEGIN:VCALENDAR",
             "VERSION:2.0",
             "PRODID:-//ObfusCal//ObfusCal//EN",
@@ -456,11 +463,26 @@ public sealed partial class ICloudCalendarSourceCore
             $"DTSTAMP:{dtstamp}",
             "TRANSP:OPAQUE",
             $"{ManagedXProperty}:{ManagedXPropertyValue}",
-            $"{SlotIdXProperty}:{slot.SourceEventId}",
-            "END:VEVENT",
-            "END:VCALENDAR",
-            string.Empty
-        ]);
+            $"{SlotIdXProperty}:{slot.SourceEventId}"
+        };
+
+        // Add obfuscated description if available
+        if (!string.IsNullOrWhiteSpace(slot.Description))
+        {
+            lines.Add($"DESCRIPTION:{EscapeIcsText(slot.Description)}");
+        }
+
+        // Add obfuscated location if available
+        if (!string.IsNullOrWhiteSpace(slot.Location))
+        {
+            lines.Add($"LOCATION:{EscapeIcsText(slot.Location)}");
+        }
+
+        lines.Add("END:VEVENT");
+        lines.Add("END:VCALENDAR");
+        lines.Add(string.Empty);
+
+        return string.Join("\r\n", lines);
     }
 
     private static string EscapeIcsText(string text)
