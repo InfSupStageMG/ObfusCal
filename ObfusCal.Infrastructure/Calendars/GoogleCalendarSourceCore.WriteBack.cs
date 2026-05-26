@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ObfusCal.Application.Interfaces;
@@ -365,10 +366,15 @@ public sealed partial class GoogleCalendarSourceCore
             ? $"{GetGoogleApiBaseUrl().TrimEnd('/')}/calendar/v3/calendars/{Uri.EscapeDataString(calendarId)}/events"
             : $"{GetGoogleApiBaseUrl().TrimEnd('/')}/calendar/v3/calendars/{Uri.EscapeDataString(calendarId)}/events/{Uri.EscapeDataString(googleEventId)}";
 
+        // Use obfuscated title if available, otherwise use placeholder
+        var eventSummary = !string.IsNullOrWhiteSpace(slot.Title) ? slot.Title : placeholderTitle;
+
         object body = includeSlotMetadata
             ? new
             {
-                summary = placeholderTitle,
+                summary = eventSummary,
+                description = slot.Description,
+                location = slot.Location,
                 start = new { dateTime = slot.Start.UtcDateTime.ToString("O", CultureInfo.InvariantCulture) },
                 end = new { dateTime = slot.End.UtcDateTime.ToString("O", CultureInfo.InvariantCulture) },
                 transparency = "opaque",
@@ -384,7 +390,9 @@ public sealed partial class GoogleCalendarSourceCore
             }
             : new
             {
-                summary = placeholderTitle,
+                summary = eventSummary,
+                description = slot.Description,
+                location = slot.Location,
                 start = new { dateTime = slot.Start.UtcDateTime.ToString("O", CultureInfo.InvariantCulture) },
                 end = new { dateTime = slot.End.UtcDateTime.ToString("O", CultureInfo.InvariantCulture) },
                 transparency = "opaque",
@@ -394,7 +402,8 @@ public sealed partial class GoogleCalendarSourceCore
         var request = new HttpRequestMessage(method, requestUri);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Accept.ParseAdd("application/json");
-        request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+        var options = new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
+        request.Content = new StringContent(JsonSerializer.Serialize(body, options), Encoding.UTF8, "application/json");
         return request;
     }
 
