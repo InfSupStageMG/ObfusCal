@@ -38,11 +38,22 @@ public sealed class PeerSyncBackgroundService(
             {
                 break;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
             }
-            finally
+            catch (IOException ex)
+            {
+                logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
+            }
+            catch (TimeoutException ex)
+            {
+                logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
+            }
             {
                 progressMonitor.EndPeerSync();
             }
