@@ -140,7 +140,7 @@ public sealed class CalendarOwnerAvailabilitySyncService(
                 }
 
                 // Apply client-level obfuscation to shadow slots before write-back
-                var obfuscatedShadowSlots = ApplyClientObfuscation(shadowSlots, calendarOwnerId);
+                var obfuscatedShadowSlots = await ApplyClientObfuscationAsync(shadowSlots, calendarOwnerId, ct);
 
                 if (obfuscatedShadowSlots.Count > 0)
                 {
@@ -284,7 +284,10 @@ public sealed class CalendarOwnerAvailabilitySyncService(
         }
     }
 
-    private IReadOnlyList<BusySlot> ApplyClientObfuscation(IReadOnlyList<BusySlot> shadowSlots, Guid calendarOwnerId)
+    private async Task<IReadOnlyList<BusySlot>> ApplyClientObfuscationAsync(
+        IReadOnlyList<BusySlot> shadowSlots,
+        Guid calendarOwnerId,
+        CancellationToken ct)
     {
         // Convert BusySlots back to CalendarEvents so we can run them through the obfuscation pipeline
         var eventsFromSlots = shadowSlots.Select(slot => new Domain.Models.CalendarEvent(
@@ -297,8 +300,12 @@ public sealed class CalendarOwnerAvailabilitySyncService(
             slot.Location
         )).ToList();
 
-        // Apply client-level obfuscation to the slots
-        var clientProfile = ObfuscationProfileSettings.CreateDefault(ObfuscationAuditContext.Client);
+        // Apply client-level obfuscation using the user's configured profile
+        var clientProfile = await obfuscationProfileService.GetProfileAsync(
+            calendarOwnerId,
+            ObfuscationAuditContext.Client,
+            ct);
+
         var obfuscatedSlots = obfuscationPipeline.Process(
             eventsFromSlots,
             calendarOwnerId.ToString(),

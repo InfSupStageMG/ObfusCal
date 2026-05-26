@@ -221,7 +221,7 @@ public class OutboundPeerSyncServiceTests
     {
         var pipeline = new ObfuscationPipeline([], [], NullLogger<ObfuscationPipeline>.Instance);
         var busySlotService = new CalendarOwnerClientBusySlotService(
-            new FixedCalendarSourceResolver(calendarSource),
+            new StubAvailabilitySlotStore(calendarSource),
             pipeline,
             profileService ?? new StubCalendarOwnerObfuscationProfileService());
 
@@ -484,6 +484,27 @@ public class OutboundPeerSyncServiceTests
         {
             _profiles[(calendarOwnerId, profile.Context)] = profile;
             return Task.FromResult(profile);
+        }
+    }
+
+    private sealed class StubAvailabilitySlotStore(ICalendarSource calendarSource) : ICalendarOwnerAvailabilitySlotStore
+    {
+        public async Task<IReadOnlyList<Domain.Models.BusySlot>> GetSlotsAsync(
+            Guid calendarOwnerId,
+            DateTimeOffset from,
+            DateTimeOffset to,
+            CancellationToken ct = default)
+        {
+            var events = await calendarSource.GetEventsAsync(from, to, calendarOwnerId, ct);
+            return events.Select(e => new Domain.Models.BusySlot(
+                e.Id,
+                e.Start,
+                e.End,
+                e.Title,
+                e.Description,
+                e.AttendeeEmails,
+                e.Location,
+                null)).ToList();
         }
     }
 }
