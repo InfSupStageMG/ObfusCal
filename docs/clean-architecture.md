@@ -227,9 +227,11 @@ ObfusCal.Application/
 │   ├── ISecurityAuditService.cs
 │   ├── IShadowSlotStore.cs
 │   ├── IStatusService.cs
+│   ├── ISyncProgressMonitor.cs
 │   ├── ISyncRuntimeOptionsProvider.cs
 │   ├── IUrlSafetyValidator.cs
-│   └── PeerApiScopes.cs
+│   ├── PeerApiScopes.cs
+│   └── SyncProgressUpdate.cs
 ├── Obfuscation/
 │   ├── ObfuscationAuditContext.cs
 │   ├── ObfuscationPipeline.cs
@@ -417,7 +419,8 @@ ObfusCal.Infrastructure/
 │   ├── InboundPeerPullSyncService.cs
 │   ├── OutboundPeerSyncService.cs
 │   ├── PeerSyncBackgroundService.cs
-│   └── ShadowSlotRetentionBackgroundService.cs
+│   ├── ShadowSlotRetentionBackgroundService.cs
+│   └── SyncProgressMonitor.cs
 ├── DependencyInjection.cs
 └── ObfusCal.Infrastructure.csproj
 ```

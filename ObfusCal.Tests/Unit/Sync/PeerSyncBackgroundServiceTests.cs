@@ -22,6 +22,7 @@ public class PeerSyncBackgroundServiceTests
 
         using var backgroundService = new PeerSyncBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
+            new SyncProgressMonitor(),
             Options.Create(new SyncOptions { SyncIntervalSeconds = 60 }),
             NullLogger<PeerSyncBackgroundService>.Instance);
 
@@ -48,6 +49,7 @@ public class PeerSyncBackgroundServiceTests
 
         using var backgroundService = new PeerSyncBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
+            new SyncProgressMonitor(),
             Options.Create(new SyncOptions { SyncIntervalSeconds = 60 }),
             NullLogger<PeerSyncBackgroundService>.Instance);
 
@@ -75,6 +77,7 @@ public class PeerSyncBackgroundServiceTests
         // Use a very small interval (0) - it should be clamped to at least 1 second
         using var backgroundService = new PeerSyncBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
+            new SyncProgressMonitor(),
             Options.Create(new SyncOptions { SyncIntervalSeconds = 0 }),
             NullLogger<PeerSyncBackgroundService>.Instance);
 
@@ -99,6 +102,7 @@ public class PeerSyncBackgroundServiceTests
 
         using var backgroundService = new PeerSyncBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
+            new SyncProgressMonitor(),
             Options.Create(new SyncOptions { SyncIntervalSeconds = 3600 }),
             NullLogger<PeerSyncBackgroundService>.Instance);
 
@@ -116,7 +120,7 @@ public class PeerSyncBackgroundServiceTests
     {
         public TaskCompletionSource InvocationObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public Task RunSyncCycleAsync(CancellationToken ct = default)
+        public Task RunSyncCycleAsync(CancellationToken ct = default, IProgress<SyncProgressUpdate>? progress = null)
         {
             InvocationObserved.TrySetResult();
             return Task.CompletedTask;
@@ -127,7 +131,7 @@ public class PeerSyncBackgroundServiceTests
     {
         public TaskCompletionSource InvocationObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public Task RunSyncCycleAsync(CancellationToken ct = default)
+        public Task RunSyncCycleAsync(CancellationToken ct = default, IProgress<SyncProgressUpdate>? progress = null)
         {
             InvocationObserved.TrySetResult();
             return Task.CompletedTask;
@@ -138,7 +142,7 @@ public class PeerSyncBackgroundServiceTests
     {
         public bool WasInvoked { get; private set; }
 
-        public Task RunSyncCycleAsync(CancellationToken ct = default)
+        public Task RunSyncCycleAsync(CancellationToken ct = default, IProgress<SyncProgressUpdate>? progress = null)
         {
             WasInvoked = true;
             throw new InvalidOperationException("Simulated sync failure");
@@ -158,6 +162,7 @@ public class PeerSyncBackgroundServiceTests
         // Negative interval should be clamped to at least 1 (Math.Max(1, -5) = 1)
         using var backgroundService = new PeerSyncBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
+            new SyncProgressMonitor(),
             Options.Create(new SyncOptions { SyncIntervalSeconds = -5 }),
             NullLogger<PeerSyncBackgroundService>.Instance);
 
@@ -189,6 +194,7 @@ public class PeerSyncBackgroundServiceTests
 
         using var backgroundService = new PeerSyncBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
+            new SyncProgressMonitor(),
             Options.Create(new SyncOptions { SyncIntervalSeconds = 1 }),
             NullLogger<PeerSyncBackgroundService>.Instance);
 
@@ -220,6 +226,7 @@ public class PeerSyncBackgroundServiceTests
 
         using var backgroundService = new PeerSyncBackgroundService(
             provider.GetRequiredService<IServiceScopeFactory>(),
+            new SyncProgressMonitor(),
             Options.Create(new SyncOptions { SyncIntervalSeconds = 60 }),
             NullLogger<PeerSyncBackgroundService>.Instance);
 
@@ -235,7 +242,7 @@ public class PeerSyncBackgroundServiceTests
 
     private sealed class MultiCountOutboundPeerSyncService(Action onInvoke) : IOutboundPeerSyncService
     {
-        public Task RunSyncCycleAsync(CancellationToken ct = default)
+        public Task RunSyncCycleAsync(CancellationToken ct = default, IProgress<SyncProgressUpdate>? progress = null)
         {
             onInvoke();
             return Task.CompletedTask;

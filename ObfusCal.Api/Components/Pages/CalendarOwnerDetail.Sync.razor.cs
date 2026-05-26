@@ -1,4 +1,5 @@
 ﻿using Microsoft.FluentUI.AspNetCore.Components;
+using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Components.Pages;
 
@@ -11,15 +12,24 @@ public partial class CalendarOwnerDetail
     private string? _writeBackMessage;
     private MessageIntent _writeBackMessageIntent = MessageIntent.Info;
 
+    private SyncProgressUpdate? _ownerSyncProgress;
+
     private async Task TriggerOwnerSyncAsync()
     {
         _triggeringSyncForOwner = true;
         _ownerSyncMessage = null;
+        _ownerSyncProgress = null;
         StateHasChanged();
+
+        var progress = new Progress<SyncProgressUpdate>(update =>
+        {
+            _ownerSyncProgress = update;
+            InvokeAsync(StateHasChanged);
+        });
 
         try
         {
-            await AvailabilitySyncService.RunSyncForOwnerAsync(Id);
+            await AvailabilitySyncService.RunSyncForOwnerAsync(Id, CancellationToken.None, progress);
             _ownerSyncMessage = $"Sync completed at {DateTimeOffset.UtcNow:HH:mm:ss} UTC.";
             _ownerSyncMessageIntent = MessageIntent.Success;
         }
@@ -31,6 +41,7 @@ public partial class CalendarOwnerDetail
         finally
         {
             _triggeringSyncForOwner = false;
+            _ownerSyncProgress = null;
         }
     }
 

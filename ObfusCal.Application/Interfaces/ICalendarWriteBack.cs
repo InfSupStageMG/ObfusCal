@@ -2,7 +2,6 @@
 
 namespace ObfusCal.Application.Interfaces;
 
-/// <summary>Writes obfuscated busy-slot placeholders back into a calendar destination.</summary>
 public interface ICalendarWriteBack
 {
     Task WriteBackSlotsAsync(
@@ -14,7 +13,6 @@ public interface ICalendarWriteBack
         CancellationToken ct = default);
 }
 
-/// <summary>Writes obfuscated busy-slot placeholders back into a specific calendar source instance.</summary>
 public interface ICalendarSourceInstanceWriteBack
 {
     Task WriteBackSlotsAsync(

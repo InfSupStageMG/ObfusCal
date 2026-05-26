@@ -7,6 +7,9 @@ using DbBusySlot = ObfusCal.Infrastructure.Persistence.BusySlot;
 
 namespace ObfusCal.Infrastructure.Storage;
 
+/// <summary>
+/// Entity Framework Core implementation of IShadowSlotStore using PostgreSQL.
+/// </summary>
 public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger) : IShadowSlotStore
 {
     private const string PeerIdLogProperty = "PeerId";

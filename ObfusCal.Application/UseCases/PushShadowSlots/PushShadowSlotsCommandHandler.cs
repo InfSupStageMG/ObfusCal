@@ -7,6 +7,9 @@ using ObfusCal.Domain.Models;
 
 namespace ObfusCal.Application.UseCases.PushShadowSlots;
 
+/// <summary>
+/// Processes and stores inbound obfuscated shadow slots received from a trusted external peer.
+/// </summary>
 public sealed class PushShadowSlotsUseCase(
     IShadowSlotStore shadowSlotStore,
     IOptions<SyncOptions> syncOptions,

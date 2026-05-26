@@ -139,18 +139,21 @@ internal static class IcsCalendarEventParser
 
         if (end <= start)
         {
-            if (end == start
-                && IsDateOnlyValue(startValues[0])
-                && values.TryGetValue("DTEND", out var rawEndValues)
-                && rawEndValues.Count > 0
-                && IsDateOnlyValue(rawEndValues[0]))
-            {
-                end = start.AddDays(1);
-            }
-            else
+            // Guard against invalid duration, but allow for a specific edge case:
+            // some calendars produce all-day events with identical start/end DATE values.
+            // In that one case, we normalize the end time to be exactly one day after the start.
+            var isNormalizableAllDayEvent = end == start
+                                            && IsDateOnlyValue(startValues[0])
+                                            && values.TryGetValue("DTEND", out var rawEndValues)
+                                            && rawEndValues.Count > 0
+                                            && IsDateOnlyValue(rawEndValues[0]);
+
+            if (!isNormalizableAllDayEvent)
             {
                 return false;
             }
+
+            end = start.AddDays(1);
         }
 
         var uid = TryGetFirst(values, "UID") ?? Guid.NewGuid().ToString("N");

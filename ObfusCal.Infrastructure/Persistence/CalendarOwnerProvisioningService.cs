@@ -39,6 +39,8 @@ internal sealed class CalendarOwnerProvisioningService(
         }
         catch (DbUpdateException)
         {
+            // Handle race conditions where another concurrent request (e.g., rapid multi-tab loading
+            // from the Blazor UI) provisioned the owner between our FindScopeAsync check and SaveChangesAsync.
             dbContext.Entry(owner).State = EntityState.Detached;
 
             existing = await FindScopeAsync(normalizedObjectId, ct);

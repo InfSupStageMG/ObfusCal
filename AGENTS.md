@@ -104,3 +104,19 @@ Use this checklist before declaring the project "ready":
     - Do not move UI-specific view models into `ObfusCal.Application` unless they become shared contracts.
     - If a page or partial becomes difficult to review, split it before merging and document the resulting file layout
       in the PR note.
+
+15. **Code documentation and commenting**
+    - **Default to no comments:** Documentation should be the exception, not the rule. Only add
+      comments when code genuinely cannot explain itself. If a comment is needed to describe
+      *what* code does, renaming the variable or method is usually the better fix.
+    - **Explain the "why":** Always add inline comments for seemingly unlogical, confusing, or
+      workaround code to prevent accidental breakage during refactoring.
+    - **Pace complex logic:** Use inline comments to break down and explain complex algorithms.
+    - **Use XML comments for classes:** Provide a brief `/// <summary>` description for classes
+      to give high-level context.
+    - **Avoid literal XML comments on methods:** Do not add `/// <summary>` comments to methods
+      that merely restate what the method name already says
+      (e.g., `/// <summary>Gets the user.</summary>`).
+    - **Do not generate documentation from XML comments:** Avoid generating external documentation
+      from XML comments, as it encourages literal commenting just to fill the output. Exception:
+      this may be appropriate when writing libraries for external teams or customers.

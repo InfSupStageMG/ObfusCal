@@ -7,6 +7,10 @@ using ObfusCal.Application.UseCases.Validation;
 
 namespace ObfusCal.Application.UseCases.GetMergedFreeBusy;
 
+/// <summary>
+/// Retrieves a calendar owner's own busy slots and merges them with
+/// inbound shadow slots received from external peers to form a unified availability view.
+/// </summary>
 public sealed class GetMergedFreeBusyUseCase(
     ICalendarOwnerAvailabilitySlotStore availabilitySlotStore,
     ICalendarSourceResolver calendarSourceResolver,

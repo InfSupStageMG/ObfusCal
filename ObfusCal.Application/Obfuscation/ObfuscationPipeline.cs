@@ -5,6 +5,10 @@ using ObfusCal.Domain.Obfuscation.Transformers;
 
 namespace ObfusCal.Application.Obfuscation;
 
+/// <summary>
+/// Acts as a privacy gatekeeper, passing raw calendar events through a configured
+/// chain of transformers to produce safe busy slots.
+/// </summary>
 public sealed class ObfuscationPipeline(
     IEnumerable<IObfuscationTransformer> transformers,
     IEnumerable<IBusySlotTransformer> slotTransformers,

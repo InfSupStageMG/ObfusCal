@@ -34,6 +34,16 @@ else
                     @(_triggeringSyncForOwner ? "Syncing…" : "Trigger Sync Now")
                 </FluentButton>
             </FluentStack>
+            @if (_triggeringSyncForOwner)
+            {
+                <div class="sync-progress-container">
+                    <FluentProgress/>
+                    @if (_ownerSyncProgress is not null)
+                    {
+                        <p class="sync-progress-label">@_ownerSyncProgress.Message</p>
+                    }
+                </div>
+            }
             @if (_ownerSyncMessage is not null)
             {
                 <FluentMessageBar Intent="@_ownerSyncMessageIntent" Class="card-message">

@@ -57,6 +57,8 @@ public static class DependencyInjection
         services.AddSingleton<ISyncRuntimeOptionsProvider, SyncRuntimeOptionsProvider>();
         services.AddSingleton<IUrlSafetyValidator, UrlSafetyValidator>();
         services.AddSingleton<SecretStartupValidator>();
+        services.AddSingleton<SyncProgressMonitor>();
+        services.AddSingleton<ISyncProgressMonitor>(sp => sp.GetRequiredService<SyncProgressMonitor>());
 
         services.Configure<SecretValidationOptions>(options =>
         {
