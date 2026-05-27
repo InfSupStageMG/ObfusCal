@@ -158,6 +158,7 @@ jobs:
             -   name: Start API container
                 run: |
                     docker run -d --name obfuscal-ci-api --network obfuscal-ci -p 18080:8080 \
+                      -e ApplyMigrationsOnStartup=true \
                       -e ASPNETCORE_ENVIRONMENT=Development \
                       -e ASPNETCORE_URLS=http://+:8080 \
                       -e ConnectionStrings__DefaultConnection='Host=obfuscal-ci-db;Database=obfuscal;Username=postgres;Password=postgres' \
@@ -240,9 +241,40 @@ jobs:
                     if-no-files-found: warn
                     retention-days: 14
 
+    generate-sql-migration:
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v6
+
+            -   name: Setup .NET
+                uses: actions/setup-dotnet@v5
+                with:
+                    global-json-file: global.json
+
+            -   name: Restore dependencies
+                run: dotnet restore
+
+            -   name: Install EF Core CLI
+                run: dotnet tool install --global dotnet-ef
+
+            -   name: Generate Idempotent SQL Script
+                run: |
+                    dotnet ef migrations script \
+                      --idempotent \
+                      --project ObfusCal.Infrastructure/ObfusCal.Infrastructure.csproj \
+                      --startup-project ObfusCal.Api/ObfusCal.Api.csproj \
+                      --output ./db-migration.sql
+
+            -   name: Upload SQL Script Artifact
+                uses: actions/upload-artifact@v4
+                with:
+                    name: database-migration-script
+                    path: ./db-migration.sql
+                    retention-days: 14
+
     build:
         runs-on: ubuntu-latest
-        needs: [ test, container-smoke ]
+        needs: [ test, container-smoke, generate-sql-migration ]
         permissions:
             contents: read
             packages: write

@@ -43,6 +43,7 @@ public sealed class CustomWebApplicationFactory(
         {
             var configuration = new Dictionary<string, string?>
             {
+                ["ApplyMigrationsOnStartup"] = "true",
                 ["ConnectionStrings:DefaultConnection"] = Postgres.GetConnectionString(),
                 ["ColumnEncryption:Key"] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
                 ["AzureAd:Instance"] = "https://login.microsoftonline.com/",

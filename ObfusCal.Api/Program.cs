@@ -248,7 +248,10 @@ try
     app.MapRazorComponents<App>()
         .AddInteractiveServerRenderMode();
 
-    await app.Services.MigrateDatabaseAsync();
+    if (app.Configuration.GetValue<bool>("ApplyMigrationsOnStartup"))
+    {
+        await app.Services.MigrateDatabaseAsync();
+    }
     await app.Services.InitializePluginAllowlistAsync();
 
     await app.RunAsync();
