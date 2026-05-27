@@ -306,7 +306,12 @@
                 CancellationToken.None);
             _slots = result.ToList();
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
+        {
+            _slots = [];
+            _loadErrorMessage = ex.Message;
+        }
+        catch (InvalidOperationException ex)
         {
             _slots = [];
             _loadErrorMessage = ex.Message;
