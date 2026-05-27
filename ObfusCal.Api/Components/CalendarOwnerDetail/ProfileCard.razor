@@ -1,0 +1,48 @@
+﻿@using static ObfusCal.Api.Components.Pages.CalendarOwnerDetail
+@using FluentIcons = Microsoft.FluentUI.AspNetCore.Components.Icons
+
+<section class="card profile-card">
+    <div class="profile-card-header">
+        <h4>@Profile.Context.ToDisplayName()</h4>
+        <div class="profile-tooltip">
+            <button type="button"
+                    class="profile-info-button"
+                    aria-label="@($"About the {Profile.Context.ToDisplayName()} profile")">
+                <FluentIcon Value="@(new FluentIcons.Regular.Size16.Info())"
+                            Color="Color.Neutral"
+                            Class="profile-info-icon"/>
+            </button>
+            <span class="profile-tooltip-content" role="tooltip">
+                @Profile.Context.ToDisplayHint()
+            </span>
+        </div>
+    </div>
+    <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+        <FluentCheckbox @bind-Value="Profile.RemoveTitle" Label="Remove title"/>
+        <FluentCheckbox @bind-Value="Profile.RemoveDescription" Label="Remove description"/>
+        <FluentCheckbox @bind-Value="Profile.RemoveLocation" Label="Remove location"/>
+        <FluentCheckbox @bind-Value="Profile.RemoveAttendees" Label="Remove attendees"/>
+        <FluentCheckbox @bind-Value="Profile.RoundTimes" Label="Round times"/>
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8"
+                     VerticalAlignment="VerticalAlignment.Center" Wrap="true" Class="profile-rounding-row app-form-row">
+            <div class="profile-rounding-field app-form-field">
+                <FluentLabel Class="app-form-label">Rounding interval (minutes)</FluentLabel>
+                <FluentNumberField @bind-Value="Profile.RoundingIntervalMinutes" Min="1" Max="60" Class="app-form-control" Style="width: 100%; max-width: 100%; min-width: 0;" />
+            </div>
+        </FluentStack>
+        <FluentCheckbox @bind-Value="Profile.MergeBlocks" Label="Merge adjacent blocks"/>
+        <div>
+            <FluentButton Appearance="Appearance.Accent" OnClick="OnSaveAsync">
+                Save
+            </FluentButton>
+        </div>
+    </FluentStack>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public ProfileViewModel Profile { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public EventCallback OnSaveAsync { get; set; }
+}

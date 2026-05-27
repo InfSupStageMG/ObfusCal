@@ -1,6 +1,6 @@
 # Test Catalog
 
-_Auto-generated from CI run. 637 tests across 68 classes._
+_Auto-generated from CI run. 643 tests across 69 classes._
 
 ## Integration (177/177)
 
@@ -415,7 +415,7 @@ _Auto-generated from CI run. 637 tests across 68 classes._
 
 </details>
 
-## Unit (460/460)
+## Unit (466/466)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 1/1</summary>
@@ -691,6 +691,25 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>IsStateValidationFailure_ReturnsTrueForConsentStateMessages ("State is required to complete Google consent.")</code></td><td>✅</td></tr>
     <tr><td><code>IsStateValidationFailure_ReturnsTrueForConsentStateMessages ("State is required to complete Graph consent.")</code></td><td>✅</td></tr>
     <tr><td><code>IsStateValidationFailure_ReturnsTrueForConsentStateMessages ("state is required to complete anything")</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>ObfuscationAuditContextDisplayTests</b> - 6/6</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>ToDisplayHint_AllValues_AreDistinct</code></td><td>✅</td></tr>
+    <tr><td><code>ToDisplayHint_AllValues_ReturnNonEmpty</code></td><td>✅</td></tr>
+    <tr><td><code>ToDisplayName_AllValues_AreDistinct</code></td><td>✅</td></tr>
+    <tr><td><code>ToDisplayName_AllValues_ReturnNonEmpty</code></td><td>✅</td></tr>
+    <tr><td><code>ToDisplayName_Client_ReturnsExternal</code></td><td>✅</td></tr>
+    <tr><td><code>ToDisplayName_Internal_ReturnsInternal</code></td><td>✅</td></tr>
   </tbody>
 </table>
 

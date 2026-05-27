@@ -1,0 +1,49 @@
+﻿.source-instance-container {
+    margin-bottom: 0;
+}
+
+.source-instance-title {
+    margin: 0;
+}
+
+.instance-info-paragraph {
+    margin-top: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.instance-detail-paragraph {
+    margin-top: 0;
+}
+
+.instance-actions-stack {
+    margin-top: 0.5rem;
+}
+
+.source-instance-action-row {
+    margin-top: 0.25rem;
+}
+
+.section-heading {
+    margin: 0.5rem 0 0.25rem 0;
+}
+
+.secret-hint {
+    margin: 0 0 0.25rem;
+    font-size: 0.8rem;
+    color: var(--neutral-foreground-hint);
+}
+
+.config-field,
+.secret-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+}
+
+.config-field > label,
+.secret-field > label {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+

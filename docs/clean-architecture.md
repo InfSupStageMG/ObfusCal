@@ -503,11 +503,13 @@ ObfusCal.Api/
 │   ├── CurrentUserContextAccessor.cs
 │   └── UserIdentityExtensions.cs
 ├── Components/
+│   ├── CalendarOwnerDetail/
 │   ├── Layout/
 │   ├── Pages/
 │   ├── Shared/
 │   ├── App.razor
 │   ├── App.razor.cs
+│   ├── ObfuscationAuditContextExtensions.cs
 │   ├── Routes.razor
 │   └── _Imports.razor
 ├── Controllers/

@@ -1,0 +1,91 @@
+﻿.profile-card {
+    width: 100%;
+}
+
+.profile-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+}
+
+.profile-card-header h4 {
+    margin: 0;
+    flex: 1;
+}
+
+.profile-tooltip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.profile-info-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--neutral-foreground-hint);
+    cursor: help;
+}
+
+.profile-info-button:hover,
+.profile-info-button:focus {
+    background: var(--neutral-fill-secondary-rest, rgba(0, 0, 0, 0.06));
+    outline: none;
+}
+
+.profile-info-icon {
+    flex-shrink: 0;
+    opacity: 0.65;
+    transition: opacity 0.15s;
+}
+
+.profile-info-button:hover .profile-info-icon,
+.profile-info-button:focus .profile-info-icon {
+    opacity: 1;
+}
+
+.profile-tooltip-content {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    right: 0;
+    z-index: 10;
+    display: none;
+    width: max-content;
+    max-width: min(24rem, calc(100vw - 3rem));
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--neutral-stroke-layer-rest);
+    border-radius: 6px;
+    background: var(--neutral-layer-floating);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.14);
+    color: var(--neutral-foreground-rest);
+    font-size: 0.85rem;
+    line-height: 1.35;
+    white-space: normal;
+}
+
+.profile-tooltip:hover .profile-tooltip-content,
+.profile-info-button:hover + .profile-tooltip-content,
+.profile-info-button:focus + .profile-tooltip-content {
+    display: block;
+}
+
+.profile-rounding-field {
+    flex: 0 1 14rem;
+    min-width: 10rem;
+}
+
+@media (max-width: 640px) {
+    .profile-rounding-field {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+}
+
