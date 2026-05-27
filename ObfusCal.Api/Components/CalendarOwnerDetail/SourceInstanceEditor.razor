@@ -27,9 +27,8 @@
         @if (HasFieldEditors(Instance.ConfigurationFields))
         {
             <h4 class="section-heading">Configuration</h4>
-            @foreach (var field in Instance.ConfigurationFields)
+            @foreach (var f in Instance.ConfigurationFields.Select(field => field))
             {
-                var f = field;
                 <div @key="f.Key" class="config-field">
                     <label>@f.Label</label>
                     <input type="text"
@@ -51,9 +50,8 @@
         {
             <h4 class="section-heading">Secrets</h4>
             <p class="secret-hint">Leave blank to keep the existing saved value.</p>
-            @foreach (var field in Instance.SecretFields)
+            @foreach (var f in Instance.SecretFields.Select(field => field))
             {
-                var f = field;
                 <div @key="f.Key" class="secret-field">
                     <label>@f.Label</label>
                     <input type="password"
