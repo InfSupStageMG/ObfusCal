@@ -1,0 +1,27 @@
+﻿.source-form-container {
+    margin-top: 1rem;
+    background-color: var(--neutral-fill-subtle);
+}
+
+.source-form-title {
+    margin: 0 0 0.75rem 0;
+}
+
+.section-heading {
+    margin: 0.5rem 0 0.25rem 0;
+}
+
+.config-field,
+.secret-field {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+}
+
+.config-field > label,
+.secret-field > label {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+

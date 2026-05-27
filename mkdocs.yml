@@ -4,6 +4,8 @@ site_url: https://infsupstagemg.github.io/ObfusCal/
 repo_url: https://github.com/InfSupStageMG/ObfusCal
 theme:
     name: material
+    logo: img/favicon.png
+    favicon: img/favicon.png
     features:
         - navigation.sections
         - content.code.annotate
@@ -15,6 +17,10 @@ theme:
     palette:
         primary: blue
         accent: light blue
+
+plugins:
+    - search
+    - glightbox
 
 nav:
     -   Home: index.md

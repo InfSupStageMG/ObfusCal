@@ -1,6 +1,5 @@
 ﻿@page "/calendar-owners/{Id:guid}"
 @attribute [Authorize]
-@using ObfusCal.Application.Interfaces
 
 <PageTitle>Calendar Owner - ObfusCal</PageTitle>
 
@@ -68,7 +67,7 @@ else
                 <p class="hint-text">
                     When enabled, active shadow slots and obfuscated busy time from your peers are written back into your linked calendar
                     sources as placeholder events.
-                    Only start and end time are written – no peer identity, attendee data, or event details are ever included.
+                    Only start and end time are written - no peer identity, attendee data, or event details are ever included.
                 </p>
                 <FluentStack Orientation="Orientation.Vertical" VerticalGap="12">
                     <FluentSwitch @bind-Value="_writeBackEnabled" Label="Enable write-back to calendar"/>
@@ -118,86 +117,18 @@ else
 
             @if (_showAddForm)
             {
-                <section class="card source-form-container">
-                    <h4 class="source-form-title">New Calendar Source</h4>
-                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
-                        <FluentSelect TOption="PluginOption"
-                                      Items="_pluginOptions"
-                                      OptionValue="@(option => option.Id)"
-                                      OptionText="@(option => option.DisplayLabel)"
-                                      Class="app-form-control"
-                                      Style="width: 100%; max-width: 100%; min-width: 0;"
-                                      @bind-SelectedOption="SelectedPluginOption"/>
-
-                        <FluentTextField @bind-Value="_newSourceDisplayName" Immediate="true"
-                                         Class="app-form-control"
-                                         Style="width: 100%; max-width: 100%; min-width: 0;"
-                                         Label="Display name" Placeholder="My calendar"/>
-
-                        @if (HasFieldEditors(_newSourceConfigurationFields))
-                        {
-                            <h4 class="section-heading">Configuration</h4>
-                            @foreach (var field in _newSourceConfigurationFields)
-                            {
-                                var f = field;
-                                <div @key="f.Key" class="config-field">
-                                    <label>@f.Label</label>
-                                    <input type="text"
-                                           @key="@($"cfg-new-{f.Key}")"
-                                           class="form-input"
-                                           placeholder="@(f.Placeholder ?? "")"
-                                           value="@f.Value"
-                                           @oninput="@(e => f.Value = e.Value?.ToString())"/>
-                                </div>
-                            }
-                        }
-                        else if (!string.IsNullOrWhiteSpace(_newSourceConfigurationJson))
-                        {
-                            <FluentLabel Class="app-form-label">Configuration JSON</FluentLabel>
-                            <textarea class="config-textarea app-form-control" @bind="_newSourceConfigurationJson"></textarea>
-                        }
-
-                        @if (HasFieldEditors(_newSourceSecretFields))
-                        {
-                            <h4 class="section-heading">Secrets</h4>
-                            <p class="hint-text">Secret values are stored encrypted and never displayed after saving.</p>
-                            @foreach (var field in _newSourceSecretFields)
-                            {
-                                var f = field;
-                                <div @key="f.Key" class="secret-field">
-                                    <label>@f.Label</label>
-                                    <input type="password"
-                                           @key="@($"sec-new-{f.Key}")"
-                                           class="form-input"
-                                           placeholder="@(f.Placeholder ?? "")"
-                                           @oninput="@(e => f.Value = e.Value?.ToString())"/>
-                                </div>
-                            }
-                        }
-                        else if (!string.IsNullOrWhiteSpace(_newSourceSecretDataJson))
-                        {
-                            <FluentLabel Class="app-form-label">Secret JSON</FluentLabel>
-                            <textarea class="secret-textarea app-form-control" @bind="_newSourceSecretDataJson"></textarea>
-                        }
-
-                        @if (!string.IsNullOrWhiteSpace(_selectedPluginOption?.SetupHint))
-                        {
-                            <FluentMessageBar Intent="MessageIntent.Info" Class="card-message">@((MarkupString)_selectedPluginOption.SetupHint)</FluentMessageBar>
-                        }
-
-                        <FluentCheckbox @bind-Value="_newSourceIsEnabled" Label="Enabled"/>
-                        <FluentButton Appearance="Appearance.Accent" OnClick="CreateSourceInstanceAsync"
-                                      Class="app-form-button"
-                                      Disabled="@(_selectedPluginOption is null || _creatingSourceInstance)">
-                            @(_creatingSourceInstance ? "Adding..." : "Add Source")
-                        </FluentButton>
-
-                        @if (_sourceMessage is not null && _lastActionInstanceId is null)
-                        {
-                            <FluentMessageBar Intent="@_sourceMessageIntent" Class="card-message">@_sourceMessage</FluentMessageBar>
-                        }
-                    </FluentStack>
-                </section>
+                <SourceAddForm PluginOptions="_pluginOptions"
+                              @bind-SelectedOption="SelectedPluginOption"
+                              @bind-DisplayName="_newSourceDisplayName"
+                              @bind-ConfigurationFields="_newSourceConfigurationFields"
+                              @bind-ConfigurationJson="_newSourceConfigurationJson"
+                              @bind-SecretFields="_newSourceSecretFields"
+                              @bind-SecretJson="_newSourceSecretDataJson"
+                              @bind-IsEnabled="_newSourceIsEnabled"
+                              IsLoading="_creatingSourceInstance"
+                              Message="@(_sourceMessage is not null && _lastActionInstanceId is null ? _sourceMessage : null)"
+                              MessageIntent="_sourceMessageIntent"
+                              OnAddAsync="CreateSourceInstanceAsync"/>
             }
 
             @* Success message after add (form is now closed) *@
@@ -211,111 +142,16 @@ else
                 <FluentStack Orientation="Orientation.Vertical" VerticalGap="12" Class="source-section-margin">
                     @foreach (var instance in _sourceInstances)
                     {
-                        <section class="card source-instance-container" @key="instance.Id">
-                            <div class="status-row">
-                                <h4 class="source-instance-title">@instance.DisplayName</h4>
-                                <FluentBadge Appearance="Appearance.Neutral">@instance.PluginDisplayName</FluentBadge>
-                                @if (instance.IsReady)
-                                {
-                                    <FluentBadge Appearance="Appearance.Accent" Color="Color.Success">Ready</FluentBadge>
-                                }
-                                else
-                                {
-                                    <FluentBadge Appearance="Appearance.Neutral">Not Ready</FluentBadge>
-                                }
-                            </div>
-
-                            <p class="instance-info-paragraph"><strong>@instance.Title</strong></p>
-                            @if (!string.IsNullOrWhiteSpace(instance.Detail))
-                            {
-                                <p class="instance-detail-paragraph hint-text">@instance.Detail</p>
-                            }
-
-                            <FluentStack Orientation="Orientation.Vertical" VerticalGap="8" Class="instance-actions-stack">
-                                <FluentTextField @bind-Value="instance.DisplayName" Immediate="true" Label="Display name" Class="app-form-control" Style="width: 100%; max-width: 100%; min-width: 0;"/>
-
-                                @if (HasFieldEditors(instance.ConfigurationFields))
-                                {
-                                    <h4 class="section-heading">Configuration</h4>
-                                    @foreach (var field in instance.ConfigurationFields)
-                                    {
-                                        var f = field;
-                                        <div @key="f.Key" class="config-field">
-                                            <label>@f.Label</label>
-                                            <input type="text"
-                                                   @key="@($"cfg-{instance.Id}-{f.Key}")"
-                                                   class="form-input"
-                                                   placeholder="@(f.Placeholder ?? "")"
-                                                   value="@f.Value"
-                                                   @oninput="@(e => f.Value = e.Value?.ToString())"/>
-                                        </div>
-                                    }
-                                }
-                                else
-                                {
-                                    <FluentLabel Class="app-form-label">Configuration JSON</FluentLabel>
-                                    <textarea class="config-textarea app-form-control" @bind="instance.ConfigurationJson"></textarea>
-                                }
-
-                                @if (HasFieldEditors(instance.SecretFields))
-                                {
-                                    <h4 class="section-heading">Secrets</h4>
-                                     <p class="secret-hint">Leave blank to keep the existing saved value.</p>
-                                    @foreach (var field in instance.SecretFields)
-                                    {
-                                        var f = field;
-                                        <div @key="f.Key" class="secret-field">
-                                            <label>@f.Label</label>
-                                            <input type="password"
-                                                   @key="@($"sec-{instance.Id}-{f.Key}")"
-                                                   class="form-input"
-                                                   placeholder="Enter new value to update"
-                                                   @oninput="@(e => f.Value = e.Value?.ToString())"/>
-                                        </div>
-                                    }
-                                }
-                                else
-                                {
-                                    <FluentLabel Class="app-form-label">Secret JSON</FluentLabel>
-                                    <textarea class="secret-textarea app-form-control" @bind="instance.SecretDataJson"></textarea>
-                                }
-
-                                <FluentCheckbox @bind-Value="instance.IsEnabled" Label="Enabled"/>
-
-                                <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" Wrap="true" Class="app-form-actions source-instance-action-row">
-                                    <FluentButton Appearance="Appearance.Accent"
-                                                  Class="app-form-button"
-                                                  OnClick="@(() => UpdateSourceInstanceAsync(instance))"
-                                                  Disabled="_updatingSourceInstanceId == instance.Id">
-                                        @(_updatingSourceInstanceId == instance.Id ? "Saving..." : "Save")
-                                    </FluentButton>
-                                    <FluentButton Appearance="Appearance.Outline"
-                                                  Class="app-form-button"
-                                                  OnClick="@(() => DeleteSourceInstanceAsync(instance.Id))"
-                                                  Disabled="_deletingSourceInstanceId == instance.Id">
-                                        @(_deletingSourceInstanceId == instance.Id ? "Deleting..." : "Delete")
-                                    </FluentButton>
-                                    @foreach (var action in instance.Actions)
-                                    {
-                                        var capturedAction = action;
-                                        var capturedInstance = instance;
-                                        var isRunning = _executingActionInstanceId == instance.Id && _executingActionId == action.ActionId;
-                                        <FluentButton Appearance="Appearance.Outline"
-                                                      Class="app-form-button"
-                                                      Title="@action.Hint"
-                                                      OnClick="@(() => InvokePluginActionAsync(capturedInstance, capturedAction))"
-                                                      Disabled="@isRunning">
-                                            @(isRunning ? "Redirecting…" : action.Label)
-                                        </FluentButton>
-                                    }
-                                </FluentStack>
-
-                                @if (_sourceMessage is not null && _lastActionInstanceId == instance.Id)
-                                {
-                                    <FluentMessageBar Intent="@_sourceMessageIntent" Class="card-message">@_sourceMessage</FluentMessageBar>
-                                }
-                            </FluentStack>
-                        </section>
+                        <SourceInstanceEditor Instance="instance"
+                                             IsSaving="_updatingSourceInstanceId == instance.Id"
+                                             IsDeleting="_deletingSourceInstanceId == instance.Id"
+                                             IsExecutingAction="_executingActionInstanceId == instance.Id"
+                                             ExecutingActionId="_executingActionId"
+                                             Message="@(_sourceMessage is not null && _lastActionInstanceId == instance.Id ? _sourceMessage : null)"
+                                             MessageIntent="_sourceMessageIntent"
+                                             OnSaveAsync="@(() => UpdateSourceInstanceAsync(instance))"
+                                             OnDeleteAsync="@(() => DeleteSourceInstanceAsync(instance.Id))"
+                                             OnActionAsync="@(action => InvokePluginActionAsync(instance, action))"/>
                     }
                 </FluentStack>
             }
@@ -329,41 +165,20 @@ else
             }
         </section>
 
-        <section class="card">
-            <h3 class="section-title">Obfuscation Profiles</h3>
-            <p class="hint-text">Configure which event fields are stripped or transformed before sharing availability with peers.</p>
-
-            @foreach (var profile in _profiles)
-            {
-                <section class="card">
-                    <h4>@profile.Context</h4>
-                    <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
-                        <FluentCheckbox @bind-Value="profile.RemoveTitle" Label="Remove title"/>
-                        <FluentCheckbox @bind-Value="profile.RemoveDescription" Label="Remove description"/>
-                        <FluentCheckbox @bind-Value="profile.RemoveLocation" Label="Remove location"/>
-                        <FluentCheckbox @bind-Value="profile.RemoveAttendees" Label="Remove attendees"/>
-                        <FluentCheckbox @bind-Value="profile.RoundTimes" Label="Round times"/>
-                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8"
-                                     VerticalAlignment="VerticalAlignment.Center" Wrap="true" Class="profile-rounding-row app-form-row">
-                            <div class="profile-rounding-field app-form-field">
-                                <FluentLabel Class="app-form-label">Rounding interval (minutes)</FluentLabel>
-                                <FluentNumberField @bind-Value="profile.RoundingIntervalMinutes" Min="1" Max="60" Class="app-form-control" Style="width: 100%; max-width: 100%; min-width: 0;" />
-                            </div>
-                        </FluentStack>
-                        <FluentCheckbox @bind-Value="profile.MergeBlocks" Label="Merge adjacent blocks"/>
-                        <FluentButton Appearance="Appearance.Accent" OnClick="@(() => SaveProfileAsync(profile))">
-                            Save
-                        </FluentButton>
-                    </FluentStack>
-                </section>
-            }
-
+        <div class="profiles-section">
+            <h3>Obfuscation Profiles</h3>
+            <div class="profiles-list">
+                @foreach (var profile in _profiles)
+                {
+                    <ProfileCard @key="profile.Context" Profile="profile" OnSaveAsync="@(() => SaveProfileAsync(profile))"/>
+                }
+            </div>
             @if (_profileMessage is not null)
             {
-                <FluentMessageBar Intent="MessageIntent.Success" Class="card-message">
+                <FluentMessageBar Intent="MessageIntent.Success" Class="card-message profiles-message">
                     @_profileMessage
                 </FluentMessageBar>
             }
-        </section>
+        </div>
     </FluentStack>
 }
