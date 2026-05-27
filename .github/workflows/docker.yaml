@@ -158,6 +158,7 @@ jobs:
             -   name: Start API container
                 run: |
                     docker run -d --name obfuscal-ci-api --network obfuscal-ci -p 18080:8080 \
+                      -e ApplyMigrationsOnStartup=true \
                       -e ASPNETCORE_ENVIRONMENT=Development \
                       -e ASPNETCORE_URLS=http://+:8080 \
                       -e ConnectionStrings__DefaultConnection='Host=obfuscal-ci-db;Database=obfuscal;Username=postgres;Password=postgres' \
@@ -250,6 +251,9 @@ jobs:
                 with:
                     global-json-file: global.json
 
+            -   name: Restore dependencies
+                run: dotnet restore
+
             -   name: Install EF Core CLI
                 run: dotnet tool install --global dotnet-ef
 
@@ -262,7 +266,7 @@ jobs:
                       --output ./db-migration.sql
 
             -   name: Upload SQL Script Artifact
-                uses: actions/upload-artifact@v7
+                uses: actions/upload-artifact@v4
                 with:
                     name: database-migration-script
                     path: ./db-migration.sql
