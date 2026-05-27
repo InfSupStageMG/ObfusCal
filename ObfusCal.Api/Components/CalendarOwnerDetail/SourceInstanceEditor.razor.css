@@ -2,8 +2,46 @@
     margin-bottom: 0;
 }
 
+.source-editor-topbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.source-editor-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    flex: 1;
+}
+
 .source-instance-title {
     margin: 0;
+}
+
+.source-editor-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 1px solid var(--neutral-stroke-layer-rest);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--neutral-foreground-hint);
+    cursor: pointer;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    transition: background 0.12s, color 0.12s;
+}
+
+.source-editor-close:hover {
+    background: var(--neutral-fill-hover);
+    color: var(--neutral-foreground-rest);
 }
 
 .instance-info-paragraph {
@@ -41,9 +79,30 @@
     width: 100%;
 }
 
-.config-field > label,
-.secret-field > label {
-    font-size: 0.875rem;
-    font-weight: 500;
+/* ── Instance-level advanced settings ── */
+.instance-advanced {
+    margin-top: 0.5rem;
+    border: 1px solid var(--neutral-stroke-layer-rest);
+    border-radius: 6px;
 }
 
+.instance-advanced-summary {
+    cursor: pointer;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--neutral-foreground-hint);
+    list-style: none;
+    user-select: none;
+}
+
+.instance-advanced-summary::-webkit-details-marker {
+    display: none;
+}
+
+.instance-advanced-inner {
+    padding: 0.25rem 0.85rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}

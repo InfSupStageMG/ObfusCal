@@ -36,6 +36,12 @@
                 Save
             </FluentButton>
         </div>
+        @if (!string.IsNullOrEmpty(SaveMessage))
+        {
+            <FluentMessageBar Intent="MessageIntent.Success" Class="card-message profile-save-message">
+                @SaveMessage
+            </FluentMessageBar>
+        }
     </FluentStack>
 </section>
 
@@ -45,4 +51,7 @@
 
     [Parameter, EditorRequired]
     public EventCallback OnSaveAsync { get; set; }
+
+    [Parameter]
+    public string? SaveMessage { get; set; }
 }

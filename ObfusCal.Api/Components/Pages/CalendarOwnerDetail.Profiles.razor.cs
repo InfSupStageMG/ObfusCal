@@ -37,9 +37,13 @@ public partial class CalendarOwnerDetail
         }
     }
 
+    // Tracks which profile context triggered the last save (drives per-card message display)
+    private ObfuscationAuditContext? _profileSavedContext;
+
     private async Task SaveProfileAsync(ProfileViewModel profile)
     {
         _profileMessage = null;
+        _profileSavedContext = null;
         var settings = new ObfuscationProfileSettings(
             profile.Context,
             profile.RemoveTitle,
@@ -51,7 +55,8 @@ public partial class CalendarOwnerDetail
             profile.MergeBlocks);
 
         await ObfuscationProfileService.SetProfileAsync(Id, settings);
-        _profileMessage = $"{profile.Context.ToDisplayName()} profile saved.";
+        _profileMessage = "Profile saved.";
+        _profileSavedContext = profile.Context;
     }
 }
 

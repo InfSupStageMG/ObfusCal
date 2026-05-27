@@ -47,6 +47,8 @@ public partial class CalendarOwnerDetail : ComponentBase
     private bool _hasWriteBackCapableSource;
 
 
+    private Guid? _expandedSourceInstanceId;
+
     private string? _profileMessage;
 
     private bool _triggeringSyncForOwner;

@@ -28,24 +28,204 @@
     color: var(--neutral-foreground-rest);
 }
 
-/* Profiles layout — each ProfileCard is its own card */
-.profiles-section {
-    width: 100%; /* explicit: FluentStack vertical uses flex-start, so block children don't auto-stretch */
+/* ── Source tile grid ── */
+.source-tiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
 }
 
-.profiles-section > h3 {
+.source-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    padding: 1.5rem 1rem 1.25rem;
+    min-height: 120px;
+    border: 1.5px solid var(--neutral-stroke-layer-rest);
+    border-radius: 10px;
+    background: var(--neutral-layer-1);
+    cursor: pointer;
+    text-align: center;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    user-select: none;
+    font-family: inherit;
+    color: inherit;
+}
+
+.source-tile:hover {
+    border-color: var(--accent-stroke-control-rest);
+    background: var(--neutral-fill-hover);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.source-tile--active {
+    border-color: var(--accent-fill-rest);
+    border-width: 2px;
+    background: var(--neutral-fill-secondary-rest);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+}
+
+.source-tile-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    word-break: break-word;
+}
+
+.source-tile-plugin {
+    font-size: 0.75rem;
+    color: var(--neutral-foreground-hint);
+    margin-bottom: 0.1rem;
+}
+
+.source-tile-status {
+    font-size: 0.7rem;
+    margin-top: 0.2rem;
+}
+
+.source-tile-status--ready {
+    color: #2d7a2d;
+}
+
+.source-tile-status--pending {
+    color: #7a5f00;
+}
+
+/* ── Inline source editor panel ── */
+.source-editor-panel {
+    border: 1.5px solid var(--neutral-stroke-layer-rest);
+    border-radius: 10px;
+    padding: 1.5rem;
+    background: var(--neutral-layer-1);
+    animation: panelSlideDown 0.2s ease-out;
+}
+
+@keyframes panelSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ── Privacy profiles collapsible ── */
+.profiles-collapsible {
+    border: 2px solid var(--neutral-stroke-layer-rest);
+    border-radius: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+}
+
+.profiles-collapsible[open] {
+    border-color: var(--accent-stroke-control-rest);
+}
+
+.profiles-summary {
+    cursor: pointer;
+    padding: 1.1rem 1.5rem;
+    list-style: none;
+    user-select: none;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.profiles-summary::-webkit-details-marker {
+    display: none;
+}
+
+.profiles-summary::before {
+    content: '▶';
+    font-size: 0.6rem;
+    transition: transform 0.18s;
+    display: inline-block;
+    flex-shrink: 0;
+    margin-top: 0.5rem;
+}
+
+.profiles-collapsible[open] > .profiles-summary::before {
+    transform: rotate(90deg);
+}
+
+.profiles-summary-content {
+    flex: 1;
+}
+
+.profiles-summary-title {
     margin: 0;
+    font-size: 1.05rem;
+}
+
+.profiles-summary-hint {
+    margin: 0.2rem 0 0 0;
+    font-size: 0.85rem;
+    color: var(--neutral-foreground-hint);
+}
+
+.profiles-inner {
+    padding: 0 1.5rem 1.5rem;
 }
 
 .profiles-list {
-    margin-top: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
 }
 
-.profiles-list > * + * {
-    margin-top: 1rem;
+.profile-item {
+    flex: 1 1 260px;
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
 }
 
-.profiles-message {
-    margin-top: 0.75rem;
+.source-tiles-divider {
+    margin-top: 1.25rem;
+    margin-bottom: 0;
 }
 
+/* ── Advanced settings collapsible ── */
+.page-advanced-section {
+    border: 1px solid var(--neutral-stroke-layer-rest);
+    border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.page-advanced-summary {
+    cursor: pointer;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--neutral-foreground-hint);
+    list-style: none;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.page-advanced-summary::-webkit-details-marker {
+    display: none;
+}
+
+.page-advanced-section > summary::before {
+    content: '▶';
+    font-size: 0.55rem;
+    transition: transform 0.18s;
+    display: inline-block;
+}
+
+.page-advanced-section[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.page-advanced-inner {
+    padding: 0 1.25rem 1.25rem;
+}

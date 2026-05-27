@@ -226,6 +226,7 @@ public partial class CalendarOwnerDetail
 
             _sourceMessage = "Source instance deleted.";
             _sourceMessageIntent = MessageIntent.Success;
+            _expandedSourceInstanceId = null;
             await LoadSourceInstancesAsync();
         }
         finally
