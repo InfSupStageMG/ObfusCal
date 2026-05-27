@@ -11,7 +11,6 @@
 @inject CurrentUserContextAccessor CurrentUserContextAccessor
 @inject IOptions<SyncOptions> SyncOptions
 @inject IJSRuntime Js
-@inject NavigationManager Navigation
 
 <PageTitle>Dashboard - ObfusCal</PageTitle>
 
@@ -20,7 +19,7 @@
     <p class="page-subtitle">
         @if (_isSysadmin)
         {
-            <span>See your calendar view and open admin tools only when you need them.</span>
+            <span>View calendar owners' availability at a glance.</span>
         }
         else
         {
@@ -35,31 +34,6 @@
         <FluentMessageBar Intent="MessageIntent.Warning" Title="Calendar owner access required">
             @_accessMessage
         </FluentMessageBar>
-    }
-
-    @if (_isSysadmin)
-    {
-        <section class="card dashboard-quick-actions-card">
-            <details class="dashboard-quick-actions">
-                <summary class="dashboard-quick-actions-summary">
-                    <div>
-                        <h3 class="section-title">Quick actions</h3>
-                        <p class="section-subtitle">Collapsed by default so the dashboard stays focused on the calendar view.</p>
-                    </div>
-                </summary>
-                <div class="action-row dashboard-quick-actions-actions">
-                    <FluentButton Appearance="Appearance.Accent" OnClick="NavigateToCalendarOwners">
-                        Manage Calendar Owners
-                    </FluentButton>
-                    <FluentButton Appearance="Appearance.Outline" OnClick="NavigateToPeers">
-                        Manage Peer Connections
-                    </FluentButton>
-                    <FluentButton Appearance="Appearance.Outline" OnClick="NavigateToSyncStatus">
-                        View Sync Status
-                    </FluentButton>
-                </div>
-            </details>
-        </section>
     }
 
     <section class="card combined-calendar-card">
@@ -390,16 +364,6 @@
 
     private static DateTime GetCurrentDateInTimeZone(TimeZoneInfo timeZone)
         => TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, timeZone).Date;
-
-    private void NavigateToCalendarOwners()
-        => Navigation.NavigateTo("/calendar-owners");
-
-
-    private void NavigateToPeers()
-        => Navigation.NavigateTo("/peers");
-
-    private void NavigateToSyncStatus()
-        => Navigation.NavigateTo("/sync-status");
 
 
     private sealed record CalendarOwnerOption(Guid Id, string Name);
