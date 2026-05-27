@@ -104,6 +104,10 @@ Use this checklist before declaring the project "ready":
     - Do not move UI-specific view models into `ObfusCal.Application` unless they become shared contracts.
     - If a page or partial becomes difficult to review, split it before merging and document the resulting file layout
       in the PR note.
+    - **`*.razor.cs` is for component code-behind only** (partial classes of the matching `*.razor` file).
+      Shared helpers, extension methods, and non-component types belong in plain `*.cs` files within the
+      appropriate `Components/` subfolder. Do not name a standalone helper file `*.razor.cs` just because
+      it is UI-related; that naming implies a Blazor partial and will confuse tooling and reviewers.
 
 15. **Code documentation and commenting**
     - **Default to no comments:** Documentation should be the exception, not the rule. Only add

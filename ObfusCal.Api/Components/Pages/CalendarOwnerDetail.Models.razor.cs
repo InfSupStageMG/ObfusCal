@@ -5,7 +5,7 @@ namespace ObfusCal.Api.Components.Pages;
 
 public partial class CalendarOwnerDetail
 {
-    private sealed class ProfileViewModel
+    public sealed class ProfileViewModel
     {
         public ObfuscationAuditContext Context { get; set; }
         public bool RemoveTitle { get; set; }
@@ -17,7 +17,7 @@ public partial class CalendarOwnerDetail
         public bool MergeBlocks { get; set; }
     }
 
-    private sealed record PluginOption(
+    public sealed record PluginOption(
         string Id,
         string DisplayName,
         bool IsExternalPlugin,
@@ -29,7 +29,7 @@ public partial class CalendarOwnerDetail
         public string DisplayLabel => IsExternalPlugin ? $"{DisplayName} (plugin)" : DisplayName;
     }
 
-    private sealed class PluginFieldEditor
+    public sealed class PluginFieldEditor
     {
         public required string Key { get; init; }
         public required string Label { get; init; }
@@ -37,7 +37,7 @@ public partial class CalendarOwnerDetail
         public string? Value { get; set; }
     }
 
-    private sealed class SourceInstanceEditor
+    public sealed class SourceInstanceEditor
     {
         public Guid Id { get; init; }
         public required string PluginId { get; init; }

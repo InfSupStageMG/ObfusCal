@@ -1,0 +1,142 @@
+﻿@using ObfusCal.Application.Interfaces
+
+<section class="card source-instance-container" @key="Instance.Id">
+    <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8"
+                 VerticalAlignment="VerticalAlignment.Center">
+        <h4 class="source-instance-title">@Instance.DisplayName</h4>
+        <FluentBadge Appearance="Appearance.Neutral">@Instance.PluginDisplayName</FluentBadge>
+        @if (Instance.IsReady)
+        {
+            <FluentBadge Appearance="Appearance.Accent" Color="Color.Success">Ready</FluentBadge>
+        }
+        else
+        {
+            <FluentBadge Appearance="Appearance.Neutral">Not Ready</FluentBadge>
+        }
+    </FluentStack>
+
+    <p class="instance-info-paragraph"><strong>@Instance.Title</strong></p>
+    @if (!string.IsNullOrWhiteSpace(Instance.Detail))
+    {
+        <p class="instance-detail-paragraph">@Instance.Detail</p>
+    }
+
+    <FluentStack Orientation="Orientation.Vertical" VerticalGap="8" Class="instance-actions-stack">
+        <FluentTextField @bind-Value="Instance.DisplayName" Immediate="true" Label="Display name" Class="app-form-control" Style="width: 100%; max-width: 100%; min-width: 0;"/>
+
+        @if (HasFieldEditors(Instance.ConfigurationFields))
+        {
+            <h4 class="section-heading">Configuration</h4>
+            @foreach (var field in Instance.ConfigurationFields)
+            {
+                var f = field;
+                <div @key="f.Key" class="config-field">
+                    <label>@f.Label</label>
+                    <input type="text"
+                           @key="@($"cfg-{Instance.Id}-{f.Key}")"
+                           class="form-input"
+                           placeholder="@(f.Placeholder ?? "")"
+                           value="@f.Value"
+                           @oninput="@(e => f.Value = e.Value?.ToString())"/>
+                </div>
+            }
+        }
+        else
+        {
+            <FluentLabel Class="app-form-label">Configuration JSON</FluentLabel>
+            <textarea class="config-textarea app-form-control" @bind="Instance.ConfigurationJson"></textarea>
+        }
+
+        @if (HasFieldEditors(Instance.SecretFields))
+        {
+            <h4 class="section-heading">Secrets</h4>
+            <p class="secret-hint">Leave blank to keep the existing saved value.</p>
+            @foreach (var field in Instance.SecretFields)
+            {
+                var f = field;
+                <div @key="f.Key" class="secret-field">
+                    <label>@f.Label</label>
+                    <input type="password"
+                           @key="@($"sec-{Instance.Id}-{f.Key}")"
+                           class="form-input"
+                           placeholder="Enter new value to update"
+                           @oninput="@(e => f.Value = e.Value?.ToString())"/>
+                </div>
+            }
+        }
+        else
+        {
+            <FluentLabel Class="app-form-label">Secret JSON</FluentLabel>
+            <textarea class="secret-textarea app-form-control" @bind="Instance.SecretDataJson"></textarea>
+        }
+
+        <FluentCheckbox @bind-Value="Instance.IsEnabled" Label="Enabled"/>
+
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" Wrap="true" Class="app-form-actions source-instance-action-row">
+            <FluentButton Appearance="Appearance.Accent"
+                          Class="app-form-button"
+                          OnClick="@(() => OnSaveAsync.InvokeAsync())"
+                          Disabled="IsSaving">
+                @(IsSaving ? "Saving..." : "Save")
+            </FluentButton>
+            <FluentButton Appearance="Appearance.Outline"
+                          Class="app-form-button"
+                          OnClick="@(() => OnDeleteAsync.InvokeAsync())"
+                          Disabled="IsDeleting">
+                @(IsDeleting ? "Deleting..." : "Delete")
+            </FluentButton>
+            @foreach (var action in Instance.Actions)
+            {
+                var capturedAction = action;
+                var isRunning = IsExecutingAction && ExecutingActionId == action.ActionId;
+                <FluentButton Appearance="Appearance.Outline"
+                              Class="app-form-button"
+                              Title="@action.Hint"
+                              OnClick="@(() => OnActionAsync.InvokeAsync(capturedAction))"
+                              Disabled="@isRunning">
+                    @(isRunning ? "Redirecting…" : action.Label)
+                </FluentButton>
+            }
+        </FluentStack>
+
+        @if (Message is not null)
+        {
+            <FluentMessageBar Intent="@MessageIntent" Class="card-message">@Message</FluentMessageBar>
+        }
+    </FluentStack>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public CalendarOwnerDetail.SourceInstanceEditor Instance { get; set; } = default!;
+
+    [Parameter]
+    public bool IsSaving { get; set; }
+
+    [Parameter]
+    public bool IsDeleting { get; set; }
+
+    [Parameter]
+    public bool IsExecutingAction { get; set; }
+
+    [Parameter]
+    public string? ExecutingActionId { get; set; }
+
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public MessageIntent MessageIntent { get; set; } = MessageIntent.Info;
+
+    [Parameter, EditorRequired]
+    public EventCallback OnSaveAsync { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback OnDeleteAsync { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<CalendarSourcePluginActionDescriptor> OnActionAsync { get; set; }
+
+    private static bool HasFieldEditors(IReadOnlyCollection<CalendarOwnerDetail.PluginFieldEditor> fields) => fields.Count > 0;
+}
+

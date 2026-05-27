@@ -233,6 +233,12 @@ p {
     margin: 0;
 }
 
+.hint-text {
+    font-size: 0.8rem;
+    color: var(--neutral-foreground-hint, var(--color-text-hint));
+    margin: 0.15rem 0 0.5rem 0;
+}
+
 section.card + section.card {
     margin-top: var(--card-margin-top);
 }

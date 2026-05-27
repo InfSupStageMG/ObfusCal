@@ -1,0 +1,137 @@
+﻿@using static ObfusCal.Api.Components.Pages.CalendarOwnerDetail
+
+<section class="card source-form-container">
+    <h4 class="source-form-title">New Calendar Source</h4>
+    <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
+        <FluentSelect TOption="PluginOption"
+                      Items="PluginOptions"
+                      OptionValue="@(option => option.Id)"
+                      OptionText="@(option => option.DisplayLabel)"
+                      Class="app-form-control"
+                      Style="width: 100%; max-width: 100%; min-width: 0;"
+                      @bind-SelectedOption="SelectedOption"/>
+
+        <FluentTextField @bind-Value="DisplayName" Immediate="true"
+                         Class="app-form-control"
+                         Style="width: 100%; max-width: 100%; min-width: 0;"
+                         Label="Display name" Placeholder="My calendar"/>
+
+        @if (HasFieldEditors(ConfigurationFields))
+        {
+            <h4 class="section-heading">Configuration</h4>
+            @foreach (var field in ConfigurationFields)
+            {
+                var f = field;
+                <div @key="f.Key" class="config-field">
+                    <label>@f.Label</label>
+                    <input type="text"
+                           @key="@($"cfg-new-{f.Key}")"
+                           class="form-input"
+                           placeholder="@(f.Placeholder ?? "")"
+                           value="@f.Value"
+                           @oninput="@(e => f.Value = e.Value?.ToString())"/>
+                </div>
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(ConfigurationJson))
+        {
+            <FluentLabel Class="app-form-label">Configuration JSON</FluentLabel>
+            <textarea class="config-textarea app-form-control" @bind="ConfigurationJson"></textarea>
+        }
+
+        @if (HasFieldEditors(SecretFields))
+        {
+            <h4 class="section-heading">Secrets</h4>
+            @foreach (var field in SecretFields)
+            {
+                var f = field;
+                <div @key="f.Key" class="secret-field">
+                    <label>@f.Label</label>
+                    <input type="password"
+                           @key="@($"sec-new-{f.Key}")"
+                           class="form-input"
+                           placeholder="@(f.Placeholder ?? "")"
+                           @oninput="@(e => f.Value = e.Value?.ToString())"/>
+                </div>
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(SecretJson))
+        {
+            <FluentLabel Class="app-form-label">Secret JSON</FluentLabel>
+            <textarea class="secret-textarea app-form-control" @bind="SecretJson"></textarea>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(SelectedOption?.SetupHint))
+        {
+            <FluentMessageBar Intent="MessageIntent.Info" Class="card-message">@SelectedOption.SetupHint</FluentMessageBar>
+        }
+
+        <FluentCheckbox @bind-Value="IsEnabled" Label="Enabled"/>
+        <FluentButton Appearance="Appearance.Accent" OnClick="OnAddAsync"
+                      Class="app-form-button"
+                      Disabled="@(SelectedOption is null || IsLoading)">
+            @(IsLoading ? "Adding..." : "Add Source")
+        </FluentButton>
+
+        @if (Message is not null)
+        {
+            <FluentMessageBar Intent="@MessageIntent" Class="card-message">@Message</FluentMessageBar>
+        }
+    </FluentStack>
+</section>
+
+@code {
+    [Parameter, EditorRequired]
+    public List<PluginOption> PluginOptions { get; set; } = default!;
+
+    [Parameter]
+    public PluginOption? SelectedOption { get; set; }
+
+    [Parameter]
+    public EventCallback<PluginOption?> SelectedOptionChanged { get; set; }
+
+    [Parameter]
+    public string? DisplayName { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> DisplayNameChanged { get; set; }
+
+    [Parameter]
+    public List<PluginFieldEditor> ConfigurationFields { get; set; } = [];
+
+    [Parameter]
+    public string? ConfigurationJson { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> ConfigurationJsonChanged { get; set; }
+
+    [Parameter]
+    public List<PluginFieldEditor> SecretFields { get; set; } = [];
+
+    [Parameter]
+    public string? SecretJson { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> SecretJsonChanged { get; set; }
+
+    [Parameter]
+    public bool IsEnabled { get; set; } = true;
+
+    [Parameter]
+    public EventCallback<bool> IsEnabledChanged { get; set; }
+
+    [Parameter]
+    public bool IsLoading { get; set; }
+
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public MessageIntent MessageIntent { get; set; } = MessageIntent.Info;
+
+    [Parameter, EditorRequired]
+    public EventCallback OnAddAsync { get; set; }
+
+    private static bool HasFieldEditors(IReadOnlyCollection<PluginFieldEditor> fields) => fields.Count > 0;
+}
+

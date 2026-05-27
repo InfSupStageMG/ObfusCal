@@ -21,21 +21,19 @@ public partial class CalendarOwnerDetail
 
         foreach (var ctx in Enum.GetValues<ObfuscationAuditContext>())
         {
-            if (_profiles.All(p => p.Context != ctx))
+            if (_profiles.Any(p => p.Context == ctx)) continue;
+            var def = ObfuscationProfileSettings.CreateDefault(ctx);
+            _profiles.Add(new ProfileViewModel
             {
-                var def = ObfuscationProfileSettings.CreateDefault(ctx);
-                _profiles.Add(new ProfileViewModel
-                {
-                    Context = ctx,
-                    RemoveTitle = def.RemoveTitle,
-                    RemoveDescription = def.RemoveDescription,
-                    RemoveLocation = def.RemoveLocation,
-                    RemoveAttendees = def.RemoveAttendees,
-                    RoundTimes = def.RoundTimes,
-                    RoundingIntervalMinutes = def.RoundingIntervalMinutes,
-                    MergeBlocks = def.MergeBlocks
-                });
-            }
+                Context = ctx,
+                RemoveTitle = def.RemoveTitle,
+                RemoveDescription = def.RemoveDescription,
+                RemoveLocation = def.RemoveLocation,
+                RemoveAttendees = def.RemoveAttendees,
+                RoundTimes = def.RoundTimes,
+                RoundingIntervalMinutes = def.RoundingIntervalMinutes,
+                MergeBlocks = def.MergeBlocks
+            });
         }
     }
 
@@ -53,7 +51,7 @@ public partial class CalendarOwnerDetail
             profile.MergeBlocks);
 
         await ObfuscationProfileService.SetProfileAsync(Id, settings);
-        _profileMessage = $"{profile.Context} profile saved.";
+        _profileMessage = $"{profile.Context.ToDisplayName()} profile saved.";
     }
 }
 
