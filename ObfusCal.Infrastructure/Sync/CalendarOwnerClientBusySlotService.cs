@@ -5,7 +5,7 @@ using ObfusCal.Domain.Models;
 namespace ObfusCal.Infrastructure.Sync;
 
 public sealed class CalendarOwnerClientBusySlotService(
-    ICalendarSourceResolver calendarSourceResolver,
+    ICalendarOwnerAvailabilitySlotStore availabilitySlotStore,
     ObfuscationPipeline obfuscationPipeline,
     ICalendarOwnerObfuscationProfileService obfuscationProfileService) : ICalendarOwnerClientBusySlotService
 {
@@ -15,18 +15,31 @@ public sealed class CalendarOwnerClientBusySlotService(
         DateTimeOffset to,
         CancellationToken ct = default)
     {
-        var calendarSource = await calendarSourceResolver.ResolveAsync(calendarOwnerId, ct);
-        var events = await calendarSource.GetEventsAsync(from, to, calendarOwnerId, ct);
-        var profile = await obfuscationProfileService.GetProfileAsync(
+        // Read already-obfuscated slots from the database (internal obfuscation has been applied during sync)
+        var savedSlots = await availabilitySlotStore.GetSlotsAsync(calendarOwnerId, from, to, ct);
+
+        // Convert back to CalendarEvents so we can run them through the client obfuscation pipeline
+        var eventsFromSlots = savedSlots.Select(slot => new CalendarEvent(
+            slot.SourceEventId,
+            slot.Title ?? string.Empty,
+            slot.Description,
+            slot.Start,
+            slot.End,
+            slot.AttendeeEmails ?? [],
+            slot.Location
+        )).ToList();
+
+        // Apply client-level obfuscation
+        var clientProfile = await obfuscationProfileService.GetProfileAsync(
             calendarOwnerId,
             ObfuscationAuditContext.Client,
             ct);
 
         return obfuscationPipeline.Process(
-            events,
+            eventsFromSlots,
             calendarOwnerId.ToString(),
             ObfuscationAuditContext.Client,
-            profile);
+            clientProfile);
     }
 }
 

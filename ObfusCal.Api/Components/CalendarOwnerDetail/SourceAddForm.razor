@@ -10,7 +10,8 @@
                       OptionText="@(option => option.DisplayLabel)"
                       Class="app-form-control"
                       Style="width: 100%; max-width: 100%; min-width: 0;"
-                      @bind-SelectedOption="SelectedOption"/>
+                      SelectedOption="SelectedOption"
+                      SelectedOptionChanged="OnSelectedOptionChanged"/>
 
         <FluentTextField @bind-Value="DisplayName" Immediate="true"
                          Class="app-form-control"
@@ -99,6 +100,9 @@
     public List<PluginFieldEditor> ConfigurationFields { get; set; } = [];
 
     [Parameter]
+    public EventCallback<List<PluginFieldEditor>> ConfigurationFieldsChanged { get; set; }
+
+    [Parameter]
     public string? ConfigurationJson { get; set; }
 
     [Parameter]
@@ -106,6 +110,9 @@
 
     [Parameter]
     public List<PluginFieldEditor> SecretFields { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<List<PluginFieldEditor>> SecretFieldsChanged { get; set; }
 
     [Parameter]
     public string? SecretJson { get; set; }
@@ -132,5 +139,11 @@
     public EventCallback OnAddAsync { get; set; }
 
     private static bool HasFieldEditors(IReadOnlyCollection<PluginFieldEditor> fields) => fields.Count > 0;
+
+    private async Task OnSelectedOptionChanged(PluginOption? option)
+    {
+        SelectedOption = option;
+        await SelectedOptionChanged.InvokeAsync(option);
+    }
 }
 

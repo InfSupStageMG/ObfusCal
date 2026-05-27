@@ -7,9 +7,9 @@ namespace ObfusCal.Plugins.ICloudCalendar;
 [CalendarSourcePlugin("icloud", "iCloud Calendar")]
 [CalendarSourcePluginUi(
     supportsMultipleInstances: true,
-    configurationJsonTemplate: "{\"calendarUrl\":\"https://caldav.icloud.com/.../calendar/\"}",
-    secretDataJsonTemplate: "{\"appleId\":\"you@example.com\",\"appSpecificPassword\":\"\"}",
-    setupHint: "Generate an app-specific password in your Apple ID settings. The Apple ID and app-specific password are stored encrypted.")]
+    configurationJsonTemplate: "{\"appleId\":\"you@example.com\",\"calendarUrl\":\"https://caldav.icloud.com/.../calendar/\"}",
+    secretDataJsonTemplate: "{\"appSpecificPassword\":\"\"}",
+    setupHint: "Generate an app-specific password in your Apple ID settings. See the <a href=\"https://infsupstagemg.github.io/ObfusCal/icloud-caldav-setup/\" target=\"_blank\" rel=\"noopener noreferrer\">Setup Guide</a> for detailed instructions.")]
 public sealed class ICloudCalendarSourcePlugin(ICloudCalendarSourceCore sourceCore)
     : ICalendarSource, ICalendarWriteBack, ICalendarSourceReadinessEvaluator, ICalendarSourceInstanceHandler,
         ICalendarSourceInstanceReadinessEvaluator, ICalendarSourceInstanceWriteBack

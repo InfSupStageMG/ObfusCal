@@ -56,22 +56,20 @@
     color: var(--color-primary);
 }
 
-.calendar-date-range {
-    display: flex;
+.calendar-data-info {
+    display: inline-flex;
     align-items: center;
-    gap: var(--cal-sp-sm);
-    font-size: var(--font-size-base);
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 1px solid var(--color-border-light);
+    border-radius: 999px;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
     color: var(--color-text-muted);
-}
-
-.date-range-label {
-    font-weight: var(--font-weight-medium);
-}
-
-.date-range-value {
-    font-family: var(--font-family-mono, 'Courier New', monospace);
-    color: var(--color-primary);
-    font-weight: var(--font-weight-medium);
+    background: var(--color-background-subtle);
+    cursor: help;
+    user-select: none;
 }
 
 .calendar-weekdays {

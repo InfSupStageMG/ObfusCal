@@ -1,26 +1,101 @@
-﻿.dashboard-role-card {
+﻿.dashboard-quick-actions-card {
+    overflow: hidden;
+}
+
+.dashboard-quick-actions {
     display: grid;
     gap: 0.75rem;
 }
 
-.dashboard-role-description {
-    margin: 0;
-    color: var(--neutral-foreground-hint);
+.dashboard-quick-actions > summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 1rem;
 }
 
-.dashboard-role-actions {
-    align-items: center;
+.dashboard-quick-actions > summary::-webkit-details-marker {
+    display: none;
+}
+
+.dashboard-quick-actions-actions {
+    padding-top: 0.25rem;
 }
 
 .combined-calendar-card {
-    overflow: hidden;
+    overflow: visible;
+}
+
+.combined-calendar-card-header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.combined-calendar-view-shell {
+    margin-top: 0.75rem;
+}
+
+.calendar-refresh-button {
+    appearance: none;
+    border: 1px solid var(--neutral-stroke-rest);
+    background: var(--neutral-fill-secondary-rest, var(--neutral-layer-2));
+    color: var(--neutral-foreground-rest);
+    border-radius: 999px;
+    width: 2.25rem;
+    height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    flex: 0 0 auto;
+}
+
+.calendar-refresh-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: var(--accent-fill-rest);
+    background: var(--neutral-fill-hover, var(--neutral-layer-3));
+}
+
+.calendar-refresh-button:focus-visible {
+    outline: 2px solid var(--accent-fill-rest);
+    outline-offset: 2px;
+}
+
+.calendar-refresh-button:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}
+
+.calendar-refresh-button-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.calendar-refresh-button-icon--spinning {
+    animation: dashboard-spin 0.85s linear infinite;
+}
+
+@keyframes dashboard-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .combined-calendar-controls {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: 0.75rem;
-    align-items: end;
+    align-items: start;
     justify-items: stretch;
 }
 
@@ -39,7 +114,7 @@
 }
 
 .combined-calendar-field--owner {
-    grid-column: span 3;
+    grid-column: span 6;
 }
 
 .combined-calendar-field--from,
@@ -48,16 +123,7 @@
 }
 
 .combined-calendar-field--timezone {
-    grid-column: span 3;
-}
-
-.combined-calendar-actions {
-    grid-column: 1 / -1;
-    display: flex;
-    justify-content: flex-start;
-    gap: 0.5rem;
-    min-width: 0;
-    padding-top: 0.25rem;
+    grid-column: span 6;
 }
 
 .combined-calendar-control {
@@ -86,10 +152,6 @@
     .combined-calendar-field--timezone {
         grid-column: span 6;
     }
-
-    .combined-calendar-actions {
-        grid-column: span 12;
-    }
 }
 
 @media (max-width: 860px) {
@@ -103,18 +165,15 @@
         grid-column: span 6;
     }
 
-    .combined-calendar-actions {
-        padding-top: 0;
+    .combined-calendar-card-header {
+        flex-direction: column;
     }
 }
 
 @media (max-width: 640px) {
-    .dashboard-role-actions {
-        width: 100%;
-    }
 
-    .dashboard-role-actions > * {
-        flex: 1 1 100%;
+    .dashboard-quick-actions > summary {
+        flex-direction: column;
     }
 
     .combined-calendar-controls {
@@ -125,17 +184,8 @@
     .combined-calendar-field--owner,
     .combined-calendar-field--from,
     .combined-calendar-field--to,
-    .combined-calendar-field--timezone,
-    .combined-calendar-actions {
+    .combined-calendar-field--timezone {
         grid-column: 1 / -1;
-    }
-
-    .combined-calendar-actions {
-        gap: 0.5rem;
-    }
-
-    .combined-calendar-button {
-        flex: 1 1 100%;
     }
 }
 

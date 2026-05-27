@@ -3,29 +3,39 @@
 
 <PageTitle>Calendar Owner - ObfusCal</PageTitle>
 
-<FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center">
-    <FluentButton Appearance="Appearance.Lightweight" OnClick="@(() => Navigation.NavigateTo(BackLink))">
-        ← Back
-    </FluentButton>
-    <h1>@(_owner?.Name ?? "Calendar Owner")</h1>
-</FluentStack>
-
 @if (_accessDeniedMessage is not null)
 {
+    <header class="page-header">
+        <h1>Calendar Owner</h1>
+    </header>
     <FluentMessageBar Intent="MessageIntent.Error" Title="Access denied">
         @_accessDeniedMessage
     </FluentMessageBar>
 }
 else if (_owner is null)
 {
+    <header class="page-header">
+        <h1>Calendar Owner</h1>
+    </header>
     <FluentProgress/>
 }
 else
 {
+    <header class="page-header">
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center">
+            <FluentButton Appearance="Appearance.Lightweight" OnClick="@(() => Navigation.NavigateTo(BackLink))">
+                ← Back
+            </FluentButton>
+            <h1>@_owner.Name</h1>
+        </FluentStack>
+        <p class="page-subtitle">Manage calendar sources, obfuscation profiles, and sync settings for this owner.</p>
+    </header>
+
     <FluentStack Orientation="Orientation.Vertical" VerticalGap="24">
 
         <section class="card">
-            <h3>Availability Sync</h3>
+            <h3 class="section-title">Availability Sync</h3>
+            <p class="hint-text">Manually trigger a sync to refresh this owner's availability snapshot from all configured sources.</p>
             <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8"
                          VerticalAlignment="VerticalAlignment.Center">
                 <FluentButton Appearance="Appearance.Outline" OnClick="TriggerOwnerSyncAsync"
@@ -87,7 +97,7 @@ else
 
         <section class="card">
             <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center" Class="section-header-box">
-                <h3 class="header-title-flex">Calendar Sources</h3>
+                <h3 class="header-title-flex section-title">Calendar Sources</h3>
                 @if (_pluginOptions.Count > 0)
                 {
                     <FluentButton Appearance="@(_showAddForm ? Appearance.Outline : Appearance.Accent)"
@@ -96,6 +106,7 @@ else
                     </FluentButton>
                 }
             </FluentStack>
+            <p class="hint-text">Connect calendar sources to pull events for availability calculation.</p>
 
             @if (_pluginOptions.Count == 0)
             {
@@ -146,7 +157,11 @@ else
             }
             else if (!_showAddForm)
             {
-                <p>No calendar sources configured yet. Click <strong>+ Add Source</strong> to get started.</p>
+                <div class="empty-state">
+                    <span class="empty-state-icon">🔗</span>
+                    <p class="empty-state-title">No calendar sources configured</p>
+                    <p class="empty-state-description">Click <strong>+ Add Source</strong> to connect a calendar and start syncing availability.</p>
+                </div>
             }
         </section>
 
