@@ -12,18 +12,37 @@ using ObfusCal.Infrastructure.Persistence;
 namespace ObfusCal.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260507111101_AddPeerTrustHardening")]
-    partial class AddPeerTrustHardening
+    [Migration("20260527091128_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.7")
+                .HasAnnotation("ProductVersion", "10.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FriendlyName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Xml")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DataProtectionKeys");
+                });
 
             modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.BusySlot", b =>
                 {
@@ -36,6 +55,9 @@ namespace ObfusCal.Infrastructure.Migrations
 
                     b.Property<Guid?>("CalendarOwnerId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .HasColumnType("text");
@@ -64,6 +86,8 @@ namespace ObfusCal.Infrastructure.Migrations
 
                     b.HasIndex("CalendarOwnerId");
 
+                    b.HasIndex("CreatedAtUtc");
+
                     b.HasIndex("PeerId");
 
                     b.HasIndex("PeerId", "CalendarOwnerId");
@@ -91,6 +115,10 @@ namespace ObfusCal.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset?>("GraphConsentGrantedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GraphGrantedScopes")
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
 
                     b.Property<string>("GraphRefreshTokenProtected")
                         .HasMaxLength(8192)
@@ -123,6 +151,13 @@ namespace ObfusCal.Infrastructure.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("WriteBackEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("WriteBackPlaceholderTitle")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.HasKey("Id");
 
@@ -159,6 +194,9 @@ namespace ObfusCal.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
+
+                    b.Property<string>("SourceSlotsJson")
+                        .HasColumnType("text");
 
                     b.Property<DateTimeOffset>("Start")
                         .HasColumnType("timestamp with time zone");
@@ -322,6 +360,10 @@ namespace ObfusCal.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("ClientCertificateThumbprint")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.Property<string>("ClientOrganisationName")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -339,6 +381,10 @@ namespace ObfusCal.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset?>("LastSyncedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PinnedCertificateThumbprint")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<Guid?>("RequestedByCalendarOwnerId")
                         .HasColumnType("uuid");
@@ -362,6 +408,23 @@ namespace ObfusCal.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("PeerConnections");
+                });
+
+            modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.PluginAllowlistOverride", b =>
+                {
+                    b.Property<string>("PluginId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("PluginId");
+
+                    b.ToTable("PluginAllowlistOverrides");
                 });
 
             modelBuilder.Entity("ObfusCal.Infrastructure.Persistence.CalendarOwnerICalFeed", b =>

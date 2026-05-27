@@ -45,6 +45,7 @@ services:
     expose:
       - "8443"
     environment:
+      - ApplyMigrationsOnStartup=true
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=db;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       - AZUREAD__TENANTID=${AZUREAD__TENANTID}

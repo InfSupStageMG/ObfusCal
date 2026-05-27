@@ -240,9 +240,37 @@ jobs:
                     if-no-files-found: warn
                     retention-days: 14
 
+    generate-sql-migration:
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v6
+
+            -   name: Setup .NET
+                uses: actions/setup-dotnet@v5
+                with:
+                    global-json-file: global.json
+
+            -   name: Install EF Core CLI
+                run: dotnet tool install --global dotnet-ef
+
+            -   name: Generate Idempotent SQL Script
+                run: |
+                    dotnet ef migrations script \
+                      --idempotent \
+                      --project ObfusCal.Infrastructure/ObfusCal.Infrastructure.csproj \
+                      --startup-project ObfusCal.Api/ObfusCal.Api.csproj \
+                      --output ./db-migration.sql
+
+            -   name: Upload SQL Script Artifact
+                uses: actions/upload-artifact@v7
+                with:
+                    name: database-migration-script
+                    path: ./db-migration.sql
+                    retention-days: 14
+
     build:
         runs-on: ubuntu-latest
-        needs: [ test, container-smoke ]
+        needs: [ test, container-smoke, generate-sql-migration ]
         permissions:
             contents: read
             packages: write
