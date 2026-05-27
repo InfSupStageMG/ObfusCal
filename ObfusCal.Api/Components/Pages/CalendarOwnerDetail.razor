@@ -182,7 +182,7 @@ else
 
                         @if (!string.IsNullOrWhiteSpace(_selectedPluginOption?.SetupHint))
                         {
-                            <FluentMessageBar Intent="MessageIntent.Info" Class="card-message">@_selectedPluginOption.SetupHint</FluentMessageBar>
+                            <FluentMessageBar Intent="MessageIntent.Info" Class="card-message">@((MarkupString)_selectedPluginOption.SetupHint)</FluentMessageBar>
                         }
 
                         <FluentCheckbox @bind-Value="_newSourceIsEnabled" Label="Enabled"/>
