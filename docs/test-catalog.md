@@ -1,6 +1,6 @@
 # Test Catalog
 
-_Auto-generated from CI run. 643 tests across 69 classes._
+_Auto-generated from CI run. 645 tests across 69 classes._
 
 ## Integration (177/177)
 
@@ -415,7 +415,7 @@ _Auto-generated from CI run. 643 tests across 69 classes._
 
 </details>
 
-## Unit (466/466)
+## Unit (468/468)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 1/1</summary>
@@ -496,7 +496,7 @@ _Auto-generated from CI run. 643 tests across 69 classes._
 </details>
 
 <details>
-<summary><b>ICloudCalendarSourceCoreTests</b> - 13/13</summary>
+<summary><b>ICloudCalendarSourceCoreTests</b> - 15/15</summary>
 
 <table>
   <thead>
@@ -506,11 +506,13 @@ _Auto-generated from CI run. 643 tests across 69 classes._
     <tr><td><code>CreateCalendarQueryRequest_ContainsExpandElement_ForRecurringEventSupport</code></td><td>✅</td></tr>
     <tr><td><code>CreateCalendarQueryRequest_ProducesValidXml</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_AfterAutoMigration_StillReturnsEvents</code></td><td>✅</td></tr>
+    <tr><td><code>GetEventsAsync_WithAppleIdInConfiguration_ReturnsEvents</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_WithFromAfterTo_ThrowsArgumentException</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_WithLegacyPlaintextInstanceSecrets_UsesFallbackAndReturnsEvents</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_WithMissingConfiguration_ReturnsEmpty</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_WithNullCalendarOwnerId_ReturnsEmpty</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_WithUnknownCalendarOwnerId_ReturnsEmpty</code></td><td>✅</td></tr>
+    <tr><td><code>GetReadinessAsync_WithAppleIdInConfiguration_ReturnsReady</code></td><td>✅</td></tr>
     <tr><td><code>GetReadinessAsync_WithLegacyPlaintextInstanceSecrets_AutoMigratesToProtectedSecretJson</code></td><td>✅</td></tr>
     <tr><td><code>GetReadinessAsync_WithLegacyPlaintextInstanceSecrets_ReturnsReady</code></td><td>✅</td></tr>
     <tr><td><code>GetReadinessAsync_WithNullContextSecretAndLegacyStoredJson_RecoversAndMigrates</code></td><td>✅</td></tr>

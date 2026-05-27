@@ -201,28 +201,30 @@ public sealed partial class ICloudCalendarSourceCore(
         var secretResolution = await ResolveInstanceSecretsAsync(instance, ct);
 
         if (configuration is null
-            || secretResolution is null
             || string.IsNullOrWhiteSpace(configuration.CalendarUrl)
-            || string.IsNullOrWhiteSpace(secretResolution.Value.Secrets.AppleId)
-            || string.IsNullOrWhiteSpace(secretResolution.Value.Secrets.AppSpecificPassword)
             || !Uri.TryCreate(configuration.CalendarUrl, UriKind.Absolute, out var calendarUri))
         {
             return null;
         }
 
-        var appleId = TryReadInstanceCredential(
-            secretResolution.Value.Secrets.AppleId,
-            "Apple ID",
-            instance.Id);
-        var appSpecificPassword = TryReadInstanceCredential(
-            secretResolution.Value.Secrets.AppSpecificPassword,
-            "app-specific password",
-            instance.Id);
+        // Apple ID may live in the configuration JSON (new generic plugin UI format) or inside the
+        // secret blob (dedicated iCloud setup path and legacy instances). Prefer config; fall back to secrets.
+        var appleIdRaw = !string.IsNullOrWhiteSpace(configuration.AppleId)
+            ? configuration.AppleId
+            : secretResolution?.Secrets.AppleId;
+
+        var appPasswordRaw = secretResolution?.Secrets.AppSpecificPassword;
+
+        if (string.IsNullOrWhiteSpace(appleIdRaw) || string.IsNullOrWhiteSpace(appPasswordRaw))
+            return null;
+
+        var appleId = TryReadInstanceCredential(appleIdRaw, "Apple ID", instance.Id);
+        var appSpecificPassword = TryReadInstanceCredential(appPasswordRaw, "app-specific password", instance.Id);
 
         if (string.IsNullOrWhiteSpace(appleId.Value) || string.IsNullOrWhiteSpace(appSpecificPassword.Value))
             return null;
 
-        if (appleId.NeedsReprotect || appSpecificPassword.NeedsReprotect || secretResolution.Value.NeedsBlobMigration)
+        if (appleId.NeedsReprotect || appSpecificPassword.NeedsReprotect || secretResolution?.NeedsBlobMigration == true)
             await TryMigrateInstanceCredentialsAsync(instance.Id, configuration, appleId.Value,
                 appSpecificPassword.Value, ct);
 
@@ -504,7 +506,9 @@ public sealed partial class ICloudCalendarSourceCore(
 
     internal sealed record ICloudCalendarInstanceConfiguration(
         [property: JsonPropertyName("calendarUrl")]
-        string CalendarUrl);
+        string CalendarUrl,
+        [property: JsonPropertyName("appleId")]
+        string? AppleId = null);
 
     private readonly record struct CredentialReadResult(string? Value, bool NeedsReprotect);
 
@@ -687,7 +691,7 @@ public sealed partial class ICloudCalendarSourceCore(
 
     internal sealed record ICloudCalendarInstanceSecretData(
         [property: JsonPropertyName("appleId")]
-        string AppleId,
+        string? AppleId,
         [property: JsonPropertyName("appSpecificPassword")]
         string AppSpecificPassword);
 

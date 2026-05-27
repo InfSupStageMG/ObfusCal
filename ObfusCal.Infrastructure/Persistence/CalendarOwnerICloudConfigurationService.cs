@@ -33,7 +33,13 @@ internal sealed class CalendarOwnerICloudConfigurationService(
 
         var configuration = ParseConfiguration(instance.ConfigurationJson);
         var secrets = ParseSecretData(instance.SecretDataJson);
-        var unprotectedAppleId = TryUnprotect(secrets?.AppleId);
+
+        // Apple ID may live in the configuration JSON (new generic plugin UI format) or
+        // encrypted in the secret blob (dedicated iCloud setup / legacy instances).
+        var unprotectedAppleId = !string.IsNullOrWhiteSpace(configuration?.AppleId)
+            ? configuration.AppleId
+            : TryUnprotect(secrets?.AppleId);
+
         var unprotectedAppPassword = TryUnprotect(secrets?.AppSpecificPassword);
         var isConfigured = !string.IsNullOrWhiteSpace(configuration?.CalendarUrl)
             && !string.IsNullOrWhiteSpace(unprotectedAppleId)
