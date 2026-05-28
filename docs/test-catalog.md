@@ -1,6 +1,6 @@
 # Test Catalog
 
-_Auto-generated from CI run. 645 tests across 69 classes._
+_Auto-generated from CI run. 653 tests across 70 classes._
 
 ## Integration (177/177)
 
@@ -415,7 +415,7 @@ _Auto-generated from CI run. 645 tests across 69 classes._
 
 </details>
 
-## Unit (468/468)
+## Unit (476/476)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 1/1</summary>
@@ -725,7 +725,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><th>Test</th><th>Result</th></tr>
   </thead>
   <tbody>
-    <tr><td><code>AddApplication_RegistersAllFiveEventTransformers</code></td><td>✅</td></tr>
+    <tr><td><code>AddApplication_RegistersAllSixEventTransformers</code></td><td>✅</td></tr>
     <tr><td><code>AddApplication_RegistersMergeBlocksTransformer</code></td><td>✅</td></tr>
     <tr><td><code>AddApplication_RegistersObfuscationPipeline</code></td><td>✅</td></tr>
     <tr><td><code>AddApplication_RegistersRemoveAttendeesTransformer</code></td><td>✅</td></tr>
@@ -913,6 +913,24 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>RemoveLocationTransformer_PreservesDescription</code></td><td>✅</td></tr>
     <tr><td><code>RemoveLocationTransformer_PreservesTimeWindow</code></td><td>✅</td></tr>
     <tr><td><code>RemoveLocationTransformer_PreservesTitle</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>RemoveSourceLabelTransformerTests</b> - 5/5</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Pipeline_PreservesSourceLabel_ForInternalContext</code></td><td>✅</td></tr>
+    <tr><td><code>Pipeline_StripsSourceLabel_ForClientContext</code></td><td>✅</td></tr>
+    <tr><td><code>Transform_ClearsSourceLabel</code></td><td>✅</td></tr>
+    <tr><td><code>Transform_LeavesOtherFieldsIntact</code></td><td>✅</td></tr>
+    <tr><td><code>Transformer_HasExpectedId</code></td><td>✅</td></tr>
   </tbody>
 </table>
 
@@ -1356,7 +1374,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
 </details>
 
 <details>
-<summary><b>InMemoryShadowSlotStoreTests</b> - 34/34</summary>
+<summary><b>InMemoryShadowSlotStoreTests</b> - 37/37</summary>
 
 <table>
   <thead>
@@ -1378,6 +1396,9 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>GetAllSlotsAsync_OwnerScoped_IncludesSlotOverlappingEnd</code></td><td>✅</td></tr>
     <tr><td><code>GetAllSlotsAsync_OwnerScoped_IncludesSlotOverlappingStart</code></td><td>✅</td></tr>
     <tr><td><code>GetAllSlotsAsync_OwnerScoped_IncludesSlotSpanningEntireWindow</code></td><td>✅</td></tr>
+    <tr><td><code>GetAllSlotsAsync_OwnerScoped_SourceLabelRemainsStableWhenPeerIsAdded</code></td><td>✅</td></tr>
+    <tr><td><code>GetAllSlotsAsync_OwnerScoped_SourceLabelRemainsStableWhenPeerIsRemoved</code></td><td>✅</td></tr>
+    <tr><td><code>GetAllSlotsAsync_OwnerScoped_SourceLabelsArePeerIds</code></td><td>✅</td></tr>
     <tr><td><code>GetAllSlotsAsync_OwnerScoped_WithCancelledToken_Throws</code></td><td>✅</td></tr>
     <tr><td><code>GetAllSlotsAsync_ReturnsEmptyArray_WhenNoSlotsAreStored</code></td><td>✅</td></tr>
     <tr><td><code>GetAllSlotsAsync_ReturnsSlotsAfterReplacingPeerSlots</code></td><td>✅</td></tr>
