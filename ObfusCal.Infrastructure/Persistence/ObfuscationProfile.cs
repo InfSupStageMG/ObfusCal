@@ -17,5 +17,5 @@ public class ObfuscationProfile
     public bool RoundTimes { get; set; } = true;
     public int RoundingIntervalMinutes { get; set; } = 15;
     public bool MergeBlocks { get; set; } = true;
+    public bool RemoveSourceLabel { get; set; } = true;
 }
-

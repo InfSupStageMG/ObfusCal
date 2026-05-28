@@ -7,7 +7,8 @@ namespace ObfusCal.Infrastructure.Persistence;
 internal sealed class CalendarOwnerObfuscationProfileService(AppDbContext dbContext)
     : ICalendarOwnerObfuscationProfileService
 {
-    public async Task<IReadOnlyList<ObfuscationProfileSettings>> GetProfilesAsync(Guid calendarOwnerId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<ObfuscationProfileSettings>> GetProfilesAsync(Guid calendarOwnerId,
+        CancellationToken ct = default)
     {
         await EnsureDefaultProfilesAsync(calendarOwnerId, ct);
 
@@ -43,7 +44,8 @@ internal sealed class CalendarOwnerObfuscationProfileService(AppDbContext dbCont
         CancellationToken ct = default)
     {
         if (profile.RoundingIntervalMinutes <= 0)
-            throw new ArgumentOutOfRangeException(nameof(profile.RoundingIntervalMinutes), "Rounding interval must be greater than zero.");
+            throw new ArgumentOutOfRangeException(nameof(profile.RoundingIntervalMinutes),
+                "Rounding interval must be greater than zero.");
 
         await EnsureDefaultProfilesAsync(calendarOwnerId, ct);
 
@@ -59,6 +61,7 @@ internal sealed class CalendarOwnerObfuscationProfileService(AppDbContext dbCont
         existing.RoundTimes = profile.RoundTimes;
         existing.RoundingIntervalMinutes = profile.RoundingIntervalMinutes;
         existing.MergeBlocks = profile.MergeBlocks;
+        existing.RemoveSourceLabel = profile.RemoveSourceLabel;
 
         await dbContext.SaveChangesAsync(ct);
 
@@ -98,13 +101,23 @@ internal sealed class CalendarOwnerObfuscationProfileService(AppDbContext dbCont
                 RemoveAttendees = defaults.RemoveAttendees,
                 RoundTimes = defaults.RoundTimes,
                 RoundingIntervalMinutes = defaults.RoundingIntervalMinutes,
-                MergeBlocks = defaults.MergeBlocks
+                MergeBlocks = defaults.MergeBlocks,
+                RemoveSourceLabel = defaults.RemoveSourceLabel
             });
             createdAny = true;
         }
 
         if (createdAny)
-            await dbContext.SaveChangesAsync(ct);
+        {
+            try
+            {
+                await dbContext.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException)
+            {
+                dbContext.ChangeTracker.Clear();
+            }
+        }
     }
 
     private static ObfuscationProfileSettings ToSettings(ObfuscationProfile profile) =>
@@ -116,6 +129,6 @@ internal sealed class CalendarOwnerObfuscationProfileService(AppDbContext dbCont
             profile.RemoveAttendees,
             profile.RoundTimes,
             profile.RoundingIntervalMinutes,
-            profile.MergeBlocks);
+            profile.MergeBlocks,
+            profile.RemoveSourceLabel);
 }
-

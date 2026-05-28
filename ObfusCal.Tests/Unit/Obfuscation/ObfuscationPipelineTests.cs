@@ -17,11 +17,12 @@ public class ObfuscationPipelineTests
         Description: "Board-level discussion â€” do not share.",
         Start: new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero),
         End: new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero),
-        AttendeeEmails:["alice@example.com", "bob@client.com"],
+        AttendeeEmails: ["alice@example.com", "bob@client.com"],
         Location: "Boardroom 3, Client HQ"
     );
 
-    private static ObfuscationPipeline BuildPipeline(IEnumerable<IObfuscationTransformer>? transformers = null, IEnumerable<IBusySlotTransformer>? slotTransformers = null) =>
+    private static ObfuscationPipeline BuildPipeline(IEnumerable<IObfuscationTransformer>? transformers = null,
+        IEnumerable<IBusySlotTransformer>? slotTransformers = null) =>
         new(transformers ?? [], slotTransformers ?? [], NullLogger<ObfuscationPipeline>.Instance);
 
     private static ObfuscationPipeline BuildPipeline(params IObfuscationTransformer[] transformers) =>
@@ -82,7 +83,8 @@ public class ObfuscationPipelineTests
             RemoveAttendees: true,
             RoundTimes: false,
             RoundingIntervalMinutes: 15,
-            MergeBlocks: false);
+            MergeBlocks: false,
+            RemoveSourceLabel: false);
 
         var slots = pipeline.Process([evt], DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 
@@ -123,7 +125,8 @@ public class ObfuscationPipelineTests
             RemoveAttendees: true,
             RoundTimes: false,
             RoundingIntervalMinutes: 15,
-            MergeBlocks: false);
+            MergeBlocks: false,
+            RemoveSourceLabel: false);
 
         var slots = pipeline.Process([evt], DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 
@@ -148,11 +151,13 @@ public class ObfuscationPipelineTests
             RemoveAttendees: true,
             RoundTimes: false,
             RoundingIntervalMinutes: 15,
-            MergeBlocks: false);
+            MergeBlocks: false,
+            RemoveSourceLabel: false);
 
         var slots = pipeline.Process([evt], DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 
-        Assert.AreEqual(evt.Description, slots[0].Description, "Description should be preserved when RemoveDescription=false");
+        Assert.AreEqual(evt.Description, slots[0].Description,
+            "Description should be preserved when RemoveDescription=false");
     }
 
     [TestMethod]
@@ -172,7 +177,8 @@ public class ObfuscationPipelineTests
             RemoveAttendees: true,
             RoundTimes: false,
             RoundingIntervalMinutes: 15,
-            MergeBlocks: false);
+            MergeBlocks: false,
+            RemoveSourceLabel: false);
 
         var slots = pipeline.Process([evt], DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 
@@ -196,7 +202,8 @@ public class ObfuscationPipelineTests
             RemoveAttendees: false,
             RoundTimes: false,
             RoundingIntervalMinutes: 15,
-            MergeBlocks: false);
+            MergeBlocks: false,
+            RemoveSourceLabel: false);
 
         var slots = pipeline.Process([evt], DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 
@@ -223,7 +230,8 @@ public class ObfuscationPipelineTests
             RemoveAttendees: true,
             RoundTimes: true,
             RoundingIntervalMinutes: 30, // 30-minute rounding
-            MergeBlocks: false);
+            MergeBlocks: false,
+            RemoveSourceLabel: false);
 
         var slots = pipeline.Process([evt], DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 
@@ -332,7 +340,7 @@ public class ObfuscationPipelineTests
                 Description: null,
                 Start: new DateTimeOffset(2026, 6, 1, 9 + (i * 2), 0, 0, TimeSpan.Zero),
                 End: new DateTimeOffset(2026, 6, 1, 10 + (i * 2), 0, 0, TimeSpan.Zero),
-                AttendeeEmails:[],
+                AttendeeEmails: [],
                 Location: null
             ))
             .ToList();
@@ -364,15 +372,16 @@ public class ObfuscationPipelineTests
     [TestMethod]
     public void Process_MergesOverlappingSlots()
     {
-        var pipeline = new ObfuscationPipeline([], [new MergeBlocksTransformer()], NullLogger<ObfuscationPipeline>.Instance);
+        var pipeline =
+            new ObfuscationPipeline([], [new MergeBlocksTransformer()], NullLogger<ObfuscationPipeline>.Instance);
         var events = new[]
         {
             new CalendarEvent("evt-1", "Meeting 1", null,
                 new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero),
-                new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero),[], null),
+                new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero), [], null),
             new CalendarEvent("evt-2", "Meeting 2", null,
                 new DateTimeOffset(2026, 6, 1, 9, 30, 0, TimeSpan.Zero),
-                new DateTimeOffset(2026, 6, 1, 11, 0, 0, TimeSpan.Zero),[], null)
+                new DateTimeOffset(2026, 6, 1, 11, 0, 0, TimeSpan.Zero), [], null)
         };
 
         var slots = Process(pipeline, events);
@@ -385,15 +394,16 @@ public class ObfuscationPipelineTests
     [TestMethod]
     public void Process_MergesAdjacentSlots()
     {
-        var pipeline = new ObfuscationPipeline([], [new MergeBlocksTransformer()], NullLogger<ObfuscationPipeline>.Instance);
+        var pipeline =
+            new ObfuscationPipeline([], [new MergeBlocksTransformer()], NullLogger<ObfuscationPipeline>.Instance);
         var events = new[]
         {
             new CalendarEvent("evt-1", "Meeting 1", null,
                 new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero),
-                new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero),[], null),
+                new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero), [], null),
             new CalendarEvent("evt-2", "Meeting 2", null,
                 new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero),
-                new DateTimeOffset(2026, 6, 1, 11, 0, 0, TimeSpan.Zero),[], null)
+                new DateTimeOffset(2026, 6, 1, 11, 0, 0, TimeSpan.Zero), [], null)
         };
 
         var slots = Process(pipeline, events);
@@ -406,15 +416,16 @@ public class ObfuscationPipelineTests
     [TestMethod]
     public void Process_KeepsSeparateSlots()
     {
-        var pipeline = new ObfuscationPipeline([], [new MergeBlocksTransformer()], NullLogger<ObfuscationPipeline>.Instance);
+        var pipeline =
+            new ObfuscationPipeline([], [new MergeBlocksTransformer()], NullLogger<ObfuscationPipeline>.Instance);
         var events = new[]
         {
             new CalendarEvent("evt-1", "Meeting 1", null,
                 new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero),
-                new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero),[], null),
+                new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero), [], null),
             new CalendarEvent("evt-2", "Meeting 2", null,
                 new DateTimeOffset(2026, 6, 1, 11, 0, 0, TimeSpan.Zero),
-                new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero),[], null)
+                new DateTimeOffset(2026, 6, 1, 12, 0, 0, TimeSpan.Zero), [], null)
         };
 
         var slots = Process(pipeline, events);
@@ -422,21 +433,24 @@ public class ObfuscationPipelineTests
         Assert.HasCount(2, slots);
         Assert.AreEqual(new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero), slots[0].Start);
         Assert.AreEqual(new DateTimeOffset(2026, 6, 1, 11, 0, 0, TimeSpan.Zero), slots[1].Start);
-    }[TestMethod]
+    }
+
+    [TestMethod]
     public void Process_MergesMultipleOverlappingSlots()
     {
-        var pipeline = new ObfuscationPipeline([], [new MergeBlocksTransformer()], NullLogger<ObfuscationPipeline>.Instance);
+        var pipeline =
+            new ObfuscationPipeline([], [new MergeBlocksTransformer()], NullLogger<ObfuscationPipeline>.Instance);
         var events = new[]
         {
             new CalendarEvent("evt-1", "Meeting 1", null,
                 new DateTimeOffset(2026, 6, 1, 9, 0, 0, TimeSpan.Zero),
-                new DateTimeOffset(2026, 6, 1, 9, 30, 0, TimeSpan.Zero),[], null),
+                new DateTimeOffset(2026, 6, 1, 9, 30, 0, TimeSpan.Zero), [], null),
             new CalendarEvent("evt-2", "Meeting 2", null,
                 new DateTimeOffset(2026, 6, 1, 9, 15, 0, TimeSpan.Zero),
-                new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero),[], null),
+                new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero), [], null),
             new CalendarEvent("evt-3", "Meeting 3", null,
                 new DateTimeOffset(2026, 6, 1, 9, 45, 0, TimeSpan.Zero),
-                new DateTimeOffset(2026, 6, 1, 10, 30, 0, TimeSpan.Zero),[], null)
+                new DateTimeOffset(2026, 6, 1, 10, 30, 0, TimeSpan.Zero), [], null)
         };
 
         var slots = Process(pipeline, events);
@@ -458,10 +472,10 @@ public class ObfuscationPipelineTests
         {
             new CalendarEvent("evt-1", "Meeting 1", null,
                 new DateTimeOffset(2026, 6, 1, 9, 7, 0, TimeSpan.Zero),
-                new DateTimeOffset(2026, 6, 1, 9, 37, 0, TimeSpan.Zero),[], null),
+                new DateTimeOffset(2026, 6, 1, 9, 37, 0, TimeSpan.Zero), [], null),
             new CalendarEvent("evt-2", "Meeting 2", null,
                 new DateTimeOffset(2026, 6, 1, 9, 45, 0, TimeSpan.Zero),
-                new DateTimeOffset(2026, 6, 1, 10, 22, 0, TimeSpan.Zero),[], null)
+                new DateTimeOffset(2026, 6, 1, 10, 22, 0, TimeSpan.Zero), [], null)
         };
 
         var slots = Process(pipeline, events);
@@ -497,7 +511,8 @@ public class ObfuscationPipelineTests
             RemoveAttendees: true,
             RoundTimes: false,
             RoundingIntervalMinutes: 15,
-            MergeBlocks: true);
+            MergeBlocks: true,
+            RemoveSourceLabel: false);
 
         var slots = pipeline.Process([evt], DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 
@@ -516,10 +531,10 @@ public class ObfuscationPipelineTests
         {
             new CalendarEvent("evt-1", "Meeting 1", null,
                 new DateTimeOffset(2026, 6, 1, 9, 7, 0, TimeSpan.Zero),
-                new DateTimeOffset(2026, 6, 1, 9, 37, 0, TimeSpan.Zero),[], null),
+                new DateTimeOffset(2026, 6, 1, 9, 37, 0, TimeSpan.Zero), [], null),
             new CalendarEvent("evt-2", "Meeting 2", null,
                 new DateTimeOffset(2026, 6, 1, 9, 45, 0, TimeSpan.Zero),
-                new DateTimeOffset(2026, 6, 1, 10, 22, 0, TimeSpan.Zero),[], null)
+                new DateTimeOffset(2026, 6, 1, 10, 22, 0, TimeSpan.Zero), [], null)
         };
 
         var profile = new ObfuscationProfileSettings(
@@ -530,7 +545,8 @@ public class ObfuscationPipelineTests
             RemoveAttendees: true,
             RoundTimes: true,
             RoundingIntervalMinutes: 15,
-            MergeBlocks: false);
+            MergeBlocks: false,
+            RemoveSourceLabel: false);
 
         var slots = pipeline.Process(events, DefaultCalendarOwnerId, ObfuscationAuditContext.Client, profile);
 

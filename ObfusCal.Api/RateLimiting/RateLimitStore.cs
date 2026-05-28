@@ -5,7 +5,6 @@ namespace ObfusCal.Api.RateLimiting;
 internal static class RateLimitStore
 {
     private static readonly ConcurrentDictionary<string, FixedWindowBucket> Buckets = new();
-    private static readonly TimeSpan ExpiredBucketThreshold = TimeSpan.FromMinutes(5);
 
     internal static bool TryAcquirePermit(string instanceScope, string scope, string subject, int permitLimit,
         int windowSeconds, out int retryAfterSeconds)
@@ -25,6 +24,7 @@ internal static class RateLimitStore
             {
                 bucket.WindowStartedAt = now;
                 bucket.Count = 0;
+                bucket.Window = window;
             }
 
             if (bucket.Count < limit)
@@ -50,11 +50,15 @@ internal static class RateLimitStore
 
         foreach (var kvp in Buckets)
         {
-            if (kvp.Value.WindowStartedAt == default ||
-                now - kvp.Value.WindowStartedAt < ExpiredBucketThreshold) continue;
-            lock (kvp.Value.Gate)
+            var bucket = kvp.Value;
+            if (bucket.WindowStartedAt == default) continue;
+
+            var expirationThreshold = bucket.WindowStartedAt.Add(bucket.Window);
+            if (now < expirationThreshold) continue;
+
+            lock (bucket.Gate)
             {
-                if (now - kvp.Value.WindowStartedAt >= ExpiredBucketThreshold)
+                if (now >= bucket.WindowStartedAt.Add(bucket.Window))
                     Buckets.TryRemove(kvp.Key, out _);
             }
         }
@@ -65,6 +69,7 @@ internal static class RateLimitStore
         public object Gate { get; } = new();
         public DateTimeOffset WindowStartedAt { get; set; }
         public int Count { get; set; }
+        public TimeSpan Window { get; set; }
     }
 }
 

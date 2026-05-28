@@ -164,8 +164,11 @@ public class MergeBlocksTransformerTests
 
         Assert.HasCount(1, result);
         Assert.IsNotNull(result[0].SourceSlots);
-        var sources = result[0].SourceSlots!;
+
+        var sources = result[0].SourceSlots ?? [];
+
         Assert.HasCount(2, sources);
+        Assert.IsNotNull(result[0].SourceSlots);
         // Both merged slots should be captured
         Assert.AreEqual("first", sources[0].SourceEventId);
         Assert.AreEqual("second", sources[1].SourceEventId);

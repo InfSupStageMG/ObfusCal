@@ -17,7 +17,10 @@ public sealed class InMemoryShadowSlotStore(ILogger logger) : IShadowSlotStore
     private const string BusySlotCountLogProperty = "BusySlotCount";
 
     private readonly ConcurrentDictionary<string, IReadOnlyList<BusySlot>> _slotsByPeer = new();
-    private readonly ConcurrentDictionary<(string PeerId, Guid CalendarOwnerId), IReadOnlyList<BusySlot>> _slotsByPeerAndOwner = new();
+
+    private readonly ConcurrentDictionary<(string PeerId, Guid CalendarOwnerId), IReadOnlyList<BusySlot>>
+        _slotsByPeerAndOwner = new();
+
     private readonly ILogger _logger = logger.ForContext<InMemoryShadowSlotStore>();
 
     public Task SetSlotsAsync(string peerId, IReadOnlyList<BusySlot> slots, CancellationToken ct = default)
@@ -60,7 +63,7 @@ public sealed class InMemoryShadowSlotStore(ILogger logger) : IShadowSlotStore
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
         ct.ThrowIfCancellationRequested();
 
-        var result = _slotsByPeer.TryGetValue(peerId, out var slots) ? slots.ToArray() :[];
+        var result = _slotsByPeer.TryGetValue(peerId, out var slots) ? slots.ToArray() : [];
 
         _logger.ForContext(PeerIdLogProperty, peerId)
             .ForContext(BusySlotCountLogProperty, result.Length)
@@ -69,7 +72,8 @@ public sealed class InMemoryShadowSlotStore(ILogger logger) : IShadowSlotStore
         return Task.FromResult<IReadOnlyList<BusySlot>>(result);
     }
 
-    public Task<IReadOnlyList<BusySlot>> GetSlotsAsync(string peerId, Guid calendarOwnerId, CancellationToken ct = default)
+    public Task<IReadOnlyList<BusySlot>> GetSlotsAsync(string peerId, Guid calendarOwnerId,
+        CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(peerId);
         ct.ThrowIfCancellationRequested();
@@ -111,8 +115,9 @@ public sealed class InMemoryShadowSlotStore(ILogger logger) : IShadowSlotStore
 
         var allSlots = _slotsByPeerAndOwner
             .Where(entry => entry.Key.CalendarOwnerId == calendarOwnerId)
-            .SelectMany(entry => entry.Value)
-            .Where(s => s.Start < to && s.End > from)
+            .SelectMany(entry => entry.Value
+                .Where(s => s.Start < to && s.End > from)
+                .Select(s => s with { SourceLabel = entry.Key.PeerId }))
             .ToArray();
 
         _logger.ForContext(CalendarOwnerIdLogProperty, calendarOwnerId)
