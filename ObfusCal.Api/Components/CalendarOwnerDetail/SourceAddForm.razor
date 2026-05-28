@@ -27,9 +27,8 @@
         <h4 class="wizard-step-heading">Which calendar service would you like to add?</h4>
         <p class="hint-text">Choose the type of calendar you want to connect to ObfusCal.</p>
         <div class="wizard-plugin-grid">
-            @foreach (var plugin in PluginOptions)
+            @foreach (var p in PluginOptions.Select(plugin => plugin))
             {
-                var p = plugin;
                 <button type="button"
                         class="wizard-plugin-card @(SelectedOption?.Id == p.Id ? "wizard-plugin-card--selected" : "")"
                         @onclick="@(() => SelectPluginAndAdvance(p))">
