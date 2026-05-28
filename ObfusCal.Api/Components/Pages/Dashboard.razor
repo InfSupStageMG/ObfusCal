@@ -62,25 +62,40 @@
         <div class="combined-calendar-controls" role="group" aria-label="Combined calendar filters">
             <div class="combined-calendar-field combined-calendar-field--owner app-form-field">
                 <FluentLabel Class="combined-calendar-label app-form-label">Calendar Owner</FluentLabel>
-                @if (_isSysadmin)
-                {
-                    <FluentSelect TOption="CalendarOwnerOption"
-                                  Items="_calendarOwners"
-                                  OptionValue="@(o => o.Id.ToString())"
-                                  OptionText="@(o => o.Name)"
-                                  Height="360px"
-                                  Class="combined-calendar-control app-form-control"
-                                  Style="width: 100%; max-width: 100%; min-width: 0;"
-                                  @bind-SelectedOption="_selectedOwner"
-                                  @bind-SelectedOption:after="OnOwnerChangedAsync" />
-                }
-                else
-                {
-                    <FluentTextField Value="@(_selectedOwner?.Name ?? "No mapped calendar owner")"
-                                     ReadOnly="true"
-                                     Class="combined-calendar-control app-form-control"
-                                     Style="width: 100%; max-width: 100%; min-width: 0;" />
-                }
+                <div class="tz-combobox">
+                    <input type="text"
+                           class="tz-combobox-input @(!_isSysadmin ? "tz-combobox-input--readonly" : "")"
+                           placeholder="@(_selectedOwner?.Name ?? "No mapped calendar owner")"
+                           value="@_ownerInputText"
+                           @oninput="OnOwnerInput"
+                           @onfocus="OnOwnerFocus"
+                           @onfocusout="OnOwnerBlur"
+                           @onkeydown="OnOwnerKeyDown"
+                           autocomplete="off"
+                           spellcheck="false"
+                           readonly="@(!_isSysadmin)"
+                           role="@(_isSysadmin ? "combobox" : "textbox")"
+                           aria-expanded="@(_ownerOpen.ToString().ToLower())"
+                           aria-autocomplete="list" />
+                    @if (_ownerOpen && _isSysadmin)
+                    {
+                        <div class="tz-combobox-dropdown" role="listbox">
+                            @foreach (var owner in _ownerFiltered)
+                            {
+                                <div class="tz-combobox-option @(owner.Id == _selectedOwner?.Id ? "tz-combobox-option--selected" : "")"
+                                     role="option"
+                                     @onmousedown:preventDefault
+                                     @onclick="@(() => SelectOwner(owner))">
+                                    @owner.Name
+                                </div>
+                            }
+                            @if (_ownerFiltered.Count == 0)
+                            {
+                                <div class="tz-combobox-empty">No owners found</div>
+                            }
+                        </div>
+                    }
+                </div>
             </div>
 
             <div class="combined-calendar-field combined-calendar-field--timezone app-form-field">
@@ -180,6 +195,53 @@
     private bool _tzOpen;
     private string _tzInputText = string.Empty;
     private List<TimeZoneOption> _tzFiltered = [];
+
+    private bool _ownerOpen;
+    private string _ownerInputText = string.Empty;
+    private List<CalendarOwnerOption> _ownerFiltered = [];
+
+    private void OnOwnerFocus()
+    {
+        if (!_isSysadmin) return;
+        _ownerInputText = string.Empty;
+        _ownerFiltered = _calendarOwners ?? [];
+        _ownerOpen = true;
+    }
+
+    private void OnOwnerInput(ChangeEventArgs e)
+    {
+        if (!_isSysadmin) return;
+        _ownerInputText = e.Value?.ToString() ?? string.Empty;
+        _ownerFiltered = string.IsNullOrWhiteSpace(_ownerInputText)
+            ? (_calendarOwners ?? [])
+            : (_calendarOwners ?? [])
+                .Where(o => o.Name.Contains(_ownerInputText, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        _ownerOpen = true;
+    }
+
+    private async Task SelectOwner(CalendarOwnerOption owner)
+    {
+        _selectedOwner = owner;
+        _ownerInputText = string.Empty;
+        _ownerOpen = false;
+        await OnOwnerChangedAsync();
+    }
+
+    private void OnOwnerBlur()
+    {
+        _ownerInputText = string.Empty;
+        _ownerOpen = false;
+    }
+
+    private void OnOwnerKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            _ownerInputText = string.Empty;
+            _ownerOpen = false;
+        }
+    }
 
     private void OnTzFocus()
     {
