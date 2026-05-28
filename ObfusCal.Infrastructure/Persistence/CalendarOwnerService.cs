@@ -66,9 +66,11 @@ internal sealed class CalendarOwnerService(
             return;
 
         owner.WriteBackEnabled = writeBackEnabled;
-        owner.WriteBackPlaceholderTitle = string.IsNullOrWhiteSpace(writeBackPlaceholderTitle)
-            ? null
-            : writeBackPlaceholderTitle.Trim();
+
+        var title = string.IsNullOrWhiteSpace(writeBackPlaceholderTitle) ? null : writeBackPlaceholderTitle.Trim();
+        if (title is { Length: > 256 })
+            throw new ArgumentException("Placeholder title must be 256 characters or fewer.");
+        owner.WriteBackPlaceholderTitle = title;
 
         await dbContext.SaveChangesAsync(ct);
     }

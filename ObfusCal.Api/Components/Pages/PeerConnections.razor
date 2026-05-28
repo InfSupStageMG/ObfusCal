@@ -62,8 +62,12 @@
                 else
                 {
                     <FluentDataGrid Items="_adminPeers.AsQueryable()" TGridItem="PeerConnectionSummary" Class="app-data-grid">
-                        <PropertyColumn Property="@(p => p.InstanceId)" Title="Instance ID" Sortable="true" />
-                        <PropertyColumn Property="@(p => p.BaseAddress)" Title="Base Address" />
+                        <TemplateColumn Title="Instance ID" Sortable="true">
+                            <span class="text-truncate">@context.InstanceId</span>
+                        </TemplateColumn>
+                        <TemplateColumn Title="Base Address">
+                            <span class="text-truncate">@context.BaseAddress</span>
+                        </TemplateColumn>
                         <PropertyColumn Property="@(p => p.MappingCount)" Title="Owner Mappings" />
                         <TemplateColumn Title="Actions">
                             <FluentButton Appearance="Appearance.Outline" OnClick="@(() => DeletePeerAsync(context.Id))">
@@ -124,7 +128,9 @@
             @if (_userPeerConnections is { Count: > 0 })
             {
                 <FluentDataGrid Items="_userPeerConnections.AsQueryable()" TGridItem="UserPeerConnectionRow" Class="app-data-grid">
-                    <PropertyColumn Property="@(p => p.ClientOrganisationName)" Title="Client / Peer" Sortable="true" />
+                    <TemplateColumn Title="Client / Peer" Sortable="true">
+                        <span class="text-truncate">@context.ClientOrganisationName</span>
+                    </TemplateColumn>
                     <TemplateColumn Title="Status">
                         @switch (context.Status)
                         {

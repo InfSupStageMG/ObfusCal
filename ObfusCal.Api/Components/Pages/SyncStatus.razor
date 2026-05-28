@@ -95,8 +95,12 @@
     {
         <section class="card">
             <FluentDataGrid Items="_peers.AsQueryable()" TGridItem="PeerSyncStatus" Class="app-data-grid">
-                <PropertyColumn Property="@(p => p.InstanceId)" Title="Peer Instance" Sortable="true"/>
-                <PropertyColumn Property="@(p => p.BaseAddress)" Title="Base Address"/>
+                <TemplateColumn Title="Peer Instance" Sortable="true">
+                    <span class="text-truncate">@context.InstanceId</span>
+                </TemplateColumn>
+                <TemplateColumn Title="Base Address">
+                    <span class="text-truncate">@context.BaseAddress</span>
+                </TemplateColumn>
                 <TemplateColumn Title="Status">
                     @switch (context.LastSyncSucceeded)
                     {

@@ -4,7 +4,11 @@
 
 .header-title-flex {
     margin: 0;
-    flex: 1;
+    flex: 0 1 75%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .section-header-box {
@@ -53,6 +57,7 @@
     user-select: none;
     font-family: inherit;
     color: inherit;
+    overflow: hidden;
 }
 
 .source-tile:hover {
@@ -71,7 +76,10 @@
 .source-tile-name {
     font-weight: 600;
     font-size: 0.9rem;
-    word-break: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
 }
 
 .source-tile-plugin {

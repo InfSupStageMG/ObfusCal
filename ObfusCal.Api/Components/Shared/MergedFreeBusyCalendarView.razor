@@ -12,9 +12,16 @@
                 </div>
                 @if (Slots.Count > 0)
                 {
-                    <span class="calendar-data-info"
-                          title="Loaded data range: @GetDisplayDateRange()"
-                          aria-label="Loaded data range: @GetDisplayDateRange()">i</span>
+                    <div class="calendar-data-tooltip">
+                        <button type="button"
+                                class="calendar-data-info-button"
+                                aria-label="Loaded data range information">
+                            <span class="calendar-data-info-icon">i</span>
+                        </button>
+                        <span class="calendar-data-tooltip-content" role="tooltip">
+                            Loaded data range: @GetDisplayDateRange()
+                        </span>
+                    </div>
                 }
             </div>
         </div>

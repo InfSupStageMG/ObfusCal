@@ -41,7 +41,8 @@ public enum CreatePeerConnectionRequestOutcome
 {
     Created,
     Duplicate,
-    CalendarOwnerNotFound
+    CalendarOwnerNotFound,
+    Invalid
 }
 
 public sealed record CreatePeerConnectionRequestResult(

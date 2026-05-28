@@ -16,7 +16,7 @@ else
 @code {
     private RenderFragment RenderContent =>
         @<text>
-            <div class="source-editor-topbar">
+            <div class="source-editor-topbar text-truncate">
                 <div class="source-editor-title-row">
                     <h4 class="source-instance-title">@Instance.DisplayName</h4>
                     <FluentBadge Appearance="Appearance.Neutral">@Instance.PluginDisplayName</FluentBadge>
@@ -45,7 +45,7 @@ else
             }
 
             <FluentStack Orientation="Orientation.Vertical" VerticalGap="8" Class="instance-actions-stack">
-                <FluentTextField @bind-Value="Instance.DisplayName" Immediate="true" Label="Display name" Class="app-form-control" Style="width: 100%; max-width: 100%; min-width: 0;"/>
+                <FluentTextField @bind-Value="Instance.DisplayName" Immediate="true" Label="Display name" Class="app-form-control text-truncate" Style="width: 100%; max-width: 100%; min-width: 0;"/>
 
                 @if (HasFieldEditors(Instance.ConfigurationFields))
                 {

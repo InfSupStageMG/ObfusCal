@@ -16,10 +16,16 @@
     flex-wrap: wrap;
     gap: 0.4rem;
     flex: 1;
+    min-width: 0;
 }
 
 .source-instance-title {
     margin: 0;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .source-editor-close {
