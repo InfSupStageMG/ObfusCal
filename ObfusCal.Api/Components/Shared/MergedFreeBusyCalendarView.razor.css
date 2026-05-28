@@ -55,6 +55,12 @@
     color: var(--color-primary);
 }
 
+.month-nav-btn--today {
+    font-size: var(--font-size-sm);
+    line-height: 1.2;
+    padding: 0.4rem 0.7rem;
+}
+
 .calendar-data-tooltip {
     position: relative;
     display: inline-flex;

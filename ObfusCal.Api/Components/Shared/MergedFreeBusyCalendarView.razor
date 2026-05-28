@@ -9,6 +9,10 @@
                     <button class="month-nav-btn" @onclick="PreviousMonth" aria-label="Previous month">&#8249;</button>
                     <h3 class="calendar-month-label">@_monthYear</h3>
                     <button class="month-nav-btn" @onclick="NextMonth" aria-label="Next month">&#8250;</button>
+                    @if (ShouldShowGoToTodayButton())
+                    {
+                        <button class="month-nav-btn month-nav-btn--today" @onclick="GoToToday">Go to today</button>
+                    }
                 </div>
                 @if (Slots.Count > 0)
                 {
@@ -233,6 +237,16 @@
         BuildCalendarGrid();
     }
 
+    private void GoToToday()
+    {
+        var today = GetCurrentDateInTimeZone();
+        _viewMonth = today;
+        _selectedDate = today;
+        _selectedDayEvents = GetEventsForDate(today);
+        _showModal = false;
+        BuildCalendarGrid();
+    }
+
     private void SelectDay(DateTime? date)
     {
         if (IsOutsideViewMonth(date))
@@ -309,6 +323,15 @@
 
     private bool IsOutsideViewMonth(DateTime? date)
         => !date.HasValue || date.Value.Month != _viewMonth.Month || date.Value.Year != _viewMonth.Year;
+
+    private bool ShouldShowGoToTodayButton()
+    {
+        var today = GetCurrentDateInTimeZone();
+        return _viewMonth.Year != today.Year || _viewMonth.Month != today.Month;
+    }
+
+    private DateTime GetCurrentDateInTimeZone()
+        => TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, TimeZone).Date;
 
     private string FormatTime(MergedFreeBusyResponse evt)
     {

@@ -85,15 +85,39 @@
 
             <div class="combined-calendar-field combined-calendar-field--timezone app-form-field">
                 <FluentLabel Class="combined-calendar-label app-form-label">Time zone</FluentLabel>
-                <FluentSelect TOption="TimeZoneOption"
-                              Items="_timeZones"
-                              OptionValue="@(tz => tz.Id)"
-                              OptionText="@(tz => tz.DisplayName)"
-                              Height="360px"
-                              Class="combined-calendar-control app-form-control"
-                              Style="width: 100%; max-width: 100%; min-width: 0;"
-                              @bind-SelectedOption="_selectedTimeZone"
-                              @bind-SelectedOption:after="OnTimeZoneChangedAsync" />
+                <div class="tz-combobox">
+                    <input type="text"
+                           class="tz-combobox-input"
+                           placeholder="@(_selectedTimeZone?.DisplayName ?? "Select time zone…")"
+                           value="@_tzInputText"
+                           @oninput="OnTzInput"
+                           @onfocus="OnTzFocus"
+                           @onfocusout="OnTzBlur"
+                           @onkeydown="OnTzKeyDown"
+                           autocomplete="off"
+                           spellcheck="false"
+                           role="combobox"
+                           aria-expanded="@(_tzOpen.ToString().ToLower())"
+                           aria-autocomplete="list" />
+                    @if (_tzOpen)
+                    {
+                        <div class="tz-combobox-dropdown" role="listbox">
+                            @foreach (var tz in _tzFiltered)
+                            {
+                                <div class="tz-combobox-option @(tz.Id == _selectedTimeZone?.Id ? "tz-combobox-option--selected" : "")"
+                                     role="option"
+                                     @onmousedown:preventDefault
+                                     @onclick="@(() => SelectTimeZone(tz))">
+                                    @tz.DisplayName
+                                </div>
+                            }
+                            @if (_tzFiltered.Count == 0)
+                            {
+                                <div class="tz-combobox-empty">No time zones found</div>
+                            }
+                        </div>
+                    }
+                </div>
             </div>
         </div>
 
@@ -153,6 +177,54 @@
     private TimeZoneOption? _selectedTimeZone;
     private static string? _sCachedTimeZoneId;
 
+    private bool _tzOpen;
+    private string _tzInputText = string.Empty;
+    private List<TimeZoneOption> _tzFiltered = [];
+
+    private void OnTzFocus()
+    {
+        // Clear input text so the placeholder (current TZ name) shows and user can type fresh
+        _tzInputText = string.Empty;
+        _tzFiltered = _timeZones;
+        _tzOpen = true;
+    }
+
+    private void OnTzInput(ChangeEventArgs e)
+    {
+        _tzInputText = e.Value?.ToString() ?? string.Empty;
+        _tzFiltered = string.IsNullOrWhiteSpace(_tzInputText)
+            ? _timeZones
+            : _timeZones
+                .Where(tz =>
+                    tz.DisplayName.Contains(_tzInputText, StringComparison.OrdinalIgnoreCase)
+                    || tz.Id.Contains(_tzInputText, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        _tzOpen = true;
+    }
+
+    private async Task SelectTimeZone(TimeZoneOption tz)
+    {
+        _selectedTimeZone = tz;
+        _tzInputText = string.Empty;
+        _tzOpen = false;
+        await OnTimeZoneChangedAsync();
+    }
+
+    private void OnTzBlur()
+    {
+        _tzInputText = string.Empty;
+        _tzOpen = false;
+    }
+
+    private void OnTzKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            _tzInputText = string.Empty;
+            _tzOpen = false;
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         _loading = true;
@@ -193,7 +265,11 @@
 
         _selectedTimeZone = _timeZones.FirstOrDefault(tz =>
                                 tz.Id.Equals(_sCachedTimeZoneId, StringComparison.OrdinalIgnoreCase))
-                            ?? _timeZones.FirstOrDefault(tz => tz.Id == "UTC")
+                            // Romance Standard Time = Brussels/Paris/Madrid on Windows; Europe/Brussels on Linux/IANA
+                            ?? _timeZones.FirstOrDefault(tz => tz.Id.Equals("Romance Standard Time", StringComparison.OrdinalIgnoreCase))
+                            ?? _timeZones.FirstOrDefault(tz => tz.Id.Equals("Europe/Brussels", StringComparison.OrdinalIgnoreCase))
+                            ?? _timeZones.FirstOrDefault(tz => tz.Id.Equals("Europe/Paris", StringComparison.OrdinalIgnoreCase))
+                            ?? _timeZones.FirstOrDefault(tz => tz.Id.Equals("UTC", StringComparison.OrdinalIgnoreCase))
                             ?? _timeZones.FirstOrDefault();
 
         // Never leave the page in a loading state while waiting for render lifecycle callbacks.
