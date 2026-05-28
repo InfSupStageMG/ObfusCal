@@ -25,18 +25,18 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
     private List<MergedFreeBusyResponse>? _lastSeenSlots;
     private DateTime? _lastDisplayDate;
     private Dictionary<string, (string Accent, string Bg)> _labelColors = [];
+    private Dictionary<DateTime, List<MergedFreeBusyResponse>> _slotsByDate = [];
 
-    // 8-color palette chosen for good contrast and distinctiveness on the site's light theme
     private static readonly (string Accent, string Bg)[] _palette =
     [
-        ("#1976d2", "#e3f2fd"),  // blue
-        ("#388e3c", "#e8f5e9"),  // green
-        ("#7b1fa2", "#f3e5f5"),  // purple
-        ("#e65100", "#fff3e0"),  // deep-orange
-        ("#00838f", "#e0f7fa"),  // cyan
-        ("#ad1457", "#fce4ec"),  // pink
-        ("#283593", "#e8eaf6"),  // indigo
-        ("#558b2f", "#f9fbe7"),  // light-green
+        ("#1976d2", "#e3f2fd"), // blue
+        ("#388e3c", "#e8f5e9"), // green
+        ("#7b1fa2", "#f3e5f5"), // purple
+        ("#e65100", "#fff3e0"), // deep-orange
+        ("#00838f", "#e0f7fa"), // cyan
+        ("#ad1457", "#fce4ec"), // pink
+        ("#283593", "#e8eaf6"), // indigo
+        ("#558b2f", "#f9fbe7"), // light-green
     ];
 
     protected override void OnParametersSet()
@@ -52,6 +52,7 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
             _selectedDayEvents = [];
             _showModal = false;
             BuildLabelColors();
+            BuildSlotIndex();
         }
 
         BuildCalendarGrid();
@@ -79,8 +80,32 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
             yield return source.SourceLabel;
     }
 
-    // Returns the accent/background color pair for a given source label.
-    // Falls back to neutral grey when the label is absent or not in the active legend.
+    private void BuildSlotIndex()
+    {
+        _slotsByDate = [];
+
+        foreach (var slot in Slots)
+        {
+            var startDate = TimeZoneInfo.ConvertTime(slot.Start, TimeZone).Date;
+            var endDate = TimeZoneInfo.ConvertTime(slot.End, TimeZone).Date;
+
+            for (var date = startDate; date <= endDate; date = date.AddDays(1))
+            {
+                if (!_slotsByDate.TryGetValue(date, out var list))
+                {
+                    list = [];
+                    _slotsByDate[date] = list;
+                }
+
+                list.Add(slot);
+            }
+        }
+
+        // Sort each day's list by start time so callers get a consistent order without re-sorting
+        foreach (var list in _slotsByDate.Values)
+            list.Sort((a, b) => a.Start.CompareTo(b.Start));
+    }
+
     private (string Accent, string Bg) GetColor(string? label)
     {
         if (string.IsNullOrWhiteSpace(label) || !_labelColors.TryGetValue(label, out var color))
@@ -100,11 +125,11 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
             .ToList();
 
         // All sources share the same label → use that color
-        if (distinctLabels.Count == 1)
-            return GetColor(distinctLabels[0]);
-
-        // Mixed sources → neutral blue-grey to signal a multi-source merge
-        return ("#546e7a", "#eceff1");
+        return distinctLabels.Count == 1
+            ? GetColor(distinctLabels[0])
+            :
+            // Mixed sources → neutral blue-grey to signal a multi-source merge
+            ("#546e7a", "#eceff1");
     }
 
     private void PreviousMonth()
@@ -164,21 +189,7 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
     }
 
     private List<MergedFreeBusyResponse> GetEventsForDate(DateTime date)
-    {
-        if (Slots.Count == 0)
-            return [];
-
-        return Slots
-            .Where(s =>
-            {
-                var startDate = TimeZoneInfo.ConvertTime(s.Start, TimeZone).Date;
-                var endDate = TimeZoneInfo.ConvertTime(s.End, TimeZone).Date;
-                // Slot spans this date: started on or before, ended on or after
-                return startDate <= date && endDate >= date;
-            })
-            .OrderBy(s => TimeZoneInfo.ConvertTime(s.Start, TimeZone))
-            .ToList();
-    }
+        => _slotsByDate.TryGetValue(date, out var events) ? events : [];
 
     private bool IsOutsideViewMonth(DateTime? date)
         => !date.HasValue || date.Value.Month != _viewMonth.Month || date.Value.Year != _viewMonth.Year;
@@ -215,4 +226,3 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
         return $"{duration.Minutes}m";
     }
 }
-
