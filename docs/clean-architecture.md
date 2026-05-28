@@ -510,6 +510,7 @@ ObfusCal.Api/
 │   ├── Pages/
 │   ├── Shared/
 │   ├── App.razor
+│   ├── App.razor.cs
 │   ├── ObfuscationAuditContextExtensions.cs
 │   ├── Routes.razor
 │   └── _Imports.razor
