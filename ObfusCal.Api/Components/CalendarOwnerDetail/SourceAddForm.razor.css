@@ -41,13 +41,13 @@
 .wizard-progress-step.current .step-num {
     background: var(--accent-fill-rest);
     border-color: var(--accent-fill-rest);
-    color: var(--accent-foreground-rest, #fff);
+    color: var(--foreground-on-accent-rest, #fff);
 }
 
 .wizard-progress-step.done .step-num {
     background: var(--accent-fill-rest);
     border-color: var(--accent-fill-rest);
-    color: var(--accent-foreground-rest, #fff);
+    color: var(--foreground-on-accent-rest, #fff);
 }
 
 .step-label {

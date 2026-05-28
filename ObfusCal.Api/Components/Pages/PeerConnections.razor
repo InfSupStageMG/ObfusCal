@@ -1,7 +1,6 @@
 ﻿@page "/peers"
 @attribute [Authorize]
 @using ObfusCal.Application.Interfaces
-@using ObfusCal.Api.Authorization
 @inject ICalendarOwnerService CalendarOwnerService
 @inject IPeerConnectionService PeerConnectionService
 @inject CurrentUserContextAccessor CurrentUserContextAccessor
@@ -84,23 +83,21 @@
                 <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Bottom" Wrap="true" Class="peer-link-row app-form-row">
                     <div class="peer-select-field app-form-field">
                         <FluentLabel Class="app-form-label">Calendar Owner</FluentLabel>
-                        <FluentSelect TOption="OwnerOption"
-                                      Items="_owners"
-                                      OptionValue="@(o => o.Id.ToString())"
-                                      OptionText="@(o => o.Name)"
-                                      Class="peer-owner-select app-form-control"
-                                      Style="width: 100%; max-width: 100%; min-width: 0;"
-                                      @bind-SelectedOption="_selectedOwner" />
+                        <SearchableSelect TOption="OwnerOption"
+                                          Items="@(_owners ?? [])"
+                                          OptionText="@(o => o.Name)"
+                                          OptionValue="@(o => o.Id.ToString())"
+                                          EmptyMessage="No owners found"
+                                          @bind-SelectedOption="_selectedOwner" />
                     </div>
                     <div class="peer-select-field app-form-field">
                         <FluentLabel Class="app-form-label">Peer</FluentLabel>
-                        <FluentSelect TOption="PeerOption"
-                                      Items="_peerOptions"
-                                      OptionValue="@(p => p.Id.ToString())"
-                                      OptionText="@(p => p.InstanceId)"
-                                      Class="peer-peer-select app-form-control"
-                                      Style="width: 100%; max-width: 100%; min-width: 0;"
-                                      @bind-SelectedOption="_selectedPeer" />
+                        <SearchableSelect TOption="PeerOption"
+                                          Items="@(_peerOptions ?? [])"
+                                          OptionText="@(p => p.InstanceId)"
+                                          OptionValue="@(p => p.Id.ToString())"
+                                          EmptyMessage="No peers found"
+                                          @bind-SelectedOption="_selectedPeer" />
                     </div>
                     <FluentButton Appearance="Appearance.Accent" OnClick="LinkOwnerToPeerAsync"
                                   Disabled="@(_selectedOwner is null || _selectedPeer is null)" Class="peer-link-button app-form-button">
@@ -122,7 +119,7 @@
             <h3>Peer visibility</h3>
             <p class="peer-section-description">
                 Peer onboarding is handled by administrators. This page shows the peer requests and approved peer connections that are
-                associated with your calendar owner.
+                associated with your account.
             </p>
 
             @if (_userPeerConnections is { Count: > 0 })
@@ -150,7 +147,7 @@
             else
             {
                 <FluentMessageBar Intent="MessageIntent.Info" Title="No peers yet">
-                    No peer requests or peer connections are currently linked to your calendar owner.
+                    No peer requests or peer connections are currently linked to your account.
                 </FluentMessageBar>
             }
         </section>

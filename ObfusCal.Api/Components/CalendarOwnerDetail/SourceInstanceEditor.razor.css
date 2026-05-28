@@ -88,7 +88,7 @@
 /* ── Instance-level advanced settings ── */
 .instance-advanced {
     margin-top: 0.5rem;
-    border: 1px solid var(--neutral-stroke-layer-rest);
+    border: 1px solid var(--neutral-stroke-rest);
     border-radius: 6px;
 }
 

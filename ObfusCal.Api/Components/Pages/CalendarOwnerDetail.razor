@@ -48,8 +48,7 @@ else
                 }
             </FluentStack>
             <p class="hint-text">
-                Connect your calendar accounts here. ObfusCal reads your events to work out when you are busy,
-                then shares a privacy-filtered version of that availability with your peers.
+                Connect your calendar accounts here. ObfusCal will read and obfuscate the events in these calendars.
             </p>
 
             @if (_pluginOptions.Count == 0)
@@ -110,7 +109,6 @@ else
                     <p class="empty-state-title">No calendars connected yet</p>
                     <p class="empty-state-description">
                         Click <strong>+ Add Calendar</strong> to connect your first calendar.
-                        Once connected, ObfusCal will automatically keep your availability in sync.
                     </p>
                 </div>
             }
@@ -124,7 +122,7 @@ else
             {
                 <div class="source-editor-panel">
                     <SourceInstanceEditor Instance="editInst"
-                                          IsCard="false"
+                                          IsCard="true"
                                           IsSaving="_updatingSourceInstanceId == editInst.Id"
                                           IsDeleting="_deletingSourceInstanceId == editInst.Id"
                                           IsExecutingAction="_executingActionInstanceId == editInst.Id"

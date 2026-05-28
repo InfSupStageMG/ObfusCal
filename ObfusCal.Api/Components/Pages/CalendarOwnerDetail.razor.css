@@ -103,10 +103,6 @@
 
 /* ── Inline source editor panel ── */
 .source-editor-panel {
-    border: 1.5px solid var(--neutral-stroke-layer-rest);
-    border-radius: 10px;
-    padding: 1.5rem;
-    background: var(--neutral-layer-1);
     animation: panelSlideDown 0.2s ease-out;
 }
 

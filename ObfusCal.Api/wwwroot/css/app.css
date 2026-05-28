@@ -167,6 +167,10 @@ textarea:focus {
     font-weight: 500;
 }
 
+.fluent-messagebar {
+    margin: 5px 0;
+}
+
 .app-form-row {
     display: flex;
     flex-wrap: wrap;

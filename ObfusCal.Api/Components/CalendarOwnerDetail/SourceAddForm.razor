@@ -25,7 +25,6 @@
     {
         @* ── Step 1: Choose calendar service ── *@
         <h4 class="wizard-step-heading">Which calendar service would you like to add?</h4>
-        <p class="hint-text">Choose the type of calendar you want to connect to ObfusCal.</p>
         <div class="wizard-plugin-grid">
             @foreach (var p in PluginOptions)
             {
@@ -42,7 +41,6 @@
         @* ── Step 2: Name the calendar ── *@
         <h4 class="wizard-step-heading">What would you like to call this calendar?</h4>
         <p class="hint-text">
-            Adding: <strong>@SelectedOption?.DisplayLabel</strong>.
             This name is just for you — pick something that helps you recognise which calendar this is.
         </p>
 
@@ -51,7 +49,6 @@
                          Immediate="true"
                          Class="app-form-control"
                          Style="width: 100%; max-width: 420px; min-width: 0;"
-                         Label="Calendar name"
                          Placeholder="@(SelectedOption?.DisplayLabel ?? "My calendar")"/>
 
         @if (!string.IsNullOrWhiteSpace(SelectedOption?.SetupHint))

@@ -1,0 +1,139 @@
+﻿@typeparam TOption
+
+<div class="ss-wrap @Class" style="@Style">
+    <input type="text"
+           class="ss-input @(Readonly ? "ss-input--readonly" : "")"
+           placeholder="@(_selectedText ?? Placeholder ?? "Select…")"
+           value="@_inputText"
+           @oninput="OnInput"
+           @onfocus="OnFocus"
+           @onfocusout="OnBlur"
+           @onkeydown="OnKeyDown"
+           autocomplete="off"
+           spellcheck="false"
+           readonly="@Readonly"
+           role="@(Readonly ? "textbox" : "combobox")"
+           aria-expanded="@(!Readonly && _open ? "true" : "false")"
+           aria-autocomplete="list" />
+    @if (_open && !Readonly)
+    {
+        <div class="ss-dropdown" role="listbox">
+            @foreach (var item in _filtered)
+            {
+                var isSelected = OptionValue(item) == (_selectedOption is null ? null : OptionValue(_selectedOption));
+                <div class="ss-option @(isSelected ? "ss-option--selected" : "")"
+                     role="option"
+                     aria-selected="@isSelected.ToString().ToLower()"
+                     @onmousedown:preventDefault
+                     @onclick="@(() => SelectAsync(item))">
+                    @OptionText(item)
+                </div>
+            }
+            @if (_filtered.Count == 0)
+            {
+                <div class="ss-empty">@(EmptyMessage ?? "No results found")</div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public List<TOption> Items { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public Func<TOption, string> OptionText { get; set; } = _ => string.Empty;
+
+    [Parameter, EditorRequired]
+    public Func<TOption, string> OptionValue { get; set; } = _ => string.Empty;
+
+    [Parameter]
+    public TOption? SelectedOption { get; set; }
+
+    [Parameter]
+    public EventCallback<TOption?> SelectedOptionChanged { get; set; }
+
+    /// <summary>Whether the control is read-only (no dropdown, no typing).</summary>
+    [Parameter]
+    public bool Readonly { get; set; }
+
+    /// <summary>Placeholder text shown when no option is selected.</summary>
+    [Parameter]
+    public string? Placeholder { get; set; }
+
+    /// <summary>Text shown in the dropdown when the filter matches nothing.</summary>
+    [Parameter]
+    public string? EmptyMessage { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public string? Style { get; set; }
+
+    private bool _open;
+    private string _inputText = string.Empty;
+    private List<TOption> _filtered = [];
+    private TOption? _selectedOption;
+
+    // Tracks last seen parameter so we only re-sync when the parent changes the selection.
+    private TOption? _lastSeenSelectedOption;
+
+    protected override void OnParametersSet()
+    {
+        if (!Equals(_lastSeenSelectedOption, SelectedOption))
+        {
+            _selectedOption = SelectedOption;
+            _lastSeenSelectedOption = SelectedOption;
+        }
+    }
+
+    private string? _selectedText =>
+        _selectedOption is null ? null : OptionText(_selectedOption);
+
+    private void OnFocus()
+    {
+        if (Readonly) return;
+        _inputText = string.Empty;
+        _filtered = Items;
+        _open = true;
+    }
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        if (Readonly) return;
+        _inputText = e.Value?.ToString() ?? string.Empty;
+        _filtered = string.IsNullOrWhiteSpace(_inputText)
+            ? Items
+            : Items
+                .Where(item => OptionText(item).Contains(_inputText, StringComparison.OrdinalIgnoreCase)
+                            || OptionValue(item).Contains(_inputText, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        _open = true;
+    }
+
+    private async Task SelectAsync(TOption item)
+    {
+        _selectedOption = item;
+        _inputText = string.Empty;
+        _open = false;
+        _lastSeenSelectedOption = item;
+        await SelectedOptionChanged.InvokeAsync(item);
+    }
+
+    private void OnBlur()
+    {
+        _inputText = string.Empty;
+        _open = false;
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            _inputText = string.Empty;
+            _open = false;
+        }
+    }
+}
+
