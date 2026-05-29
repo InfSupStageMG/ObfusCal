@@ -79,6 +79,23 @@ public class PeerConnectionsControllerTests
     }
 
     [TestMethod]
+    public async Task RequestPeerConnection_AllowsClientOrganisationNameLongerThan128Characters()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var objectId = Guid.NewGuid().ToString();
+        await factory.SeedCalendarOwnerAsync(objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var organisationName = new string('A', 200);
+        var response = await client.PostAsJsonAsync(
+            "/api/peer-connections/request",
+            new PeerConnectionsController.RequestPeerConnectionRequest(organisationName),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [TestMethod]
     public async Task RequestPeerConnection_ReturnsUnauthorized_WhenUnauthenticated()
     {
         await using var factory = new CustomWebApplicationFactory("Development");

@@ -95,6 +95,9 @@ internal sealed class CalendarSourceInstanceService(
             ? plugin.DisplayName
             : input.DisplayName.Trim();
 
+        if (displayName.Length > 256)
+            throw new ArgumentException("Display name must be 256 characters or fewer.");
+
         await ValidateIcalConfigurationAsync(plugin.Id, input.ConfigurationJson, ct);
 
         var instance = new CalendarSourceInstance
@@ -141,7 +144,12 @@ internal sealed class CalendarSourceInstanceService(
             return null;
 
         if (input.DisplayName is not null)
-            instance.DisplayName = string.IsNullOrWhiteSpace(input.DisplayName) ? instance.DisplayName : input.DisplayName.Trim();
+        {
+            var newName = string.IsNullOrWhiteSpace(input.DisplayName) ? instance.DisplayName : input.DisplayName.Trim();
+            if (newName.Length > 256)
+                throw new ArgumentException("Display name must be 256 characters or fewer.");
+            instance.DisplayName = newName;
+        }
 
         if (input.ConfigurationJson is not null)
         {

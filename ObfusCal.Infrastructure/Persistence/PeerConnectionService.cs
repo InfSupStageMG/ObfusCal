@@ -103,6 +103,9 @@ internal sealed class PeerConnectionService(
 
         var normalizedOrganisationName = NormalizeClientOrganisationName(clientOrganisationName);
 
+        if (clientOrganisationName.Trim().Length > 256)
+            return new CreatePeerConnectionRequestResult(CreatePeerConnectionRequestOutcome.Invalid);
+
         var alreadyRequested = await dbContext.PeerConnections
             .AnyAsync(p =>
                 p.RequestedByCalendarOwnerId == calendarOwnerId

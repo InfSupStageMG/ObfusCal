@@ -24,6 +24,7 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
     public DbSet<CalendarOwnerAvailabilitySlot> CalendarOwnerAvailabilitySlots => Set<CalendarOwnerAvailabilitySlot>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
     public DbSet<PluginAllowlistOverride> PluginAllowlistOverrides => Set<PluginAllowlistOverride>();
+    public DbSet<PeerSyncState> PeerSyncStates => Set<PeerSyncState>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -43,6 +44,7 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
         ConfigureBusySlot(modelBuilder);
         ConfigureCalendarOwnerAvailabilitySlot(modelBuilder);
         ConfigurePluginAllowlistOverride(modelBuilder);
+        ConfigurePeerSyncState(modelBuilder);
     }
 
     private static void ConfigureCalendarOwner(ModelBuilder modelBuilder)
@@ -220,6 +222,15 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
             e.Property(o => o.PluginId).HasMaxLength(128).IsRequired();
             e.Property(o => o.IsEnabled).IsRequired();
             e.Property(o => o.UpdatedAtUtc).IsRequired();
+        });
+    }
+
+    private static void ConfigurePeerSyncState(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<PeerSyncState>(e =>
+        {
+            e.HasKey(state => state.Id);
+            e.Property(state => state.LastCompletedAtUtc).IsRequired(false);
         });
     }
 }

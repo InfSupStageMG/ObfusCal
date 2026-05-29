@@ -58,12 +58,16 @@ public partial class CalendarOwnerDetail
                 if (property.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
                     return false;
 
+                var templateValue = GetTemplateValue(property.Value);
                 fields.Add(new PluginFieldEditor
                 {
                     Key = property.Name,
                     Label = HumanizeKey(property.Name),
-                    Placeholder = GetTemplateValue(property.Value),
-                    Value = null
+                    Placeholder = templateValue,
+                    // Pre-fill with the template value only when it is a real default
+                    // (not an example placeholder like "you@example.com" or a URL with "...").
+                    Value = IsLikelyDefaultValue(templateValue) ? templateValue : null,
+                    Description = GetFieldDescription(property.Name)
                 });
             }
 
@@ -129,5 +133,37 @@ public partial class CalendarOwnerDetail
         label = char.ToUpperInvariant(label[0]) + label[1..];
         return label;
     }
+
+    // Returns true for values that are real working defaults (e.g. "primary"),
+    // and false for example placeholders that the user must replace (e.g. "you@example.com").
+    private static bool IsLikelyDefaultValue(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return false;
+        if (value.Contains("example", StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (value.Contains("..."))
+            return false;
+        return true;
+    }
+
+    private static string? GetFieldDescription(string key) => key.ToLowerInvariant() switch
+    {
+        "calendarid" =>
+            "Your Google Calendar ID. 'primary' means your main calendar — that's the right choice for most people. " +
+            "You can find other calendar IDs in Google Calendar → Settings → click a calendar → Integrate calendar.",
+        "calendarurl" =>
+            "The CalDAV address of your iCloud calendar. " +
+            "Find it in iCloud.com → Calendar → right-click a calendar → Copy Link, " +
+            "then replace webcal:// with https://.",
+        "appleid" =>
+            "Your Apple ID email address (for example you@icloud.com). " +
+            "This is the email you use to sign in to iCloud.",
+        "appspecificpassword" =>
+            "An app-specific password from appleid.apple.com. " +
+            "Go to Sign-In and Security → App-Specific Passwords and generate one for ObfusCal. " +
+            "This is different from your regular Apple ID password.",
+        _ => null
+    };
 }
 

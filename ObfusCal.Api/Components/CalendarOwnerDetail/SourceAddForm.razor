@@ -1,83 +1,177 @@
 ﻿@using static ObfusCal.Api.Components.Pages.CalendarOwnerDetail
-@using System.Linq
 
-<section class="card source-form-container">
-    <h4 class="source-form-title">New Calendar Source</h4>
-    <FluentStack Orientation="Orientation.Vertical" VerticalGap="8">
-        <FluentSelect TOption="PluginOption"
-                      Items="PluginOptions"
-                      OptionValue="@(option => option.Id)"
-                      OptionText="@(option => option.DisplayLabel)"
-                      Class="app-form-control"
-                      Style="width: 100%; max-width: 100%; min-width: 0;"
-                      SelectedOption="SelectedOption"
-                      SelectedOptionChanged="OnSelectedOptionChanged"/>
+<section class="card source-form-wizard">
 
-        <FluentTextField @bind-Value="DisplayName" Immediate="true"
+    @* ── Step progress indicator ── *@
+    <div class="wizard-progress">
+        <div class="wizard-progress-step @(_wizardStep == 1 ? "current" : "done")">
+            <span class="step-num">1</span>
+            <span class="step-label">Choose service</span>
+        </div>
+        <div class="wizard-progress-connector"></div>
+        <div class="wizard-progress-step @(_wizardStep == 2 ? "current" : _wizardStep > 2 ? "done" : "")">
+            <span class="step-num">2</span>
+            <span class="step-label">Name it</span>
+        </div>
+        <div class="wizard-progress-connector"></div>
+        <div class="wizard-progress-step @(_wizardStep == 3 ? "current" : "")">
+            <span class="step-num">3</span>
+            <span class="step-label">Confirm</span>
+        </div>
+    </div>
+
+    @if (_wizardStep == 1)
+    {
+        @* ── Step 1: Choose calendar service ── *@
+        <h4 class="wizard-step-heading">Which calendar service would you like to add?</h4>
+        <div class="wizard-plugin-grid">
+            @foreach (var p in PluginOptions)
+            {
+                <button type="button"
+                        class="wizard-plugin-card @(SelectedOption?.Id == p.Id ? "wizard-plugin-card--selected" : "")"
+                        @onclick="@(() => SelectPluginAndAdvance(p))">
+                    <span class="wizard-plugin-name">@p.DisplayLabel</span>
+                </button>
+            }
+        </div>
+    }
+    else if (_wizardStep == 2)
+    {
+        @* ── Step 2: Name the calendar ── *@
+        <h4 class="wizard-step-heading">What would you like to call this calendar?</h4>
+        <p class="hint-text">
+            This name is just for you — pick something that helps you recognise which calendar this is.
+        </p>
+
+        <FluentTextField Value="@_localDisplayName"
+                         ValueChanged="@(async val => { _localDisplayName = val; await DisplayNameChanged.InvokeAsync(val); })"
+                         Immediate="true"
                          Class="app-form-control"
-                         Style="width: 100%; max-width: 100%; min-width: 0;"
-                         Label="Display name" Placeholder="My calendar"/>
+                         Style="width: 100%; max-width: 420px; min-width: 0;"
+                         Placeholder="@(SelectedOption?.DisplayLabel ?? "My calendar")"/>
 
-        @if (HasFieldEditors(ConfigurationFields))
-        {
-            <h4 class="section-heading">Configuration</h4>
-            @foreach (var f in ConfigurationFields.Select(field => field))
-            {
-                <div @key="f.Key" class="config-field">
-                    <label>@f.Label</label>
-                    <input type="text"
-                           @key="@($"cfg-new-{f.Key}")"
-                           class="form-input"
-                           placeholder="@(f.Placeholder ?? "")"
-                           value="@f.Value"
-                           @oninput="@(e => f.Value = e.Value?.ToString())"/>
-                </div>
-            }
-        }
-        else if (!string.IsNullOrWhiteSpace(ConfigurationJson))
-        {
-            <FluentLabel Class="app-form-label">Configuration JSON</FluentLabel>
-            <textarea class="config-textarea app-form-control" @bind="ConfigurationJson"></textarea>
-        }
+        <div class="wizard-nav-row">
+            <FluentButton Appearance="Appearance.Outline" OnClick="GoBack">← Back</FluentButton>
+            <FluentButton Appearance="Appearance.Accent" OnClick="GoForward">Continue →</FluentButton>
+        </div>
+    }
+    else
+    {
+        @* ── Step 3: Review and confirm ── *@
+        var effectiveName = string.IsNullOrWhiteSpace(_localDisplayName) ? SelectedOption?.DisplayLabel : _localDisplayName;
 
-        @if (HasFieldEditors(SecretFields))
-        {
-            <h4 class="section-heading">Secrets</h4>
-            @foreach (var f in SecretFields.Select(field => field))
-            {
-                <div @key="f.Key" class="secret-field">
-                    <label>@f.Label</label>
-                    <input type="password"
-                           @key="@($"sec-new-{f.Key}")"
-                           class="form-input"
-                           placeholder="@(f.Placeholder ?? "")"
-                           @oninput="@(e => f.Value = e.Value?.ToString())"/>
-                </div>
-            }
-        }
-        else if (!string.IsNullOrWhiteSpace(SecretJson))
-        {
-            <FluentLabel Class="app-form-label">Secret JSON</FluentLabel>
-            <textarea class="secret-textarea app-form-control" @bind="SecretJson"></textarea>
-        }
+        <h4 class="wizard-step-heading">Are you happy with these settings?</h4>
+        <p class="hint-text">Review your choices below. You can always edit or remove this calendar later.</p>
 
-        @if (!string.IsNullOrWhiteSpace(SelectedOption?.SetupHint))
-        {
-            <FluentMessageBar Intent="MessageIntent.Info" Class="card-message">@SelectedOption.SetupHint</FluentMessageBar>
-        }
+        <div class="wizard-summary">
+            <div class="wizard-summary-row">
+                <span class="wizard-summary-label">Calendar service</span>
+                <span class="wizard-summary-value">@SelectedOption?.DisplayLabel</span>
+            </div>
+            <div class="wizard-summary-row">
+                <span class="wizard-summary-label">Name</span>
+                <span class="wizard-summary-value">@effectiveName</span>
+            </div>
+        </div>
 
-        <FluentCheckbox @bind-Value="IsEnabled" Label="Enabled"/>
-        <FluentButton Appearance="Appearance.Accent" OnClick="OnAddAsync"
-                      Class="app-form-button"
-                      Disabled="@(SelectedOption is null || IsLoading)">
-            @(IsLoading ? "Adding..." : "Add Source")
-        </FluentButton>
+        <details class="wizard-advanced">
+            <summary class="wizard-advanced-summary">
+                Advanced settings
+                <span class="wizard-advanced-subtext"> — only change these if you know what you're doing</span>
+            </summary>
+            <div class="wizard-advanced-body">
+                @if (!string.IsNullOrWhiteSpace(SelectedOption?.SetupHint))
+                {
+                    <FluentMessageBar Intent="MessageIntent.Info" Class="card-message wizard-hint-bar">
+                        @((MarkupString)SelectedOption.SetupHint)
+                    </FluentMessageBar>
+                }
+
+                <p class="hint-text wizard-advanced-intro">
+                    The fields below are pre-filled with sensible defaults that work for most people.
+                    You do not need to change anything here to get started.
+                </p>
+
+                @if (HasFieldEditors(ConfigurationFields))
+                {
+                    @foreach (var f in ConfigurationFields)
+                    {
+                        var field = f;
+                        <div @key="field.Key" class="config-field">
+                            <div class="field-label-row">
+                                <label>@field.Label</label>
+                                @if (!string.IsNullOrWhiteSpace(field.Description))
+                                {
+                                    <span class="field-info-icon" data-tooltip="@field.Description">i</span>
+                                }
+                            </div>
+                            <input type="text"
+                                   @key="@($"cfg-new-{field.Key}")"
+                                   class="form-input"
+                                   placeholder="@(field.Placeholder ?? "")"
+                                   value="@field.Value"
+                                   @oninput="@(e => field.Value = e.Value?.ToString())"/>
+                        </div>
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(ConfigurationJson))
+                {
+                    <FluentLabel Class="app-form-label">Configuration JSON</FluentLabel>
+                    <textarea class="config-textarea app-form-control" @bind="ConfigurationJson"></textarea>
+                }
+
+                @if (HasFieldEditors(SecretFields))
+                {
+                    <p class="hint-text wizard-secret-hint">
+                        🔒 These values are stored encrypted and will not be shown again after saving.
+                    </p>
+                    @foreach (var f in SecretFields)
+                    {
+                        var field = f;
+                        <div @key="field.Key" class="secret-field">
+                            <div class="field-label-row">
+                                <label>@field.Label</label>
+                                @if (!string.IsNullOrWhiteSpace(field.Description))
+                                {
+                                    <span class="field-info-icon" data-tooltip="@field.Description">i</span>
+                                }
+                            </div>
+                            <input type="password"
+                                   @key="@($"sec-new-{field.Key}")"
+                                   class="form-input"
+                                   placeholder="Enter value"
+                                   @oninput="@(e => field.Value = e.Value?.ToString())"/>
+                        </div>
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(SecretJson))
+                {
+                    <FluentLabel Class="app-form-label">Secret JSON</FluentLabel>
+                    <textarea class="secret-textarea app-form-control" @bind="SecretJson"></textarea>
+                }
+
+                <FluentCheckbox Value="IsEnabled"
+                                ValueChanged="@(async val => { IsEnabled = val; await IsEnabledChanged.InvokeAsync(val); })"
+                                Label="Enable this calendar source"
+                                Style="margin-top: 0.5rem;"/>
+            </div>
+        </details>
 
         @if (Message is not null)
         {
             <FluentMessageBar Intent="@MessageIntent" Class="card-message">@Message</FluentMessageBar>
         }
-    </FluentStack>
+
+        <div class="wizard-nav-row">
+            <FluentButton Appearance="Appearance.Outline" OnClick="GoBack" Disabled="IsLoading">← Back</FluentButton>
+            <FluentButton Appearance="Appearance.Accent"
+                          OnClick="OnAddAsync"
+                          Disabled="@(SelectedOption is null || IsLoading)">
+                @(IsLoading ? "Adding…" : "✓ Add Calendar")
+            </FluentButton>
+        </div>
+    }
+
 </section>
 
 @code {
@@ -138,12 +232,32 @@
     [Parameter, EditorRequired]
     public EventCallback OnAddAsync { get; set; }
 
+    private int _wizardStep = 1;
+
+    // Tracks the display name locally so transitions between steps don't lose edits.
+    private string? _localDisplayName;
+
     private static bool HasFieldEditors(IReadOnlyCollection<PluginFieldEditor> fields) => fields.Count > 0;
 
-    private async Task OnSelectedOptionChanged(PluginOption? option)
+    private async Task SelectPluginAndAdvance(PluginOption option)
     {
         SelectedOption = option;
         await SelectedOptionChanged.InvokeAsync(option);
+        // Pre-fill the name with the plugin display label as a convenient starting point.
+        _localDisplayName = option.DisplayLabel;
+        await DisplayNameChanged.InvokeAsync(_localDisplayName);
+        _wizardStep = 2;
+    }
+
+    private void GoBack()
+    {
+        if (_wizardStep > 1)
+            _wizardStep--;
+    }
+
+    private void GoForward()
+    {
+        if (_wizardStep < 3)
+            _wizardStep++;
     }
 }
-

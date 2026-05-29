@@ -139,6 +139,14 @@
     text-decoration: underline;
 }
 
+.text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+    min-width: 0;
+}
+
 /* --- Responsive helpers --- */
 @media (max-width: 640px) {
     .page-header h1 {

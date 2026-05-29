@@ -61,39 +61,28 @@
 
         <div class="combined-calendar-controls" role="group" aria-label="Combined calendar filters">
             <div class="combined-calendar-field combined-calendar-field--owner app-form-field">
-                <FluentLabel Class="combined-calendar-label app-form-label">Calendar Owner</FluentLabel>
-                @if (_isSysadmin)
-                {
-                    <FluentSelect TOption="CalendarOwnerOption"
-                                  Items="_calendarOwners"
-                                  OptionValue="@(o => o.Id.ToString())"
+                <FluentLabel Class="combined-calendar-label app-form-label">Account</FluentLabel>
+                <SearchableSelect TOption="CalendarOwnerOption"
+                                  Items="@(_calendarOwners ?? [])"
                                   OptionText="@(o => o.Name)"
-                                  Height="360px"
-                                  Class="combined-calendar-control app-form-control"
-                                  Style="width: 100%; max-width: 100%; min-width: 0;"
+                                  OptionValue="@(o => o.Id.ToString())"
+                                  Readonly="@(!_isSysadmin)"
+                                  Placeholder="No mapped calendar owner"
+                                  EmptyMessage="No owners found"
                                   @bind-SelectedOption="_selectedOwner"
                                   @bind-SelectedOption:after="OnOwnerChangedAsync" />
-                }
-                else
-                {
-                    <FluentTextField Value="@(_selectedOwner?.Name ?? "No mapped calendar owner")"
-                                     ReadOnly="true"
-                                     Class="combined-calendar-control app-form-control"
-                                     Style="width: 100%; max-width: 100%; min-width: 0;" />
-                }
             </div>
 
             <div class="combined-calendar-field combined-calendar-field--timezone app-form-field">
                 <FluentLabel Class="combined-calendar-label app-form-label">Time zone</FluentLabel>
-                <FluentSelect TOption="TimeZoneOption"
-                              Items="_timeZones"
-                              OptionValue="@(tz => tz.Id)"
-                              OptionText="@(tz => tz.DisplayName)"
-                              Height="360px"
-                              Class="combined-calendar-control app-form-control"
-                              Style="width: 100%; max-width: 100%; min-width: 0;"
-                              @bind-SelectedOption="_selectedTimeZone"
-                              @bind-SelectedOption:after="OnTimeZoneChangedAsync" />
+                <SearchableSelect TOption="TimeZoneOption"
+                                  Items="_timeZones"
+                                  OptionText="@(tz => tz.DisplayName)"
+                                  OptionValue="@(tz => tz.Id)"
+                                  Placeholder="Select time zone…"
+                                  EmptyMessage="No time zones found"
+                                  @bind-SelectedOption="_selectedTimeZone"
+                                  @bind-SelectedOption:after="OnTimeZoneChangedAsync" />
             </div>
         </div>
 
@@ -153,6 +142,7 @@
     private TimeZoneOption? _selectedTimeZone;
     private static string? _sCachedTimeZoneId;
 
+
     protected override async Task OnInitializedAsync()
     {
         _loading = true;
@@ -193,7 +183,11 @@
 
         _selectedTimeZone = _timeZones.FirstOrDefault(tz =>
                                 tz.Id.Equals(_sCachedTimeZoneId, StringComparison.OrdinalIgnoreCase))
-                            ?? _timeZones.FirstOrDefault(tz => tz.Id == "UTC")
+                            // Romance Standard Time = Brussels/Paris/Madrid on Windows; Europe/Brussels on Linux/IANA
+                            ?? _timeZones.FirstOrDefault(tz => tz.Id.Equals("Romance Standard Time", StringComparison.OrdinalIgnoreCase))
+                            ?? _timeZones.FirstOrDefault(tz => tz.Id.Equals("Europe/Brussels", StringComparison.OrdinalIgnoreCase))
+                            ?? _timeZones.FirstOrDefault(tz => tz.Id.Equals("Europe/Paris", StringComparison.OrdinalIgnoreCase))
+                            ?? _timeZones.FirstOrDefault(tz => tz.Id.Equals("UTC", StringComparison.OrdinalIgnoreCase))
                             ?? _timeZones.FirstOrDefault();
 
         // Never leave the page in a loading state while waiting for render lifecycle callbacks.

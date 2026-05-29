@@ -18,6 +18,7 @@ public class PeerSyncBackgroundServiceTests
         await using var provider = new ServiceCollection()
             .AddSingleton<IOutboundPeerSyncService>(countingService)
             .AddSingleton<IInboundPeerPullSyncService>(countingInboundService)
+            .AddSingleton<IPeerSyncHistoryStore, InMemoryPeerSyncHistoryStore>()
             .BuildServiceProvider();
 
         using var backgroundService = new PeerSyncBackgroundService(
@@ -45,6 +46,7 @@ public class PeerSyncBackgroundServiceTests
         await using var provider = new ServiceCollection()
             .AddSingleton<IOutboundPeerSyncService>(throwingOutbound)
             .AddSingleton<IInboundPeerPullSyncService>(countingInbound)
+            .AddSingleton<IPeerSyncHistoryStore, InMemoryPeerSyncHistoryStore>()
             .BuildServiceProvider();
 
         using var backgroundService = new PeerSyncBackgroundService(
@@ -72,6 +74,7 @@ public class PeerSyncBackgroundServiceTests
         await using var provider = new ServiceCollection()
             .AddSingleton<IOutboundPeerSyncService>(countingService)
             .AddSingleton<IInboundPeerPullSyncService>(countingInbound)
+            .AddSingleton<IPeerSyncHistoryStore, InMemoryPeerSyncHistoryStore>()
             .BuildServiceProvider();
 
         // Use a very small interval (0) - it should be clamped to at least 1 second
@@ -98,6 +101,7 @@ public class PeerSyncBackgroundServiceTests
         await using var provider = new ServiceCollection()
             .AddSingleton<IOutboundPeerSyncService>(countingService)
             .AddSingleton<IInboundPeerPullSyncService>(countingInbound)
+            .AddSingleton<IPeerSyncHistoryStore, InMemoryPeerSyncHistoryStore>()
             .BuildServiceProvider();
 
         using var backgroundService = new PeerSyncBackgroundService(
@@ -157,6 +161,7 @@ public class PeerSyncBackgroundServiceTests
         await using var provider = new ServiceCollection()
             .AddSingleton<IOutboundPeerSyncService>(countingService)
             .AddSingleton<IInboundPeerPullSyncService>(countingInbound)
+            .AddSingleton<IPeerSyncHistoryStore, InMemoryPeerSyncHistoryStore>()
             .BuildServiceProvider();
 
         // Negative interval should be clamped to at least 1 (Math.Max(1, -5) = 1)
@@ -190,6 +195,7 @@ public class PeerSyncBackgroundServiceTests
         await using var provider = new ServiceCollection()
             .AddSingleton<IOutboundPeerSyncService>(multiCountOutbound)
             .AddSingleton<IInboundPeerPullSyncService>(countingInbound)
+            .AddSingleton<IPeerSyncHistoryStore, InMemoryPeerSyncHistoryStore>()
             .BuildServiceProvider();
 
         using var backgroundService = new PeerSyncBackgroundService(
@@ -222,6 +228,7 @@ public class PeerSyncBackgroundServiceTests
         await using var provider = new ServiceCollection()
             .AddSingleton<IOutboundPeerSyncService>(multiCountOutbound)
             .AddSingleton<IInboundPeerPullSyncService>(countingInbound)
+            .AddSingleton<IPeerSyncHistoryStore, InMemoryPeerSyncHistoryStore>()
             .BuildServiceProvider();
 
         using var backgroundService = new PeerSyncBackgroundService(
@@ -245,6 +252,20 @@ public class PeerSyncBackgroundServiceTests
         public Task RunSyncCycleAsync(CancellationToken ct = default, IProgress<SyncProgressUpdate>? progress = null)
         {
             onInvoke();
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class InMemoryPeerSyncHistoryStore : IPeerSyncHistoryStore
+    {
+        private DateTimeOffset? _lastCompletedAtUtc;
+
+        public Task<DateTimeOffset?> GetLastCompletedAtUtcAsync(CancellationToken ct = default)
+            => Task.FromResult(_lastCompletedAtUtc);
+
+        public Task SetLastCompletedAtUtcAsync(DateTimeOffset completedAtUtc, CancellationToken ct = default)
+        {
+            _lastCompletedAtUtc = completedAtUtc.ToUniversalTime();
             return Task.CompletedTask;
         }
     }

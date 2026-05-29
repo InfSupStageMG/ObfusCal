@@ -243,6 +243,7 @@ public static class DependencyInjection
         services.AddScoped<IShadowSlotStore, EfCoreShadowSlotStore>();
         services.AddScoped<IPeerCalendarOwnerResolver, EfCorePeerCalendarOwnerResolver>();
         services.AddScoped<ICalendarOwnerAvailabilitySlotStore, EfCoreCalendarOwnerAvailabilitySlotStore>();
+        services.AddScoped<IPeerSyncHistoryStore, EfCorePeerSyncHistoryStore>();
         services.AddScoped<MockCalendarSource>();
         services.AddScoped<IcalFeedCalendarSource>();
         services.AddScoped<GoogleCalendarSourceCore>();

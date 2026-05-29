@@ -21,10 +21,13 @@ public sealed class SyncProgressMonitor : ISyncProgressMonitor
     internal bool TryBeginPeerSync()
         => Interlocked.CompareExchange(ref _peerSyncRunning, 1, 0) == 0;
 
-    internal void EndPeerSync()
+    internal void EndPeerSync(DateTimeOffset? completedAtUtc = null)
     {
-        // Record completion before releasing the lock so readers never see a released lock with a stale timestamp.
-        LastPeerSyncCompletedAt = DateTimeOffset.UtcNow;
+        if (completedAtUtc is not null)
+        {
+            LastPeerSyncCompletedAt = completedAtUtc.Value;
+        }
+
         Interlocked.Exchange(ref _peerSyncRunning, 0);
     }
 }

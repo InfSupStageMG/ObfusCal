@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ObfusCal.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using ObfusCal.Infrastructure.Persistence;
 namespace ObfusCal.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260529072820_AddPeerSyncState")]
+    partial class AddPeerSyncState
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -61,9 +64,6 @@ namespace ObfusCal.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset>("End")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsAllDay")
-                        .HasColumnType("boolean");
 
                     b.Property<string>("Location")
                         .HasColumnType("text");
@@ -186,19 +186,12 @@ namespace ObfusCal.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("End")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("IsAllDay")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("Location")
                         .HasMaxLength(1024)
                         .HasColumnType("character varying(1024)");
 
                     b.Property<string>("SourceEventId")
                         .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<string>("SourceLabel")
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
@@ -333,9 +326,6 @@ namespace ObfusCal.Infrastructure.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<bool>("RemoveLocation")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("RemoveSourceLabel")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("RemoveTitle")

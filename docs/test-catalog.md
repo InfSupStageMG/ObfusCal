@@ -1,8 +1,8 @@
 # Test Catalog
 
-_Auto-generated from CI run. 667 tests across 71 classes._
+_Auto-generated from CI run. 671 tests across 72 classes._
 
-## Integration (179/179)
+## Integration (180/180)
 
 <details>
 <summary><b>AdminPeerConnectionsControllerTests</b> - 7/7</summary>
@@ -119,7 +119,7 @@ _Auto-generated from CI run. 667 tests across 71 classes._
 </details>
 
 <details>
-<summary><b>PeerConnectionsControllerTests</b> - 6/6</summary>
+<summary><b>PeerConnectionsControllerTests</b> - 7/7</summary>
 
 <table>
   <thead>
@@ -127,6 +127,7 @@ _Auto-generated from CI run. 667 tests across 71 classes._
   </thead>
   <tbody>
     <tr><td><code>ListPeerConnections_ReturnsOnlyCurrentCalendarOwnerRequests</code></td><td>✅</td></tr>
+    <tr><td><code>RequestPeerConnection_AllowsClientOrganisationNameLongerThan128Characters</code></td><td>✅</td></tr>
     <tr><td><code>RequestPeerConnection_AutoProvisionsCalendarOwner_WhenMissing</code></td><td>✅</td></tr>
     <tr><td><code>RequestPeerConnection_CreatesRequestedRecord_ForAuthenticatedCalendarOwner</code></td><td>✅</td></tr>
     <tr><td><code>RequestPeerConnection_ReturnsConflict_WhenDuplicateForSameCalendarOwner</code></td><td>✅</td></tr>
@@ -417,7 +418,7 @@ _Auto-generated from CI run. 667 tests across 71 classes._
 
 </details>
 
-## Unit (488/488)
+## Unit (491/491)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 1/1</summary>
@@ -1477,6 +1478,22 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>ExecuteAsync_WithNegativeInterval_ClampsToOneSecond</code></td><td>✅</td></tr>
     <tr><td><code>StartAsync_InvokesOutboundAndInboundSyncServices</code></td><td>✅</td></tr>
     <tr><td><code>StopAsync_StopsGracefully</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>PeerSyncHistoryStoreTests</b> - 3/3</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>GetLastCompletedAtUtcAsync_ReturnsNull_WhenNoStateExists</code></td><td>✅</td></tr>
+    <tr><td><code>SetLastCompletedAtUtcAsync_DoesNotMoveTimestampBackwards</code></td><td>✅</td></tr>
+    <tr><td><code>SetLastCompletedAtUtcAsync_PersistsTimestamp</code></td><td>✅</td></tr>
   </tbody>
 </table>
 

@@ -49,6 +49,7 @@ public partial class CalendarOwnerDetail
                 IsReady = instance.IsReady,
                 Title = instance.Title,
                 Detail = instance.Detail,
+                SetupHint = plugin?.SetupHint,
                 ConfigurationJson = instance.ConfigurationJson,
                 SecretDataJson = string.Empty,
                 ConfigurationFields = configurationFields,
@@ -226,6 +227,7 @@ public partial class CalendarOwnerDetail
 
             _sourceMessage = "Source instance deleted.";
             _sourceMessageIntent = MessageIntent.Success;
+            _expandedSourceInstanceId = null;
             await LoadSourceInstancesAsync();
         }
         finally

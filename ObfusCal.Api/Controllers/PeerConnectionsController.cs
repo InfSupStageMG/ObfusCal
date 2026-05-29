@@ -45,6 +45,12 @@ public sealed class PeerConnectionsController(
                 Detail = "A request for this client organisation already exists for the current calendar owner."
             }),
             CreatePeerConnectionRequestOutcome.CalendarOwnerNotFound => NotFound(),
+            CreatePeerConnectionRequestOutcome.Invalid => BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Invalid request.",
+                Detail = "Organisation name must be 256 characters or fewer."
+            }),
             _ => StatusCode(StatusCodes.Status500InternalServerError)
         };
 
@@ -83,7 +89,7 @@ public sealed class PeerConnectionsController(
     }
 
     public sealed record RequestPeerConnectionRequest(
-        [param: Required, MaxLength(128)] string ClientOrganisationName);
+        [param: Required, MaxLength(256)] string ClientOrganisationName);
 
     private sealed record CreatePeerConnectionRequestResponse(Guid Id);
 

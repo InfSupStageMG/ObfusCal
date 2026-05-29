@@ -156,6 +156,25 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
         BuildCalendarGrid();
     }
 
+    private void GoToToday()
+    {
+        var today = GetCurrentDateInTimeZone();
+        _viewMonth = today;
+        _selectedDate = today;
+        _selectedDayEvents = GetEventsForDate(today);
+        _showModal = false;
+        BuildCalendarGrid();
+    }
+
+    private bool ShouldShowGoToTodayButton()
+    {
+        var today = GetCurrentDateInTimeZone();
+        return _viewMonth.Year != today.Year || _viewMonth.Month != today.Month;
+    }
+
+    private DateTime GetCurrentDateInTimeZone()
+        => TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, TimeZone).Date;
+
     private void SelectDay(DateTime? date)
     {
         if (IsOutsideViewMonth(date))

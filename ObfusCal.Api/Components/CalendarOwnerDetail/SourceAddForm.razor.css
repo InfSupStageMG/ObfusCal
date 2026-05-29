@@ -1,16 +1,216 @@
-﻿.source-form-container {
+﻿/* ── Wizard container ── */
+.source-form-wizard {
     margin-top: 1rem;
     background-color: var(--neutral-fill-subtle);
 }
 
-.source-form-title {
-    margin: 0 0 0.75rem 0;
+/* ── Step progress indicator ── */
+.wizard-progress {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
 }
 
-.section-heading {
-    margin: 0.5rem 0 0.25rem 0;
+.wizard-progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    opacity: 0.35;
+    min-width: 5rem;
 }
 
+.wizard-progress-step.current,
+.wizard-progress-step.done {
+    opacity: 1;
+}
+
+.step-num {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    border: 2px solid var(--neutral-stroke-rest);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: var(--neutral-layer-card-container);
+}
+
+.wizard-progress-step.current .step-num {
+    background: var(--accent-fill-rest);
+    border-color: var(--accent-fill-rest);
+    color: var(--foreground-on-accent-rest, #fff);
+}
+
+.wizard-progress-step.done .step-num {
+    background: var(--accent-fill-rest);
+    border-color: var(--accent-fill-rest);
+    color: var(--foreground-on-accent-rest, #fff);
+}
+
+.step-label {
+    font-size: 0.68rem;
+    color: var(--neutral-foreground-hint);
+    text-align: center;
+    white-space: nowrap;
+}
+
+.wizard-progress-connector {
+    flex: 1;
+    height: 2px;
+    background: var(--neutral-stroke-rest);
+    align-self: center;
+    margin: 0 0.25rem;
+    /* vertically centres with the circles (circle is 1.75rem + label ≈ centre is ~0.875rem down) */
+    margin-bottom: 1.1rem;
+}
+
+/* ── Step headings ── */
+.wizard-step-heading {
+    margin: 0 0 0.25rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+/* ── Plugin selection tiles ── */
+.wizard-plugin-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.wizard-plugin-card {
+    flex: 1 1 180px;
+    min-width: 150px;
+    cursor: pointer;
+    padding: 1rem 1.25rem;
+    border: 2px solid var(--neutral-stroke-rest);
+    border-radius: 8px;
+    background: var(--neutral-layer-card-container);
+    font-family: inherit;
+    font-size: 0.95rem;
+    text-align: left;
+    color: inherit;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.wizard-plugin-card:hover {
+    border-color: var(--accent-stroke-control-rest, var(--accent-fill-rest));
+    background: var(--neutral-fill-rest);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+}
+
+.wizard-plugin-card--selected {
+    border-color: var(--accent-fill-rest);
+    background: var(--neutral-fill-rest);
+}
+
+.wizard-plugin-name {
+    font-weight: 600;
+    display: block;
+}
+
+/* ── Navigation row (Back / Continue) ── */
+.wizard-nav-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-top: 1.25rem;
+    flex-wrap: wrap;
+}
+
+/* ── Step 2 hint bar spacing ── */
+.wizard-hint-bar {
+    margin-top: 0.75rem;
+}
+
+/* ── Step 3 review summary ── */
+.wizard-summary {
+    background: var(--neutral-fill-layer-rest);
+    border: 1px solid var(--neutral-stroke-layer-rest);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin: 0.75rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.wizard-summary-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+}
+
+.wizard-summary-label {
+    font-size: 0.8rem;
+    color: var(--neutral-foreground-hint);
+    min-width: 140px;
+    flex-shrink: 0;
+}
+
+.wizard-summary-value {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* ── Advanced settings collapsible ── */
+.wizard-advanced {
+    border: 1px solid var(--neutral-stroke-layer-rest);
+    border-radius: 6px;
+    margin: 0.75rem 0;
+}
+
+.wizard-advanced-summary {
+    cursor: pointer;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    list-style: none;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.wizard-advanced-summary::-webkit-details-marker {
+    display: none;
+}
+
+.wizard-advanced-summary::before {
+    content: '▶';
+    font-size: 0.55rem;
+    transition: transform 0.18s;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+details[open] > .wizard-advanced-summary::before {
+    transform: rotate(90deg);
+}
+
+.wizard-advanced-subtext {
+    font-size: 0.75rem;
+    color: var(--neutral-foreground-hint);
+    font-weight: 400;
+}
+
+.wizard-advanced-body {
+    padding: 0 0.85rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.wizard-advanced-intro,
+.wizard-secret-hint {
+    margin: 0;
+}
+
+/* ── Config / secret field layout ── */
 .config-field,
 .secret-field {
     display: flex;
@@ -25,3 +225,6 @@
     font-weight: 500;
 }
 
+.section-heading {
+    margin: 0.5rem 0 0.25rem 0;
+}
