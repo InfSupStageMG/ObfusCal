@@ -161,7 +161,7 @@ public static class DependencyInjection
         X509Chain? chain,
         System.Net.Security.SslPolicyErrors sslPolicyErrors,
         PeerTransportSecurityOptions options,
-        Microsoft.Extensions.Logging.ILogger logger)
+        ILogger logger)
     {
         if (certificate == null)
             return false;

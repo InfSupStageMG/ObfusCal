@@ -152,7 +152,8 @@ public sealed class OutboundPeerSyncService(
                 slot.Title,
                 slot.Description,
                 slot.AttendeeEmails,
-                slot.Location)).ToArray()));
+                slot.Location,
+                slot.IsAllDay)).ToArray()));
 
         request.Headers.Authorization = new AuthenticationHeaderValue(PeerApiKeyScheme, apiKey);
         request.Headers.Add(PeerIdHeaderName, instanceId);
@@ -240,5 +241,6 @@ public sealed class OutboundPeerSyncService(
         string? Title,
         string? Description,
         IReadOnlyList<string>? AttendeeEmails,
-        string? Location);
+        string? Location,
+        bool IsAllDay);
 }

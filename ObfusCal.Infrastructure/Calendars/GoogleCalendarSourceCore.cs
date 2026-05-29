@@ -338,16 +338,13 @@ public sealed partial class GoogleCalendarSourceCore(
     private string GetGoogleApiBaseUrl()
     {
         var baseUrl = googleConsentOptions.Value.ApiBaseUrl.Trim();
-        if (string.IsNullOrWhiteSpace(baseUrl))
-            throw new InvalidOperationException("GoogleConsent:ApiBaseUrl is required.");
-
-        return baseUrl;
+        return string.IsNullOrWhiteSpace(baseUrl) ? throw new InvalidOperationException("GoogleConsent:ApiBaseUrl is required.") : baseUrl;
     }
 
     private static CalendarEvent? MapEvent(GoogleCalendarEvent source)
     {
-        if (!TryParseGoogleEventDate(source.Start, false, out var start)
-            || !TryParseGoogleEventDate(source.End, true, out var end)
+        if (!TryParseGoogleEventDate(source.Start, out var start)
+            || !TryParseGoogleEventDate(source.End, out var end)
             || end <= start)
         {
             return null;
@@ -362,6 +359,9 @@ public sealed partial class GoogleCalendarSourceCore(
         var id = string.IsNullOrWhiteSpace(source.Id) ? Guid.NewGuid().ToString("N") : source.Id;
         var title = string.IsNullOrWhiteSpace(source.Summary) ? "Busy" : source.Summary;
 
+        // All-day events have a `date` field instead of `dateTime` in the Google Calendar API response
+        var isAllDay = source.Start?.DateTime is null && source.Start?.Date is not null;
+
         return new CalendarEvent(
             id,
             title,
@@ -369,10 +369,11 @@ public sealed partial class GoogleCalendarSourceCore(
             start,
             end,
             attendees,
-            source.Location);
+            source.Location,
+            IsAllDay: isAllDay);
     }
 
-    private static bool TryParseGoogleEventDate(GoogleEventDate? source, bool isEnd, out DateTimeOffset value)
+    private static bool TryParseGoogleEventDate(GoogleEventDate? source, out DateTimeOffset value)
     {
         value = default;
         if (source is null)
@@ -393,11 +394,8 @@ public sealed partial class GoogleCalendarSourceCore(
             return false;
         }
 
-        var dateTime = dateOnly.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-        value = new DateTimeOffset(dateTime, TimeSpan.Zero);
-        if (isEnd)
-            value = value.AddDays(1);
-
+        // Google's all-day end date is already exclusive (RFC 5545 semantics) — store as-is at midnight UTC
+        value = new DateTimeOffset(dateOnly.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc), TimeSpan.Zero);
         return true;
     }
 

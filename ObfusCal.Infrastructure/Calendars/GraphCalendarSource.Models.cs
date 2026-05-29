@@ -14,6 +14,7 @@ public sealed partial class GraphCalendarSource
         [property: JsonPropertyName("bodyPreview")] string? BodyPreview,
         [property: JsonPropertyName("start")] GraphDateTimeTimeZone? Start,
         [property: JsonPropertyName("end")] GraphDateTimeTimeZone? End,
+        [property: JsonPropertyName("isAllDay")] bool IsAllDay,
         [property: JsonPropertyName("attendees")] List<GraphAttendee>? Attendees,
         [property: JsonPropertyName("singleValueExtendedProperties")] List<GraphExtendedProperty>? ExtendedProperties,
         [property: JsonPropertyName("location")] GraphLocation? Location);

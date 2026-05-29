@@ -65,13 +65,14 @@ public class OutboundPeerSyncServiceTests
         var slots = root.GetProperty("slots");
         Assert.AreEqual(JsonValueKind.Array, slots.ValueKind);
         Assert.AreEqual(1, slots.GetArrayLength());
-        Assert.AreEqual(6, slots[0].GetPropertyCount());
+        Assert.AreEqual(7, slots[0].GetPropertyCount());
         Assert.IsTrue(slots[0].TryGetProperty("start", out _));
         Assert.IsTrue(slots[0].TryGetProperty("end", out _));
         Assert.IsTrue(slots[0].TryGetProperty("title", out _));
         Assert.IsTrue(slots[0].TryGetProperty("description", out _));
         Assert.IsTrue(slots[0].TryGetProperty("attendeeEmails", out _));
         Assert.IsTrue(slots[0].TryGetProperty("location", out _));
+        Assert.IsTrue(slots[0].TryGetProperty("isAllDay", out _));
     }
 
     [TestMethod]
@@ -126,6 +127,46 @@ public class OutboundPeerSyncServiceTests
         var slot = document.RootElement.GetProperty("slots")[0];
         Assert.AreEqual("2026-04-29T09:07:00+00:00", slot.GetProperty("start").GetString());
         Assert.AreEqual("2026-04-29T09:37:00+00:00", slot.GetProperty("end").GetString());
+    }
+
+    [TestMethod]
+    public async Task RunSyncCycleAsync_IncludesIsAllDayInPeerPayload()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        var calendarOwnerRef = Guid.NewGuid();
+        SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
+
+        CapturedRequest? capturedRequest = null;
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(
+            new DelegatingHttpMessageHandler(async request =>
+            {
+                capturedRequest = await CapturedRequest.FromAsync(request);
+                return new HttpResponseMessage(HttpStatusCode.Accepted);
+            })));
+
+        var service = CreateService(
+            dbContext,
+            httpClientFactory,
+            new StubCalendarSource([
+                new CalendarEvent(
+                    "event-1",
+                    "Holiday",
+                    null,
+                    new DateTimeOffset(2026, 6, 4, 0, 0, 0, TimeSpan.Zero),
+                    new DateTimeOffset(2026, 6, 5, 0, 0, 0, TimeSpan.Zero),
+                    [],
+                    null,
+                    IsAllDay: true)
+            ]));
+
+        await service.RunSyncCycleAsync();
+
+        Assert.IsNotNull(capturedRequest);
+        using var document = JsonDocument.Parse(capturedRequest.Body);
+        var slot = document.RootElement.GetProperty("slots")[0];
+        Assert.IsTrue(slot.TryGetProperty("isAllDay", out var isAllDay));
+        Assert.IsTrue(isAllDay.GetBoolean());
     }
 
     [TestMethod]
@@ -524,7 +565,8 @@ public class OutboundPeerSyncServiceTests
                 e.Description,
                 e.AttendeeEmails,
                 e.Location,
-                null)).ToList();
+                null,
+                IsAllDay: e.IsAllDay)).ToList();
         }
     }
 }

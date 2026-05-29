@@ -10,5 +10,6 @@ public record MergedFreeBusyResponse(
     IReadOnlyList<string>? AttendeeEmails = null,
     string? Location = null,
     string? SourceLabel = null,
-    IReadOnlyList<BusySlot>? SourceSlots = null
+    IReadOnlyList<BusySlot>? SourceSlots = null,
+    bool IsAllDay = false
 );

@@ -111,6 +111,24 @@ public class PushShadowSlotsCommandHandlerTests
     }
 
     [TestMethod]
+    public async Task Handle_PreservesIsAllDay()
+    {
+        var store = new CapturingShadowSlotStore();
+        var handler = CreateHandler(store);
+
+        var start = new DateTimeOffset(2026, 6, 4, 0, 0, 0, TimeSpan.Zero);
+        var end = start.AddDays(1);
+        var command = new PushShadowSlotsCommand(
+            "peer-x",
+            [Guid.NewGuid()],
+            [new ShadowSlotInput(start, end, IsAllDay: true)]);
+
+        await handler.ExecuteAsync(command, CancellationToken.None);
+
+        Assert.IsTrue(store.CapturedSlots[0].IsAllDay);
+    }
+
+    [TestMethod]
     public async Task Handle_ThrowsRequestValidationException_WhenBatchExceedsLimit()
     {
         var store = new CapturingShadowSlotStore();

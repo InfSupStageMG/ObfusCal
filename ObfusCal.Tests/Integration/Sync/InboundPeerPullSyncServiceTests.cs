@@ -92,6 +92,40 @@ public class InboundPeerPullSyncServiceTests
     }
 
     [TestMethod]
+    public async Task RunSyncCycleAsync_PreservesIsAllDayFromPulledPayload()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        var calendarOwnerRef = Guid.NewGuid();
+        SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
+
+        var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
+        var pulledSlots = new[]
+        {
+            new
+            {
+                start = new DateTimeOffset(2026, 6, 4, 0, 0, 0, TimeSpan.Zero),
+                end = new DateTimeOffset(2026, 6, 5, 0, 0, 0, TimeSpan.Zero),
+                isAllDay = true
+            }
+        };
+
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(pulledSlots))
+            }))));
+
+        var service = CreateService(dbContext, store, httpClientFactory);
+
+        await service.RunSyncCycleAsync();
+
+        var storedSlots = await store.GetSlotsAsync("peer-a", calendarOwnerId);
+        Assert.HasCount(1, storedSlots);
+        Assert.IsTrue(storedSlots[0].IsAllDay);
+    }
+
+    [TestMethod]
     public async Task RunSyncCycleAsync_OnSuccess_RecordsLastSyncedAtAndSucceededOnPeerConnection()
     {
         await using var dbContext = CreateDbContext();
