@@ -10,7 +10,8 @@ internal sealed class StatusService(AppDbContext dbContext) : IStatusService
         var owners = await dbContext.CalendarOwners
             .AsNoTracking()
             .Include(o => o.PeerMappings)
-                .ThenInclude(m => m.PeerConnection)
+            .ThenInclude(m => m.PeerConnection)
+            .AsSplitQuery()
             .OrderBy(o => o.Name)
             .ToListAsync(ct);
 

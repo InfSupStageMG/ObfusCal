@@ -7,6 +7,6 @@ public record CalendarEvent(
     DateTimeOffset Start,
     DateTimeOffset End,
     IReadOnlyList<string> AttendeeEmails,
-    string? Location
+    string? Location,
+    string? SourceLabel = null
 );
-

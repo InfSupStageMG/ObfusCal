@@ -8,6 +8,6 @@ public record BusySlot(
     string? Description = null,
     IReadOnlyList<string>? AttendeeEmails = null,
     string? Location = null,
+    string? SourceLabel = null,
     IReadOnlyList<BusySlot>? SourceSlots = null
 );
-

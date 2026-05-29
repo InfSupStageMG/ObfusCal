@@ -75,11 +75,11 @@ public class ApplicationDependencyInjectionTests
     }
 
     [TestMethod]
-    public void AddApplication_RegistersAllFiveEventTransformers()
+    public void AddApplication_RegistersAllSixEventTransformers()
     {
         var provider = BuildProvider();
         var transformers = provider.GetServices<IObfuscationTransformer>().ToList();
-        Assert.HasCount(5, transformers, "Should register exactly 5 event transformers");
+        Assert.HasCount(6, transformers, "Should register exactly 6 event transformers");
     }
 }
 

@@ -623,4 +623,72 @@ public class InMemoryShadowSlotStoreTests
 
         Assert.HasCount(2, result);
     }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_OwnerScoped_SourceLabelsArePeerIds()
+    {
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var ownerId = Guid.NewGuid();
+
+        await store.SetSlotsAsync("peer-a", ownerId,
+            [new BusySlot("a1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+        await store.SetSlotsAsync("peer-b", ownerId,
+            [new BusySlot("b1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+
+        var result = await store.GetAllSlotsAsync(ownerId, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+
+        Assert.Contains(s => s.SourceEventId == "a1" && s.SourceLabel == "peer-a", result);
+        Assert.Contains(s => s.SourceEventId == "b1" && s.SourceLabel == "peer-b", result);
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_OwnerScoped_SourceLabelRemainsStableWhenPeerIsAdded()
+    {
+        // Regression: positional index labels would shift when a new peer is inserted before an existing one alphabetically.
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var ownerId = Guid.NewGuid();
+
+        await store.SetSlotsAsync("peer-b", ownerId,
+            [new BusySlot("b1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+        await store.SetSlotsAsync("peer-c", ownerId,
+            [new BusySlot("c1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+
+        var before = await store.GetAllSlotsAsync(ownerId, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+        var labelBefore = before.Single(s => s.SourceEventId == "b1").SourceLabel;
+
+        // Add a peer that sorts alphabetically before "peer-b"
+        await store.SetSlotsAsync("peer-a", ownerId,
+            [new BusySlot("a1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+
+        var after = await store.GetAllSlotsAsync(ownerId, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+        var labelAfter = after.Single(s => s.SourceEventId == "b1").SourceLabel;
+
+        Assert.AreEqual(labelBefore, labelAfter, "peer-b's label must not change when a new peer is added");
+    }
+
+    [TestMethod]
+    public async Task GetAllSlotsAsync_OwnerScoped_SourceLabelRemainsStableWhenPeerIsRemoved()
+    {
+        // Regression: positional index labels would shift when a peer in the middle is removed.
+        var store = new InMemoryShadowSlotStore(Serilog.Core.Logger.None);
+        var ownerId = Guid.NewGuid();
+
+        await store.SetSlotsAsync("peer-a", ownerId,
+            [new BusySlot("a1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+        await store.SetSlotsAsync("peer-b", ownerId,
+            [new BusySlot("b1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+        await store.SetSlotsAsync("peer-c", ownerId,
+            [new BusySlot("c1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1))]);
+
+        var before = await store.GetAllSlotsAsync(ownerId, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+        var labelCBefore = before.Single(s => s.SourceEventId == "c1").SourceLabel;
+
+        // Drop peer-b by replacing its slots with an empty list
+        await store.SetSlotsAsync("peer-b", ownerId, []);
+
+        var after = await store.GetAllSlotsAsync(ownerId, DateTimeOffset.MinValue, DateTimeOffset.MaxValue);
+        var labelCAfter = after.Single(s => s.SourceEventId == "c1").SourceLabel;
+
+        Assert.AreEqual(labelCBefore, labelCAfter, "peer-c's label must not change when peer-b is dropped");
+    }
 }

@@ -110,29 +110,31 @@ public sealed class FileSecurityAuditService(
 		return Convert.ToHexString(hashBytes).ToLowerInvariant();
 	}
 
-	private static string? TryReadPreviousEntryHash(string filePath)
-	{
-		if (!File.Exists(filePath))
-			return null;
+    private static string? TryReadPreviousEntryHash(string filePath)
+    {
+        if (!File.Exists(filePath)) return null;
 
-		var lastLine = File.ReadLines(filePath)
-			.LastOrDefault(line => !string.IsNullOrWhiteSpace(line));
+        using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        if (fs.Length == 0) return null;
 
-		if (string.IsNullOrWhiteSpace(lastLine))
-			return null;
+        var bufferSize = (int)Math.Min(fs.Length, 2048);
+        var buffer = new byte[bufferSize];
+        fs.Position = fs.Length - bufferSize;
+        fs.ReadExactly(buffer, 0, bufferSize);
 
-		try
-		{
-			using var json = JsonDocument.Parse(lastLine);
-			return json.RootElement.TryGetProperty("entryHash", out var hash)
-				? hash.GetString()
-				: null;
-		}
-		catch (JsonException)
-		{
-			return null;
-		}
-	}
+        var content = Encoding.UTF8.GetString(buffer);
+        var lastLine = content.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .LastOrDefault(line => !string.IsNullOrWhiteSpace(line))?.Trim();
+
+        if (string.IsNullOrWhiteSpace(lastLine)) return null;
+
+        try
+        {
+            using var json = JsonDocument.Parse(lastLine);
+            return json.RootElement.TryGetProperty("entryHash", out var hash) ? hash.GetString() : null;
+        }
+        catch (JsonException) { return null; }
+    }
 
 	private void EnsureFileReady()
 	{

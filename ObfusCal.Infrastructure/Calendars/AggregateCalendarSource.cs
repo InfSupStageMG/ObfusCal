@@ -65,12 +65,15 @@ internal sealed class AggregateCalendarSource(
 
         foreach (var destination in writableDestinations)
         {
-            var outboundSlots = BuildOutboundSlots(destination.Instance.Id, eventsByInstanceId, busySlots, calendarOwnerId, profile);
-            await TryWriteToDestinationAsync(destination, outboundSlots, placeholderTitle, calendarOwnerId, windowStart, windowEnd, ct);
+            var outboundSlots = BuildOutboundSlots(destination.Instance.Id, eventsByInstanceId, busySlots,
+                calendarOwnerId, profile);
+            await TryWriteToDestinationAsync(destination, outboundSlots, placeholderTitle, calendarOwnerId, windowStart,
+                windowEnd, ct);
         }
     }
 
-    private static IReadOnlyList<WritableDestination> GetWritableDestinations(IReadOnlyList<EnabledSourceInstance> enabledSources)
+    private static IReadOnlyList<WritableDestination> GetWritableDestinations(
+        IReadOnlyList<EnabledSourceInstance> enabledSources)
         => enabledSources
             .Where(source => source.Source is ICalendarSourceInstanceWriteBack)
             .Select(source => new WritableDestination(source.Instance, (ICalendarSourceInstanceWriteBack)source.Source))
@@ -175,7 +178,8 @@ internal sealed class AggregateCalendarSource(
                 eventsByInstanceId[sourceInstance.Instance.Id] = instanceEvents
                     .Select(calendarEvent => calendarEvent with
                     {
-                        Id = $"{sourceInstance.Instance.Id:N}:{calendarEvent.Id}"
+                        Id = $"{sourceInstance.Instance.Id:N}:{calendarEvent.Id}",
+                        SourceLabel = sourceInstance.Instance.DisplayName
                     })
                     .ToList();
             }
@@ -205,4 +209,3 @@ internal sealed class AggregateCalendarSource(
         CalendarSourceInstanceContext Instance,
         ICalendarSourceInstanceWriteBack WriteBack);
 }
-
