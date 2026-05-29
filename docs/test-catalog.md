@@ -1,6 +1,6 @@
 # Test Catalog
 
-_Auto-generated from CI run. 667 tests across 71 classes._
+_Auto-generated from CI run. 670 tests across 72 classes._
 
 ## Integration (179/179)
 
@@ -417,7 +417,7 @@ _Auto-generated from CI run. 667 tests across 71 classes._
 
 </details>
 
-## Unit (488/488)
+## Unit (491/491)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 1/1</summary>
@@ -1477,6 +1477,22 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>ExecuteAsync_WithNegativeInterval_ClampsToOneSecond</code></td><td>✅</td></tr>
     <tr><td><code>StartAsync_InvokesOutboundAndInboundSyncServices</code></td><td>✅</td></tr>
     <tr><td><code>StopAsync_StopsGracefully</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>PeerSyncHistoryStoreTests</b> - 3/3</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>GetLastCompletedAtUtcAsync_ReturnsNull_WhenNoStateExists</code></td><td>✅</td></tr>
+    <tr><td><code>SetLastCompletedAtUtcAsync_DoesNotMoveTimestampBackwards</code></td><td>✅</td></tr>
+    <tr><td><code>SetLastCompletedAtUtcAsync_PersistsTimestamp</code></td><td>✅</td></tr>
   </tbody>
 </table>
 

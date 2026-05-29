@@ -226,6 +226,7 @@ ObfusCal.Application/
 │   ├── IPeerApiKeyAuthenticator.cs
 │   ├── IPeerCalendarOwnerResolver.cs
 │   ├── IPeerConnectionService.cs
+│   ├── IPeerSyncHistoryStore.cs
 │   ├── IPluginAllowlistAdminService.cs
 │   ├── ISecretProvider.cs
 │   ├── ISecurityAuditService.cs
@@ -391,10 +392,12 @@ ObfusCal.Infrastructure/
 │   ├── CalendarOwnerService.cs
 │   ├── CalendarSourceInstance.cs
 │   ├── EfCoreCalendarOwnerScopeResolver.cs
+│   ├── EfCorePeerSyncHistoryStore.cs
 │   ├── EncryptedStringConverter.cs
 │   ├── ObfuscationProfile.cs
 │   ├── PeerConnection.cs
 │   ├── PeerConnectionService.cs
+│   ├── PeerSyncState.cs
 │   ├── PluginAllowlistOverride.cs
 │   └── StatusService.cs
 ├── Security/
