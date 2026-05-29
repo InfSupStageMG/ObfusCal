@@ -86,19 +86,7 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
 
         foreach (var slot in Slots)
         {
-            DateTime startDate, endDate;
-
-            if (slot.IsAllDay)
-            {
-                // All-day events use UTC date boundaries directly; End is exclusive per RFC 5545
-                startDate = slot.Start.UtcDateTime.Date;
-                endDate = slot.End.UtcDateTime.Date.AddDays(-1);
-            }
-            else
-            {
-                startDate = TimeZoneInfo.ConvertTime(slot.Start, TimeZone).Date;
-                endDate = TimeZoneInfo.ConvertTime(slot.End, TimeZone).Date;
-            }
+            var (startDate, endDate) = GetSlotDateRange(slot);
 
             for (var date = startDate; date <= endDate; date = date.AddDays(1))
             {
@@ -115,6 +103,19 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
         // Sort each day's list by start time so callers get a consistent order without re-sorting
         foreach (var list in _slotsByDate.Values)
             list.Sort((a, b) => a.Start.CompareTo(b.Start));
+    }
+
+    private (DateTime StartDate, DateTime EndDate) GetSlotDateRange(MergedFreeBusyResponse slot)
+    {
+        if (slot.IsAllDay)
+        {
+            // All-day events use UTC date boundaries directly; End is exclusive per RFC 5545
+            return (slot.Start.UtcDateTime.Date, slot.End.UtcDateTime.Date.AddDays(-1));
+        }
+
+        return (
+            TimeZoneInfo.ConvertTime(slot.Start, TimeZone).Date,
+            TimeZoneInfo.ConvertTime(slot.End, TimeZone).Date);
     }
 
     private (string Accent, string Bg) GetColor(string? label)
