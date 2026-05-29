@@ -8,12 +8,6 @@
 <h1>Health Status</h1>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
-    <section class="card">
-        <FluentButton Appearance="Appearance.Accent" OnClick="RefreshAsync">
-            Refresh
-        </FluentButton>
-    </section>
-
     @if (_loading)
     {
         <FluentProgress />
@@ -22,6 +16,9 @@
     {
         <section class="card">
             <h3>Calendar Owner Sync Health</h3>
+            <FluentButton Appearance="Appearance.Accent" OnClick="RefreshAsync">
+                Refresh
+            </FluentButton>
             <FluentDataGrid Items="_entries.AsQueryable()" TGridItem="CalendarOwnerStatusEntry" Class="app-data-grid">
                 <PropertyColumn Property="@(e => e.DisplayName)" Title="Name" Sortable="true" />
                 <TemplateColumn Title="Graph Consent">
@@ -86,6 +83,9 @@
         <FluentMessageBar Intent="MessageIntent.Info" Title="No data">
             No calendar owners found.
         </FluentMessageBar>
+        <FluentButton Appearance="Appearance.Accent" OnClick="RefreshAsync">
+            Refresh
+        </FluentButton>
     }
 </FluentStack>
 
