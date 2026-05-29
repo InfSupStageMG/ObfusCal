@@ -31,18 +31,15 @@ public partial class SyncStatus : ComponentBase, IDisposable
         {
             var monitorValue = SyncProgressMonitor.LastPeerSyncCompletedAt;
             if (_lastDisplayedSyncCompletedAt is null)
-            {
                 return monitorValue;
-            }
 
             if (monitorValue is null)
-            {
                 return _lastDisplayedSyncCompletedAt;
-            }
 
-            return monitorValue.Value >= _lastDisplayedSyncCompletedAt.Value
-                ? monitorValue
-                : _lastDisplayedSyncCompletedAt;
+            if (monitorValue.Value >= _lastDisplayedSyncCompletedAt.Value)
+                return monitorValue;
+
+            return _lastDisplayedSyncCompletedAt;
         }
     }
 
@@ -166,9 +163,3 @@ public partial class SyncStatus : ComponentBase, IDisposable
         _countdownTimer?.Dispose();
     }
 }
-
-
-
-
-
-

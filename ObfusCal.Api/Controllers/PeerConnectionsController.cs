@@ -89,7 +89,7 @@ public sealed class PeerConnectionsController(
     }
 
     public sealed record RequestPeerConnectionRequest(
-        [param: Required, MaxLength(128)] string ClientOrganisationName);
+        [param: Required, MaxLength(256)] string ClientOrganisationName);
 
     private sealed record CreatePeerConnectionRequestResponse(Guid Id);
 
