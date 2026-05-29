@@ -1,8 +1,8 @@
 # Test Catalog
 
-_Auto-generated from CI run. 670 tests across 72 classes._
+_Auto-generated from CI run. 671 tests across 72 classes._
 
-## Integration (179/179)
+## Integration (180/180)
 
 <details>
 <summary><b>AdminPeerConnectionsControllerTests</b> - 7/7</summary>
@@ -119,7 +119,7 @@ _Auto-generated from CI run. 670 tests across 72 classes._
 </details>
 
 <details>
-<summary><b>PeerConnectionsControllerTests</b> - 6/6</summary>
+<summary><b>PeerConnectionsControllerTests</b> - 7/7</summary>
 
 <table>
   <thead>
@@ -127,6 +127,7 @@ _Auto-generated from CI run. 670 tests across 72 classes._
   </thead>
   <tbody>
     <tr><td><code>ListPeerConnections_ReturnsOnlyCurrentCalendarOwnerRequests</code></td><td>✅</td></tr>
+    <tr><td><code>RequestPeerConnection_AllowsClientOrganisationNameLongerThan128Characters</code></td><td>✅</td></tr>
     <tr><td><code>RequestPeerConnection_AutoProvisionsCalendarOwner_WhenMissing</code></td><td>✅</td></tr>
     <tr><td><code>RequestPeerConnection_CreatesRequestedRecord_ForAuthenticatedCalendarOwner</code></td><td>✅</td></tr>
     <tr><td><code>RequestPeerConnection_ReturnsConflict_WhenDuplicateForSameCalendarOwner</code></td><td>✅</td></tr>
