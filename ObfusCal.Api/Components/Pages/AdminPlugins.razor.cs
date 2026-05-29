@@ -7,6 +7,19 @@ namespace ObfusCal.Api.Components.Pages;
 
 public partial class AdminPlugins : ComponentBase
 {
+    private static readonly HashSet<string> BuiltInPluginIds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "mock",
+        "ical",
+        "graph"
+    };
+
+    private static readonly HashSet<string> ExternalPluginIds = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "google",
+        "icloud"
+    };
+
     [Inject] private IPluginAllowlistAdminService AllowlistService { get; set; } = default!;
     [Inject] private ICalendarSourceCatalog Catalog { get; set; } = default!;
     [Inject] private CurrentUserContextAccessor CurrentUserContextAccessor { get; set; } = default!;
@@ -49,7 +62,7 @@ public partial class AdminPlugins : ComponentBase
                 return new PluginRow(
                     plugin.Id,
                     plugin.DisplayName,
-                    plugin.IsExternalPlugin,
+                    DetermineIsExternal(plugin.Id, plugin.IsExternalPlugin),
                     IsEnabled: entry is null || entry.IsEnabled,
                     HasOverride: entry is not null,
                     OverrideUpdatedAtUtc: entry?.UpdatedAtUtc);
@@ -62,7 +75,7 @@ public partial class AdminPlugins : ComponentBase
             _rows.Add(new PluginRow(
                 entry.PluginId,
                 entry.PluginId,
-                IsExternal: true,
+                IsExternal: DetermineIsExternal(entry.PluginId),
                 IsEnabled: false,
                 HasOverride: true,
                 OverrideUpdatedAtUtc: entry.UpdatedAtUtc));
@@ -117,4 +130,15 @@ public partial class AdminPlugins : ComponentBase
         bool IsEnabled,
         bool HasOverride,
         DateTimeOffset? OverrideUpdatedAtUtc);
+
+    private static bool DetermineIsExternal(string pluginId, bool? discoveredExternal = null)
+    {
+        if (BuiltInPluginIds.Contains(pluginId))
+            return false;
+
+        if (ExternalPluginIds.Contains(pluginId))
+            return true;
+
+        return discoveredExternal ?? true;
+    }
 }

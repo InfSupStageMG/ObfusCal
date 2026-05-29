@@ -1,7 +1,5 @@
 ﻿@page "/admin/plugins"
 @attribute [Authorize]
-@using ObfusCal.Application.Interfaces
-@using ObfusCal.Api.Authorization
 
 <PageTitle>Plugin Allowlist — ObfusCal</PageTitle>
 
@@ -43,7 +41,7 @@
             </FluentMessageBar>
         }
 
-        <section class="card">
+        <section class="card plugins-grid-card">
             <h3>Registered plugins</h3>
             @if (_rows is { Count: 0 })
             {
@@ -51,7 +49,7 @@
             }
             else if (_rows is not null)
             {
-                <FluentDataGrid Items="_rows.AsQueryable()" TGridItem="PluginRow" Class="app-data-grid">
+                <FluentDataGrid Items="_rows.AsQueryable()" TGridItem="PluginRow" Class="app-data-grid" RowSize="DataGridRowSize.Medium">
                     <PropertyColumn Property="@(r => r.PluginId)" Title="Plugin ID" Sortable="true" />
                     <PropertyColumn Property="@(r => r.DisplayName)" Title="Display Name" Sortable="true" />
                     <TemplateColumn Title="Origin">
@@ -85,29 +83,27 @@
                         }
                     </TemplateColumn>
                     <TemplateColumn Title="Actions">
-                        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="4">
-                            @if (context.IsEnabled)
-                            {
-                                <FluentButton Appearance="Appearance.Outline"
-                                              OnClick="@(() => SetEnabledAsync(context.PluginId, false))">
-                                    Disable
-                                </FluentButton>
-                            }
-                            else
-                            {
-                                <FluentButton Appearance="Appearance.Accent"
-                                              OnClick="@(() => SetEnabledAsync(context.PluginId, true))">
-                                    Enable
-                                </FluentButton>
-                            }
-                            @if (context.HasOverride)
-                            {
-                                <FluentButton Appearance="Appearance.Outline"
-                                              OnClick="@(() => RemoveOverrideAsync(context.PluginId))">
-                                    Reset
-                                </FluentButton>
-                            }
-                        </FluentStack>
+                        @if (context.IsEnabled)
+                        {
+                            <FluentButton Appearance="Appearance.Outline" Size="ButtonSize.Small"
+                                          OnClick="@(() => SetEnabledAsync(context.PluginId, false))">
+                                Disable
+                            </FluentButton>
+                        }
+                        else
+                        {
+                            <FluentButton Appearance="Appearance.Accent" Size="ButtonSize.Small"
+                                          OnClick="@(() => SetEnabledAsync(context.PluginId, true))">
+                                Enable
+                            </FluentButton>
+                        }
+                        @if (context.HasOverride)
+                        {
+                            <FluentButton Appearance="Appearance.Outline" Size="ButtonSize.Small"
+                                          OnClick="@(() => RemoveOverrideAsync(context.PluginId))">
+                                Reset
+                            </FluentButton>
+                        }
                     </TemplateColumn>
                 </FluentDataGrid>
             }
