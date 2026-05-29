@@ -58,7 +58,8 @@ public sealed class ObfuscationPipeline(
                 calendarEvent.Description,
                 calendarEvent.AttendeeEmails,
                 calendarEvent.Location,
-                calendarEvent.SourceLabel))
+                calendarEvent.SourceLabel,
+                IsAllDay: calendarEvent.IsAllDay))
             .ToList();
 
         // Apply slot transformers (e.g., merging)

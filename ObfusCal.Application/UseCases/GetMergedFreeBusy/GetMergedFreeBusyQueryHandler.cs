@@ -70,7 +70,8 @@ public sealed class GetMergedFreeBusyUseCase(
                 s.AttendeeEmails,
                 s.Location,
                 s.SourceLabel,
-                s.SourceSlots))
+                s.SourceSlots,
+                s.IsAllDay))
             .ToList();
 
         logger.LogInformation(

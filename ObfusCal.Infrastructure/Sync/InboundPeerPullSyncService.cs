@@ -149,7 +149,8 @@ public sealed class InboundPeerPullSyncService(
                 .Select((slot, index) => new CoreBusySlot(
                     $"{mapping.PeerInstanceId}:{mapping.CalendarOwnerRef}:{index}",
                     slot.Start,
-                    slot.End))
+                    slot.End,
+                    IsAllDay: slot.IsAllDay))
                 .ToArray();
 
             await shadowSlotStore.SetSlotsAsync(mapping.PeerInstanceId, mapping.CalendarOwnerId, pulledSlots, ct);
@@ -215,5 +216,5 @@ public sealed class InboundPeerPullSyncService(
         string? PinnedCertificateThumbprint,
         string? ClientCertificateThumbprint);
 
-    private sealed record PulledBusySlot(DateTimeOffset Start, DateTimeOffset End);
+    private sealed record PulledBusySlot(DateTimeOffset Start, DateTimeOffset End, bool IsAllDay = false);
 }

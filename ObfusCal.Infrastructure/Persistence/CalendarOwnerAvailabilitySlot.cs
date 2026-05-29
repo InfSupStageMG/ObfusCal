@@ -19,6 +19,7 @@ public class CalendarOwnerAvailabilitySlot
     public string? Location { get; set; }
     [MaxLength(512)]
     public string? SourceLabel { get; set; }
+    public bool IsAllDay { get; set; }
     /// <summary>
     /// JSON array of merged source slots. Each object contains Start, End, Title, Description, AttendeeEmails, Location.
     /// Populated by MergeBlocksTransformer when adjacent/overlapping slots are merged.

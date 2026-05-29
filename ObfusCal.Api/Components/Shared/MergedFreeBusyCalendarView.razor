@@ -56,15 +56,26 @@
                         @if (hasEvents && events.Count > 0)
                         {
                             <div class="calendar-day-events">
-                                @foreach (var evt in events.Take(2))
-                                {
-                                    var c = GetSlotColor(evt);
-                                    <div class="calendar-event-badge"
-                                         style="background-color: @c.Bg; border-left: 3px solid @c.Accent; color: var(--color-text-primary);"
-                                         title="@(evt.Title ?? "Busy") - @FormatTime(evt) to @FormatEndTime(evt)">
-                                        <span class="event-time">@FormatTime(evt)-@FormatEndTime(evt)</span>
-                                    </div>
-                                }
+                                 @foreach (var evt in events.Take(2))
+                                 {
+                                     var c = GetSlotColor(evt);
+                                     @if (evt.IsAllDay)
+                                     {
+                                         <div class="calendar-event-badge calendar-event-badge--allday"
+                                              style="background-color: @c.Bg; border-left: 3px solid @c.Accent; color: var(--color-text-primary);"
+                                              title="@(evt.Title ?? "Busy") - All day">
+                                             <span class="event-time">All day</span>
+                                         </div>
+                                     }
+                                     else
+                                     {
+                                         <div class="calendar-event-badge"
+                                              style="background-color: @c.Bg; border-left: 3px solid @c.Accent; color: var(--color-text-primary);"
+                                              title="@(evt.Title ?? "Busy") - @FormatTime(evt) to @FormatEndTime(evt)">
+                                             <span class="event-time">@FormatTime(evt)-@FormatEndTime(evt)</span>
+                                         </div>
+                                     }
+                                 }
                                 @if (events.Count > 2)
                                 {
                                     <div class="calendar-event-badge more">+@(events.Count - 2)</div>
@@ -104,12 +115,22 @@
                             {
                                 <!-- Merged block with multiple source events -->
                                 <div class="event-item-header">
-                                    <div class="event-time-range">
-                                        <strong>@FormatInTimeZone(evt.Start, "HH:mm")</strong>
-                                        <span class="event-separator">–</span>
-                                        <strong>@FormatInTimeZone(evt.End, "HH:mm")</strong>
-                                        <span class="event-duration">(@CalculateDuration(evt))</span>
-                                    </div>
+                                    @if (evt.IsAllDay)
+                                    {
+                                        <div class="event-time-range">
+                                            <span class="event-allday-label">All day</span>
+                                            <span class="event-duration">(@CalculateDuration(evt))</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="event-time-range">
+                                            <strong>@FormatInTimeZone(evt.Start, "HH:mm")</strong>
+                                            <span class="event-separator">–</span>
+                                            <strong>@FormatInTimeZone(evt.End, "HH:mm")</strong>
+                                            <span class="event-duration">(@CalculateDuration(evt))</span>
+                                        </div>
+                                    }
                                     <span class="merged-block-badge">@evt.SourceSlots.Count events merged</span>
                                 </div>
                                 <div class="merged-sources">
@@ -160,12 +181,22 @@
                             {
                                 <!-- Single event or no source data -->
                                 <div class="event-item-header">
-                                    <div class="event-time-range">
-                                        <strong>@FormatInTimeZone(evt.Start, "HH:mm")</strong>
-                                        <span class="event-separator">–</span>
-                                        <strong>@FormatInTimeZone(evt.End, "HH:mm")</strong>
-                                        <span class="event-duration">(@CalculateDuration(evt))</span>
-                                    </div>
+                                    @if (evt.IsAllDay)
+                                    {
+                                        <div class="event-time-range">
+                                            <span class="event-allday-label">All day</span>
+                                            <span class="event-duration">(@CalculateDuration(evt))</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="event-time-range">
+                                            <strong>@FormatInTimeZone(evt.Start, "HH:mm")</strong>
+                                            <span class="event-separator">–</span>
+                                            <strong>@FormatInTimeZone(evt.End, "HH:mm")</strong>
+                                            <span class="event-duration">(@CalculateDuration(evt))</span>
+                                        </div>
+                                    }
                                     @if (!string.IsNullOrWhiteSpace(evt.SourceLabel))
                                     {
                                         <span class="source-label-badge"

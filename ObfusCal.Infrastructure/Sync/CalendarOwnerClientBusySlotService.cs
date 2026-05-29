@@ -26,7 +26,8 @@ public sealed class CalendarOwnerClientBusySlotService(
             slot.Start,
             slot.End,
             slot.AttendeeEmails ?? [],
-            slot.Location
+            slot.Location,
+            IsAllDay: slot.IsAllDay
         )).ToList();
 
         // Apply client-level obfuscation

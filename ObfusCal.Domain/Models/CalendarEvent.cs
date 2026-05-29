@@ -8,5 +8,6 @@ public record CalendarEvent(
     DateTimeOffset End,
     IReadOnlyList<string> AttendeeEmails,
     string? Location,
-    string? SourceLabel = null
+    string? SourceLabel = null,
+    bool IsAllDay = false
 );

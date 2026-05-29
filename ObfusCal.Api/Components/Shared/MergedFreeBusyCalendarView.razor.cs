@@ -86,8 +86,7 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
 
         foreach (var slot in Slots)
         {
-            var startDate = TimeZoneInfo.ConvertTime(slot.Start, TimeZone).Date;
-            var endDate = TimeZoneInfo.ConvertTime(slot.End, TimeZone).Date;
+            var (startDate, endDate) = GetSlotDateRange(slot);
 
             for (var date = startDate; date <= endDate; date = date.AddDays(1))
             {
@@ -104,6 +103,19 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
         // Sort each day's list by start time so callers get a consistent order without re-sorting
         foreach (var list in _slotsByDate.Values)
             list.Sort((a, b) => a.Start.CompareTo(b.Start));
+    }
+
+    private (DateTime StartDate, DateTime EndDate) GetSlotDateRange(MergedFreeBusyResponse slot)
+    {
+        if (slot.IsAllDay)
+        {
+            // All-day events use UTC date boundaries directly; End is exclusive per RFC 5545
+            return (slot.Start.UtcDateTime.Date, slot.End.UtcDateTime.Date.AddDays(-1));
+        }
+
+        return (
+            TimeZoneInfo.ConvertTime(slot.Start, TimeZone).Date,
+            TimeZoneInfo.ConvertTime(slot.End, TimeZone).Date);
     }
 
     private (string Accent, string Bg) GetColor(string? label)
@@ -195,10 +207,10 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
         => !date.HasValue || date.Value.Month != _viewMonth.Month || date.Value.Year != _viewMonth.Year;
 
     private string FormatTime(MergedFreeBusyResponse evt)
-        => TimeZoneInfo.ConvertTime(evt.Start, TimeZone).ToString("HH:mm", CultureInfo.CurrentCulture);
+        => evt.IsAllDay ? "All day" : TimeZoneInfo.ConvertTime(evt.Start, TimeZone).ToString("HH:mm", CultureInfo.CurrentCulture);
 
     private string FormatEndTime(MergedFreeBusyResponse evt)
-        => TimeZoneInfo.ConvertTime(evt.End, TimeZone).ToString("HH:mm", CultureInfo.CurrentCulture);
+        => evt.IsAllDay ? "All day" : TimeZoneInfo.ConvertTime(evt.End, TimeZone).ToString("HH:mm", CultureInfo.CurrentCulture);
 
     private string FormatInTimeZone(DateTimeOffset value, string format)
         => TimeZoneInfo.ConvertTime(value, TimeZone).ToString(format, CultureInfo.CurrentCulture);
@@ -208,13 +220,19 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
         if (Slots.Count == 0)
             return "No data";
 
-        var minDate = Slots.Min(s => TimeZoneInfo.ConvertTime(s.Start, TimeZone).Date);
-        var maxDate = Slots.Max(s => TimeZoneInfo.ConvertTime(s.End, TimeZone).Date);
+        var minDate = Slots.Min(s => s.IsAllDay ? s.Start.UtcDateTime.Date : TimeZoneInfo.ConvertTime(s.Start, TimeZone).Date);
+        var maxDate = Slots.Max(s => s.IsAllDay ? s.End.UtcDateTime.Date.AddDays(-1) : TimeZoneInfo.ConvertTime(s.End, TimeZone).Date);
         return $"{minDate:d MMM yyyy} – {maxDate:d MMM yyyy}";
     }
 
     private string CalculateDuration(MergedFreeBusyResponse evt)
     {
+        if (evt.IsAllDay)
+        {
+            var days = (int)(evt.End - evt.Start).TotalDays;
+            return days > 1 ? $"{days} days" : "All day";
+        }
+
         var duration = evt.End - evt.Start;
         if (duration.TotalHours >= 1)
         {

@@ -218,6 +218,7 @@ public sealed class CalendarOwnerAvailabilitySyncService(
             AttendeeEmails = slot.AttendeeEmails?.ToArray(),
             Location = slot.Location,
             SourceLabel = slot.SourceLabel,
+            IsAllDay = slot.IsAllDay,
             SourceSlotsJson = SerializeSourceSlots(slot.SourceSlots)
         }).ToList();
 
@@ -267,7 +268,8 @@ public sealed class CalendarOwnerAvailabilitySyncService(
                 s.Description,
                 s.AttendeeEmails,
                 s.Location,
-                s.SourceLabel
+                s.SourceLabel,
+                s.IsAllDay
             }).ToArray();
 
             return JsonSerializer.Serialize(dtos, JsonOptions);
@@ -297,7 +299,8 @@ public sealed class CalendarOwnerAvailabilitySyncService(
             slot.Start,
             slot.End,
             slot.AttendeeEmails ?? [],
-            slot.Location
+            slot.Location,
+            IsAllDay: slot.IsAllDay
         )).ToList();
 
         // Apply client-level obfuscation using the user's configured profile
