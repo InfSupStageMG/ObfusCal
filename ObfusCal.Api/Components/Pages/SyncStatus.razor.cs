@@ -124,9 +124,9 @@ public partial class SyncStatus : ComponentBase, IDisposable
             _syncMessageIntent = MessageIntent.Success;
             StateHasChanged();
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
         {
-            _syncMessage = $"Sync failed: {ex.Message}";
+            _syncMessage = "Sync was canceled.";
             _syncMessageIntent = MessageIntent.Error;
         }
         finally

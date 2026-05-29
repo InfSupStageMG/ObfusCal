@@ -28,7 +28,7 @@ public class PeerSyncHistoryStoreTests
         var actual = await store.GetLastCompletedAtUtcAsync();
 
         Assert.IsNotNull(actual);
-        Assert.AreEqual(expected.ToUniversalTime(), actual.Value);
+        Assert.AreEqual(expected.ToUniversalTime(), actual.GetValueOrDefault());
     }
 
     [TestMethod]
@@ -45,7 +45,8 @@ public class PeerSyncHistoryStoreTests
         var actual = await store.GetLastCompletedAtUtcAsync();
 
         Assert.IsNotNull(actual);
-        Assert.AreEqual(newest.ToUniversalTime(), actual.Value);
+        var actualValue = actual ?? throw new AssertFailedException("Expected a persisted timestamp.");
+        Assert.AreEqual(newest.ToUniversalTime(), actualValue);
     }
 }
 
