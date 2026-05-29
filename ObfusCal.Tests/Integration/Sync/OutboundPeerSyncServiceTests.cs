@@ -24,11 +24,12 @@ public class OutboundPeerSyncServiceTests
         SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
 
         CapturedRequest? capturedRequest = null;
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(async request =>
-        {
-            capturedRequest = await CapturedRequest.FromAsync(request);
-            return new HttpResponseMessage(HttpStatusCode.Accepted);
-        })));
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(
+            new DelegatingHttpMessageHandler(async request =>
+            {
+                capturedRequest = await CapturedRequest.FromAsync(request);
+                return new HttpResponseMessage(HttpStatusCode.Accepted);
+            })));
 
         var service = CreateService(
             dbContext,
@@ -64,13 +65,14 @@ public class OutboundPeerSyncServiceTests
         var slots = root.GetProperty("slots");
         Assert.AreEqual(JsonValueKind.Array, slots.ValueKind);
         Assert.AreEqual(1, slots.GetArrayLength());
-        Assert.AreEqual(6, slots[0].GetPropertyCount());
+        Assert.AreEqual(7, slots[0].GetPropertyCount());
         Assert.IsTrue(slots[0].TryGetProperty("start", out _));
         Assert.IsTrue(slots[0].TryGetProperty("end", out _));
         Assert.IsTrue(slots[0].TryGetProperty("title", out _));
         Assert.IsTrue(slots[0].TryGetProperty("description", out _));
         Assert.IsTrue(slots[0].TryGetProperty("attendeeEmails", out _));
         Assert.IsTrue(slots[0].TryGetProperty("location", out _));
+        Assert.IsTrue(slots[0].TryGetProperty("isAllDay", out _));
     }
 
     [TestMethod]
@@ -82,11 +84,12 @@ public class OutboundPeerSyncServiceTests
         SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
 
         CapturedRequest? capturedRequest = null;
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(async request =>
-        {
-            capturedRequest = await CapturedRequest.FromAsync(request);
-            return new HttpResponseMessage(HttpStatusCode.Accepted);
-        })));
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(
+            new DelegatingHttpMessageHandler(async request =>
+            {
+                capturedRequest = await CapturedRequest.FromAsync(request);
+                return new HttpResponseMessage(HttpStatusCode.Accepted);
+            })));
 
         var profileService = new StubCalendarOwnerObfuscationProfileService();
         await profileService.SetProfileAsync(
@@ -99,7 +102,8 @@ public class OutboundPeerSyncServiceTests
                 RemoveAttendees: true,
                 RoundTimes: false,
                 RoundingIntervalMinutes: 15,
-                MergeBlocks: true));
+                MergeBlocks: true,
+                RemoveSourceLabel: true));
 
         var service = CreateService(
             dbContext,
@@ -126,12 +130,53 @@ public class OutboundPeerSyncServiceTests
     }
 
     [TestMethod]
+    public async Task RunSyncCycleAsync_IncludesIsAllDayInPeerPayload()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        var calendarOwnerRef = Guid.NewGuid();
+        SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
+
+        CapturedRequest? capturedRequest = null;
+        var httpClientFactory = new StubHttpClientFactory(new HttpClient(
+            new DelegatingHttpMessageHandler(async request =>
+            {
+                capturedRequest = await CapturedRequest.FromAsync(request);
+                return new HttpResponseMessage(HttpStatusCode.Accepted);
+            })));
+
+        var service = CreateService(
+            dbContext,
+            httpClientFactory,
+            new StubCalendarSource([
+                new CalendarEvent(
+                    "event-1",
+                    "Holiday",
+                    null,
+                    new DateTimeOffset(2026, 6, 4, 0, 0, 0, TimeSpan.Zero),
+                    new DateTimeOffset(2026, 6, 5, 0, 0, 0, TimeSpan.Zero),
+                    [],
+                    null,
+                    IsAllDay: true)
+            ]));
+
+        await service.RunSyncCycleAsync();
+
+        Assert.IsNotNull(capturedRequest);
+        using var document = JsonDocument.Parse(capturedRequest.Body);
+        var slot = document.RootElement.GetProperty("slots")[0];
+        Assert.IsTrue(slot.TryGetProperty("isAllDay", out var isAllDay));
+        Assert.IsTrue(isAllDay.GetBoolean());
+    }
+
+    [TestMethod]
     public async Task RunSyncCycleAsync_OnSuccess_RecordsLastSyncedAtAndSucceededOnPeerConnection()
     {
         await using var dbContext = CreateDbContext();
         var calendarOwnerId = Guid.NewGuid();
         var calendarOwnerRef = Guid.NewGuid();
-        var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
+        var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a",
+            "https://peer-a.local/");
 
         var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)))));
@@ -154,7 +199,8 @@ public class OutboundPeerSyncServiceTests
         await using var dbContext = CreateDbContext();
         var calendarOwnerId = Guid.NewGuid();
         var calendarOwnerRef = Guid.NewGuid();
-        var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
+        var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a",
+            "https://peer-a.local/");
 
         var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)))));
@@ -208,7 +254,9 @@ public class OutboundPeerSyncServiceTests
 
         CollectionAssert.AreEquivalent(new[] { "peer-a.local", "peer-b.local" }, attemptedHosts);
         Assert.Contains(entry => entry.LogLevel == LogLevel.Warning, logger.Entries);
-        Assert.Contains(entry => entry.LogLevel == LogLevel.Information && entry.Message.Contains("Successfully pushed"), logger.Entries);
+        Assert.Contains(
+            entry => entry.LogLevel == LogLevel.Information && entry.Message.Contains("Successfully pushed"),
+            logger.Entries);
     }
 
     private static OutboundPeerSyncService CreateService(
@@ -260,7 +308,8 @@ public class OutboundPeerSyncServiceTests
 
         var service = CreateService(
             dbContext, httpClientFactory, new StubCalendarSource([]),
-            options: new SyncOptions { InstanceId = "my-id", ApiKey = "", LookAheadDays = 14, SyncIntervalSeconds = 900 });
+            options: new SyncOptions
+                { InstanceId = "my-id", ApiKey = "", LookAheadDays = 14, SyncIntervalSeconds = 900 });
 
         await service.RunSyncCycleAsync();
 
@@ -283,7 +332,8 @@ public class OutboundPeerSyncServiceTests
 
         var service = CreateService(
             dbContext, httpClientFactory, new StubCalendarSource([]),
-            options: new SyncOptions { InstanceId = "", ApiKey = "my-key", LookAheadDays = 14, SyncIntervalSeconds = 900 });
+            options: new SyncOptions
+                { InstanceId = "", ApiKey = "my-key", LookAheadDays = 14, SyncIntervalSeconds = 900 });
 
         await service.RunSyncCycleAsync();
 
@@ -306,9 +356,11 @@ public class OutboundPeerSyncServiceTests
 
         var service = CreateService(
             dbContext, httpClientFactory, new StubCalendarSource([
-                new CalendarEvent("e1", "Test", null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1), [], null)
+                new CalendarEvent("e1", "Test", null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddHours(1), [],
+                    null)
             ]),
-            options: new SyncOptions { InstanceId = "id", ApiKey = "key", LookAheadDays = 0, SyncIntervalSeconds = 900 });
+            options: new SyncOptions
+                { InstanceId = "id", ApiKey = "key", LookAheadDays = 0, SyncIntervalSeconds = 900 });
 
         await service.RunSyncCycleAsync();
 
@@ -342,7 +394,8 @@ public class OutboundPeerSyncServiceTests
     {
         await using var dbContext = CreateDbContext();
         var calendarOwnerId = Guid.NewGuid();
-        var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, Guid.NewGuid(), "peer-bad", "http://peer-bad.local/");
+        var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, Guid.NewGuid(), "peer-bad",
+            "http://peer-bad.local/");
 
         var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)))));
@@ -362,7 +415,8 @@ public class OutboundPeerSyncServiceTests
         await using var dbContext = CreateDbContext();
         var calendarOwnerId = Guid.NewGuid();
         var calendarOwnerRef = Guid.NewGuid();
-        var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-pin", "https://peer-pin.local/");
+        var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-pin",
+            "https://peer-pin.local/");
 
         var peer = await dbContext.PeerConnections.FindAsync([peerConnectionId]);
         Assert.IsNotNull(peer);
@@ -395,7 +449,8 @@ public class OutboundPeerSyncServiceTests
         Guid calendarOwnerRef,
         string peerInstanceId,
         string baseAddress)
-        => SyncIntegrationTestHelpers.SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, peerInstanceId, baseAddress);
+        => SyncIntegrationTestHelpers.SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef,
+            peerInstanceId, baseAddress);
 
     private sealed class StubCalendarSource(IReadOnlyList<CalendarEvent> events) : ICalendarSource
     {
@@ -438,13 +493,15 @@ public class OutboundPeerSyncServiceTests
                 ? timestampValues.SingleOrDefault()
                 : null;
 
-            var pinnedThumbprint = request.Options.TryGetValue(PeerTransportRequestOptions.PinnedCertificateThumbprint, out var pinned)
-                ? PeerTransportSecurity.NormalizeThumbprint(pinned)
-                : null;
+            var pinnedThumbprint =
+                request.Options.TryGetValue(PeerTransportRequestOptions.PinnedCertificateThumbprint, out var pinned)
+                    ? PeerTransportSecurity.NormalizeThumbprint(pinned)
+                    : null;
 
-            var clientThumbprint = request.Options.TryGetValue(PeerTransportRequestOptions.ClientCertificateThumbprint, out var client)
-                ? PeerTransportSecurity.NormalizeThumbprint(client)
-                : null;
+            var clientThumbprint =
+                request.Options.TryGetValue(PeerTransportRequestOptions.ClientCertificateThumbprint, out var client)
+                    ? PeerTransportSecurity.NormalizeThumbprint(client)
+                    : null;
 
             return new CapturedRequest(
                 request.Method,
@@ -461,9 +518,11 @@ public class OutboundPeerSyncServiceTests
 
     private sealed class StubCalendarOwnerObfuscationProfileService : ICalendarOwnerObfuscationProfileService
     {
-        private readonly Dictionary<(Guid OwnerId, ObfuscationAuditContext Context), ObfuscationProfileSettings> _profiles = new();
+        private readonly Dictionary<(Guid OwnerId, ObfuscationAuditContext Context), ObfuscationProfileSettings>
+            _profiles = new();
 
-        public Task<IReadOnlyList<ObfuscationProfileSettings>> GetProfilesAsync(Guid calendarOwnerId, CancellationToken ct = default)
+        public Task<IReadOnlyList<ObfuscationProfileSettings>> GetProfilesAsync(Guid calendarOwnerId,
+            CancellationToken ct = default)
         {
             var result = Enum.GetValues<ObfuscationAuditContext>()
                 .Select(context => _profiles.TryGetValue((calendarOwnerId, context), out var profile)
@@ -473,14 +532,16 @@ public class OutboundPeerSyncServiceTests
             return Task.FromResult<IReadOnlyList<ObfuscationProfileSettings>>(result);
         }
 
-        public Task<ObfuscationProfileSettings> GetProfileAsync(Guid calendarOwnerId, ObfuscationAuditContext context, CancellationToken ct = default)
+        public Task<ObfuscationProfileSettings> GetProfileAsync(Guid calendarOwnerId, ObfuscationAuditContext context,
+            CancellationToken ct = default)
         {
             return Task.FromResult(_profiles.TryGetValue((calendarOwnerId, context), out var profile)
                 ? profile
                 : ObfuscationProfileSettings.CreateDefault(context));
         }
 
-        public Task<ObfuscationProfileSettings> SetProfileAsync(Guid calendarOwnerId, ObfuscationProfileSettings profile, CancellationToken ct = default)
+        public Task<ObfuscationProfileSettings> SetProfileAsync(Guid calendarOwnerId,
+            ObfuscationProfileSettings profile, CancellationToken ct = default)
         {
             _profiles[(calendarOwnerId, profile.Context)] = profile;
             return Task.FromResult(profile);
@@ -504,7 +565,8 @@ public class OutboundPeerSyncServiceTests
                 e.Description,
                 e.AttendeeEmails,
                 e.Location,
-                null)).ToList();
+                null,
+                IsAllDay: e.IsAllDay)).ToList();
         }
     }
 }

@@ -112,7 +112,9 @@ public record CalendarEvent(
     DateTimeOffset Start,
     DateTimeOffset End,
     IReadOnlyList<string> AttendeeEmails,
-    string? Location
+    string? Location,
+    string? SourceLabel = null,
+    bool IsAllDay = false
 );
 ```
 <!-- END_SNIPPET -->
@@ -129,7 +131,9 @@ public record BusySlot(
     string? Description = null,
     IReadOnlyList<string>? AttendeeEmails = null,
     string? Location = null,
-    IReadOnlyList<BusySlot>? SourceSlots = null
+    string? SourceLabel = null,
+    IReadOnlyList<BusySlot>? SourceSlots = null,
+    bool IsAllDay = false
 );
 ```
 <!-- END_SNIPPET -->

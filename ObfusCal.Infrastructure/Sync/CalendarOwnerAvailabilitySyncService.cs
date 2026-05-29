@@ -181,15 +181,13 @@ public sealed class CalendarOwnerAvailabilitySyncService(
             }
             catch (DbUpdateConcurrencyException) when (attempt < maxRetries)
             {
-                logger.LogWarning(
-                    "Concurrency conflict while persisting availability snapshot for calendar owner {CalendarOwnerId} (attempt {Attempt}/{MaxRetries}). Retrying.",
-                    calendarOwnerId,
-                    attempt,
-                    maxRetries);
+                logger.LogWarning("Concurrency conflict while persisting availability snapshot for calendar owner {CalendarOwnerId} (attempt {Attempt}/{MaxRetries}). Retrying.", calendarOwnerId, attempt, maxRetries);
 
-                // Detach all tracked entities so the next attempt starts clean.
-                foreach (var entry in dbContext.ChangeTracker.Entries().ToList())
+                var conflictingEntries = dbContext.ChangeTracker.Entries<CalendarOwnerAvailabilitySlot>().ToList();
+                foreach (var entry in conflictingEntries)
+                {
                     entry.State = EntityState.Detached;
+                }
             }
         }
     }
@@ -219,6 +217,8 @@ public sealed class CalendarOwnerAvailabilitySyncService(
             Description = slot.Description,
             AttendeeEmails = slot.AttendeeEmails?.ToArray(),
             Location = slot.Location,
+            SourceLabel = slot.SourceLabel,
+            IsAllDay = slot.IsAllDay,
             SourceSlotsJson = SerializeSourceSlots(slot.SourceSlots)
         }).ToList();
 
@@ -267,7 +267,9 @@ public sealed class CalendarOwnerAvailabilitySyncService(
                 s.Title,
                 s.Description,
                 s.AttendeeEmails,
-                s.Location
+                s.Location,
+                s.SourceLabel,
+                s.IsAllDay
             }).ToArray();
 
             return JsonSerializer.Serialize(dtos, JsonOptions);
@@ -297,7 +299,8 @@ public sealed class CalendarOwnerAvailabilitySyncService(
             slot.Start,
             slot.End,
             slot.AttendeeEmails ?? [],
-            slot.Location
+            slot.Location,
+            IsAllDay: slot.IsAllDay
         )).ToList();
 
         // Apply client-level obfuscation using the user's configured profile

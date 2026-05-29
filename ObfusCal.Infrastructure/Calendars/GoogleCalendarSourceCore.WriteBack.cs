@@ -241,8 +241,8 @@ public sealed partial class GoogleCalendarSourceCore
                     var slotId = item.ExtendedProperties?.Private?.TryGetValue(SlotIdPropertyKey, out var value) == true
                         ? value
                         : null;
-                    TryParseGoogleEventDate(item.Start, false, out var start);
-                    TryParseGoogleEventDate(item.End, true, out var end);
+                    TryParseGoogleEventDate(item.Start, out var start);
+                    TryParseGoogleEventDate(item.End, out var end);
                     return new ManagedGoogleEventRecord(item.Id, slotId, item.Summary, start, end);
                 })
                 .Where(item => item.GoogleId is not null));

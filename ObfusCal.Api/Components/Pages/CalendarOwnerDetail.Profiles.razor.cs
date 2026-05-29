@@ -16,7 +16,8 @@ public partial class CalendarOwnerDetail
             RemoveAttendees = p.RemoveAttendees,
             RoundTimes = p.RoundTimes,
             RoundingIntervalMinutes = p.RoundingIntervalMinutes,
-            MergeBlocks = p.MergeBlocks
+            MergeBlocks = p.MergeBlocks,
+            RemoveSourceLabel = p.RemoveSourceLabel
         }).ToList();
 
         foreach (var ctx in Enum.GetValues<ObfuscationAuditContext>())
@@ -32,7 +33,8 @@ public partial class CalendarOwnerDetail
                 RemoveAttendees = def.RemoveAttendees,
                 RoundTimes = def.RoundTimes,
                 RoundingIntervalMinutes = def.RoundingIntervalMinutes,
-                MergeBlocks = def.MergeBlocks
+                MergeBlocks = def.MergeBlocks,
+                RemoveSourceLabel = def.RemoveSourceLabel
             });
         }
     }
@@ -52,11 +54,11 @@ public partial class CalendarOwnerDetail
             profile.RemoveAttendees,
             profile.RoundTimes,
             profile.RoundingIntervalMinutes,
-            profile.MergeBlocks);
+            profile.MergeBlocks,
+            profile.RemoveSourceLabel);
 
         await ObfuscationProfileService.SetProfileAsync(Id, settings);
         _profileMessage = "Profile saved.";
         _profileSavedContext = profile.Context;
     }
 }
-

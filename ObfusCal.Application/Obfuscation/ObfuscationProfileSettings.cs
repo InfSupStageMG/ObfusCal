@@ -8,7 +8,8 @@ public sealed record ObfuscationProfileSettings(
     bool RemoveAttendees,
     bool RoundTimes,
     int RoundingIntervalMinutes,
-    bool MergeBlocks)
+    bool MergeBlocks,
+    bool RemoveSourceLabel)
 {
     public static ObfuscationProfileSettings CreateDefault(ObfuscationAuditContext context) =>
         new(
@@ -19,6 +20,6 @@ public sealed record ObfuscationProfileSettings(
             RemoveAttendees: true,
             RoundTimes: true,
             RoundingIntervalMinutes: 15,
-            MergeBlocks: true);
+            MergeBlocks: true,
+            RemoveSourceLabel: context == ObfuscationAuditContext.Client);
 }
-

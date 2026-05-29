@@ -167,6 +167,9 @@ internal static class IcsCalendarEventParser
             ? attendeeValues.Select(ParseAttendee).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray()
             : [];
 
+        // VALUE=DATE (no 'T' separator) means the event occupies full calendar days
+        var isAllDay = IsDateOnlyValue(startValues[0]);
+
         calendarEvent = new CalendarEvent(
             id,
             title,
@@ -174,7 +177,8 @@ internal static class IcsCalendarEventParser
             start,
             end,
             attendees,
-            location);
+            location,
+            IsAllDay: isAllDay);
 
         return true;
     }

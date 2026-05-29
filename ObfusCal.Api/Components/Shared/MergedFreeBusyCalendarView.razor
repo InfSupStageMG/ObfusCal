@@ -1,5 +1,4 @@
 ﻿@using System.Globalization
-@using ObfusCal.Application.UseCases.GetMergedFreeBusy
 
 <section class="card calendar-view">
     <div class="calendar-grid">
@@ -28,6 +27,19 @@
                     </div>
                 }
             </div>
+
+            @if (_labelColors.Count > 0)
+            {
+                <div class="calendar-legend" role="list" aria-label="Calendar source legend">
+                    @foreach (var (label, color) in _labelColors.OrderBy(kv => kv.Key))
+                    {
+                        <div class="legend-item" role="listitem">
+                            <span class="legend-dot" style="background-color: @color.Accent" aria-hidden="true"></span>
+                            <span class="legend-label">@label</span>
+                        </div>
+                    }
+                </div>
+            }
         </div>
 
         <div class="calendar-weekdays">
@@ -43,23 +55,38 @@
                 var isOutsideViewMonth = IsOutsideViewMonth(date);
                 var isSelectable = date.HasValue && !isOutsideViewMonth;
 
-                <div class="calendar-day @(hasEvents ? "has-events" : "") @(isOutsideViewMonth ? "other-month" : "") @(date == _selectedDate ? "selected" : "")"
-                     @onclick="@(() => SelectDay(date))"
-                     role="@(isSelectable ? "button" : null)"
-                     tabindex="@(isSelectable ? 0 : -1)"
-                     style="cursor: @(isSelectable ? "pointer" : "default");">
+                <div
+                    class="calendar-day @(hasEvents ? "has-events" : "") @(isOutsideViewMonth ? "other-month" : "") @(date == _selectedDate ? "selected" : "")"
+                    @onclick="@(() => SelectDay(date))"
+                    role="@(isSelectable ? "button" : null)"
+                    tabindex="@(isSelectable ? 0 : -1)"
+                    style="cursor: @(isSelectable ? "pointer" : "default");">
                     @if (date.HasValue)
                     {
                         <div class="calendar-day-number">@date.Value.Day</div>
                         @if (hasEvents && events.Count > 0)
                         {
                             <div class="calendar-day-events">
-                                @foreach (var evt in events.Take(2))
-                                {
-                                    <div class="calendar-event-badge" title="@(evt.Title ?? "Busy") - @FormatTime(evt) to @FormatEndTime(evt)">
-                                        <span class="event-time">@FormatTime(evt)-@FormatEndTime(evt)</span>
-                                    </div>
-                                }
+                                 @foreach (var evt in events.Take(2))
+                                 {
+                                     var c = GetSlotColor(evt);
+                                     @if (evt.IsAllDay)
+                                     {
+                                         <div class="calendar-event-badge calendar-event-badge--allday"
+                                              style="background-color: @c.Bg; border-left: 3px solid @c.Accent; color: var(--color-text-primary);"
+                                              title="@(evt.Title ?? "Busy") - All day">
+                                             <span class="event-time">All day</span>
+                                         </div>
+                                     }
+                                     else
+                                     {
+                                         <div class="calendar-event-badge"
+                                              style="background-color: @c.Bg; border-left: 3px solid @c.Accent; color: var(--color-text-primary);"
+                                              title="@(evt.Title ?? "Busy") - @FormatTime(evt) to @FormatEndTime(evt)">
+                                             <span class="event-time">@FormatTime(evt)-@FormatEndTime(evt)</span>
+                                         </div>
+                                     }
+                                 }
                                 @if (events.Count > 2)
                                 {
                                     <div class="calendar-event-badge more">+@(events.Count - 2)</div>
@@ -82,7 +109,8 @@
             <div class="modal-header">
                 <div class="modal-header-content">
                     <h2>@selectedDate.ToString("dddd, dd MMMM yyyy", CultureInfo.CurrentCulture)</h2>
-                    <span class="modal-event-count">@_selectedDayEvents.Count @(_selectedDayEvents.Count == 1 ? "event" : "events")</span>
+                    <span
+                        class="modal-event-count">@_selectedDayEvents.Count @(_selectedDayEvents.Count == 1 ? "event" : "events")</span>
                 </div>
                 <button class="modal-close" @onclick="CloseModal" aria-label="Close">
                     <span>×</span>
@@ -92,30 +120,50 @@
                 <div class="events-list">
                     @foreach (var evt in _selectedDayEvents)
                     {
-                        <div class="event-item">
+                        var slotColor = GetSlotColor(evt);
+                        <div class="event-item" style="border-left: 4px solid @slotColor.Accent;">
                             @if (evt.SourceSlots?.Count > 1)
                             {
                                 <!-- Merged block with multiple source events -->
                                 <div class="event-item-header">
-                                    <div class="event-time-range">
-                                        <strong>@FormatInTimeZone(evt.Start, "HH:mm")</strong>
-                                        <span class="event-separator">–</span>
-                                        <strong>@FormatInTimeZone(evt.End, "HH:mm")</strong>
-                                        <span class="event-duration">(@CalculateDuration(evt))</span>
-                                    </div>
+                                    @if (evt.IsAllDay)
+                                    {
+                                        <div class="event-time-range">
+                                            <span class="event-allday-label">All day</span>
+                                            <span class="event-duration">(@CalculateDuration(evt))</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="event-time-range">
+                                            <strong>@FormatInTimeZone(evt.Start, "HH:mm")</strong>
+                                            <span class="event-separator">–</span>
+                                            <strong>@FormatInTimeZone(evt.End, "HH:mm")</strong>
+                                            <span class="event-duration">(@CalculateDuration(evt))</span>
+                                        </div>
+                                    }
                                     <span class="merged-block-badge">@evt.SourceSlots.Count events merged</span>
                                 </div>
                                 <div class="merged-sources">
                                     @foreach (var source in evt.SourceSlots)
                                     {
-                                        <div class="source-event">
-                                            @if (!string.IsNullOrWhiteSpace(source.Title))
-                                            {
-                                                <div class="source-event-title">@source.Title</div>
-                                            } else
-                                            {
-                                                <div class="source-event-title source-event-title--empty">(Busy)</div>
-                                            }
+                                        var sc = GetColor(source.SourceLabel);
+                                        <div class="source-event" style="border-left-color: @sc.Accent;">
+                                            <div class="source-event-header">
+                                                @if (!string.IsNullOrWhiteSpace(source.Title))
+                                                {
+                                                    <div class="source-event-title">@source.Title</div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="source-event-title source-event-title--empty">(Busy)</div>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(source.SourceLabel))
+                                                {
+                                                    <span class="source-label-badge"
+                                                          style="background-color: @sc.Bg; color: @sc.Accent; border-color: @sc.Accent;">@source.SourceLabel</span>
+                                                }
+                                            </div>
                                             <div class="source-event-details">
                                                 @if (!string.IsNullOrWhiteSpace(source.Location))
                                                 {
@@ -144,12 +192,27 @@
                             {
                                 <!-- Single event or no source data -->
                                 <div class="event-item-header">
-                                    <div class="event-time-range">
-                                        <strong>@FormatInTimeZone(evt.Start, "HH:mm")</strong>
-                                        <span class="event-separator">–</span>
-                                        <strong>@FormatInTimeZone(evt.End, "HH:mm")</strong>
-                                        <span class="event-duration">(@CalculateDuration(evt))</span>
-                                    </div>
+                                    @if (evt.IsAllDay)
+                                    {
+                                        <div class="event-time-range">
+                                            <span class="event-allday-label">All day</span>
+                                            <span class="event-duration">(@CalculateDuration(evt))</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="event-time-range">
+                                            <strong>@FormatInTimeZone(evt.Start, "HH:mm")</strong>
+                                            <span class="event-separator">–</span>
+                                            <strong>@FormatInTimeZone(evt.End, "HH:mm")</strong>
+                                            <span class="event-duration">(@CalculateDuration(evt))</span>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(evt.SourceLabel))
+                                    {
+                                        <span class="source-label-badge"
+                                              style="background-color: @slotColor.Bg; color: @slotColor.Accent; border-color: @slotColor.Accent;">@evt.SourceLabel</span>
+                                    }
                                 </div>
                                 @if (!string.IsNullOrWhiteSpace(evt.Title))
                                 {

@@ -6,7 +6,8 @@ public record ShadowSlotInput(
     string? Title = null,
     string? Description = null,
     IReadOnlyList<string>? AttendeeEmails = null,
-    string? Location = null);
+    string? Location = null,
+    bool IsAllDay = false);
 
 public record PushShadowSlotsCommand(
     string PeerId,

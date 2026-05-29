@@ -63,6 +63,22 @@ public class GetBusySlotsQueryHandlerTests
     }
 
     [TestMethod]
+    public async Task Handle_PreservesIsAllDayInResponse()
+    {
+        var events = new CalendarEvent[]
+        {
+            new("evt-1", "Holiday", null,
+                From, From.AddDays(1), [], null, IsAllDay: true)
+        };
+
+        var handler = CreateHandler(events);
+        var result = await handler.ExecuteAsync(new GetBusySlotsQuery(OwnerId, From, To), CancellationToken.None);
+
+        Assert.HasCount(1, result);
+        Assert.IsTrue(result[0].IsAllDay);
+    }
+
+    [TestMethod]
     public async Task Handle_UsesClientContext()
     {
         var profileService = new FakeObfuscationProfileService();

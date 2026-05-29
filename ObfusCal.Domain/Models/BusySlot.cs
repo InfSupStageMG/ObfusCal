@@ -8,6 +8,7 @@ public record BusySlot(
     string? Description = null,
     IReadOnlyList<string>? AttendeeEmails = null,
     string? Location = null,
-    IReadOnlyList<BusySlot>? SourceSlots = null
+    string? SourceLabel = null,
+    IReadOnlyList<BusySlot>? SourceSlots = null,
+    bool IsAllDay = false
 );
-

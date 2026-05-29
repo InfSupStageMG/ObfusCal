@@ -22,14 +22,14 @@ public sealed partial class GraphCalendarSource
         DateTimeOffset windowEnd,
         CancellationToken ct = default)
     {
-        var owner = await _dbContext.CalendarOwners
+        var owner = await dbContext.CalendarOwners
             .SingleOrDefaultAsync(x => x.Id == calendarOwnerId, ct);
         if (owner is null)
             return;
 
         if (!AllowsWriteBack(owner.GraphGrantedScopes))
         {
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Write-back skipped for calendar owner {CalendarOwnerId}: Graph consent is read-only.",
                 calendarOwnerId);
             return;
@@ -38,7 +38,7 @@ public sealed partial class GraphCalendarSource
         var tokenSession = await CreateOwnerTokenSessionAsync(owner, ct);
         if (tokenSession is null)
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "Write-back skipped for calendar owner {CalendarOwnerId}: no valid Graph access token.",
                 calendarOwnerId);
             return;
@@ -61,7 +61,7 @@ public sealed partial class GraphCalendarSource
         if (string.IsNullOrWhiteSpace(instanceScopes)
             || !instanceScopes.Contains("Calendars.ReadWrite", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogInformation(
+            logger.LogInformation(
                 "Write-back skipped for calendar source instance {CalendarSourceInstanceId}: Graph consent is read-only.",
                 instance.Id);
             return;
@@ -70,7 +70,7 @@ public sealed partial class GraphCalendarSource
         var tokenSession = await CreateInstanceTokenSessionAsync(instance, ct);
         if (tokenSession is null)
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "Write-back skipped for calendar source instance {CalendarSourceInstanceId}: no valid Graph access token.",
                 instance.Id);
             return;
@@ -101,7 +101,7 @@ public sealed partial class GraphCalendarSource
             windowEnd,
             ct);
 
-        _logger.LogInformation(
+        logger.LogInformation(
             "Write-back complete for calendar owner {CalendarOwnerId}: {UpsertCount} active placeholder(s), {DeleteCount} stale placeholder(s) removed.",
             calendarOwnerId,
             busySlots.Count,
@@ -138,7 +138,7 @@ public sealed partial class GraphCalendarSource
             using var response = await SendAuthorizedGetWithRetryAsync(nextPageUri, tokenSession, ct);
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     "Failed to fetch ObfusCal-managed Graph events for calendar owner {CalendarOwnerId}: HTTP {StatusCode}.",
                     calendarOwnerId,
                     (int)response.StatusCode);
@@ -271,11 +271,11 @@ public sealed partial class GraphCalendarSource
         var options = new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
         request.Content = new StringContent(JsonSerializer.Serialize(body, options), Encoding.UTF8, "application/json");
 
-        using var response = await _httpClient.SendAsync(request, ct);
+        using var response = await httpClient.SendAsync(request, ct);
         if (response.IsSuccessStatusCode)
             return;
 
-        _logger.LogWarning(
+        logger.LogWarning(
             "Failed to create placeholder event for slot {SlotId} for calendar owner {CalendarOwnerId}: HTTP {StatusCode}.",
             slot.SourceEventId,
             calendarOwnerId,
@@ -307,11 +307,11 @@ public sealed partial class GraphCalendarSource
         var options = new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
         request.Content = new StringContent(JsonSerializer.Serialize(body, options), Encoding.UTF8, "application/json");
 
-        using var response = await _httpClient.SendAsync(request, ct);
+        using var response = await httpClient.SendAsync(request, ct);
         if (response.IsSuccessStatusCode)
             return;
 
-        _logger.LogWarning(
+        logger.LogWarning(
             "Failed to patch placeholder event {GraphEventId} for calendar owner {CalendarOwnerId}: HTTP {StatusCode}.",
             graphEventId,
             calendarOwnerId,
@@ -327,11 +327,11 @@ public sealed partial class GraphCalendarSource
         using var request = new HttpRequestMessage(HttpMethod.Delete, $"{GraphEventsPath}/{Uri.EscapeDataString(graphEventId)}");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenSession.AccessToken);
 
-        using var response = await _httpClient.SendAsync(request, ct);
+        using var response = await httpClient.SendAsync(request, ct);
         if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
             return;
 
-        _logger.LogWarning(
+        logger.LogWarning(
             "Failed to delete stale placeholder event {GraphEventId} for calendar owner {CalendarOwnerId}: HTTP {StatusCode}.",
             graphEventId,
             calendarOwnerId,

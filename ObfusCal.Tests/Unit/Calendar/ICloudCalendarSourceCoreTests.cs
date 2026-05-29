@@ -79,7 +79,7 @@ public class ICloudCalendarSourceCoreTests
             calendarOwnerId: Guid.NewGuid());
 
         // Assert
-        Assert.AreEqual(0, result.Count);
+        Assert.IsEmpty(result);
     }
 
     [TestMethod]
@@ -106,7 +106,7 @@ public class ICloudCalendarSourceCoreTests
             calendarOwnerId: owner.Id);
 
         // Assert
-        Assert.AreEqual(0, result.Count);
+        Assert.IsEmpty(result);
     }
 
     [TestMethod]
@@ -139,9 +139,9 @@ public class ICloudCalendarSourceCoreTests
         var request = CreateCalendarQueryRequest(config, from, to);
         var body = await request.Content!.ReadAsStringAsync();
 
-        StringAssert.Contains(body, "<c:expand");
-        StringAssert.Contains(body, "start=\"20260506T000000Z\"");
-        StringAssert.Contains(body, "end=\"20260507T000000Z\"");
+        Assert.Contains("<c:expand", body);
+        Assert.Contains("start=\"20260506T000000Z\"", body);
+        Assert.Contains("end=\"20260507T000000Z\"", body);
     }
 
     [TestMethod]
@@ -228,7 +228,7 @@ public class ICloudCalendarSourceCoreTests
             new DateTimeOffset(2026, 5, 7, 0, 0, 0, TimeSpan.Zero),
             CancellationToken.None);
 
-        Assert.AreEqual(1, events.Count);
+        Assert.HasCount(1, events);
         Assert.AreEqual("Test Event", events[0].Title);
     }
 
@@ -367,7 +367,7 @@ public class ICloudCalendarSourceCoreTests
             new DateTimeOffset(2026, 5, 6, 0, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2026, 5, 7, 0, 0, 0, TimeSpan.Zero));
 
-        Assert.AreEqual(1, events1.Count, "First call (plaintext fallback) should return events.");
+        Assert.HasCount(1, events1, "First call (plaintext fallback) should return events.");
 
         // Simulate second call after migration: read migrated data from DB.
         var persistedInstance = await db.CalendarSourceInstances.AsNoTracking()
@@ -384,7 +384,7 @@ public class ICloudCalendarSourceCoreTests
             new DateTimeOffset(2026, 5, 6, 0, 0, 0, TimeSpan.Zero),
             new DateTimeOffset(2026, 5, 7, 0, 0, 0, TimeSpan.Zero));
 
-        Assert.AreEqual(1, events2.Count, "Second call (after migration) should still return events.");
+        Assert.HasCount(1, events2, "Second call (after migration) should still return events.");
         Assert.AreEqual("Round Trip Event", events2[0].Title);
     }
 
@@ -576,8 +576,98 @@ public class ICloudCalendarSourceCoreTests
 
         var persisted = await db.CalendarSourceInstances.AsNoTracking().SingleAsync(x => x.Id == instanceId);
         Assert.IsNotNull(persisted.SecretDataJson);
-        Assert.IsTrue(persisted.SecretDataJson.StartsWith("enc:"),
+        Assert.StartsWith("enc:", persisted.SecretDataJson,
             "Legacy raw JSON should be migrated to protected whole-blob storage.");
+    }
+
+    [TestMethod]
+    public async Task GetReadinessAsync_WithAppleIdInConfiguration_ReturnsReady()
+    {
+        // New generic plugin UI format: appleId is a plain configuration field, not a secret.
+        await using var db = TestDbContextFactory.CreateInMemory();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var httpClient = new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(string.Empty)
+        }));
+        var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
+        var logger = CreateLogger();
+
+        var core = CreateCore(
+            httpClient,
+            db,
+            dataProtectionProvider,
+            icloudOptions,
+            logger,
+            new PrefixCalendarSourceSecretProtector("enc:"));
+
+        var instance = new CalendarSourceInstanceContext(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "icloud",
+            "iCloud Calendar",
+            true,
+            "{\"appleId\":\"user@example.com\",\"calendarUrl\":\"https://caldav.icloud.com/test/calendar/\"}",
+            "{\"appSpecificPassword\":\"app-password\"}",
+            false);
+
+        var readiness = await core.GetReadinessAsync(instance, CancellationToken.None);
+
+        Assert.IsTrue(readiness.IsReady);
+    }
+
+    [TestMethod]
+    public async Task GetEventsAsync_WithAppleIdInConfiguration_ReturnsEvents()
+    {
+        // New generic plugin UI format: appleId is a plain configuration field, not a secret.
+        await using var db = TestDbContextFactory.CreateInMemory();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var httpClient = new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                "<d:multistatus xmlns:d=\"DAV:\" xmlns:c=\"urn:ietf:params:xml:ns:caldav\">"
+                + "<d:response><d:propstat><d:prop><c:calendar-data>"
+                + "BEGIN:VCALENDAR\r\n"
+                + "BEGIN:VEVENT\r\n"
+                + "UID:config-appleid-1\r\n"
+                + "DTSTAMP:20260506T000000Z\r\n"
+                + "DTSTART:20260506T100000Z\r\n"
+                + "DTEND:20260506T110000Z\r\n"
+                + "SUMMARY:Config AppleId Event\r\n"
+                + "END:VEVENT\r\n"
+                + "END:VCALENDAR"
+                + "</c:calendar-data></d:prop></d:propstat></d:response>"
+                + "</d:multistatus>")
+        }));
+        var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
+        var logger = CreateLogger();
+
+        var core = CreateCore(
+            httpClient,
+            db,
+            dataProtectionProvider,
+            icloudOptions,
+            logger,
+            new PrefixCalendarSourceSecretProtector("enc:"));
+
+        var instance = new CalendarSourceInstanceContext(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "icloud",
+            "iCloud Calendar",
+            true,
+            "{\"appleId\":\"user@example.com\",\"calendarUrl\":\"https://caldav.icloud.com/test/calendar/\"}",
+            "{\"appSpecificPassword\":\"app-password\"}",
+            false);
+
+        var events = await core.GetEventsAsync(
+            instance,
+            new DateTimeOffset(2026, 5, 6, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 5, 7, 0, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+
+        Assert.AreEqual(1, events.Count);
+        Assert.AreEqual("Config AppleId Event", events[0].Title);
     }
 
     // Helper to access the private CreateCalendarQueryRequest for testing

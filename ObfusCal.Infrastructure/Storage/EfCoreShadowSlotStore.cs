@@ -40,6 +40,7 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
             Description = s.Description,
             AttendeeEmails = s.AttendeeEmails?.ToArray(),
             Location = s.Location,
+            IsAllDay = s.IsAllDay,
             CreatedAtUtc = DateTimeOffset.UtcNow
         }).ToList();
 
@@ -73,6 +74,11 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
             SourceEventId = s.SourceEventId,
             Start = s.Start,
             End = s.End,
+            Title = s.Title,
+            Description = s.Description,
+            AttendeeEmails = s.AttendeeEmails?.ToArray(),
+            Location = s.Location,
+            IsAllDay = s.IsAllDay,
             CreatedAtUtc = DateTimeOffset.UtcNow
         }).ToList();
 
@@ -100,7 +106,8 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
             e.Title,
             e.Description,
             e.AttendeeEmails,
-            e.Location)).ToArray();
+            e.Location,
+            IsAllDay: e.IsAllDay)).ToArray();
 
         _logger.ForContext(PeerIdLogProperty, peerId)
             .ForContext(BusySlotCountLogProperty, result.Length)
@@ -120,7 +127,15 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
             .AsNoTracking()
             .Where(b => b.PeerId == peerId && b.CalendarOwnerId == calendarOwnerId)
             .ToListAsync(ct);
-        var result = entities.Select(e => new CoreBusySlot(e.SourceEventId, e.Start, e.End)).ToArray();
+        var result = entities.Select(e => new CoreBusySlot(
+            e.SourceEventId,
+            e.Start,
+            e.End,
+            e.Title,
+            e.Description,
+            e.AttendeeEmails,
+            e.Location,
+            IsAllDay: e.IsAllDay)).ToArray();
 
         _logger.ForContext(PeerIdLogProperty, peerId)
             .ForContext(CalendarOwnerIdLogProperty, calendarOwnerId)
@@ -130,7 +145,8 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
         return result;
     }
 
-    public async Task<IReadOnlyList<CoreBusySlot>> GetAllSlotsAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
+    public async Task<IReadOnlyList<CoreBusySlot>> GetAllSlotsAsync(DateTimeOffset from, DateTimeOffset to,
+        CancellationToken ct = default)
     {
         var entities = await dbContext.BusySlots
             .AsNoTracking()
@@ -144,7 +160,8 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
             e.Title,
             e.Description,
             e.AttendeeEmails,
-            e.Location)).ToArray();
+            e.Location,
+            IsAllDay: e.IsAllDay)).ToArray();
 
         _logger.ForContext(BusySlotCountLogProperty, result.Length)
             .Debug("Read all shadow slots from all peers");
@@ -158,30 +175,43 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
         DateTimeOffset to,
         CancellationToken ct = default)
     {
-        var activePeerIds = await dbContext.CalendarOwnerPeerMappings
+        var activePeers = await dbContext.CalendarOwnerPeerMappings
             .AsNoTracking()
-            .Where(mapping => mapping.CalendarOwnerId == calendarOwnerId)
-            .Where(mapping => mapping.PeerConnection.Status == PeerConnectionStatus.Active)
-            .Select(mapping => mapping.PeerConnection.InstanceId)
+            .Where(m => m.CalendarOwnerId == calendarOwnerId && m.PeerConnection.Status == PeerConnectionStatus.Active)
+            .Select(m => new { m.PeerConnection.InstanceId, m.PeerConnection.ClientOrganisationName })
             .Distinct()
             .ToListAsync(ct);
 
-        if (activePeerIds.Count == 0)
-        {
-            _logger.ForContext(CalendarOwnerIdLogProperty, calendarOwnerId)
-                .ForContext(BusySlotCountLogProperty, 0)
-                .Debug("Read owner-scoped shadow slots from all peers");
+        if (activePeers.Count == 0) return [];
 
-            return [];
-        }
+        var validPeerIds = activePeers.Select(p => p.InstanceId).ToList();
 
         var entities = await dbContext.BusySlots
             .AsNoTracking()
-            .Where(b => b.CalendarOwnerId == calendarOwnerId)
-            .Where(b => activePeerIds.Contains(b.PeerId))
+            .Where(b => b.CalendarOwnerId == calendarOwnerId && validPeerIds.Contains(b.PeerId))
             .Where(b => b.Start < to && b.End > from)
             .ToListAsync(ct);
-        var result = entities.Select(e => new CoreBusySlot(e.SourceEventId, e.Start, e.End)).ToArray();
+
+        var peerLabels = activePeers
+            .GroupBy(x => x.InstanceId)
+            .ToDictionary(
+                g => g.Key,
+                g => !string.IsNullOrWhiteSpace(g.First().ClientOrganisationName)
+                    ? g.First().ClientOrganisationName
+                    : "Unknown Peer");
+
+        var result = entities.Select(e => new CoreBusySlot(
+            e.SourceEventId,
+            e.Start,
+            e.End,
+            e.Title,
+            e.Description,
+            e.AttendeeEmails,
+            e.Location,
+            IsAllDay: e.IsAllDay) with
+        {
+            SourceLabel = peerLabels.GetValueOrDefault(e.PeerId)
+        }).ToArray();
 
         _logger.ForContext(CalendarOwnerIdLogProperty, calendarOwnerId)
             .ForContext(BusySlotCountLogProperty, result.Length)

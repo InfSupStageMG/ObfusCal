@@ -50,7 +50,8 @@ public sealed class GetBusySlotsUseCase(
                 s.Title,
                 s.Description,
                 s.AttendeeEmails,
-                s.Location))
+                s.Location,
+                s.IsAllDay))
             .ToList();
     }
 

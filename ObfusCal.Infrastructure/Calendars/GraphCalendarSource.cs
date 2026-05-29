@@ -32,20 +32,15 @@ public sealed partial class GraphCalendarSource(
     IGraphOAuthTokenClient tokenClient,
     ICalendarSourceInstanceStore calendarSourceInstanceStore,
     ILogger<GraphCalendarSource> logger)
-    : ICalendarSource, ICalendarWriteBack, ICalendarSourceInstanceWriteBack, ICalendarSourceReadinessEvaluator, ICalendarSourceInstanceHandler, ICalendarSourceInstanceReadinessEvaluator
+    : ICalendarSource, ICalendarWriteBack, ICalendarSourceInstanceWriteBack, ICalendarSourceReadinessEvaluator,
+        ICalendarSourceInstanceHandler, ICalendarSourceInstanceReadinessEvaluator
 {
     private const string GraphCalendarViewPath = "v1.0/me/calendarView";
     private const string GraphEventsPath = "v1.0/me/events";
     private const int GraphCalendarViewPageSize = 1000;
     private const string ObfusCalPropertyNamespace = "e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0";
     private const string ManagedPropertyId = "String {" + ObfusCalPropertyNamespace + "} Name ObfusCal.Managed";
-    private const string SlotIdPropertyId  = "String {" + ObfusCalPropertyNamespace + "} Name ObfusCal.SlotId";
-
-    private readonly HttpClient _httpClient = httpClient;
-    private readonly AppDbContext _dbContext = dbContext;
-    private readonly IGraphOAuthTokenClient _tokenClient = tokenClient;
-    private readonly ICalendarSourceInstanceStore _calendarSourceInstanceStore = calendarSourceInstanceStore;
-    private readonly ILogger<GraphCalendarSource> _logger = logger;
+    private const string SlotIdPropertyId = "String {" + ObfusCalPropertyNamespace + "} Name ObfusCal.SlotId";
 
     private readonly IDataProtector _tokenProtector = dataProtectionProvider
         .CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
@@ -64,7 +59,7 @@ public sealed partial class GraphCalendarSource(
         if (calendarOwnerId is null)
             return [];
 
-        var owner = await _dbContext.CalendarOwners
+        var owner = await dbContext.CalendarOwners
             .SingleOrDefaultAsync(x => x.Id == calendarOwnerId.Value, ct);
 
         if (owner is null)
@@ -78,7 +73,7 @@ public sealed partial class GraphCalendarSource(
 
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "Graph calendar fetch failed for calendar owner {CalendarOwnerId} with HTTP {StatusCode}.",
                 calendarOwnerId.Value,
                 (int)response.StatusCode);
@@ -116,7 +111,7 @@ public sealed partial class GraphCalendarSource(
         using var response = await GetCalendarViewWithRetryAsync(tokenSession, from, to, ct);
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "Graph calendar fetch failed for calendar source instance {CalendarSourceInstanceId} with HTTP {StatusCode}.",
                 instance.Id,
                 (int)response.StatusCode);
@@ -138,7 +133,7 @@ public sealed partial class GraphCalendarSource(
 
     public async Task<CalendarSourceReadiness> GetReadinessAsync(Guid calendarOwnerId, CancellationToken ct = default)
     {
-        var owner = await _dbContext.CalendarOwners
+        var owner = await dbContext.CalendarOwners
             .AsNoTracking()
             .SingleOrDefaultAsync(x => x.Id == calendarOwnerId, ct);
 
@@ -146,7 +141,7 @@ public sealed partial class GraphCalendarSource(
             return CalendarSourceReadiness.NotReady("Calendar owner not found.");
 
         var hasConsent = !string.IsNullOrWhiteSpace(owner.GraphAccessTokenProtected)
-            || !string.IsNullOrWhiteSpace(owner.GraphRefreshTokenProtected);
+                         || !string.IsNullOrWhiteSpace(owner.GraphRefreshTokenProtected);
 
         if (!hasConsent)
         {
@@ -165,11 +160,12 @@ public sealed partial class GraphCalendarSource(
             : CalendarSourceReadiness.NotReady("Microsoft Graph consent required.");
     }
 
-    public Task<CalendarSourceReadiness> GetReadinessAsync(CalendarSourceInstanceContext instance, CancellationToken ct = default)
+    public Task<CalendarSourceReadiness> GetReadinessAsync(CalendarSourceInstanceContext instance,
+        CancellationToken ct = default)
     {
         var secretData = ParseSecretData(instance.SecretDataJson);
         var hasConsent = !string.IsNullOrWhiteSpace(secretData?.ProtectedAccessToken)
-            || !string.IsNullOrWhiteSpace(secretData?.ProtectedRefreshToken);
+                         || !string.IsNullOrWhiteSpace(secretData?.ProtectedRefreshToken);
 
         if (!hasConsent)
         {
@@ -202,7 +198,7 @@ public sealed partial class GraphCalendarSource(
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex,
+            logger.LogWarning(ex,
                 "Unable to read Graph access token for calendar owner {CalendarOwnerId}.",
                 owner.Id);
             return null;
@@ -236,7 +232,8 @@ public sealed partial class GraphCalendarSource(
         if (string.IsNullOrWhiteSpace(accessToken))
             return null;
 
-        return new GraphAccessTokenSession(accessToken, refreshCt => ForceRefreshAsync(instance, sessionState, refreshCt));
+        return new GraphAccessTokenSession(accessToken,
+            refreshCt => ForceRefreshAsync(instance, sessionState, refreshCt));
     }
 
     private bool TryUnprotectInstanceAccessToken(
@@ -251,7 +248,7 @@ public sealed partial class GraphCalendarSource(
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex,
+            logger.LogWarning(ex,
                 "Unable to read Graph access token for calendar source instance {CalendarSourceInstanceId}; returning no events.",
                 instance.Id);
             accessToken = null;
@@ -285,7 +282,7 @@ public sealed partial class GraphCalendarSource(
     {
         if (string.IsNullOrWhiteSpace(owner.GraphRefreshTokenProtected))
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "Graph access token refresh skipped for calendar owner {CalendarOwnerId}: no refresh token available.",
                 owner.Id);
             return string.Empty;
@@ -298,7 +295,7 @@ public sealed partial class GraphCalendarSource(
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex,
+            logger.LogWarning(ex,
                 "Graph access token refresh failed for calendar owner {CalendarOwnerId}: refresh token could not be read.",
                 owner.Id);
             return string.Empty;
@@ -306,7 +303,7 @@ public sealed partial class GraphCalendarSource(
 
         try
         {
-            var refreshed = await _tokenClient.RefreshAccessTokenAsync(refreshToken, owner.GraphGrantedScopes, ct);
+            var refreshed = await tokenClient.RefreshAccessTokenAsync(refreshToken, owner.GraphGrantedScopes, ct);
             owner.GraphAccessTokenProtected = _tokenProtector.Protect(refreshed.AccessToken);
             if (!string.IsNullOrWhiteSpace(refreshed.RefreshToken))
                 owner.GraphRefreshTokenProtected = _tokenProtector.Protect(refreshed.RefreshToken);
@@ -317,12 +314,12 @@ public sealed partial class GraphCalendarSource(
             owner.GraphTokenExpiresAtUtc = refreshed.ExpiresAtUtc;
             owner.GraphTokenLastRefreshedAtUtc = DateTimeOffset.UtcNow;
 
-            await _dbContext.SaveChangesAsync(ct);
+            await dbContext.SaveChangesAsync(ct);
             return refreshed.AccessToken;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex,
+            logger.LogWarning(ex,
                 "Graph access token refresh failed for calendar owner {CalendarOwnerId}; returning no events.",
                 owner.Id);
             return string.Empty;
@@ -346,7 +343,7 @@ public sealed partial class GraphCalendarSource(
     {
         if (string.IsNullOrWhiteSpace(secretData.ProtectedRefreshToken))
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "Graph access token refresh skipped for calendar source instance {CalendarSourceInstanceId}: no refresh token available.",
                 instance.Id);
             return GraphTokenRefreshResult.Empty(secretData);
@@ -359,7 +356,7 @@ public sealed partial class GraphCalendarSource(
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex,
+            logger.LogWarning(ex,
                 "Graph access token refresh failed for calendar source instance {CalendarSourceInstanceId}: refresh token could not be read.",
                 instance.Id);
             return GraphTokenRefreshResult.Empty(secretData);
@@ -367,7 +364,7 @@ public sealed partial class GraphCalendarSource(
 
         try
         {
-            var refreshed = await _tokenClient.RefreshAccessTokenAsync(refreshToken, secretData.GrantedScopes, ct);
+            var refreshed = await tokenClient.RefreshAccessTokenAsync(refreshToken, secretData.GrantedScopes, ct);
             var updatedSecretData = secretData with
             {
                 ProtectedAccessToken = _tokenProtector.Protect(refreshed.AccessToken),
@@ -379,7 +376,7 @@ public sealed partial class GraphCalendarSource(
                 TokenLastRefreshedAtUtc = DateTimeOffset.UtcNow
             };
 
-            await _calendarSourceInstanceStore.UpdateSecretDataAsync(
+            await calendarSourceInstanceStore.UpdateSecretDataAsync(
                 instance.CalendarOwnerId,
                 instance.Id,
                 JsonSerializer.Serialize(updatedSecretData),
@@ -389,7 +386,7 @@ public sealed partial class GraphCalendarSource(
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex,
+            logger.LogWarning(ex,
                 "Graph access token refresh failed for calendar source instance {CalendarSourceInstanceId}; returning no events.",
                 instance.Id);
             return GraphTokenRefreshResult.Empty(secretData);
@@ -414,7 +411,7 @@ public sealed partial class GraphCalendarSource(
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         request.Headers.Accept.ParseAdd("application/json");
 
-        return await _httpClient.SendAsync(request, ct);
+        return await httpClient.SendAsync(request, ct);
     }
 
     private async Task<HttpResponseMessage> SendAuthorizedGetWithRetryAsync(
@@ -453,7 +450,7 @@ public sealed partial class GraphCalendarSource(
 
             if (!seenNextLinks.Add(page.NextLink))
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     "Graph calendarView pagination returned a repeated nextLink; stopping early to avoid an infinite loop.");
                 break;
             }
@@ -472,11 +469,10 @@ public sealed partial class GraphCalendarSource(
         using var response = await SendAuthorizedGetWithRetryAsync(nextLink, tokenSession, ct);
         if (response.IsSuccessStatusCode)
             return await response.Content.ReadFromJsonAsync<GraphCalendarViewResponse>(cancellationToken: ct);
-        _logger.LogWarning(
+        logger.LogWarning(
             "Graph calendarView next-page fetch failed with HTTP {StatusCode}; pagination stopped early.",
             (int)response.StatusCode);
         return null;
-
     }
 
     private async Task<HttpResponseMessage> GetCalendarViewWithRetryAsync(
@@ -503,8 +499,24 @@ public sealed partial class GraphCalendarSource(
 
     private CalendarEvent? MapEvent(GraphEvent source)
     {
-        if (!TryParseGraphDateTime(source.Start, out var start)
-            || !TryParseGraphDateTime(source.End, out var end)
+        DateTimeOffset start;
+        DateTimeOffset end;
+        var hasRange = source.IsAllDay
+            ? TryParseGraphAllDayDate(source.Start, out start)
+            : TryParseGraphDateTime(source.Start, out start);
+
+        if (hasRange)
+        {
+            hasRange = source.IsAllDay
+                ? TryParseGraphAllDayDate(source.End, out end)
+                : TryParseGraphDateTime(source.End, out end);
+        }
+        else
+        {
+            end = default;
+        }
+
+        if (!hasRange
             || end <= start)
         {
             return null;
@@ -526,7 +538,23 @@ public sealed partial class GraphCalendarSource(
             start,
             end,
             attendees,
-            source.Location?.DisplayName);
+            source.Location?.DisplayName,
+            IsAllDay: source.IsAllDay);
+    }
+
+    private static bool TryParseGraphAllDayDate(GraphDateTimeTimeZone? source, out DateTimeOffset value)
+    {
+        value = default;
+        if (source is null || string.IsNullOrWhiteSpace(source.DateTime))
+            return false;
+
+        var rawDate = source.DateTime.Length >= 10 ? source.DateTime[..10] : source.DateTime;
+        if (!DateOnly.TryParseExact(rawDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None,
+                out var parsedDate))
+            return false;
+
+        value = new DateTimeOffset(parsedDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc), TimeSpan.Zero);
+        return true;
     }
 
     private static bool IsManagedEvent(GraphEvent source)
@@ -563,13 +591,13 @@ public sealed partial class GraphCalendarSource(
             }
             catch (TimeZoneNotFoundException ex)
             {
-                _logger.LogDebug(ex,
+                logger.LogDebug(ex,
                     "Graph event timezone '{TimeZoneId}' was not found on this host. Falling back to UTC parsing.",
                     timeZoneId);
             }
             catch (InvalidTimeZoneException ex)
             {
-                _logger.LogDebug(ex,
+                logger.LogDebug(ex,
                     "Graph event timezone '{TimeZoneId}' is invalid on this host. Falling back to UTC parsing.",
                     timeZoneId);
             }

@@ -228,11 +228,42 @@
     font-size: var(--font-size-sm);
 }
 
+.calendar-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--cal-sp-md) var(--cal-sp-xl);
+    margin-top: var(--cal-sp-lg);
+    padding: var(--cal-sp-md) var(--cal-sp-lg);
+    background-color: var(--color-background-subtle);
+    border: 1px solid var(--color-border-light);
+    border-radius: 6px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--cal-sp-sm);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.legend-label {
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+}
+
+/* Color is applied via inline style on the element; keeping structural defaults here */
 .calendar-event-badge {
-    background-color: var(--color-primary-light);
-    color: var(--color-background);
     padding: var(--cal-sp-xs) var(--cal-sp-sm);
-    border-radius: 2px;
+    border-radius: 3px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -241,9 +272,11 @@
 }
 
 .calendar-event-badge.more {
-    background-color: var(--color-primary-dark);
+    background-color: var(--color-background-hover);
+    color: var(--color-text-secondary);
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold);
+    border-left: 3px solid var(--color-border);
 }
 
 .event-time {
@@ -360,12 +393,19 @@
 
 .modal-body .event-item {
     padding: var(--cal-sp-xl);
+    padding-left: calc(var(--cal-sp-xl) - 4px); /* compensate for 4px left border applied inline */
     border: 1px solid var(--color-border);
+    border-left-width: 4px; /* placeholder; actual color is set via inline style */
     border-radius: 6px;
     background-color: var(--color-background-subtle);
+    transition: border-left-color var(--transition-fast, 0.2s);
 }
 
 .event-item-header {
+    display: flex;
+    align-items: center;
+    gap: var(--cal-sp-md);
+    flex-wrap: wrap;
     margin-bottom: var(--cal-sp-lg);
 }
 
@@ -455,6 +495,26 @@
     margin-top: var(--cal-sp-md);
 }
 
+.source-label-badge {
+    display: inline-block;
+    font-size: var(--font-size-xs, 0.75rem);
+    color: var(--color-text-secondary);
+    background-color: var(--color-background-subtle, var(--color-background));
+    border: 1px solid var(--color-border);
+    padding: 1px var(--cal-sp-md);
+    border-radius: 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.source-event-header {
+    display: flex;
+    align-items: baseline;
+    gap: var(--cal-sp-md);
+    flex-wrap: wrap;
+    margin-bottom: var(--cal-sp-md);
+}
+
 .merged-sources {
     display: flex;
     flex-direction: column;
@@ -476,7 +536,7 @@
     font-weight: var(--font-weight-semibold);
     color: var(--color-text-primary);
     font-size: var(--font-size-base);
-    margin-bottom: var(--cal-sp-md);
+    margin-bottom: 0;
 }
 
 .source-event-details {

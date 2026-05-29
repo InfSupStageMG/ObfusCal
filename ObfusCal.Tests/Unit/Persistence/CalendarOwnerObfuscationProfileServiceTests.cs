@@ -93,7 +93,8 @@ public class CalendarOwnerObfuscationProfileServiceTests
             RemoveAttendees: false,
             RoundTimes: false,
             RoundingIntervalMinutes: 30,
-            MergeBlocks: false);
+            MergeBlocks: false,
+            RemoveSourceLabel: false);
 
         var result = await svc.SetProfileAsync(ownerId, updated);
 
@@ -123,7 +124,8 @@ public class CalendarOwnerObfuscationProfileServiceTests
             RemoveAttendees: true,
             RoundTimes: true,
             RoundingIntervalMinutes: 60,
-            MergeBlocks: true);
+            MergeBlocks: true,
+            RemoveSourceLabel: false);
 
         await svc.SetProfileAsync(ownerId, updated);
 
@@ -143,10 +145,9 @@ public class CalendarOwnerObfuscationProfileServiceTests
 
         var invalid = new ObfuscationProfileSettings(
             ObfuscationAuditContext.Client,
-            true, true, true, true, true, 0, true);
+            true, true, true, true, true, 0, true, false);
 
-        await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(
-            () => svc.SetProfileAsync(ownerId, invalid));
+        await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(() => svc.SetProfileAsync(ownerId, invalid));
     }
 
     [TestMethod]
@@ -158,10 +159,9 @@ public class CalendarOwnerObfuscationProfileServiceTests
 
         var invalid = new ObfuscationProfileSettings(
             ObfuscationAuditContext.Client,
-            true, true, true, true, true, -5, true);
+            true, true, true, true, true, -5, true, false);
 
-        await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(
-            () => svc.SetProfileAsync(ownerId, invalid));
+        await Assert.ThrowsExactlyAsync<ArgumentOutOfRangeException>(() => svc.SetProfileAsync(ownerId, invalid));
     }
 
     [TestMethod]
@@ -192,7 +192,7 @@ public class CalendarOwnerObfuscationProfileServiceTests
         // Update only Client
         var clientUpdate = new ObfuscationProfileSettings(
             ObfuscationAuditContext.Client,
-            false, false, false, false, false, 30, false);
+            false, false, false, false, false, 30, false, false);
         await svc.SetProfileAsync(ownerId, clientUpdate);
 
         var internalAfter = await svc.GetProfileAsync(ownerId, ObfuscationAuditContext.Internal);
@@ -240,7 +240,8 @@ public class CalendarOwnerObfuscationProfileServiceTests
             RemoveAttendees: false,
             RoundTimes: false,
             RoundingIntervalMinutes: 45,
-            MergeBlocks: false);
+            MergeBlocks: false,
+            RemoveSourceLabel: false);
 
         var result = await svc.SetProfileAsync(ownerId, updated);
 
@@ -273,7 +274,7 @@ public class CalendarOwnerObfuscationProfileServiceTests
         // Set a non-default profile
         await svc.SetProfileAsync(ownerId, new ObfuscationProfileSettings(
             ObfuscationAuditContext.Client,
-            false, false, false, false, false, 30, false));
+            false, false, false, false, false, 30, false, false));
 
         // Read it back
         var profile = await svc.GetProfileAsync(ownerId, ObfuscationAuditContext.Client);
@@ -311,9 +312,9 @@ public class CalendarOwnerObfuscationProfileServiceTests
 
         var nonExistentOwnerId = Guid.NewGuid();
         var profile = new ObfuscationProfileSettings(
-            ObfuscationAuditContext.Client, true, true, true, true, true, 15, true);
+            ObfuscationAuditContext.Client, true, true, true, true, true, 15, true, false);
 
-        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
-            () => svc.SetProfileAsync(nonExistentOwnerId, profile));
+        await Assert.ThrowsExactlyAsync<InvalidOperationException>(() =>
+            svc.SetProfileAsync(nonExistentOwnerId, profile));
     }
 }

@@ -17,6 +17,7 @@ public sealed class ObfuscationPipeline(
     private readonly IObfuscationTransformer[] _transformers = transformers
         .OrderBy(GetEventTransformerOrder)
         .ToArray();
+
     private readonly IBusySlotTransformer[] _slotTransformers = slotTransformers
         .OrderBy(GetSlotTransformerOrder)
         .ToArray();
@@ -46,7 +47,9 @@ public sealed class ObfuscationPipeline(
             .ToArray();
 
         var slots = inputEvents
-            .Select(calendarEvent => activeEventTransformers.Aggregate(calendarEvent, (current, transformer) => transformer.Transform(current)))
+            .Select(calendarEvent =>
+                activeEventTransformers.Aggregate(calendarEvent,
+                    (current, transformer) => transformer.Transform(current)))
             .Select(calendarEvent => new BusySlot(
                 calendarEvent.Id,
                 calendarEvent.Start,
@@ -54,11 +57,14 @@ public sealed class ObfuscationPipeline(
                 calendarEvent.Title,
                 calendarEvent.Description,
                 calendarEvent.AttendeeEmails,
-                calendarEvent.Location))
+                calendarEvent.Location,
+                calendarEvent.SourceLabel,
+                IsAllDay: calendarEvent.IsAllDay))
             .ToList();
 
         // Apply slot transformers (e.g., merging)
-        var finalSlots = activeSlotTransformers.Aggregate((IReadOnlyList<BusySlot>)slots, (current, transformer) => transformer.Transform(current));
+        var finalSlots = activeSlotTransformers.Aggregate((IReadOnlyList<BusySlot>)slots,
+            (current, transformer) => transformer.Transform(current));
         var timestamp = DateTimeOffset.UtcNow;
         var transformerSummary = transformersApplied.Length == 0
             ? "no transformers configured"
@@ -94,7 +100,7 @@ public sealed class ObfuscationPipeline(
                 case RemoveDescriptionTransformer when !profile.RemoveDescription:
                 case RemoveLocationTransformer when !profile.RemoveLocation:
                 case RemoveAttendeesTransformer when !profile.RemoveAttendees:
-                    continue;
+                case RemoveSourceLabelTransformer when !profile.RemoveSourceLabel:
                 case RoundTimesTransformer when !profile.RoundTimes:
                     continue;
                 case RoundTimesTransformer:
@@ -126,4 +132,3 @@ public sealed class ObfuscationPipeline(
     private static string GetSlotTransformerName(IBusySlotTransformer transformer) =>
         transformer is IBusySlotTransformerPlugin plugin ? plugin.Id : transformer.GetType().Name;
 }
-

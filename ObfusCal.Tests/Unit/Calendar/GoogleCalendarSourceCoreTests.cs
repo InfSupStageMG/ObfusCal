@@ -482,6 +482,114 @@ public class GoogleCalendarSourceCoreTests
     }
 
     [TestMethod]
+    public async Task GetEventsAsync_AllDayEvent_SetsIsAllDay_AndDoesNotAddExtraDay()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        dbContext.CalendarOwners.Add(new CalendarOwner { Id = ownerId, Name = "Owner" });
+        await dbContext.SaveChangesAsync();
+
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var secretProtector = new CalendarSourceSecretProtector(dataProtectionProvider);
+        var instances = new FakeCalendarSourceInstanceService(id => id == ownerId);
+
+        await instances.CreateAsync(ownerId,
+            new CreateCalendarSourceInstanceInput(
+                "google",
+                "Google Calendar",
+                "{\"calendarId\":\"primary\"}",
+                SerializeSecret(secretProtector, "access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))));
+
+        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """
+                {
+                  "items": [
+                    {
+                      "id": "allday-evt-1",
+                      "summary": "Public Holiday",
+                      "start": { "date": "2026-06-04" },
+                      "end":   { "date": "2026-06-05" }
+                    }
+                  ]
+                }
+                """,
+                Encoding.UTF8,
+                "application/json")
+        }));
+
+        using var httpClient = new HttpClient(handler);
+        var source = CreateSource(dbContext, instances, secretProtector,
+            new StubGoogleOAuthTokenClient(), httpClient, new CapturingLogger<GoogleCalendarSourceCore>());
+
+        var events = await source.GetEventsAsync(
+            new DateTimeOffset(2026, 6, 4, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 6, 5, 0, 0, 0, TimeSpan.Zero),
+            ownerId);
+
+        Assert.HasCount(1, events);
+        Assert.IsTrue(events[0].IsAllDay, "Google all-day event must set IsAllDay = true.");
+        Assert.AreEqual(new DateTimeOffset(2026, 6, 4, 0, 0, 0, TimeSpan.Zero), events[0].Start);
+        // End must be June 5 (Google's exclusive boundary), NOT June 6 (which would be the double-add bug)
+        Assert.AreEqual(new DateTimeOffset(2026, 6, 5, 0, 0, 0, TimeSpan.Zero), events[0].End);
+    }
+
+    [TestMethod]
+    public async Task GetEventsAsync_MultiDayAllDayEvent_DoesNotDoubleAddEndDay()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        dbContext.CalendarOwners.Add(new CalendarOwner { Id = ownerId, Name = "Owner" });
+        await dbContext.SaveChangesAsync();
+
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var secretProtector = new CalendarSourceSecretProtector(dataProtectionProvider);
+        var instances = new FakeCalendarSourceInstanceService(id => id == ownerId);
+
+        await instances.CreateAsync(ownerId,
+            new CreateCalendarSourceInstanceInput(
+                "google",
+                "Google Calendar",
+                "{\"calendarId\":\"primary\"}",
+                SerializeSecret(secretProtector, "access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))));
+
+        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """
+                {
+                  "items": [
+                    {
+                      "id": "allday-evt-2",
+                      "summary": "Conference",
+                      "start": { "date": "2026-06-06" },
+                      "end":   { "date": "2026-06-08" }
+                    }
+                  ]
+                }
+                """,
+                Encoding.UTF8,
+                "application/json")
+        }));
+
+        using var httpClient = new HttpClient(handler);
+        var source = CreateSource(dbContext, instances, secretProtector,
+            new StubGoogleOAuthTokenClient(), httpClient, new CapturingLogger<GoogleCalendarSourceCore>());
+
+        var events = await source.GetEventsAsync(
+            new DateTimeOffset(2026, 6, 6, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 6, 9, 0, 0, 0, TimeSpan.Zero),
+            ownerId);
+
+        Assert.HasCount(1, events);
+        Assert.IsTrue(events[0].IsAllDay);
+        Assert.AreEqual(new DateTimeOffset(2026, 6, 6, 0, 0, 0, TimeSpan.Zero), events[0].Start);
+        // Google end.date "2026-06-08" is already exclusive → End must be June 8, NOT June 9
+        Assert.AreEqual(new DateTimeOffset(2026, 6, 8, 0, 0, 0, TimeSpan.Zero), events[0].End);
+    }
+
+    [TestMethod]
     public async Task GetEventsAsync_Throws_WhenGoogleApiBaseUrlIsMissing()
     {
         await using var dbContext = TestDbContextFactory.CreateInMemory();

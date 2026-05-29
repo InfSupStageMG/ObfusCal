@@ -30,13 +30,21 @@ public sealed class MergeBlocksTransformer : IBusySlotTransformerPlugin
             // Merge if overlapping or adjacent (next starts at or before current ends)
             if (next.Start <= current.End)
             {
-                // Accumulate source slots: flatten any existing SourceSlots and add the slot itself
                 if (next.SourceSlots?.Count > 0)
                     currentSources.AddRange(next.SourceSlots);
                 else
                     currentSources.Add(next);
 
-                current = current with { End = Max(current.End, next.End) };
+                // If titles are different, mark the top-level block as "Busy (Merged)"
+                var newTitle = current.Title == next.Title ? current.Title : "Busy (Merged)";
+
+                current = current with {
+                    End = Max(current.End, next.End),
+                    Title = newTitle,
+                    Description = null,
+                    AttendeeEmails = [],
+                    Location = null
+                };
             }
             else
             {

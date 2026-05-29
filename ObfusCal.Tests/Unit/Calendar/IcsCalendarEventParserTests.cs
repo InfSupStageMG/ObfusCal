@@ -128,5 +128,70 @@ public class IcsCalendarEventParserTests
         Assert.HasCount(1, events);
         Assert.AreEqual("single-uid", events[0].Id);
     }
+
+    [TestMethod]
+    public void ParseEvents_SetsIsAllDay_True_WhenDtStartIsValueDate()
+    {
+        var ics = """
+            BEGIN:VCALENDAR
+            VERSION:2.0
+            BEGIN:VEVENT
+            UID:allday-uid
+            SUMMARY:Public Holiday
+            DTSTART;VALUE=DATE:20260601
+            DTEND;VALUE=DATE:20260602
+            END:VEVENT
+            END:VCALENDAR
+            """;
+
+        var events = IcsCalendarEventParser.ParseEvents(ics);
+
+        Assert.HasCount(1, events);
+        Assert.IsTrue(events[0].IsAllDay, "Events with VALUE=DATE DTSTART must have IsAllDay = true.");
+    }
+
+    [TestMethod]
+    public void ParseEvents_SetsIsAllDay_False_WhenDtStartHasTimeComponent()
+    {
+        var ics = """
+            BEGIN:VCALENDAR
+            VERSION:2.0
+            BEGIN:VEVENT
+            UID:timed-uid
+            SUMMARY:Morning Meeting
+            DTSTART:20260601T090000Z
+            DTEND:20260601T100000Z
+            END:VEVENT
+            END:VCALENDAR
+            """;
+
+        var events = IcsCalendarEventParser.ParseEvents(ics);
+
+        Assert.HasCount(1, events);
+        Assert.IsFalse(events[0].IsAllDay, "Timed events must have IsAllDay = false.");
+    }
+
+    [TestMethod]
+    public void ParseEvents_AllDayEvent_StartAndEndAreCorrectDates()
+    {
+        var ics = """
+            BEGIN:VCALENDAR
+            VERSION:2.0
+            BEGIN:VEVENT
+            UID:allday-range-uid
+            SUMMARY:Conference
+            DTSTART;VALUE=DATE:20260510
+            DTEND;VALUE=DATE:20260511
+            END:VEVENT
+            END:VCALENDAR
+            """;
+
+        var events = IcsCalendarEventParser.ParseEvents(ics);
+
+        Assert.HasCount(1, events);
+        Assert.AreEqual(new DateTimeOffset(2026, 5, 10, 0, 0, 0, TimeSpan.Zero), events[0].Start);
+        // End is the exclusive boundary: May 11 00:00 UTC
+        Assert.AreEqual(new DateTimeOffset(2026, 5, 11, 0, 0, 0, TimeSpan.Zero), events[0].End);
+    }
 }
 

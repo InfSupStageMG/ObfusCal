@@ -6,7 +6,8 @@ using CoreBusySlot = ObfusCal.Domain.Models.BusySlot;
 
 namespace ObfusCal.Infrastructure.Storage;
 
-public sealed class EfCoreCalendarOwnerAvailabilitySlotStore(AppDbContext dbContext) : ICalendarOwnerAvailabilitySlotStore
+public sealed class EfCoreCalendarOwnerAvailabilitySlotStore(AppDbContext dbContext)
+    : ICalendarOwnerAvailabilitySlotStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -31,7 +32,9 @@ public sealed class EfCoreCalendarOwnerAvailabilitySlotStore(AppDbContext dbCont
                 slot.Description,
                 slot.AttendeeEmails,
                 slot.Location,
-                DeserializeSourceSlots(slot.SourceSlotsJson)))
+                slot.SourceLabel,
+                SourceSlots: DeserializeSourceSlots(slot.SourceSlotsJson),
+                IsAllDay: slot.IsAllDay))
             .ToList();
     }
 
@@ -54,7 +57,9 @@ public sealed class EfCoreCalendarOwnerAvailabilitySlotStore(AppDbContext dbCont
                     dto.Title,
                     dto.Description,
                     dto.AttendeeEmails,
-                    dto.Location))
+                    dto.Location,
+                    dto.SourceLabel,
+                    IsAllDay: dto.IsAllDay))
                 .ToList();
         }
         catch (JsonException)
@@ -74,9 +79,8 @@ public sealed class EfCoreCalendarOwnerAvailabilitySlotStore(AppDbContext dbCont
         string? Title,
         string? Description,
         IReadOnlyList<string>? AttendeeEmails,
-        string? Location
+        string? Location,
+        string? SourceLabel = null,
+        bool IsAllDay = false
     );
 }
-
-
-

@@ -21,7 +21,8 @@ public sealed class GetMergedFreeBusyUseCase(
     ILogger<GetMergedFreeBusyUseCase> logger)
     : IGetMergedFreeBusyUseCase
 {
-    public async Task<IReadOnlyList<MergedFreeBusyResponse>> ExecuteAsync(GetMergedFreeBusyQuery query, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<MergedFreeBusyResponse>> ExecuteAsync(GetMergedFreeBusyQuery query,
+        CancellationToken cancellationToken)
     {
         ValidateWindow(query, syncOptions.Value.MaxQueryWindowDays);
 
@@ -68,7 +69,9 @@ public sealed class GetMergedFreeBusyUseCase(
                 s.Description,
                 s.AttendeeEmails,
                 s.Location,
-                s.SourceSlots))
+                s.SourceLabel,
+                s.SourceSlots,
+                s.IsAllDay))
             .ToList();
 
         logger.LogInformation(
@@ -96,5 +99,3 @@ public sealed class GetMergedFreeBusyUseCase(
         }
     }
 }
-
-

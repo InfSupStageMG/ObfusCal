@@ -1,8 +1,8 @@
 # Test Catalog
 
-_Auto-generated from CI run. 645 tests across 69 classes._
+_Auto-generated from CI run. 667 tests across 71 classes._
 
-## Integration (177/177)
+## Integration (179/179)
 
 <details>
 <summary><b>AdminPeerConnectionsControllerTests</b> - 7/7</summary>
@@ -372,7 +372,7 @@ _Auto-generated from CI run. 645 tests across 69 classes._
 </details>
 
 <details>
-<summary><b>InboundPeerPullSyncServiceTests</b> - 10/10</summary>
+<summary><b>InboundPeerPullSyncServiceTests</b> - 11/11</summary>
 
 <table>
   <thead>
@@ -383,6 +383,7 @@ _Auto-generated from CI run. 645 tests across 69 classes._
     <tr><td><code>RunSyncCycleAsync_OnHttpFailure_RecordsLastSyncedAtAndNotSucceededOnPeerConnection</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_OnSuccess_RecordsLastSyncedAtAndSucceededOnPeerConnection</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_OnSuccess_ReplacesOwnerScopedSlotsAndSendsPeerHeaders</code></td><td>✅</td></tr>
+    <tr><td><code>RunSyncCycleAsync_PreservesIsAllDayFromPulledPayload</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_SkipsWhenOnlyApiKeyIsConfigured</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_SkipsWhenOnlyInstanceIdIsConfigured</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_WhenPeerAFails_StillPullsFromPeerBAndLogsWarning</code></td><td>✅</td></tr>
@@ -395,13 +396,14 @@ _Auto-generated from CI run. 645 tests across 69 classes._
 </details>
 
 <details>
-<summary><b>OutboundPeerSyncServiceTests</b> - 8/8</summary>
+<summary><b>OutboundPeerSyncServiceTests</b> - 9/9</summary>
 
 <table>
   <thead>
     <tr><th>Test</th><th>Result</th></tr>
   </thead>
   <tbody>
+    <tr><td><code>RunSyncCycleAsync_IncludesIsAllDayInPeerPayload</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_OnPeerHttpFailure_RecordsLastSyncedAtAndNotSucceededOnPeerConnection</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_PostsCalendarOwnerRefAndBusySlotsWithPeerHeaders</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_PropagatesPeerThumbprintsOnOutgoingRequest</code></td><td>✅</td></tr>
@@ -415,7 +417,7 @@ _Auto-generated from CI run. 645 tests across 69 classes._
 
 </details>
 
-## Unit (468/468)
+## Unit (488/488)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 1/1</summary>
@@ -446,14 +448,16 @@ _Auto-generated from CI run. 645 tests across 69 classes._
 </details>
 
 <details>
-<summary><b>GoogleCalendarSourceCoreTests</b> - 7/7</summary>
+<summary><b>GoogleCalendarSourceCoreTests</b> - 9/9</summary>
 
 <table>
   <thead>
     <tr><th>Test</th><th>Result</th></tr>
   </thead>
   <tbody>
+    <tr><td><code>GetEventsAsync_AllDayEvent_SetsIsAllDay_AndDoesNotAddExtraDay</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_MapsGoogleResponse</code></td><td>✅</td></tr>
+    <tr><td><code>GetEventsAsync_MultiDayAllDayEvent_DoesNotDoubleAddEndDay</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_RefreshesExpiredToken_BeforeGoogleCall</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_Throws_WhenGoogleApiBaseUrlIsMissing</code></td><td>✅</td></tr>
     <tr><td><code>GetReadinessAsync_ReturnsNotReady_WhenNoCredentialsExist</code></td><td>✅</td></tr>
@@ -466,7 +470,7 @@ _Auto-generated from CI run. 645 tests across 69 classes._
 </details>
 
 <details>
-<summary><b>GraphCalendarSourceTests</b> - 17/17</summary>
+<summary><b>GraphCalendarSourceTests</b> - 18/18</summary>
 
 <table>
   <thead>
@@ -474,6 +478,7 @@ _Auto-generated from CI run. 645 tests across 69 classes._
   </thead>
   <tbody>
     <tr><td><code>GetEventsAsync_FollowsNextLink_UntilExhausted</code></td><td>✅</td></tr>
+    <tr><td><code>GetEventsAsync_MapsGraphAllDayEvent_AsExclusiveUtcDateRange</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_MapsGraphCalendarViewResponse</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_RefreshesExpiredToken_BeforeGraphCall</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_RetriesGraphRequest_WhenInitialResponseIsUnauthorized</code></td><td>✅</td></tr>
@@ -606,16 +611,19 @@ _Auto-generated from CI run. 645 tests across 69 classes._
 </details>
 
 <details>
-<summary><b>IcsCalendarEventParserTests</b> - 5/5</summary>
+<summary><b>IcsCalendarEventParserTests</b> - 8/8</summary>
 
 <table>
   <thead>
     <tr><th>Test</th><th>Result</th></tr>
   </thead>
   <tbody>
+    <tr><td><code>ParseEvents_AllDayEvent_StartAndEndAreCorrectDates</code></td><td>✅</td></tr>
     <tr><td><code>ParseEvents_AssignsUniqueIds_ToRecurringEventOccurrences_WithRecurrenceId</code></td><td>✅</td></tr>
     <tr><td><code>ParseEvents_IncludesRegularEventsAlongside_WhenMixedWithManaged</code></td><td>✅</td></tr>
     <tr><td><code>ParseEvents_MasterOccurrence_UsesUidWithoutSuffix_WhenNoRecurrenceId</code></td><td>✅</td></tr>
+    <tr><td><code>ParseEvents_SetsIsAllDay_False_WhenDtStartHasTimeComponent</code></td><td>✅</td></tr>
+    <tr><td><code>ParseEvents_SetsIsAllDay_True_WhenDtStartIsValueDate</code></td><td>✅</td></tr>
     <tr><td><code>ParseEvents_SkipsEventsWithObfusCal_ManagedFlag</code></td><td>✅</td></tr>
     <tr><td><code>ParseEvents_SkipsEventsWithObfusCal_ManagedFlag_CaseInsensitive</code></td><td>✅</td></tr>
   </tbody>
@@ -636,6 +644,23 @@ _Auto-generated from CI run. 645 tests across 69 classes._
     <tr><td><code>GetEventsAsync_ReturnsOnlyEventsInsideRequestedWindow</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_ThrowsOperationCanceledException_WhenCancelled</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_WithFourteenDayWindowStartingToday_ReturnsAtLeastThreeEvents</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>AllDayEventSlotIndexTests</b> - 4/4</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>AllDayEvent_AppearsOnlyOnMay10_NotMay11_ForUtcPlus2User</code></td><td>✅</td></tr>
+    <tr><td><code>AllDayEvent_IsAllDayFalse_UsesTimezoneConversion_AndProducesGhostDay</code></td><td>✅</td></tr>
+    <tr><td><code>MultiDayAllDayEvent_AppearsOnEachDay_ExclusiveEnd</code></td><td>✅</td></tr>
+    <tr><td><code>TimedEvent_StillUsesTimezoneConversion</code></td><td>✅</td></tr>
   </tbody>
 </table>
 
@@ -725,7 +750,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><th>Test</th><th>Result</th></tr>
   </thead>
   <tbody>
-    <tr><td><code>AddApplication_RegistersAllFiveEventTransformers</code></td><td>✅</td></tr>
+    <tr><td><code>AddApplication_RegistersAllSixEventTransformers</code></td><td>✅</td></tr>
     <tr><td><code>AddApplication_RegistersMergeBlocksTransformer</code></td><td>✅</td></tr>
     <tr><td><code>AddApplication_RegistersObfuscationPipeline</code></td><td>✅</td></tr>
     <tr><td><code>AddApplication_RegistersRemoveAttendeesTransformer</code></td><td>✅</td></tr>
@@ -913,6 +938,24 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>RemoveLocationTransformer_PreservesDescription</code></td><td>✅</td></tr>
     <tr><td><code>RemoveLocationTransformer_PreservesTimeWindow</code></td><td>✅</td></tr>
     <tr><td><code>RemoveLocationTransformer_PreservesTitle</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>RemoveSourceLabelTransformerTests</b> - 5/5</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Pipeline_PreservesSourceLabel_ForInternalContext</code></td><td>✅</td></tr>
+    <tr><td><code>Pipeline_StripsSourceLabel_ForClientContext</code></td><td>✅</td></tr>
+    <tr><td><code>Transform_ClearsSourceLabel</code></td><td>✅</td></tr>
+    <tr><td><code>Transform_LeavesOtherFieldsIntact</code></td><td>✅</td></tr>
+    <tr><td><code>Transformer_HasExpectedId</code></td><td>✅</td></tr>
   </tbody>
 </table>
 
@@ -1356,7 +1399,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
 </details>
 
 <details>
-<summary><b>InMemoryShadowSlotStoreTests</b> - 34/34</summary>
+<summary><b>InMemoryShadowSlotStoreTests</b> - 37/37</summary>
 
 <table>
   <thead>
@@ -1378,6 +1421,9 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>GetAllSlotsAsync_OwnerScoped_IncludesSlotOverlappingEnd</code></td><td>✅</td></tr>
     <tr><td><code>GetAllSlotsAsync_OwnerScoped_IncludesSlotOverlappingStart</code></td><td>✅</td></tr>
     <tr><td><code>GetAllSlotsAsync_OwnerScoped_IncludesSlotSpanningEntireWindow</code></td><td>✅</td></tr>
+    <tr><td><code>GetAllSlotsAsync_OwnerScoped_SourceLabelRemainsStableWhenPeerIsAdded</code></td><td>✅</td></tr>
+    <tr><td><code>GetAllSlotsAsync_OwnerScoped_SourceLabelRemainsStableWhenPeerIsRemoved</code></td><td>✅</td></tr>
+    <tr><td><code>GetAllSlotsAsync_OwnerScoped_SourceLabelsArePeerIds</code></td><td>✅</td></tr>
     <tr><td><code>GetAllSlotsAsync_OwnerScoped_WithCancelledToken_Throws</code></td><td>✅</td></tr>
     <tr><td><code>GetAllSlotsAsync_ReturnsEmptyArray_WhenNoSlotsAreStored</code></td><td>✅</td></tr>
     <tr><td><code>GetAllSlotsAsync_ReturnsSlotsAfterReplacingPeerSlots</code></td><td>✅</td></tr>
@@ -1493,7 +1539,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
 </details>
 
 <details>
-<summary><b>GetBusySlotsQueryHandlerTests</b> - 6/6</summary>
+<summary><b>GetBusySlotsQueryHandlerTests</b> - 7/7</summary>
 
 <table>
   <thead>
@@ -1501,6 +1547,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
   </thead>
   <tbody>
     <tr><td><code>Handle_MapsAllFieldsToResponse</code></td><td>✅</td></tr>
+    <tr><td><code>Handle_PreservesIsAllDayInResponse</code></td><td>✅</td></tr>
     <tr><td><code>Handle_ReturnsObfuscatedBusySlots</code></td><td>✅</td></tr>
     <tr><td><code>Handle_ThrowsRequestValidationException_WhenWindowExceedsConfiguredLimit</code></td><td>✅</td></tr>
     <tr><td><code>Handle_UsesClientContext</code></td><td>✅</td></tr>
@@ -1531,7 +1578,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
 </details>
 
 <details>
-<summary><b>PushShadowSlotsCommandHandlerTests</b> - 6/6</summary>
+<summary><b>PushShadowSlotsCommandHandlerTests</b> - 7/7</summary>
 
 <table>
   <thead>
@@ -1541,6 +1588,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>Handle_CreatesCorrectSourceEventId_WithIndex</code></td><td>✅</td></tr>
     <tr><td><code>Handle_DeduplicatesOwnerIds</code></td><td>✅</td></tr>
     <tr><td><code>Handle_MapsAllSlotFields</code></td><td>✅</td></tr>
+    <tr><td><code>Handle_PreservesIsAllDay</code></td><td>✅</td></tr>
     <tr><td><code>Handle_StoresSlotsForEachDistinctOwner</code></td><td>✅</td></tr>
     <tr><td><code>Handle_StoresSlotsWithPeerIdPrefix</code></td><td>✅</td></tr>
     <tr><td><code>Handle_ThrowsRequestValidationException_WhenBatchExceedsLimit</code></td><td>✅</td></tr>

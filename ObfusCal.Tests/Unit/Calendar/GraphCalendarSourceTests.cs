@@ -85,6 +85,64 @@ public class GraphCalendarSourceTests
     }
 
     [TestMethod]
+    public async Task GetEventsAsync_MapsGraphAllDayEvent_AsExclusiveUtcDateRange()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var protector = dataProtectionProvider.CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Owner",
+            GraphAccessTokenProtected = protector.Protect("access-token"),
+            GraphRefreshTokenProtected = protector.Protect("refresh-token"),
+            GraphTokenExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(30)
+        });
+        await dbContext.SaveChangesAsync();
+
+        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent(
+                """
+                {
+                  "value": [
+                    {
+                      "id": "evt-allday-1",
+                      "subject": "Holiday",
+                      "isAllDay": true,
+                      "start": { "dateTime": "2026-06-04T00:00:00.0000000", "timeZone": "W. Europe Standard Time" },
+                      "end": { "dateTime": "2026-06-05T00:00:00.0000000", "timeZone": "W. Europe Standard Time" }
+                    }
+                  ]
+                }
+                """,
+                Encoding.UTF8,
+                "application/json")
+        }));
+
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
+        var source = CreateSource(
+            dbContext,
+            httpClient,
+            new StubGraphOAuthTokenClient(),
+            new CapturingLogger<GraphCalendarSource>(),
+            dataProtectionProvider);
+
+        var events = await source.GetEventsAsync(
+            new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 6, 7, 0, 0, 0, TimeSpan.Zero),
+            ownerId);
+
+        Assert.HasCount(1, events);
+        Assert.IsTrue(events[0].IsAllDay);
+        Assert.AreEqual(new DateTimeOffset(2026, 6, 4, 0, 0, 0, TimeSpan.Zero), events[0].Start);
+        Assert.AreEqual(new DateTimeOffset(2026, 6, 5, 0, 0, 0, TimeSpan.Zero), events[0].End);
+    }
+
+    [TestMethod]
     public async Task GetEventsAsync_RefreshesExpiredToken_BeforeGraphCall()
     {
         await using var dbContext = TestDbContextFactory.CreateInMemory();

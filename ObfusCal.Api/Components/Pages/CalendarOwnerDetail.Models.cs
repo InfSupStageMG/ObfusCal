@@ -15,6 +15,7 @@ public partial class CalendarOwnerDetail
         public bool RoundTimes { get; set; }
         public int RoundingIntervalMinutes { get; set; }
         public bool MergeBlocks { get; set; }
+        public bool RemoveSourceLabel { get; set; }
     }
 
     public sealed record PluginOption(

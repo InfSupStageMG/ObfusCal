@@ -6,5 +6,6 @@ public record BusySlotResponse(
 	string? Title = null,
 	string? Description = null,
 	IReadOnlyList<string>? AttendeeEmails = null,
-	string? Location = null);
+	string? Location = null,
+	bool IsAllDay = false);
 

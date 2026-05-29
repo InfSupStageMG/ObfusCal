@@ -68,13 +68,15 @@ public sealed class CalendarOwnerObfuscationProfilesController(
                 request.RemoveAttendees,
                 request.RoundTimes,
                 request.RoundingIntervalMinutes,
-                request.MergeBlocks),
+                request.MergeBlocks,
+                request.RemoveSourceLabel),
             ct);
 
         return Ok(ToResponse(updated));
     }
 
-    private async Task<IActionResult?> EnsureCalendarOwnerAccessAsync(Guid requestedCalendarOwnerId, CancellationToken ct)
+    private async Task<IActionResult?> EnsureCalendarOwnerAccessAsync(Guid requestedCalendarOwnerId,
+        CancellationToken ct)
     {
         var accessResult = await accessEvaluator.EvaluateAsync(User, requestedCalendarOwnerId, ct);
         return accessResult.Status switch
@@ -95,7 +97,8 @@ public sealed class CalendarOwnerObfuscationProfilesController(
             profile.RemoveAttendees,
             profile.RoundTimes,
             profile.RoundingIntervalMinutes,
-            profile.MergeBlocks);
+            profile.MergeBlocks,
+            profile.RemoveSourceLabel);
 
     public sealed record SetObfuscationProfileRequest(
         bool RemoveTitle,
@@ -104,7 +107,8 @@ public sealed class CalendarOwnerObfuscationProfilesController(
         bool RemoveAttendees,
         bool RoundTimes,
         int RoundingIntervalMinutes,
-        bool MergeBlocks);
+        bool MergeBlocks,
+        bool RemoveSourceLabel = false);
 
     private sealed record ObfuscationProfileResponse(
         string Context,
@@ -114,6 +118,6 @@ public sealed class CalendarOwnerObfuscationProfilesController(
         bool RemoveAttendees,
         bool RoundTimes,
         int RoundingIntervalMinutes,
-        bool MergeBlocks);
+        bool MergeBlocks,
+        bool RemoveSourceLabel);
 }
-
