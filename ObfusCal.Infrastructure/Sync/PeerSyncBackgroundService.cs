@@ -30,31 +30,38 @@ public sealed class PeerSyncBackgroundService(
                 using var scope = scopeFactory.CreateScope();
                 var outboundSyncService = scope.ServiceProvider.GetRequiredService<IOutboundPeerSyncService>();
                 var inboundSyncService = scope.ServiceProvider.GetRequiredService<IInboundPeerPullSyncService>();
+                var syncHistoryStore = scope.ServiceProvider.GetRequiredService<IPeerSyncHistoryStore>();
 
                 await outboundSyncService.RunSyncCycleAsync(stoppingToken);
                 await inboundSyncService.RunSyncCycleAsync(stoppingToken);
+
+                var completedAtUtc = DateTimeOffset.UtcNow;
+                await syncHistoryStore.SetLastCompletedAtUtcAsync(completedAtUtc, stoppingToken);
+                progressMonitor.EndPeerSync(completedAtUtc);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
+                progressMonitor.EndPeerSync();
                 break;
             }
             catch (InvalidOperationException ex)
             {
                 logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
+                progressMonitor.EndPeerSync();
             }
             catch (IOException ex)
             {
                 logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
+                progressMonitor.EndPeerSync();
             }
             catch (TimeoutException ex)
             {
                 logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
+                progressMonitor.EndPeerSync();
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogWarning(ex, "Scheduled peer sync cycle failed; continuing with next interval.");
-            }
-            {
                 progressMonitor.EndPeerSync();
             }
 

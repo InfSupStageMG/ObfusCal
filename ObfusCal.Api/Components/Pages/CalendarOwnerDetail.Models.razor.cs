@@ -48,6 +48,7 @@ public partial class CalendarOwnerDetail
         public bool IsReady { get; set; }
         public required string Title { get; init; }
         public string? Detail { get; init; }
+        public string? SetupHint { get; init; }
         public string? ConfigurationJson { get; set; }
         public string? SecretDataJson { get; set; }
         public List<PluginFieldEditor> ConfigurationFields { get; init; } = [];

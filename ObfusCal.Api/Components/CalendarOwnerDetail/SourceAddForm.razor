@@ -1,5 +1,4 @@
 ﻿@using static ObfusCal.Api.Components.Pages.CalendarOwnerDetail
-@using System.Linq
 
 <section class="card source-form-wizard">
 
@@ -51,13 +50,6 @@
                          Style="width: 100%; max-width: 420px; min-width: 0;"
                          Placeholder="@(SelectedOption?.DisplayLabel ?? "My calendar")"/>
 
-        @if (!string.IsNullOrWhiteSpace(SelectedOption?.SetupHint))
-        {
-            <FluentMessageBar Intent="MessageIntent.Info" Class="card-message wizard-hint-bar">
-                @((MarkupString)SelectedOption.SetupHint)
-            </FluentMessageBar>
-        }
-
         <div class="wizard-nav-row">
             <FluentButton Appearance="Appearance.Outline" OnClick="GoBack">← Back</FluentButton>
             <FluentButton Appearance="Appearance.Accent" OnClick="GoForward">Continue →</FluentButton>
@@ -88,6 +80,13 @@
                 <span class="wizard-advanced-subtext"> — only change these if you know what you're doing</span>
             </summary>
             <div class="wizard-advanced-body">
+                @if (!string.IsNullOrWhiteSpace(SelectedOption?.SetupHint))
+                {
+                    <FluentMessageBar Intent="MessageIntent.Info" Class="card-message wizard-hint-bar">
+                        @((MarkupString)SelectedOption.SetupHint)
+                    </FluentMessageBar>
+                }
+
                 <p class="hint-text wizard-advanced-intro">
                     The fields below are pre-filled with sensible defaults that work for most people.
                     You do not need to change anything here to get started.

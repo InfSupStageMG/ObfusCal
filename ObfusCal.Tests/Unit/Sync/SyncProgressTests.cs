@@ -64,9 +64,10 @@ public class SyncProgressMonitorTests
     {
         var monitor = new SyncProgressMonitor();
         var before = DateTimeOffset.UtcNow.AddSeconds(-1);
+        var completedAtUtc = DateTimeOffset.UtcNow;
 
         monitor.TryBeginPeerSync();
-        monitor.EndPeerSync();
+        monitor.EndPeerSync(completedAtUtc);
 
         Assert.IsNotNull(monitor.LastPeerSyncCompletedAt);
         Assert.IsTrue(monitor.LastPeerSyncCompletedAt > before,
@@ -144,6 +145,7 @@ public class PeerSyncProgressIntegrationTests
         await using var provider = new ServiceCollection()
             .AddSingleton<IOutboundPeerSyncService>(syncService)
             .AddSingleton<IInboundPeerPullSyncService>(inboundService)
+            .AddSingleton<IPeerSyncHistoryStore, InMemoryPeerSyncHistoryStore>()
             .BuildServiceProvider();
 
         using var backgroundService = new PeerSyncBackgroundService(
@@ -177,6 +179,7 @@ public class PeerSyncProgressIntegrationTests
         await using var provider = new ServiceCollection()
             .AddSingleton<IOutboundPeerSyncService>(throwingService)
             .AddSingleton<IInboundPeerPullSyncService>(inboundService)
+            .AddSingleton<IPeerSyncHistoryStore, InMemoryPeerSyncHistoryStore>()
             .BuildServiceProvider();
 
         using var backgroundService = new PeerSyncBackgroundService(
@@ -207,6 +210,7 @@ public class PeerSyncProgressIntegrationTests
         await using var provider = new ServiceCollection()
             .AddSingleton<IOutboundPeerSyncService>(syncService)
             .AddSingleton<IInboundPeerPullSyncService>(inboundService)
+            .AddSingleton<IPeerSyncHistoryStore, InMemoryPeerSyncHistoryStore>()
             .BuildServiceProvider();
 
         using var backgroundService = new PeerSyncBackgroundService(
@@ -244,6 +248,20 @@ public class PeerSyncProgressIntegrationTests
     {
         public Task RunSyncCycleAsync(CancellationToken ct = default, IProgress<SyncProgressUpdate>? progress = null)
             => throw new InvalidOperationException("Simulated failure");
+    }
+
+    private sealed class InMemoryPeerSyncHistoryStore : IPeerSyncHistoryStore
+    {
+        private DateTimeOffset? _lastCompletedAtUtc;
+
+        public Task<DateTimeOffset?> GetLastCompletedAtUtcAsync(CancellationToken ct = default)
+            => Task.FromResult(_lastCompletedAtUtc);
+
+        public Task SetLastCompletedAtUtcAsync(DateTimeOffset completedAtUtc, CancellationToken ct = default)
+        {
+            _lastCompletedAtUtc = completedAtUtc.ToUniversalTime();
+            return Task.CompletedTask;
+        }
     }
 }
 

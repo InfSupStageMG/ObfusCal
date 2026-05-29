@@ -2,15 +2,30 @@
     margin-top: 0.75rem;
 }
 
+.sync-page-description {
+    margin: 0 0 0.75rem 0;
+}
+
+.sync-controls-row {
+    flex-wrap: wrap;
+}
+
+.sync-countdown-text {
+    margin: 0;
+    font-size: 0.875rem;
+    color: inherit;
+}
+
+.sync-last-completed-text {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.875rem;
+    color: inherit;
+}
+
 .sync-progress-label {
     margin: 0.4rem 0 0 0;
     font-size: 0.875rem;
-    color: var(--neutral-foreground-rest);
+    color: inherit;
 }
 
-.sync-schedule-label {
-    margin-top: 0.75rem;
-    font-size: 0.875rem;
-    color: var(--neutral-foreground-hint, var(--neutral-foreground-rest));
-}
 

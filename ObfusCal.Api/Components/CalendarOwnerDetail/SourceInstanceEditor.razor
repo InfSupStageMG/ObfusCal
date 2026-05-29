@@ -44,6 +44,13 @@ else
                 <p class="instance-detail-paragraph">@Instance.Detail</p>
             }
 
+            @if (!string.IsNullOrWhiteSpace(Instance.SetupHint))
+            {
+                <FluentMessageBar Intent="MessageIntent.Info" Class="card-message instance-setup-hint-bar">
+                    @((MarkupString)Instance.SetupHint)
+                </FluentMessageBar>
+            }
+
             <FluentStack Orientation="Orientation.Vertical" VerticalGap="8" Class="instance-actions-stack">
                 <FluentTextField @bind-Value="Instance.DisplayName" Immediate="true" Label="Display name" Class="app-form-control text-truncate" Style="width: 100%; max-width: 100%; min-width: 0;"/>
 

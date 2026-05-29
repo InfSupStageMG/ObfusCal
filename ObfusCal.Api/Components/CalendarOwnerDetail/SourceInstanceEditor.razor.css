@@ -59,6 +59,11 @@
     margin-top: 0;
 }
 
+.instance-setup-hint-bar {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
 .instance-actions-stack {
     margin-top: 0.5rem;
 }

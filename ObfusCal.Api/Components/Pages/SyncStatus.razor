@@ -1,23 +1,19 @@
 ﻿@page "/sync-status"
 @attribute [Authorize(Policy = AppAuthorizationPolicies.Sysadmin)]
 @using ObfusCal.Application.Interfaces
-@inject IPeerConnectionService PeerConnectionService
-@inject IOutboundPeerSyncService OutboundSyncService
-@inject IInboundPeerPullSyncService InboundSyncService
-@inject ISyncProgressMonitor SyncProgressMonitor
-@inject ISyncRuntimeOptionsProvider SyncRuntimeOptionsProvider
-@implements IDisposable
 
-<PageTitle>Sync Status - ObfusCal</PageTitle>
+<PageTitle>Peer Sync Status - ObfusCal</PageTitle>
 
-<h1>Sync Status</h1>
+<h1>Peer Sync Status</h1>
+<p class="hint-text sync-page-description">
+    This page shows peer-to-peer sync between ObfusCal instances.
+    Calendar owner availability sync is managed from each calendar owner's settings page.
+</p>
 
 <FluentStack Orientation="Orientation.Vertical" VerticalGap="16">
     <section class="card">
-        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8">
-            <FluentButton Appearance="Appearance.Accent" OnClick="RefreshAsync" Disabled="_syncing">
-                Refresh
-            </FluentButton>
+        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="12" VerticalAlignment="VerticalAlignment.Center" Class="sync-controls-row">
+            <p class="hint-text sync-countdown-text">@NextSyncCountdownText</p>
             <FluentButton Appearance="Appearance.Outline" OnClick="TriggerSyncAsync" Disabled="_syncing || SyncProgressMonitor.IsPeerSyncInProgress">
                 @if (SyncProgressMonitor.IsPeerSyncInProgress && !_syncing)
                 {
@@ -29,6 +25,11 @@
                 }
             </FluentButton>
         </FluentStack>
+
+        @if (LastSyncCompletedText is not null)
+        {
+            <p class="hint-text sync-last-completed-text">@LastSyncCompletedText</p>
+        }
 
         @if (SyncProgressMonitor.IsPeerSyncInProgress && !_syncing)
         {
@@ -61,30 +62,6 @@
                 @_syncMessage
             </FluentMessageBar>
         }
-
-        <p class="hint-text sync-schedule-label">
-            @{
-                var intervalMinutes = SyncRuntimeOptionsProvider.Get().SyncIntervalSeconds / 60;
-                var lastCompleted = SyncProgressMonitor.LastPeerSyncCompletedAt;
-                if (lastCompleted is null)
-                {
-                    <span>Sync interval: every @intervalMinutes min. No background sync has run yet this session.</span>
-                }
-                else
-                {
-                    var nextAt = lastCompleted.Value.AddSeconds(SyncRuntimeOptionsProvider.Get().SyncIntervalSeconds);
-                    var remaining = nextAt - DateTimeOffset.UtcNow;
-                    if (remaining > TimeSpan.Zero)
-                    {
-                        <span>Next scheduled sync in approximately @((int)remaining.TotalMinutes) min @(remaining.Seconds) sec (every @intervalMinutes min).</span>
-                    }
-                    else
-                    {
-                        <span>Next scheduled sync is imminent (every @intervalMinutes min, last completed @lastCompleted.Value.ToString("HH:mm:ss") UTC).</span>
-                    }
-                }
-            }
-        </p>
     </section>
 
     @if (_loading)
@@ -121,70 +98,3 @@
     }
 </FluentStack>
 
-@code {
-    private List<PeerSyncStatus>? _peers;
-    private bool _loading = true;
-    private bool _syncing;
-    private string? _syncMessage;
-    private MessageIntent _syncMessageIntent = MessageIntent.Success;
-    private SyncProgressUpdate? _syncProgress;
-    private System.Threading.Timer? _countdownTimer;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await RefreshAsync();
-        _countdownTimer = new System.Threading.Timer(
-            _ => InvokeAsync(StateHasChanged),
-            null,
-            TimeSpan.FromSeconds(30),
-            TimeSpan.FromSeconds(30));
-    }
-
-    private async Task RefreshAsync()
-    {
-        _loading = true;
-        _peers = (await PeerConnectionService.ListSyncStatusAsync()).ToList();
-        _loading = false;
-    }
-
-    private async Task TriggerSyncAsync()
-    {
-        if (SyncProgressMonitor.IsPeerSyncInProgress)
-            return;
-
-        _syncing = true;
-        _syncMessage = null;
-        _syncProgress = null;
-        StateHasChanged();
-
-        var progress = new Progress<SyncProgressUpdate>(update =>
-        {
-            _syncProgress = update;
-            InvokeAsync(StateHasChanged);
-        });
-
-        try
-        {
-            await OutboundSyncService.RunSyncCycleAsync(CancellationToken.None, progress);
-            await InboundSyncService.RunSyncCycleAsync(CancellationToken.None, progress);
-            _syncMessage = $"Sync completed at {DateTimeOffset.UtcNow:HH:mm:ss} UTC.";
-            _syncMessageIntent = MessageIntent.Success;
-        }
-        catch (Exception ex)
-        {
-            _syncMessage = $"Sync failed: {ex.Message}";
-            _syncMessageIntent = MessageIntent.Error;
-        }
-        finally
-        {
-            _syncing = false;
-            _syncProgress = null;
-            await RefreshAsync();
-        }
-    }
-
-    public void Dispose()
-    {
-        _countdownTimer?.Dispose();
-    }
-}
