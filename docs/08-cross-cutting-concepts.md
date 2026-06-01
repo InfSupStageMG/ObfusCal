@@ -69,8 +69,23 @@ within `Sync:PeerRequestTimestampToleranceSeconds` (default 300 seconds) to limi
 (`AUTH_SUCCESS`, `AUTH_FAILURE`, `PEER_SLOT_PUSH`, `PEER_SLOT_REJECTED`, `CONFIG_CHANGE`, `KEY_ROTATION`,
 `KEY_REVOCATION`). These events are written to a dedicated append-only NDJSON sink configured by
 `SecurityAudit:FilePath` and include UTC timestamp, actor identity, target resource, outcome, and correlation ID.
-Each persisted audit entry carries `previousEntryHash` and `entryHash` so tampering can be detected via hash-chain
-verification.
+
+Before an entry is persisted, the sink redacts and normalizes string fields, sorts metadata keys deterministically, and
+builds a hash payload from the sanitized event data plus the prior entry's hash. The resulting SHA-256 digest is stored
+as `entryHash`, while `previousEntryHash` stores the predecessor's `entryHash`. The first entry in a file therefore has
+`previousEntryHash = null`, and every later line links back to the line before it.
+
+The chain is continued across process restarts: when the audit service starts, it reads the last persisted line from the
+existing NDJSON file and caches its `entryHash` so the next append links to the current tail instead of starting a new
+independent chain.
+
+Integrity verification is currently an operational/forensic check rather than an automatic runtime repair step. To
+verify a file, recompute the hash for each line in order and confirm that each line's `previousEntryHash` matches the
+prior line's `entryHash`, and that the recomputed digest matches the stored `entryHash`. Any deleted, inserted,
+rewritten, or reordered line breaks that sequence and is therefore detectable. ObfusCal currently does not run a full historical
+re-verification pass automatically at startup or per request; the runtime guarantee is append-only chained writes, while
+full-chain validation is triggered when operators review incidents, export audit files, or run external integrity
+checks.
 
 **Rate limiting and payload caps:** Peer sync traffic is rate limited in-process with a peer-ID partition when the
 peer is authenticated and an IP-based backstop for unauthenticated API requests. `POST /api/shadow-slots` and
@@ -200,6 +215,11 @@ with secure defaults (all sensitive fields removed, rounding enabled with 15 min
 
 The resulting `BusySlot` contract always contains `start`/`end` and can optionally carry `title`, `description`,
 `attendeeEmails`, and `location` when those fields are not removed by the active profile.
+
+For owner-facing UI only, busy slots can also carry source label and optional color metadata so the internal merged
+calendar can keep a stable visual mapping per configured source instance. This metadata follows the same privacy
+boundary as `SourceLabel`: if source labels are removed for a context, the color metadata must also be removed so it
+cannot reveal source identity indirectly.
 
 ## Error Handling & Resilience
 

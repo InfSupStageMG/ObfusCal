@@ -179,7 +179,8 @@ internal sealed class AggregateCalendarSource(
                     .Select(calendarEvent => calendarEvent with
                     {
                         Id = $"{sourceInstance.Instance.Id:N}:{calendarEvent.Id}",
-                        SourceLabel = sourceInstance.Instance.DisplayName
+                        SourceLabel = sourceInstance.Instance.DisplayName,
+                        ColorHex = sourceInstance.Instance.ColorHex
                     })
                     .ToList();
             }

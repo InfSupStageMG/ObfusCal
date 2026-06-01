@@ -150,7 +150,7 @@ public partial class CalendarOwnerDetail
     private static string? GetFieldDescription(string key) => key.ToLowerInvariant() switch
     {
         "calendarid" =>
-            "Your Google Calendar ID. 'primary' means your main calendar — that's the right choice for most people. " +
+            "Your Google Calendar ID. 'primary' means your main calendar; that's the right choice for most people. " +
             "You can find other calendar IDs in Google Calendar → Settings → click a calendar → Integrate calendar.",
         "calendarurl" =>
             "The CalDAV address of your iCloud calendar. " +

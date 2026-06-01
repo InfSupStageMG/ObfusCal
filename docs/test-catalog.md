@@ -1,8 +1,8 @@
 # Test Catalog
 
-_Auto-generated from CI run. 671 tests across 72 classes._
+_Auto-generated from CI run. 686 tests across 76 classes._
 
-## Integration (180/180)
+## Integration (181/181)
 
 <details>
 <summary><b>AdminPeerConnectionsControllerTests</b> - 7/7</summary>
@@ -50,13 +50,14 @@ _Auto-generated from CI run. 671 tests across 72 classes._
 </details>
 
 <details>
-<summary><b>CalendarOwnersControllerTests</b> - 37/37</summary>
+<summary><b>CalendarOwnersControllerTests</b> - 38/38</summary>
 
 <table>
   <thead>
     <tr><th>Test</th><th>Result</th></tr>
   </thead>
   <tbody>
+    <tr><td><code>CalendarSourceInstances_PersistConfiguredColorHex</code></td><td>✅</td></tr>
     <tr><td><code>CompleteCalendarConsent_ReturnsBadRequest_WhenAuthorizationCodeIsInvalid</code></td><td>✅</td></tr>
     <tr><td><code>CompleteCalendarConsent_ReturnsBadRequest_WhenAuthorizationCodeMissing</code></td><td>✅</td></tr>
     <tr><td><code>CompleteCalendarConsent_ReturnsBadRequest_WhenRedirectUriInvalid</code></td><td>✅</td></tr>
@@ -418,17 +419,33 @@ _Auto-generated from CI run. 671 tests across 72 classes._
 
 </details>
 
-## Unit (491/491)
+## Unit (505/505)
 
 <details>
-<summary><b>AggregateCalendarSourceTests</b> - 1/1</summary>
+<summary><b>AggregateCalendarSourceTests</b> - 2/2</summary>
 
 <table>
   <thead>
     <tr><th>Test</th><th>Result</th></tr>
   </thead>
   <tbody>
+    <tr><td><code>GetEventsAsync_AssignsConfiguredColorToInstanceEvents</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_WritesOtherSourceBusySlotsToEachWritableDestination</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>CalendarColorPaletteTests</b> - 2/2</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>CreateReadableForeground_DarkAccentOnTint_ReturnsAccent</code></td><td>✅</td></tr>
+    <tr><td><code>CreateReadableForeground_WhiteAccentOnTint_ReturnsDarkFallback</code></td><td>✅</td></tr>
   </tbody>
 </table>
 
@@ -668,6 +685,25 @@ _Auto-generated from CI run. 671 tests across 72 classes._
 </details>
 
 <details>
+<summary><b>CalendarColorFieldDisplayTests</b> - 6/6</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>DescribeSelection_EmptyValue_ReturnsAutomaticPalette</code></td><td>✅</td></tr>
+    <tr><td><code>IsPresetSelected_NormalizesMatchingValues</code></td><td>✅</td></tr>
+    <tr><td><code>ResolveAutomaticColor_UsesSortedSourceLabelsLikeDashboard</code></td><td>✅</td></tr>
+    <tr><td><code>ResolvePreviewColor_ExplicitValue_ReturnsNormalizedColor</code></td><td>✅</td></tr>
+    <tr><td><code>ResolvePreviewColor_InvalidValueWithoutAutomaticFallback_FallsBackToFirstPreset</code></td><td>✅</td></tr>
+    <tr><td><code>ResolvePreviewColor_InvalidValue_UsesAutomaticColor</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
 <summary><b>CalendarGridOffsetTests</b> - 9/9</summary>
 
 <table>
@@ -719,6 +755,23 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>IsStateValidationFailure_ReturnsTrueForConsentStateMessages ("State is required to complete Google consent.")</code></td><td>✅</td></tr>
     <tr><td><code>IsStateValidationFailure_ReturnsTrueForConsentStateMessages ("State is required to complete Graph consent.")</code></td><td>✅</td></tr>
     <tr><td><code>IsStateValidationFailure_ReturnsTrueForConsentStateMessages ("state is required to complete anything")</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>MergedFreeBusyCalendarColorResolverTests</b> - 4/4</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>BuildLabelColors_UsesSortedLabelsAndExplicitColors</code></td><td>✅</td></tr>
+    <tr><td><code>ResolveForEvent_DifferentSourceColors_UsesMixedSourcesColor</code></td><td>✅</td></tr>
+    <tr><td><code>ResolveForEvent_ExplicitColorOverridesLabelPalette</code></td><td>✅</td></tr>
+    <tr><td><code>ResolveForSource_UnknownLabelWithoutColor_UsesNeutralColor</code></td><td>✅</td></tr>
   </tbody>
 </table>
 
@@ -1326,6 +1379,20 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>ValidateAsync_ReturnsInvalid_ForHttpScheme</code></td><td>✅</td></tr>
     <tr><td><code>ValidateAsync_ReturnsInvalid_ForPrivateIpAddress</code></td><td>✅</td></tr>
     <tr><td><code>ValidateAsync_ReturnsValid_ForPublicHttpsUrl</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>EfCoreCalendarOwnerAvailabilitySlotStoreTests</b> - 1/1</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>GetSlotsAsync_RestoresColorHex_ForSnapshotAndMergedSourceSlots</code></td><td>✅</td></tr>
   </tbody>
 </table>
 

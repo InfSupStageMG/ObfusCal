@@ -219,8 +219,14 @@ details[open] > .wizard-advanced-summary::before {
     width: 100%;
 }
 
-.config-field > label,
-.secret-field > label {
+.field-label-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.field-label-row > label {
     font-size: 0.875rem;
     font-weight: 500;
 }
@@ -228,3 +234,33 @@ details[open] > .wizard-advanced-summary::before {
 .section-heading {
     margin: 0.5rem 0 0.25rem 0;
 }
+
+@media (max-width: 640px) {
+    .wizard-progress {
+        gap: 0.5rem;
+    }
+
+    .wizard-progress-step {
+        min-width: 0;
+        flex: 1 1 0;
+    }
+
+    .step-label {
+        white-space: normal;
+    }
+
+    .wizard-progress-connector {
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    .wizard-summary-row {
+        flex-direction: column;
+        gap: 0.15rem;
+    }
+
+    .wizard-summary-label {
+        min-width: 0;
+    }
+}
+

@@ -105,7 +105,7 @@ public class GetMergedFreeBusyQueryHandlerTests
     public async Task Handle_MapsAllFieldsToResponse()
     {
         var ownEvent = new CalendarEvent("own-1", "Title", "Desc",
-            From.AddHours(10), From.AddHours(11), ["a@b.com"], "Room");
+            From.AddHours(10), From.AddHours(11), ["a@b.com"], "Room", ColorHex: "#2563EB");
         var availabilityStore = new FakeAvailabilitySlotStore([]);
         var calendarSource = new FakeCalendarSource([ownEvent]);
         var shadowStore = new FakeShadowSlotStore([]);
@@ -131,6 +131,7 @@ public class GetMergedFreeBusyQueryHandlerTests
         Assert.IsNotNull(result[0].AttendeeEmails);
         Assert.AreEqual("a@b.com", result[0].AttendeeEmails![0]);
         Assert.AreEqual("Room", result[0].Location);
+        Assert.AreEqual("#2563EB", result[0].ColorHex);
     }
 
     [TestMethod]

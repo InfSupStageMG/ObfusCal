@@ -18,6 +18,10 @@ authenticate with their existing company credentials via Entra ID (Azure AD), an
 automatically on a configurable schedule. Supported calendar sources include Microsoft Graph (Microsoft 365), Google
 Calendar, iCloud CalDAV, and read-only iCal (`.ics`) feeds.
 
+Calendar owners can configure multiple source instances, assign an optional color to each source, and review the merged
+availability view with those colors carried through the legend, event badges, and merged-event details. When no color is
+configured, ObfusCal falls back to an automatic palette.
+
 For Microsoft Graph and Google Calendar owners who enable write-back, the sync cycle also writes
 **ObfusCal-managed placeholder events** into the connected calendar. These placeholders contain only the configured
 title plus start/end time, are tagged with provider metadata for safe cleanup, and never include peer identity,
@@ -58,6 +62,7 @@ ObfusCal/
 │   ├── appsettings.Development.json
 │   └── appsettings.json
 ├── ObfusCal.Application/              # Use cases (CQRS), interfaces, obfuscation pipeline
+│   ├── Calendars/
 │   ├── Configuration/
 │   ├── Interfaces/
 │   ├── Obfuscation/

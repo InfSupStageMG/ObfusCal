@@ -8,7 +8,7 @@ namespace ObfusCal.Infrastructure.Sync;
 /// </summary>
 public sealed class SyncProgressMonitor : ISyncProgressMonitor
 {
-    // 0 = idle, 1 = running — int field lets us use Interlocked for a lock-free compare-exchange.
+    // 0 = idle, 1 = running; int field lets us use Interlocked for a lock-free compare-exchange.
     private int _peerSyncRunning;
 
 

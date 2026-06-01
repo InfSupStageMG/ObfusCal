@@ -394,7 +394,7 @@ public sealed partial class GoogleCalendarSourceCore(
             return false;
         }
 
-        // Google's all-day end date is already exclusive (RFC 5545 semantics) — store as-is at midnight UTC
+        // Google's all-day end date is already exclusive (RFC 5545 semantics) - store as-is at midnight UTC
         value = new DateTimeOffset(dateOnly.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc), TimeSpan.Zero);
         return true;
     }

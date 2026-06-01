@@ -260,6 +260,40 @@ public class CalendarOwnersControllerTests
         }
     }
 
+    [TestMethod]
+    public async Task CalendarSourceInstances_PersistConfiguredColorHex()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development", useTestAuthentication: true);
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory);
+        using var client = factory.CreateAuthenticatedClient();
+
+        var createResponse = await client.PostAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/calendar/sources",
+            new CalendarOwnersController.CreateCalendarSourceInstanceRequest(
+                "ical",
+                "Team calendar",
+                null,
+                null,
+                true,
+                "#2563EB"),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Created, createResponse.StatusCode);
+
+        var listResponse = await client.GetAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/calendar/sources",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.OK, listResponse.StatusCode);
+
+        var json = await listResponse.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using var document = JsonDocument.Parse(json);
+        var source = document.RootElement.EnumerateArray()
+            .Single(item => item.GetProperty("displayName").GetString() == "Team calendar");
+
+        Assert.AreEqual("#2563EB", source.GetProperty("colorHex").GetString());
+    }
+
 
     [TestMethod]
     public async Task GetBusySlots_ReturnsUnauthorized_WithoutToken()

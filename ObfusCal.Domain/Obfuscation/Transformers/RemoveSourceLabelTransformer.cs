@@ -12,5 +12,5 @@ public sealed class RemoveSourceLabelTransformer : IObfuscationTransformerPlugin
     public int Order => 100;
 
     public CalendarEvent Transform(CalendarEvent calendarEvent) =>
-        calendarEvent with { SourceLabel = null };
+        calendarEvent with { SourceLabel = null, ColorHex = null };
 }

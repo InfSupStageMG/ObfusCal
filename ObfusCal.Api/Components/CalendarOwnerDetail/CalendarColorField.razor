@@ -1,0 +1,37 @@
+﻿<div class="color-field">
+    <div class="color-field-header">
+        <span id="@EffectiveInputId" class="color-field-label">@Label</span>
+        <div class="selected-color-pill" aria-live="polite">
+            <span class="selected-color-swatch"
+                  style="background-color: @CalendarColorFieldDisplay.ResolvePreviewColor(Value, AutomaticColorHex);"
+                  aria-hidden="true"></span>
+            <span>@CalendarColorFieldDisplay.DescribeSelection(Value)</span>
+        </div>
+    </div>
+
+    <div class="color-choice-strip" role="group" aria-labelledby="@EffectiveInputId">
+        <button type="button"
+                class="color-choice-chip @(CalendarColorFieldDisplay.IsAutomatic(Value) ? "is-selected" : null)"
+                aria-pressed="@CalendarColorFieldDisplay.IsAutomatic(Value)"
+                @onclick="SelectAutomaticAsync">
+            Automatic
+        </button>
+
+        @foreach (var color in CalendarColorFieldDisplay.PresetColors)
+        {
+            var isSelected = CalendarColorFieldDisplay.IsPresetSelected(Value, color);
+            <button type="button"
+                    class="color-choice-swatch @(isSelected ? "is-selected" : null)"
+                    style="--calendar-color-field-accent: @color;"
+                    title="@color"
+                    aria-label="@($"Use color {color}")"
+                    aria-pressed="@isSelected"
+                    @onclick="@(() => SelectPresetAsync(color))">
+                <span class="color-choice-swatch-fill" aria-hidden="true"></span>
+            </button>
+        }
+    </div>
+
+    <p class="color-hint">@HintText</p>
+</div>
+

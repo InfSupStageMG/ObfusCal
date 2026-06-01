@@ -8,6 +8,7 @@
     justify-content: space-between;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .source-editor-title-row {
@@ -50,6 +51,14 @@
     color: var(--neutral-foreground-rest);
 }
 
+.instance-color-swatch {
+    inline-size: 0.9rem;
+    block-size: 0.9rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--neutral-stroke-rest) 65%, transparent);
+    flex: 0 0 auto;
+}
+
 .instance-info-paragraph {
     margin-top: 0.5rem;
     margin-bottom: 0.25rem;
@@ -90,6 +99,18 @@
     width: 100%;
 }
 
+.field-label-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.field-label-row > label {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
 /* ── Instance-level advanced settings ── */
 .instance-advanced {
     margin-top: 0.5rem;
@@ -117,3 +138,14 @@
     flex-direction: column;
     gap: 0.5rem;
 }
+
+@media (max-width: 640px) {
+    .source-editor-close {
+        margin-left: auto;
+    }
+
+    .source-instance-title {
+        white-space: normal;
+    }
+}
+

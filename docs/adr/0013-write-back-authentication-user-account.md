@@ -1,4 +1,4 @@
-﻿# ADR 0013: Write-Back Authentication — Delegated User Accounts
+﻿# ADR 0013: Write-Back Authentication - Delegated User Accounts
 
 * **Status:** Accepted
 * **Deciders:** Matthias Hendrickx, Gijs Pennings
@@ -13,10 +13,10 @@ user's own delegated credentials. Which model should ObfusCal adopt?
 
 ## Considered options
 
-1. **Service Account / Controller Account** — ObfusCal authenticates with a single privileged application identity
+1. **Service Account / Controller Account** - ObfusCal authenticates with a single privileged application identity
    (e.g., a Google service account with domain-wide delegation, an Azure app with application-level Graph permissions,
    or a shared iCloud account) and writes placeholder events on behalf of all users.
-2. **Delegated User Tokens** — ObfusCal authenticates as each individual user using that user's own OAuth refresh
+2. **Delegated User Tokens** - ObfusCal authenticates as each individual user using that user's own OAuth refresh
    token (Google, Microsoft) or app-specific password (iCloud) and writes placeholder events on behalf of that specific
    user only.
 
@@ -38,7 +38,7 @@ appear in the user's own calendar under their own identity.
 
 ## Decision rationale
 
-1. **Stakeholder requirement — no forced isolation account:** Stakeholders explicitly requested that users not be
+1. **Stakeholder requirement - no forced isolation account:** Stakeholders explicitly requested that users not be
    required to create or manage a separate, isolated "ObfusCal calendar account". With delegated tokens the placeholders
    appear naturally in the user's existing calendar, owned by the user, without any extra account provisioning step.
 2. **Principle of Least Privilege:** Each set of credentials can only access the single user's data for which they were

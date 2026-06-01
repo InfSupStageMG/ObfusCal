@@ -1,10 +1,25 @@
 ﻿using Microsoft.FluentUI.AspNetCore.Components;
+using ObfusCal.Api.Components.CalendarOwnerDetail;
 using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Components.Pages;
 
 public partial class CalendarOwnerDetail
 {
+    private string NewSourceAutomaticColorHex
+    {
+        get
+        {
+            var candidateLabels = _sourceInstances
+                .Select(instance => instance.DisplayName)
+                .Concat(GetNewSourceDisplayNameCandidates());
+
+            return CalendarColorFieldDisplay.ResolveAutomaticColor(
+                GetPendingNewSourceDisplayName(),
+                candidateLabels);
+        }
+    }
+
     private void LoadPluginCatalog()
     {
         _pluginOptions.Clear();
@@ -29,6 +44,16 @@ public partial class CalendarOwnerDetail
     {
         _sourceInstances.Clear();
         var instances = await CalendarSourceInstanceService.ListAsync(Id);
+        var automaticColorsByDisplayName = instances
+            .Select(instance => instance.DisplayName)
+            .Distinct(StringComparer.Ordinal)
+            .ToDictionary(
+                displayName => displayName,
+                displayName => CalendarColorFieldDisplay.ResolveAutomaticColor(
+                    displayName,
+                    instances.Select(source => source.DisplayName)),
+                StringComparer.Ordinal);
+
         foreach (var instance in instances)
         {
             var plugin = _pluginOptions.FirstOrDefault(option =>
@@ -45,6 +70,8 @@ public partial class CalendarOwnerDetail
                 PluginId = instance.PluginId,
                 PluginDisplayName = plugin?.DisplayName ?? instance.PluginId,
                 DisplayName = instance.DisplayName,
+                ColorHex = instance.ColorHex,
+                AutomaticColorHex = automaticColorsByDisplayName[instance.DisplayName],
                 IsEnabled = instance.IsEnabled,
                 IsReady = instance.IsReady,
                 Title = instance.Title,
@@ -81,6 +108,7 @@ public partial class CalendarOwnerDetail
         }
 
         _newSourceDisplayName = null;
+        _newSourceColorHex = null;
         _newSourceConfigurationJson = _selectedPluginOption.ConfigurationJsonTemplate;
         _newSourceSecretDataJson = _selectedPluginOption.SecretDataJsonTemplate;
         _newSourceConfigurationFields = BuildFieldEditorsFromTemplate(_selectedPluginOption.ConfigurationJsonTemplate);
@@ -123,7 +151,8 @@ public partial class CalendarOwnerDetail
                         : _newSourceDisplayName,
                     configurationJson,
                     secretDataJson,
-                    _newSourceIsEnabled));
+                    _newSourceIsEnabled,
+                    _newSourceColorHex));
 
             if (created is null)
             {
@@ -178,7 +207,8 @@ public partial class CalendarOwnerDetail
                     string.IsNullOrWhiteSpace(instance.DisplayName) ? null : instance.DisplayName,
                     configurationJson,
                     secretDataJson,
-                    instance.IsEnabled));
+                    instance.IsEnabled,
+                    instance.ColorHex ?? string.Empty));
 
             if (updated is null)
             {
@@ -252,6 +282,18 @@ public partial class CalendarOwnerDetail
     }
 
     private static string? NormalizeJsonInput(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private IEnumerable<string> GetNewSourceDisplayNameCandidates()
+    {
+        var pendingDisplayName = GetPendingNewSourceDisplayName();
+        if (!string.IsNullOrWhiteSpace(pendingDisplayName))
+            yield return pendingDisplayName;
+    }
+
+    private string? GetPendingNewSourceDisplayName()
+        => string.IsNullOrWhiteSpace(_newSourceDisplayName)
+            ? _selectedPluginOption?.DisplayName
+            : _newSourceDisplayName.Trim();
 
     private async Task InvokePluginActionAsync(SourceInstanceEditor instance,
         CalendarSourcePluginActionDescriptor action)

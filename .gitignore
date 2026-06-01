@@ -31,3 +31,6 @@ SecurityAudit/
 # pycache
 __pycache__/
 *.pyc
+
+# folder that appeared in auto-generated project structure
+downloaded/
