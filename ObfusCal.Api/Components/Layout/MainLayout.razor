@@ -1,6 +1,7 @@
 ﻿@inherits LayoutComponentBase
 @using FluentIcons = Microsoft.FluentUI.AspNetCore.Components.Icons
 @inject NavigationManager Navigation
+@inject ApplicationVersionProvider VersionProvider
 
 <FluentDesignTheme Mode="DesignThemeModes.Light" CustomColor="#0078d4" />
 
@@ -42,7 +43,12 @@
 
         <FluentBodyContent Class="layout-content-host">
             <div class="layout-content-shell">
-                @Body
+                <div class="layout-page-content">
+                    @Body
+                </div>
+                <footer class="layout-footer">
+                    <span class="layout-footer-version">Version @VersionProvider.DisplayVersion</span>
+                </footer>
             </div>
         </FluentBodyContent>
     </FluentStack>

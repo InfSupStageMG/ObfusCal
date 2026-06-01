@@ -350,6 +350,22 @@ To view test results:
    are retained for 14 days. You can download these and open them in Visual Studio or Rider for deeper analysis of
    failed tests.
 
+### Release versioning
+
+ObfusCal derives its application version from Git tags via `MinVer`.
+
+- Create release tags in the form `vX.Y.Z` (for example `v1.2.0`).
+- CI/CD uses the latest reachable matching tag to calculate the semantic version for builds and published images.
+- If no valid `vX.Y.Z` tag exists yet, builds stay on the `1.0` line as prereleases (for example
+  `1.0.0-alpha.0.<height>`).
+- The Docker publishing workflow stamps the computed version into the .NET assemblies and publishes GHCR image tags for
+  the semantic version, the same version with the `v` prefix, `latest`, and a short commit-SHA tag.
+- The running application shows its current version in the Blazor footer and on the Dashboard so operators can confirm
+  what build is deployed.
+
+For repeatable deployments, prefer pinning server environments to a semantic-version image tag instead of relying on
+`latest`.
+
 ## Secret management
 
 ObfusCal now uses a central abstraction (`ISecretProvider`) for secret access and validates required secrets during

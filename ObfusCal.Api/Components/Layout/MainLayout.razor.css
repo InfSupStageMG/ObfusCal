@@ -134,6 +134,26 @@
     min-height: 100%;
     width: 100%;
     padding: 1rem clamp(1.25rem, 2.5vw, 2rem) 1.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.layout-page-content {
+    flex: 1 0 auto;
+}
+
+.layout-footer {
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid var(--neutral-stroke-divider-rest);
+    color: var(--neutral-foreground-hint);
+    font-size: 0.82rem;
+}
+
+.layout-footer-version {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
 }
 
 @media (max-width: 820px) {
