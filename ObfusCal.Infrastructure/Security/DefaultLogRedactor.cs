@@ -8,7 +8,7 @@ public sealed class DefaultLogRedactor : ILogRedactor
     private static readonly (Regex Pattern, string Replacement)[] Rules =
     [
         (new Regex("(Bearer\\s+)[A-Za-z0-9\\-._~+/]+=*", RegexOptions.Compiled | RegexOptions.IgnoreCase), "$1[REDACTED]"),
-        (new Regex("(?<key>(api[-_]?key|client[-_]?secret|password|access[-_]?token|refresh[-_]?token|code)\\s*[=:]\\s*)(?<value>[^\\s,;]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase), "${key}[REDACTED]"),
+        (new Regex("(?<key>(api[-_]?key|client[-_]?secret|password|access[-_]?token|refresh[-_]?token|code)\\s*[=:]\\s*)(?<value>[^\\s,;&]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase), "${key}[REDACTED]"),
         (new Regex("(Host=.*?;Database=.*?;Username=.*?;Password=)([^;\\s]+)", RegexOptions.Compiled | RegexOptions.IgnoreCase), "$1[REDACTED]")
     ];
 
