@@ -38,8 +38,5 @@ public class CalendarColorFieldDisplayTests
     public void IsPresetSelected_NormalizesMatchingValues()
         => Assert.IsTrue(CalendarColorFieldDisplay.IsPresetSelected("2563eb", "#2563EB"));
 
-    [TestMethod]
-    public void HasInvalidCustomColor_InvalidHex_ReturnsTrue()
-        => Assert.IsTrue(CalendarColorFieldDisplay.HasInvalidCustomColor("#12Z45F"));
 }
 

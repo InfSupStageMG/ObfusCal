@@ -161,7 +161,7 @@
                                                 @if (!string.IsNullOrWhiteSpace(source.SourceLabel))
                                                 {
                                                     <span class="source-label-badge"
-                                                          style="background-color: @sc.Bg; color: @sc.Accent; border-color: @sc.Accent;">@source.SourceLabel</span>
+                                                          style="background-color: @sc.Bg; color: @sc.Foreground; border-color: @sc.Foreground;">@source.SourceLabel</span>
                                                 }
                                             </div>
                                             <div class="source-event-details">
@@ -211,7 +211,7 @@
                                     @if (!string.IsNullOrWhiteSpace(evt.SourceLabel))
                                     {
                                         <span class="source-label-badge"
-                                              style="background-color: @slotColor.Bg; color: @slotColor.Accent; border-color: @slotColor.Accent;">@evt.SourceLabel</span>
+                                              style="background-color: @slotColor.Bg; color: @slotColor.Foreground; border-color: @slotColor.Foreground;">@evt.SourceLabel</span>
                                     }
                                 </div>
                                 @if (!string.IsNullOrWhiteSpace(evt.Title))

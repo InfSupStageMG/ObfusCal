@@ -13,7 +13,7 @@
     gap: 0.75rem;
 }
 
-.color-field-header > label {
+.color-field-label {
     font-size: 0.875rem;
     font-weight: 500;
 }
@@ -102,27 +102,9 @@
     background: var(--calendar-color-field-accent);
 }
 
-.color-hex-input {
-    max-width: 14rem;
-}
-
-.color-hint,
-.color-validation {
+.color-hint {
     margin: 0;
     font-size: 0.8rem;
-}
-
-.color-hint {
     color: var(--neutral-foreground-hint);
-}
-
-.color-validation {
-    color: var(--status-danger-foreground-rest, #b42318);
-}
-
-@media (max-width: 640px) {
-    .color-hex-input {
-        max-width: 100%;
-    }
 }
 

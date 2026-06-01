@@ -49,8 +49,6 @@ public static class CalendarColorFieldDisplay
         return normalized ?? "Custom color";
     }
 
-    public static bool HasInvalidCustomColor(string? colorHex)
-        => !string.IsNullOrWhiteSpace(colorHex) && TryNormalize(colorHex) is null;
 
     public static bool IsAutomatic(string? colorHex)
         => string.IsNullOrWhiteSpace(colorHex);
