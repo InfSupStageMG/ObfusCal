@@ -1,6 +1,6 @@
 # Test Catalog
 
-_Auto-generated from CI run. 681 tests across 74 classes._
+_Auto-generated from CI run. 686 tests across 76 classes._
 
 ## Integration (181/181)
 
@@ -419,7 +419,7 @@ _Auto-generated from CI run. 681 tests across 74 classes._
 
 </details>
 
-## Unit (500/500)
+## Unit (505/505)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 2/2</summary>
@@ -431,6 +431,21 @@ _Auto-generated from CI run. 681 tests across 74 classes._
   <tbody>
     <tr><td><code>GetEventsAsync_AssignsConfiguredColorToInstanceEvents</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_WritesOtherSourceBusySlotsToEachWritableDestination</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>CalendarColorPaletteTests</b> - 2/2</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>CreateReadableForeground_DarkAccentOnTint_ReturnsAccent</code></td><td>✅</td></tr>
+    <tr><td><code>CreateReadableForeground_WhiteAccentOnTint_ReturnsDarkFallback</code></td><td>✅</td></tr>
   </tbody>
 </table>
 
@@ -670,7 +685,7 @@ _Auto-generated from CI run. 681 tests across 74 classes._
 </details>
 
 <details>
-<summary><b>CalendarColorFieldDisplayTests</b> - 7/7</summary>
+<summary><b>CalendarColorFieldDisplayTests</b> - 6/6</summary>
 
 <table>
   <thead>
@@ -678,7 +693,6 @@ _Auto-generated from CI run. 681 tests across 74 classes._
   </thead>
   <tbody>
     <tr><td><code>DescribeSelection_EmptyValue_ReturnsAutomaticPalette</code></td><td>✅</td></tr>
-    <tr><td><code>HasInvalidCustomColor_InvalidHex_ReturnsTrue</code></td><td>✅</td></tr>
     <tr><td><code>IsPresetSelected_NormalizesMatchingValues</code></td><td>✅</td></tr>
     <tr><td><code>ResolveAutomaticColor_UsesSortedSourceLabelsLikeDashboard</code></td><td>✅</td></tr>
     <tr><td><code>ResolvePreviewColor_ExplicitValue_ReturnsNormalizedColor</code></td><td>✅</td></tr>
@@ -741,6 +755,23 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>IsStateValidationFailure_ReturnsTrueForConsentStateMessages ("State is required to complete Google consent.")</code></td><td>✅</td></tr>
     <tr><td><code>IsStateValidationFailure_ReturnsTrueForConsentStateMessages ("State is required to complete Graph consent.")</code></td><td>✅</td></tr>
     <tr><td><code>IsStateValidationFailure_ReturnsTrueForConsentStateMessages ("state is required to complete anything")</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>MergedFreeBusyCalendarColorResolverTests</b> - 4/4</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>BuildLabelColors_UsesSortedLabelsAndExplicitColors</code></td><td>✅</td></tr>
+    <tr><td><code>ResolveForEvent_DifferentSourceColors_UsesMixedSourcesColor</code></td><td>✅</td></tr>
+    <tr><td><code>ResolveForEvent_ExplicitColorOverridesLabelPalette</code></td><td>✅</td></tr>
+    <tr><td><code>ResolveForSource_UnknownLabelWithoutColor_UsesNeutralColor</code></td><td>✅</td></tr>
   </tbody>
 </table>
 
