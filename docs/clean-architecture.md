@@ -114,7 +114,8 @@ public record CalendarEvent(
     IReadOnlyList<string> AttendeeEmails,
     string? Location,
     string? SourceLabel = null,
-    bool IsAllDay = false
+    bool IsAllDay = false,
+    string? ColorHex = null
 );
 ```
 <!-- END_SNIPPET -->
@@ -133,7 +134,8 @@ public record BusySlot(
     string? Location = null,
     string? SourceLabel = null,
     IReadOnlyList<BusySlot>? SourceSlots = null,
-    bool IsAllDay = false
+    bool IsAllDay = false,
+    string? ColorHex = null
 );
 ```
 <!-- END_SNIPPET -->
@@ -188,6 +190,8 @@ public interface IObfuscationTransformer
 <!-- START_TREE path="ObfusCal.Application" max_depth="2" -->
 ```text
 ObfusCal.Application/
+├── Calendars/
+│   └── CalendarColorPalette.cs
 ├── Configuration/
 │   ├── CalendarSourceOptions.cs
 │   ├── GoogleConsentOptions.cs

@@ -62,6 +62,7 @@ ObfusCal/
 │   ├── appsettings.Development.json
 │   └── appsettings.json
 ├── ObfusCal.Application/              # Use cases (CQRS), interfaces, obfuscation pipeline
+│   ├── Calendars/
 │   ├── Configuration/
 │   ├── Interfaces/
 │   ├── Obfuscation/
