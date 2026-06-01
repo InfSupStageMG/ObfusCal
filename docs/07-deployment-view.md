@@ -80,6 +80,8 @@ Before starting the containers:
 5. Ensure the Entra ID app role `Sysadmin` exists on the API app registration and is assigned to designated
    administrators.
 6. Optionally set `SecurityAudit__FilePath` to a persistent path so security audit records survive container restarts.
+   The audit sink resumes its hash chain from the last stored `entryHash` in that file; rotating or truncating the file
+   starts a new independent chain unless the old file is preserved and verified separately.
 
 Bring up a full instance (reverse proxy + API + PostgreSQL):
 
@@ -133,6 +135,11 @@ API calls fall back to an IP-based backstop, and peer sync request bodies are ca
 Runtime authorization semantics are part of deployment validation: calendar-owner scoped endpoints should return `404`
 for cross-owner requests (anti-enumeration), and owner-scoped peer shadow-slot pushes should return `403` when the peer
 is not mapped to the requested `calendarOwnerRef`.
+
+Peer lifecycle operations are also part of deployment validation for sysadmin-enabled environments:
+`POST /api/admin/peer-connections/{id}/suspend` should return `204 No Content`, move the peer into `Suspended`, and cause
+subsequent peer-authenticated sync requests for that peer to fail immediately. Reactivation currently happens through the
+existing `approve` flow, which returns the peer to `Active` and issues a new API key.
 
 For local API-only debugging, start PostgreSQL first and then run `dotnet run --project ObfusCal.Api` outside
 containers. Use the HTTPS development URL:
@@ -190,7 +197,7 @@ local sign-out cycle.
 | `Sync__WriteBackLookAheadDays`                        | Provider-managed placeholder reconciliation horizon in days (default `90`)                                    |
 | `Sync__WriteBackPlaceholderTitle`                     | Fallback title used for write-back placeholders (default `Busy`)                                              |
 | `PeerTransportSecurity__AllowSelfSignedCerts`         | Accept self-signed peer certificates when `true` (default `false`)                                            |
-| `SecurityAudit__FilePath`                             | Optional dedicated append-only NDJSON audit sink path                                                          |
+| `SecurityAudit__FilePath`                             | Optional dedicated append-only NDJSON audit sink path; keep it on persistent storage if you want one continuous hash chain across restarts |
 | `PeerConnections.PinnedCertificateThumbprint`         | Optional peer leaf certificate thumbprint used to pin the expected server certificate                         |
 | `PeerConnections.ClientCertificateThumbprint`         | Optional peer client certificate thumbprint used as mTLS groundwork                                           |
 | `Secrets__Provider`                                   | Secret provider mode (`Environment` default, `External` stub)                                                 |

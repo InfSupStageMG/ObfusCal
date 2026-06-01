@@ -34,28 +34,29 @@ flowchart LR
 `ObfusCal.Api/Program.cs` (the application entry point) and `ObfusCal.Infrastructure/DependencyInjection.cs` (the
 infrastructure registration extension method).
 
-The two plugin projects (`ObfusCal.Plugins.GoogleCalendar`, `ObfusCal.Plugins.ICloudCalendar`) ship alongside the
-main solution and are loaded via `AssemblyLoadContext` at startup from the `plugins/` directory. They follow the same
-`[CalendarSourcePlugin]` contract as any third-party plugin.
+The two plugin projects (ObfusCal.Plugins.GoogleCalendar, ObfusCal.Plugins.ICloudCalendar) are included in the solution.
+During build, they are copied to the plugins/ folder to be dynamically discovered by the AssemblyLoadContext at startup.
+This enables a unified plugin contract for both built-in and third-party extensions.
 
 ## Level 2: Key Components
 
 ### ObfusCal.Domain
 
-| Component                       | Responsibility                                                                            |
-|---------------------------------|-------------------------------------------------------------------------------------------|
-| `CalendarEvent`                 | In-memory record for a raw event fetched from a calendar source. Never stored.            |
-| `BusySlot`                      | Obfuscated record with required timing and optional metadata fields retained per profile. |
-| `IObfuscationTransformer`       | Contract for a single event-level obfuscation step in the pipeline.                       |
-| `IBusySlotTransformer`          | Contract for a slot-level post-processing step (e.g. merging).                            |
-| `IObfuscationTransformerPlugin` | Optional extension of `IObfuscationTransformer` that exposes a stable `Id` and `Order`.   |
-| `IBusySlotTransformerPlugin`    | Optional extension of `IBusySlotTransformer` that exposes a stable `Id` and `Order`.      |
-| `RemoveTitleTransformer`        | Clears the event title.                                                                   |
-| `RemoveDescriptionTransformer`  | Clears the event description.                                                             |
-| `RemoveLocationTransformer`     | Clears the event location.                                                                |
-| `RemoveAttendeesTransformer`    | Removes all attendee email addresses.                                                     |
-| `RoundTimesTransformer`         | Rounds start down and end up to the nearest 15 minutes.                                   |
-| `MergeBlocksTransformer`        | Collapses overlapping or adjacent slots into single continuous blocks.                    |
+| Component                       | Responsibility                                                                              |
+|---------------------------------|---------------------------------------------------------------------------------------------|
+| `CalendarEvent`                 | In-memory record for a raw event fetched from a calendar source. Never stored.              |
+| `BusySlot`                      | Obfuscated record with required timing and optional metadata fields retained per profile.   |
+| `IObfuscationTransformer`       | Contract for a single event-level obfuscation step in the pipeline.                         |
+| `IBusySlotTransformer`          | Contract for a slot-level post-processing step (e.g. merging).                              |
+| `IObfuscationTransformerPlugin` | Optional extension of `IObfuscationTransformer` that exposes a stable `Id` and `Order`.     |
+| `IBusySlotTransformerPlugin`    | Optional extension of `IBusySlotTransformer` that exposes a stable `Id` and `Order`.        |
+| `RemoveTitleTransformer`        | Clears the event title.                                                                     |
+| `RemoveDescriptionTransformer`  | Clears the event description.                                                               |
+| `RemoveLocationTransformer`     | Clears the event location.                                                                  |
+| `RemoveAttendeesTransformer`    | Removes all attendee email addresses.                                                       |
+| `RemoveSourceLabelTransformer`  | Strips the source event ID, preventing source labels propagating through peer-facing output |
+| `RoundTimesTransformer`         | Rounds start down and end up to the nearest 15 minutes.                                     |
+| `MergeBlocksTransformer`        | Collapses overlapping or adjacent slots into single continuous blocks.                      |
 
 ### ObfusCal.Application
 
@@ -64,7 +65,7 @@ main solution and are loaded via `AssemblyLoadContext` at startup from the `plug
 | `ICalendarSource`                         | Contract all calendar adapters must implement.                                                            |
 | `CalendarSourcePluginAttribute`           | Marks an `ICalendarSource` class as a plugin with a stable lowercase ID and a display name.               |
 | `ICalendarSourceCatalog`                  | Read-only view of all discovered calendar-source plugins (by ID or enumeration).                          |
-| `ICalendarSourceResolver`                 | Resolves the active `ICalendarSource` for a given calendar owner (owner → config → first-available).      |
+| `ICalendarSourceResolver`                 | Resolves the active `ICalendarSource` for a given calendar owner (owner selection → configured default from `Calendar:Provider` → first registered plugin). |
 | `ICalendarOwnerCalendarSourceService`     | Lists available providers, reads/writes per-owner plugin selection, and evaluates readiness.              |
 | `PluginDiscovery`                         | Scans loaded assemblies for `IObfuscationTransformerPlugin` and `IBusySlotTransformerPlugin` types.       |
 | `IShadowSlotStore`                        | Contract for storing busy slots received from peer instances.                                             |
@@ -86,13 +87,18 @@ main solution and are loaded via `AssemblyLoadContext` at startup from the `plug
 | `GraphCalendarSource`                        | Production adapter fetching events via Microsoft Graph. Plugin ID: `graph`.                                                                                                                                 |
 | `IcalFeedCalendarSource`                     | Fallback adapter parsing a read-only `.ics` URL. Plugin ID: `ical`.                                                                                                                                         |
 | `CalendarSourcePluginCatalog`                | Discovers all `[CalendarSourcePlugin]`-annotated `ICalendarSource` types at startup; implements `ICalendarSourceCatalog`.                                                                                   |
-| `CalendarSourceResolver`                     | Owner-aware `ICalendarSourceResolver`; resolution order: owner selection → config → first available.                                                                                                        |
+| `CalendarSourceResolver`                     | Owner-aware `ICalendarSourceResolver`; resolution order: enabled per-owner source instances/owner selection → configured default from `CalendarSourceOptions.Provider` (`Calendar:Provider`, with environment fallback to `mock` in Development and `graph` otherwise) → first available plugin in the catalog. |
 | `CalendarOwnerCalendarSourceService`         | Implements `ICalendarOwnerCalendarSourceService`; persists per-owner plugin selection to the database.                                                                                                      |
 | `InMemoryShadowSlotStore`                    | Thread-safe in-memory store; used in tests and as the fallback if the DB is unavailable.                                                                                                                    |
 | `EfCoreShadowSlotStore`                      | PostgreSQL-backed store via EF Core; production implementation of `IShadowSlotStore`.                                                                                                                       |
 | `EfCoreCalendarOwnerAvailabilitySlotStore`   | PostgreSQL-backed store for snapshot availability slots (`ICalendarOwnerAvailabilitySlotStore`).                                                                                                            |
 | `AppDbContext`                               | EF Core context; holds `CalendarOwner`, `CalendarSourceInstance`, `ObfuscationProfile`, `PeerConnection`, `CalendarOwnerPeerMapping`, `CalendarOwnerICalFeed`, `BusySlot`, `CalendarOwnerAvailabilitySlot`. |
 | `EfCoreCalendarOwnerScopeResolver`           | Looks up `CalendarOwner` by `EntraObjectId`.                                                                                                                                                                |
+| GoogleCalendarSourceCore                     | Production adapter for Google Calendar API. Plugin ID: google.                                                                                                                                              |
+| ICloudCalendarSourceCore                     | Production adapter for iCloud CalDAV. Plugin ID: icloud.                                                                                                                                                    |
+| AggregateCalendarSource                      | Orchestrates reads/writes across multiple configured calendar source instances.                                                                                                                             |
+| ShadowSlotRetentionBackgroundService         | Periodically purges expired shadow slot records based on retention policy.                                                                                                                                  |
+| CalendarSourceInstanceService                | Manages CRUD operations for calendar source instances (configs, secrets).                                                                                                                                   |
 | `CalendarOwnerObfuscationProfileService`     | Persists and auto-provisions default `ObfuscationProfile` rows for `Internal` and `Client`.                                                                                                                 |
 | `OutboundPeerSyncService`                    | Fetches owner events, obfuscates them, and pushes owner-scoped busy slots to configured peer endpoints.                                                                                                     |
 | `InboundPeerPullSyncService`                 | Pulls busy slots from a peer instance on behalf of mapped calendar owners.                                                                                                                                  |
@@ -108,12 +114,15 @@ main solution and are loaded via `AssemblyLoadContext` at startup from the `plug
 | `CalendarOwnerObfuscationProfilesController` | `GET/PUT /{id}/obfuscation-profiles` reads and updates per-owner, per-context obfuscation settings.                                                                                                                                                                                                |
 | `CalendarOwnerGoogleConsentController`       | Handles Google OAuth authorization code exchange and callback for calendar owners.                                                                                                                                                                                                                 |
 | `ShadowSlotsController`                      | `POST /api/shadow-slots` accepts inbound obfuscated slots from authenticated peers; `GET /api/sync/busy-slots/{calendarOwnerRef}` exposes owner-scoped pull sync.                                                                                                                                  |
-| `AdminPeerConnectionsController`             | `GET /api/admin/peer-connections` (list all); `POST /api/admin/peer-connections/{id}/approve`, `/revoke`, `/rotate-key`, `/suspend` - sysadmin-only peer management requiring the `Sysadmin` Entra ID app role.                                                                                    |
+| `AdminPeerConnectionsController`             | `GET /api/admin/peer-connections` (list all); `POST /api/admin/peer-connections/{id}/approve`, `/revoke`, `/rotate-key`, `/suspend` - sysadmin-only peer management requiring the `Sysadmin` Entra ID app role. `suspend` sets the peer status to `Suspended`, which blocks peer auth/sync traffic immediately; re-approving the peer returns it to `Active` and issues a fresh API key. |
 | `PeerConnectionsController`                  | User-facing peer connection requests (initiate, list own peer connections).                                                                                                                                                                                                                        |
 | `SyncController`                             | `GET /api/sync/peers` (sync status); `POST /api/sync/trigger` (sysadmin-only manual sync trigger).                                                                                                                                                                                                 |
 | `StatusController`                           | `GET /api/status` - per-owner calendar source readiness and token health.                                                                                                                                                                                                                          |
 | `CalendarOwnerAccessEvaluator`               | Resolves the authenticated user's identity to a `CalendarOwner` record and enforces access.                                                                                                                                                                                                        |
 | `Program.cs`                                 | Composition root. Wires Application and Infrastructure; configures Entra ID OIDC, Swagger with OAuth2, Serilog, Blazor Server, and FluentUI.                                                                                                                                                       |
+| AccountController                            | Handles OIDC login/logout/switch-user flows.                                                                                                                                                                                                                                                       |
+| AdminPluginAllowlistController               | Administrative endpoints for managing approved calendar plugin allowlists.                                                                                                                                                                                                                         |
+| PeerSyncController                           | GET /api/sync/peers for sync status; POST /api/sync/trigger for manual sync.                                                                                                                                                                                                                       |
 
 ## Domain Model
 
