@@ -19,9 +19,9 @@ internal static class ObfuscationAuditContextExtensions
     public static string ToDisplayHint(this ObfuscationAuditContext context) => context switch
     {
         ObfuscationAuditContext.Internal =>
-            "Controls what you (and your company/coworkers) see on your own availability dashboard — applies when viewing your merged free/busy calendar.",
+            "Controls what you (and your company/coworkers) see on your own availability dashboard; applies when viewing your merged free/busy calendar.",
         ObfuscationAuditContext.Client =>
-            "Controls what peers and connected calendars see — applies when your busy slots are pushed to peers or served via the API.",
+            "Controls what peers and connected calendars see; applies when your busy slots are pushed to peers or served via the API.",
         _ => string.Empty
     };
 }
