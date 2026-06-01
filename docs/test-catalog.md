@@ -1,6 +1,6 @@
 # Test Catalog
 
-_Auto-generated from CI run. 686 tests across 76 classes._
+_Auto-generated from CI run. 692 tests across 77 classes._
 
 ## Integration (181/181)
 
@@ -419,7 +419,7 @@ _Auto-generated from CI run. 686 tests across 76 classes._
 
 </details>
 
-## Unit (505/505)
+## Unit (511/511)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 2/2</summary>
@@ -679,6 +679,25 @@ _Auto-generated from CI run. 686 tests across 76 classes._
     <tr><td><code>AllDayEvent_IsAllDayFalse_UsesTimezoneConversion_AndProducesGhostDay</code></td><td>✅</td></tr>
     <tr><td><code>MultiDayAllDayEvent_AppearsOnEachDay_ExclusiveEnd</code></td><td>✅</td></tr>
     <tr><td><code>TimedEvent_StillUsesTimezoneConversion</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>ApplicationVersionProviderTests</b> - 6/6</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>NormalizeDisplayVersion_BlankValue_ReturnsDev</code></td><td>✅</td></tr>
+    <tr><td><code>NormalizeDisplayVersion_RemovesPrefixAndMetadata ("  v3.4.5-rc.2+sha.123456  ","3.4.5-rc.2")</code></td><td>✅</td></tr>
+    <tr><td><code>NormalizeDisplayVersion_RemovesPrefixAndMetadata ("1.2.3","1.2.3")</code></td><td>✅</td></tr>
+    <tr><td><code>NormalizeDisplayVersion_RemovesPrefixAndMetadata ("1.2.3+Branch.main.Sha.abcdef","1.2.3")</code></td><td>✅</td></tr>
+    <tr><td><code>NormalizeDisplayVersion_RemovesPrefixAndMetadata ("1.2.3-beta.4","1.2.3-beta.4")</code></td><td>✅</td></tr>
+    <tr><td><code>NormalizeDisplayVersion_RemovesPrefixAndMetadata ("v2.0.1","2.0.1")</code></td><td>✅</td></tr>
   </tbody>
 </table>
 

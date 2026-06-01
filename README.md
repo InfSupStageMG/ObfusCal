@@ -126,6 +126,7 @@ ObfusCal/
 ├── .gitignore
 ├── .gitmessage
 ├── AGENTS.md
+├── Directory.Build.props
 ├── Dockerfile
 ├── LICENSE.md
 ├── ObfusCal.slnx
