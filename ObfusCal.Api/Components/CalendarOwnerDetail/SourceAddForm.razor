@@ -48,7 +48,12 @@
                          Immediate="true"
                          Class="app-form-control"
                          Style="width: 100%; max-width: 420px; min-width: 0;"
-                         Placeholder="@(SelectedOption?.DisplayLabel ?? "My calendar")"/>
+                         Placeholder="@(SelectedOption?.DisplayName ?? "My calendar")"/>
+
+        <CalendarColorField InputId="source-color-input"
+                            AutomaticColorHex="@AutomaticColorHex"
+                            Value="@ColorHex"
+                            ValueChanged="@(EventCallback.Factory.Create<string?>(this, OnColorHexChangedAsync))" />
 
         <div class="wizard-nav-row">
             <FluentButton Appearance="Appearance.Outline" OnClick="GoBack">← Back</FluentButton>
@@ -58,7 +63,7 @@
     else
     {
         @* ── Step 3: Review and confirm ── *@
-        var effectiveName = string.IsNullOrWhiteSpace(_localDisplayName) ? SelectedOption?.DisplayLabel : _localDisplayName;
+        var effectiveName = string.IsNullOrWhiteSpace(_localDisplayName) ? SelectedOption?.DisplayName : _localDisplayName;
 
         <h4 class="wizard-step-heading">Are you happy with these settings?</h4>
         <p class="hint-text">Review your choices below. You can always edit or remove this calendar later.</p>
@@ -191,6 +196,15 @@
     public EventCallback<string?> DisplayNameChanged { get; set; }
 
     [Parameter]
+    public string? ColorHex { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> ColorHexChanged { get; set; }
+
+    [Parameter]
+    public string? AutomaticColorHex { get; set; }
+
+    [Parameter]
     public List<PluginFieldEditor> ConfigurationFields { get; set; } = [];
 
     [Parameter]
@@ -234,17 +248,30 @@
 
     private int _wizardStep = 1;
 
-    // Tracks the display name locally so transitions between steps don't lose edits.
     private string? _localDisplayName;
+    private string? _lastSeenDisplayName;
+
+    protected override void OnParametersSet()
+    {
+        if (string.Equals(_lastSeenDisplayName, DisplayName, StringComparison.Ordinal)) return;
+        _localDisplayName = DisplayName;
+        _lastSeenDisplayName = DisplayName;
+    }
 
     private static bool HasFieldEditors(IReadOnlyCollection<PluginFieldEditor> fields) => fields.Count > 0;
+
+    internal Task OnColorHexChangedAsync(string? value)
+    {
+        ColorHex = value;
+        return ColorHexChanged.InvokeAsync(value);
+    }
 
     private async Task SelectPluginAndAdvance(PluginOption option)
     {
         SelectedOption = option;
         await SelectedOptionChanged.InvokeAsync(option);
-        // Pre-fill the name with the plugin display label as a convenient starting point.
-        _localDisplayName = option.DisplayLabel;
+        _localDisplayName = option.DisplayName;
+        _lastSeenDisplayName = _localDisplayName;
         await DisplayNameChanged.InvokeAsync(_localDisplayName);
         _wizardStep = 2;
     }

@@ -11,5 +11,6 @@ public record MergedFreeBusyResponse(
     string? Location = null,
     string? SourceLabel = null,
     IReadOnlyList<BusySlot>? SourceSlots = null,
-    bool IsAllDay = false
+    bool IsAllDay = false,
+    string? ColorHex = null
 );

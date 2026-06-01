@@ -109,6 +109,7 @@ public sealed class CalendarOwnersController(
             instance.Id,
             instance.PluginId,
             instance.DisplayName,
+            instance.ColorHex,
             instance.IsEnabled,
             instance.IsReady,
             instance.Title,
@@ -137,7 +138,8 @@ public sealed class CalendarOwnersController(
                     request.DisplayName,
                     request.ConfigurationJson,
                     request.SecretDataJson,
-                    request.IsEnabled),
+                    request.IsEnabled,
+                    request.ColorHex),
                 ct);
 
             if (created is null)
@@ -149,6 +151,7 @@ public sealed class CalendarOwnersController(
                     created.Id,
                     created.PluginId,
                     created.DisplayName,
+                    created.ColorHex,
                     created.IsEnabled,
                     created.IsReady,
                     created.Title,
@@ -160,7 +163,7 @@ public sealed class CalendarOwnersController(
             return BadRequest(new ProblemDetails
             {
                 Status = StatusCodes.Status400BadRequest,
-                Title = "Unknown calendar source plugin.",
+                Title = "Invalid calendar source configuration.",
                 Detail = ex.Message
             });
         }
@@ -181,28 +184,42 @@ public sealed class CalendarOwnersController(
         if (accessResult is not null)
             return accessResult;
 
-        var updated = await calendarSourceInstanceService.UpdateAsync(
-            id,
-            sourceInstanceId,
-            new UpdateCalendarSourceInstanceInput(
-                request.DisplayName,
-                request.ConfigurationJson,
-                request.SecretDataJson,
-                request.IsEnabled),
-            ct);
+        try
+        {
+            var updated = await calendarSourceInstanceService.UpdateAsync(
+                id,
+                sourceInstanceId,
+                new UpdateCalendarSourceInstanceInput(
+                    request.DisplayName,
+                    request.ConfigurationJson,
+                    request.SecretDataJson,
+                    request.IsEnabled,
+                    request.ColorHex),
+                ct);
 
-        if (updated is null)
-            return NotFound();
+            if (updated is null)
+                return NotFound();
 
-        return Ok(new CalendarSourceInstanceResponse(
-            updated.Id,
-            updated.PluginId,
-            updated.DisplayName,
-            updated.IsEnabled,
-            updated.IsReady,
-            updated.Title,
-            updated.Detail,
-            updated.IsExternalPlugin));
+            return Ok(new CalendarSourceInstanceResponse(
+                updated.Id,
+                updated.PluginId,
+                updated.DisplayName,
+                updated.ColorHex,
+                updated.IsEnabled,
+                updated.IsReady,
+                updated.Title,
+                updated.Detail,
+                updated.IsExternalPlugin));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Invalid calendar source configuration.",
+                Detail = ex.Message
+            });
+        }
     }
 
     [HttpDelete("{id}/calendar/sources/{sourceInstanceId:guid}")]
@@ -572,6 +589,7 @@ public sealed class CalendarOwnersController(
         Guid Id,
         string PluginId,
         string DisplayName,
+        string? ColorHex,
         bool IsEnabled,
         bool IsReady,
         string Title,
@@ -588,13 +606,15 @@ public sealed class CalendarOwnersController(
         [param: Required, MaxLength(128)] string DisplayName,
         string? ConfigurationJson,
         string? SecretDataJson,
-        bool IsEnabled = true);
+        bool IsEnabled = true,
+        [param: MaxLength(7), RegularExpression("^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")] string? ColorHex = null);
 
     public sealed record UpdateCalendarSourceInstanceRequest(
         [param: MaxLength(128)] string? DisplayName,
         string? ConfigurationJson,
         string? SecretDataJson,
-        bool? IsEnabled);
+        bool? IsEnabled,
+        [param: MaxLength(7), RegularExpression("^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")] string? ColorHex);
 
     public sealed record RedirectUriQuery(
         [param: Required, MaxLength(2048), Url] string RedirectUri);

@@ -1,4 +1,6 @@
-﻿namespace ObfusCal.Infrastructure.Persistence;
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace ObfusCal.Infrastructure.Persistence;
 
 public class CalendarSourceInstance
 {
@@ -6,6 +8,8 @@ public class CalendarSourceInstance
     public Guid CalendarOwnerId { get; set; }
     public required string PluginId { get; set; }
     public required string DisplayName { get; set; }
+    [MaxLength(7)]
+    public string? ColorHex { get; set; }
     public bool IsEnabled { get; set; } = true;
     public string? ConfigurationJson { get; set; }
     public string? SecretDataJson { get; set; }

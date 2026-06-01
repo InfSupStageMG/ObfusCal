@@ -18,6 +18,9 @@ else
         @<text>
             <div class="source-editor-topbar text-truncate">
                 <div class="source-editor-title-row">
+                    <span class="instance-color-swatch"
+                          style="background-color: @CalendarColorFieldDisplay.ResolvePreviewColor(Instance.ColorHex, Instance.AutomaticColorHex);"
+                          aria-hidden="true"></span>
                     <h4 class="source-instance-title">@Instance.DisplayName</h4>
                     <FluentBadge Appearance="Appearance.Neutral">@Instance.PluginDisplayName</FluentBadge>
                     @if (Instance.IsReady)
@@ -54,48 +57,53 @@ else
             <FluentStack Orientation="Orientation.Vertical" VerticalGap="8" Class="instance-actions-stack">
                 <FluentTextField @bind-Value="Instance.DisplayName" Immediate="true" Label="Display name" Class="app-form-control text-truncate" Style="width: 100%; max-width: 100%; min-width: 0;"/>
 
+                <CalendarColorField InputId="@($"source-color-input-{Instance.Id}")"
+                                    AutomaticColorHex="@Instance.AutomaticColorHex"
+                                    @bind-Value="Instance.ColorHex" />
+
                 @if (HasFieldEditors(Instance.ConfigurationFields))
                 {
                     <h4 class="section-heading">Configuration</h4>
-                    @foreach (var f in Instance.ConfigurationFields)
+                    @foreach (var configField in Instance.ConfigurationFields)
                     {
-                        <div @key="f.Key" class="config-field">
+                        <div @key="configField.Key" class="config-field">
                             <div class="field-label-row">
-                                <label>@f.Label</label>
-                                @if (!string.IsNullOrWhiteSpace(f.Description))
+                                <label>@configField.Label</label>
+                                @if (!string.IsNullOrWhiteSpace(configField.Description))
                                 {
-                                    <span class="field-info-icon" data-tooltip="@f.Description">i</span>
+                                    <span class="field-info-icon" data-tooltip="@configField.Description">i</span>
                                 }
                             </div>
                             <input type="text"
-                                   @key="@($"cfg-{Instance.Id}-{f.Key}")"
+                                   @key="@($"cfg-{Instance.Id}-{configField.Key}")"
                                    class="form-input"
-                                   placeholder="@(f.Placeholder ?? "")"
-                                   value="@f.Value"
-                                   @oninput="@(e => f.Value = e.Value?.ToString())"/>
+                                   placeholder="@(configField.Placeholder ?? "")"
+                                   value="@configField.Value"
+                                   @oninput="@(e => configField.Value = e.Value?.ToString())"/>
                         </div>
                     }
                 }
+
 
                 @if (HasFieldEditors(Instance.SecretFields))
                 {
                     <h4 class="section-heading">Account Credentials</h4>
                     <p class="secret-hint">Leave a field blank to keep the existing saved value.</p>
-                    @foreach (var f in Instance.SecretFields)
+                    @foreach (var secretField in Instance.SecretFields)
                     {
-                        <div @key="f.Key" class="secret-field">
+                        <div @key="secretField.Key" class="secret-field">
                             <div class="field-label-row">
-                                <label>@f.Label</label>
-                                @if (!string.IsNullOrWhiteSpace(f.Description))
+                                <label>@secretField.Label</label>
+                                @if (!string.IsNullOrWhiteSpace(secretField.Description))
                                 {
-                                    <span class="field-info-icon" data-tooltip="@f.Description">i</span>
+                                    <span class="field-info-icon" data-tooltip="@secretField.Description">i</span>
                                 }
                             </div>
                             <input type="password"
-                                   @key="@($"sec-{Instance.Id}-{f.Key}")"
+                                   @key="@($"sec-{Instance.Id}-{secretField.Key}")"
                                    class="form-input"
                                    placeholder="Enter new value to update"
-                                   @oninput="@(e => f.Value = e.Value?.ToString())"/>
+                                   @oninput="@(e => secretField.Value = e.Value?.ToString())"/>
                         </div>
                     }
                 }
@@ -193,4 +201,5 @@ else
     public EventCallback OnClose { get; set; }
 
     private static bool HasFieldEditors(IReadOnlyCollection<CalendarOwnerDetail.PluginFieldEditor> fields) => fields.Count > 0;
+
 }

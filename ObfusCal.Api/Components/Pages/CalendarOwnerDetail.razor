@@ -50,6 +50,10 @@ else
             <p class="hint-text">
                 Connect your calendar accounts here. ObfusCal will read and obfuscate the events in these calendars.
             </p>
+            @if (_sourceInstances.Count > 0)
+            {
+                <p class="hint-text source-selection-hint">Select a calendar tile to review or edit its settings.</p>
+            }
 
             @if (_pluginOptions.Count == 0)
             {
@@ -63,6 +67,8 @@ else
                 <SourceAddForm PluginOptions="_pluginOptions"
                                @bind-SelectedOption="SelectedPluginOption"
                                @bind-DisplayName="_newSourceDisplayName"
+                               @bind-ColorHex="_newSourceColorHex"
+                               AutomaticColorHex="@NewSourceAutomaticColorHex"
                                @bind-ConfigurationFields="_newSourceConfigurationFields"
                                @bind-ConfigurationJson="_newSourceConfigurationJson"
                                @bind-SecretFields="_newSourceSecretFields"
@@ -92,7 +98,12 @@ else
                         var isSelected = _expandedSourceInstanceId == instance.Id;
                         <button type="button"
                                 class="source-tile @(isSelected ? "source-tile--active" : "")"
+                                aria-expanded="@isSelected"
+                                aria-controls="source-editor-panel"
                                 @onclick="@(() => { if (isSelected) { _expandedSourceInstanceId = null; } else { _expandedSourceInstanceId = instance.Id; _sourceMessage = null; } })">
+                            <span class="source-tile-color"
+                                  style="background-color: @CalendarColorFieldDisplay.ResolvePreviewColor(instance.ColorHex, instance.AutomaticColorHex);"
+                                  aria-hidden="true"></span>
                             <span class="source-tile-name">@instance.DisplayName</span>
                             <span class="source-tile-plugin">@instance.PluginDisplayName</span>
                             <span class="source-tile-status @(instance.IsReady ? "source-tile-status--ready" : "source-tile-status--pending")">
@@ -120,7 +131,11 @@ else
             var editInst = _sourceInstances.FirstOrDefault(x => x.Id == _expandedSourceInstanceId);
             @if (editInst is not null)
             {
-                <div class="source-editor-panel">
+                <div id="source-editor-panel" class="source-editor-panel">
+                    <div class="source-editor-panel-header">
+                        <h3 class="source-editor-panel-title">Editing @editInst.DisplayName</h3>
+                        <p class="source-editor-panel-hint">Update calendar settings, credentials, and color preferences below.</p>
+                    </div>
                     <SourceInstanceEditor Instance="editInst"
                                           IsCard="true"
                                           IsSaving="_updatingSourceInstanceId == editInst.Id"
@@ -231,7 +246,6 @@ else
                         </FluentStack>
                     }
                 </section>
-
             </div>
         </details>
 

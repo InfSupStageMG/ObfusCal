@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using Microsoft.AspNetCore.Components;
+using ObfusCal.Application.Calendars;
 using ObfusCal.Application.UseCases.GetMergedFreeBusy;
 
 namespace ObfusCal.Api.Components.Shared;
@@ -26,18 +27,8 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
     private DateTime? _lastDisplayDate;
     private Dictionary<string, (string Accent, string Bg)> _labelColors = [];
     private Dictionary<DateTime, List<MergedFreeBusyResponse>> _slotsByDate = [];
-
-    private static readonly (string Accent, string Bg)[] _palette =
-    [
-        ("#1976d2", "#e3f2fd"), // blue
-        ("#388e3c", "#e8f5e9"), // green
-        ("#7b1fa2", "#f3e5f5"), // purple
-        ("#e65100", "#fff3e0"), // deep-orange
-        ("#00838f", "#e0f7fa"), // cyan
-        ("#ad1457", "#fce4ec"), // pink
-        ("#283593", "#e8eaf6"), // indigo
-        ("#558b2f", "#f9fbe7"), // light-green
-    ];
+    private static readonly (string Accent, string Bg) NeutralColor = BuildColorPair("#6B7280");
+    private static readonly (string Accent, string Bg) MixedSourcesColor = BuildColorPair("#475569");
 
     protected override void OnParametersSet()
     {
@@ -61,23 +52,29 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
     private void BuildLabelColors()
     {
         var labels = Slots
-            .SelectMany(GetAllLabels)
-            .Where(l => !string.IsNullOrWhiteSpace(l))
-            .Distinct()
-            .OrderBy(l => l)
+            .SelectMany(GetAllLabelColorEntries)
+            .Where(entry => !string.IsNullOrWhiteSpace(entry.Label))
+            .GroupBy(entry => entry.Label!, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
             .ToList();
 
         _labelColors = [];
         for (var i = 0; i < labels.Count; i++)
-            _labelColors[labels[i]!] = _palette[i % _palette.Length];
+        {
+            var explicitAccent = labels[i]
+                .Select(entry => CalendarColorPalette.NormalizeHexColorOrNull(entry.ColorHex))
+                .FirstOrDefault(color => color is not null);
+            var accent = explicitAccent ?? CalendarColorPalette.DefaultAccentColors[i % CalendarColorPalette.DefaultAccentColors.Count];
+            _labelColors[labels[i].Key] = BuildColorPair(accent);
+        }
     }
 
-    private static IEnumerable<string?> GetAllLabels(MergedFreeBusyResponse slot)
+    private static IEnumerable<(string? Label, string? ColorHex)> GetAllLabelColorEntries(MergedFreeBusyResponse slot)
     {
-        yield return slot.SourceLabel;
+        yield return (slot.SourceLabel, slot.ColorHex);
         if (slot.SourceSlots is not { Count: > 0 }) yield break;
         foreach (var source in slot.SourceSlots)
-            yield return source.SourceLabel;
+            yield return (source.SourceLabel, source.ColorHex);
     }
 
     private void BuildSlotIndex()
@@ -121,28 +118,36 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
     private (string Accent, string Bg) GetColor(string? label)
     {
         if (string.IsNullOrWhiteSpace(label) || !_labelColors.TryGetValue(label, out var color))
-            return ("#9e9e9e", "#f5f5f5");
+            return NeutralColor;
         return color;
     }
+
+    private (string Accent, string Bg) GetColor(string? label, string? colorHex)
+    {
+        var explicitAccent = CalendarColorPalette.NormalizeHexColorOrNull(colorHex);
+        return explicitAccent is not null ? BuildColorPair(explicitAccent) : GetColor(label);
+    }
+
+    private (string Accent, string Bg) GetColor(Domain.Models.BusySlot slot)
+        => GetColor(slot.SourceLabel, slot.ColorHex);
 
     private (string Accent, string Bg) GetSlotColor(MergedFreeBusyResponse evt)
     {
         if (evt.SourceSlots is not { Count: > 1 })
-            return GetColor(evt.SourceLabel);
+            return GetColor(evt.SourceLabel, evt.ColorHex);
 
-        var distinctLabels = evt.SourceSlots
-            .Select(s => s.SourceLabel)
-            .Where(l => !string.IsNullOrWhiteSpace(l))
+        var sourceColors = evt.SourceSlots
+            .Select(GetColor)
             .Distinct()
             .ToList();
 
-        // All sources share the same label → use that color
-        return distinctLabels.Count == 1
-            ? GetColor(distinctLabels[0])
-            :
-            // Mixed sources → neutral blue-grey to signal a multi-source merge
-            ("#546e7a", "#eceff1");
+        return sourceColors.Count == 1
+            ? sourceColors[0]
+            : MixedSourcesColor;
     }
+
+    private static (string Accent, string Bg) BuildColorPair(string accentHex)
+        => (accentHex, CalendarColorPalette.CreateBackgroundTint(accentHex));
 
     private void PreviousMonth()
     {

@@ -218,6 +218,7 @@ public sealed class CalendarOwnerAvailabilitySyncService(
             AttendeeEmails = slot.AttendeeEmails?.ToArray(),
             Location = slot.Location,
             SourceLabel = slot.SourceLabel,
+            ColorHex = slot.ColorHex,
             IsAllDay = slot.IsAllDay,
             SourceSlotsJson = SerializeSourceSlots(slot.SourceSlots)
         }).ToList();
@@ -269,7 +270,8 @@ public sealed class CalendarOwnerAvailabilitySyncService(
                 s.AttendeeEmails,
                 s.Location,
                 s.SourceLabel,
-                s.IsAllDay
+                s.IsAllDay,
+                s.ColorHex
             }).ToArray();
 
             return JsonSerializer.Serialize(dtos, JsonOptions);

@@ -201,6 +201,11 @@ with secure defaults (all sensitive fields removed, rounding enabled with 15 min
 The resulting `BusySlot` contract always contains `start`/`end` and can optionally carry `title`, `description`,
 `attendeeEmails`, and `location` when those fields are not removed by the active profile.
 
+For owner-facing UI only, busy slots can also carry source label and optional color metadata so the internal merged
+calendar can keep a stable visual mapping per configured source instance. This metadata follows the same privacy
+boundary as `SourceLabel`: if source labels are removed for a context, the color metadata must also be removed so it
+cannot reveal source identity indirectly.
+
 ## Error Handling & Resilience
 
 - A failed sync with one peer instance is logged and skipped; other peers continue unaffected.

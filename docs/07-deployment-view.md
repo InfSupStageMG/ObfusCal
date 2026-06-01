@@ -97,6 +97,10 @@ the API container.
 The API container remains single-purpose for the API process. Runtime still depends on external infrastructure
 (PostgreSQL, TLS key material, and environment-provided secrets).
 
+Owner-configured calendar source colors are stored in the same application database as source-instance settings and
+availability snapshots. No extra service is required, but database migrations must be applied before the UI can persist
+or replay those colors from stored snapshots.
+
 ### Loading Custom Plugins
 
 To load third-party calendar providers or custom obfuscation transformers, compile your plugin DLL and mount it into the

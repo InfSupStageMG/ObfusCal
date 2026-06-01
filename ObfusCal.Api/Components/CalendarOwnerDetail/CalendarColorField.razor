@@ -1,0 +1,49 @@
+﻿<div class="color-field">
+    <div class="color-field-header">
+        <label for="@EffectiveInputId">@Label</label>
+        <div class="selected-color-pill" aria-live="polite">
+            <span class="selected-color-swatch"
+                  style="background-color: @CalendarColorFieldDisplay.ResolvePreviewColor(Value, AutomaticColorHex);"
+                  aria-hidden="true"></span>
+            <span>@CalendarColorFieldDisplay.DescribeSelection(Value)</span>
+        </div>
+    </div>
+
+    <div class="color-choice-strip" role="group" aria-label="@($"{Label} presets")">
+        <button type="button"
+                class="color-choice-chip @(CalendarColorFieldDisplay.IsAutomatic(Value) ? "is-selected" : null)"
+                aria-pressed="@CalendarColorFieldDisplay.IsAutomatic(Value)"
+                @onclick="SelectAutomaticAsync">
+            Automatic
+        </button>
+
+        @foreach (var color in CalendarColorFieldDisplay.PresetColors)
+        {
+            var isSelected = CalendarColorFieldDisplay.IsPresetSelected(Value, color);
+            <button type="button"
+                    class="color-choice-swatch @(isSelected ? "is-selected" : null)"
+                    style="--calendar-color-field-accent: @color;"
+                    title="@color"
+                    aria-label="@($"Use color {color}")"
+                    aria-pressed="@isSelected"
+                    @onclick="@(() => SelectPresetAsync(color))">
+                <span class="color-choice-swatch-fill" aria-hidden="true"></span>
+            </button>
+        }
+    </div>
+
+    <input id="@EffectiveInputId"
+           type="text"
+           class="form-input color-hex-input"
+           value="@(Value ?? string.Empty)"
+           placeholder="#2563EB"
+           @oninput="OnCustomColorChanged" />
+
+    <p class="color-hint">@HintText</p>
+
+    @if (CalendarColorFieldDisplay.HasInvalidCustomColor(Value))
+    {
+        <p class="color-validation">Use a hex color like #2563EB or #ABC.</p>
+    }
+</div>
+
