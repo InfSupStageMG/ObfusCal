@@ -1,4 +1,6 @@
-﻿using ObfusCal.Application.Interfaces;
+﻿using Microsoft.Extensions.Options;
+using ObfusCal.Application.Configuration;
+using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Security;
 
 namespace ObfusCal.Tests.Unit.Security;
@@ -36,6 +38,29 @@ public class UrlSafetyValidatorTests
         var result = await validator.ValidateAsync("https://example.com/feed.ics");
 
         Assert.IsTrue(result.IsValid);
+    }
+
+    [TestMethod]
+    public async Task ValidateAsync_AllowsPrivateIpAddress_WhenAllowPrivateNetworkHostsIsTrue()
+    {
+        var options = Options.Create(new PeerTransportSecurityOptions { AllowPrivateNetworkHosts = true });
+        var validator = new UrlSafetyValidator(options);
+
+        var result = await validator.ValidateAsync("https://10.0.0.1/");
+
+        Assert.IsTrue(result.IsValid);
+    }
+
+    [TestMethod]
+    public async Task ValidateAsync_StillRejectsHttp_WhenAllowPrivateNetworkHostsIsTrue()
+    {
+        var options = Options.Create(new PeerTransportSecurityOptions { AllowPrivateNetworkHosts = true });
+        var validator = new UrlSafetyValidator(options);
+
+        var result = await validator.ValidateAsync("http://10.0.0.1/");
+
+        Assert.IsFalse(result.IsValid);
+        Assert.AreEqual(UrlSafetyValidationError.UnsupportedScheme, result.Error);
     }
 }
 

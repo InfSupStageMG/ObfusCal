@@ -203,6 +203,12 @@ try
             "Peer transport security is configured to allow self-signed certificates. Use this only for development or staging environments.");
     }
 
+    if (peerTransportSecurityOptions.AllowPrivateNetworkHosts)
+    {
+        Log.Warning(
+            "Peer transport security is configured to allow private-network peer URLs. SSRF protection is reduced. Use this only in development or demo environments.");
+    }
+
     var forwardedHeadersOptions = new ForwardedHeadersOptions
     {
         ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedHost |

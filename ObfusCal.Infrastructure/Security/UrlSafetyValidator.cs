@@ -1,5 +1,7 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using Microsoft.Extensions.Options;
+using ObfusCal.Application.Configuration;
 using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Infrastructure.Security;
@@ -10,6 +12,16 @@ namespace ObfusCal.Infrastructure.Security;
 /// </summary>
 internal sealed class UrlSafetyValidator : IUrlSafetyValidator
 {
+    private readonly bool _allowPrivateNetworkHosts;
+
+    // Parameterless constructor used by tests and as a fallback in IcalFeedCalendarSource.
+    // Defaults to strict/production behaviour (private hosts rejected).
+    public UrlSafetyValidator() { }
+
+    public UrlSafetyValidator(IOptions<PeerTransportSecurityOptions> options)
+    {
+        _allowPrivateNetworkHosts = options.Value.AllowPrivateNetworkHosts;
+    }
     public Task<UrlSafetyValidationResult> ValidateAsync(string url, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
@@ -38,7 +50,7 @@ internal sealed class UrlSafetyValidator : IUrlSafetyValidator
                 "Only https URLs are allowed.");
         }
 
-        if (TryRejectPrivateHost(uri.Host, out var privateHostResult))
+        if (!_allowPrivateNetworkHosts && TryRejectPrivateHost(uri.Host, out var privateHostResult))
             return privateHostResult!;
 
         IPAddress[] resolvedAddresses;
@@ -52,7 +64,7 @@ internal sealed class UrlSafetyValidator : IUrlSafetyValidator
             return UrlSafetyValidationResult.Success();
         }
 
-        if (resolvedAddresses.Any(IsPrivateOrLocalAddress))
+        if (!_allowPrivateNetworkHosts && resolvedAddresses.Any(IsPrivateOrLocalAddress))
         {
             return UrlSafetyValidationResult.Fail(
                 UrlSafetyValidationError.PrivateNetworkHost,
