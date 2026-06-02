@@ -1,8 +1,8 @@
 # Test Catalog
 
-_Auto-generated from CI run. 692 tests across 77 classes._
+_Auto-generated from CI run. 712 tests across 78 classes._
 
-## Integration (181/181)
+## Integration (182/182)
 
 <details>
 <summary><b>AdminPeerConnectionsControllerTests</b> - 7/7</summary>
@@ -240,7 +240,7 @@ _Auto-generated from CI run. 692 tests across 77 classes._
 </details>
 
 <details>
-<summary><b>InfrastructureDependencyInjectionTests</b> - 12/12</summary>
+<summary><b>InfrastructureDependencyInjectionTests</b> - 13/13</summary>
 
 <table>
   <thead>
@@ -252,6 +252,7 @@ _Auto-generated from CI run. 692 tests across 77 classes._
     <tr><td><code>CalendarOwnerIcalFeedService_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarOwnerObfuscationProfileService_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarOwnerScopeResolver_IsRegistered</code></td><td>✅</td></tr>
+    <tr><td><code>CalendarSourceAuthFlowService_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarSourceCatalog_ContainsAllThreeBuiltInPlugins</code></td><td>✅</td></tr>
     <tr><td><code>CalendarSourceCatalog_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarSourceResolver_IsRegistered</code></td><td>✅</td></tr>
@@ -419,7 +420,7 @@ _Auto-generated from CI run. 692 tests across 77 classes._
 
 </details>
 
-## Unit (511/511)
+## Unit (530/530)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 2/2</summary>
@@ -810,6 +811,38 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>ToDisplayName_AllValues_ReturnNonEmpty</code></td><td>✅</td></tr>
     <tr><td><code>ToDisplayName_Client_ReturnsExternal</code></td><td>✅</td></tr>
     <tr><td><code>ToDisplayName_Internal_ReturnsInternal</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>SourceAddFormValidationTests</b> - 19/19</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>GoogleCalendarId_WithPrimaryDefault_IsNotRequired</code></td><td>✅</td></tr>
+    <tr><td><code>ICloudAppleId_WithValueFilled_IsNotRequired</code></td><td>✅</td></tr>
+    <tr><td><code>ICloudAppleId_WithoutValue_IsRequired</code></td><td>✅</td></tr>
+    <tr><td><code>ICloudCalendarUrl_WithDotDotDot_IsRequired</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("See example...")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("https://caldav.icloud.com/.../calendar/")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("user@EXAMPLE.COM")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("you@example.com")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues (null)</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("false")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("https://caldav.icloud.com/calendar/")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("primary")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("true")</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithGoogleConsentAction_RequiresAuthentication</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithGraphConsentAction_RequiresAuthentication</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithoutConsentAction_DoesNotRequireAuthentication</code></td><td>✅</td></tr>
+    <tr><td><code>SecretField_WhenEmpty_IsRequired</code></td><td>✅</td></tr>
+    <tr><td><code>SecretField_WhenFilled_IsNotRequired</code></td><td>✅</td></tr>
   </tbody>
 </table>
 

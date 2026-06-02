@@ -25,9 +25,13 @@ public partial class CalendarOwnerDetail
         bool SupportsMultipleInstances,
         string? ConfigurationJsonTemplate,
         string? SecretDataJsonTemplate,
-        string? SetupHint)
+        string? SetupHint,
+        IReadOnlyList<CalendarSourcePluginActionDescriptor> Actions)
     {
         public string DisplayLabel => IsExternalPlugin ? $"{DisplayName} (plugin)" : DisplayName;
+
+        public bool RequiresAuthentication => Actions.Any(action =>
+            CalendarSourcePluginActionIds.IsAuthenticationAction(action.ActionId));
     }
 
     public sealed class PluginFieldEditor

@@ -30,6 +30,14 @@ public class InfrastructureDependencyInjectionTests
     }
 
     [TestMethod]
+    public void CalendarSourceAuthFlowService_IsRegistered()
+    {
+        using var scope = Factory.Services.CreateScope();
+        var svc = scope.ServiceProvider.GetService<ICalendarSourceAuthFlowService>();
+        Assert.IsNotNull(svc);
+    }
+
+    [TestMethod]
     public void CalendarOwnerIcalFeedService_IsRegistered()
     {
         using var scope = Factory.Services.CreateScope();

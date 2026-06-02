@@ -31,8 +31,8 @@ instance.
 * **Positive:** Updates are one `docker pull`; no per-device rollout required.
 * **Positive:** Environment variables and volumes make configuration portable.
 * **Negative:** Requires Docker to be installed and running on the host server.
-* **Negative:** Docker Desktop has commercial licensing implications for larger organisations (Rancher Desktop is a free
-  alternative).
+* **Negative:** Docker Desktop has commercial licensing implications for larger organisations (Podman Desktop and Rancher Desktop are free
+  alternatives).
 
 ## Related security guidance
 

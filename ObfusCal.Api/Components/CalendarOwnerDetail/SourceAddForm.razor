@@ -57,16 +57,21 @@
 
         <div class="wizard-nav-row">
             <FluentButton Appearance="Appearance.Outline" OnClick="GoBack">← Back</FluentButton>
-            <FluentButton Appearance="Appearance.Accent" OnClick="GoForward">Continue →</FluentButton>
+            <FluentButton Appearance="Appearance.Accent" OnClick="ValidateAndGoForwardAsync">Continue →</FluentButton>
         </div>
     }
     else
     {
         @* ── Step 3: Review and confirm ── *@
         var effectiveName = string.IsNullOrWhiteSpace(_localDisplayName) ? SelectedOption?.DisplayName : _localDisplayName;
+        var requiresAuthentication = SelectedOption?.RequiresAuthentication == true;
 
         <h4 class="wizard-step-heading">Are you happy with these settings?</h4>
-        <p class="hint-text">Review your choices below. You can always edit or remove this calendar later.</p>
+        <p class="hint-text">
+            @(requiresAuthentication
+                ? "Review your choices below. After you confirm, you'll continue to sign in and grant access before ObfusCal finishes connecting this calendar."
+                : "Review your choices below. You can always edit or remove this calendar later.")
+        </p>
 
         <div class="wizard-summary">
             <div class="wizard-summary-row">
@@ -79,7 +84,7 @@
             </div>
         </div>
 
-        <details class="wizard-advanced">
+        <details class="wizard-advanced" @attributes="_advancedOpenAttr">
             <summary class="wizard-advanced-summary">
                 Advanced settings
                 <span class="wizard-advanced-subtext"> - only change these if you know what you're doing</span>
@@ -162,6 +167,11 @@
             </div>
         </details>
 
+        @if (_stepValidationMessage is not null)
+        {
+            <FluentMessageBar Intent="MessageIntent.Warning" Class="card-message">@_stepValidationMessage</FluentMessageBar>
+        }
+
         @if (Message is not null)
         {
             <FluentMessageBar Intent="@MessageIntent" Class="card-message">@Message</FluentMessageBar>
@@ -170,9 +180,9 @@
         <div class="wizard-nav-row">
             <FluentButton Appearance="Appearance.Outline" OnClick="GoBack" Disabled="IsLoading">← Back</FluentButton>
             <FluentButton Appearance="Appearance.Accent"
-                          OnClick="OnAddAsync"
+                          OnClick="ValidateAndSubmitAsync"
                           Disabled="@(SelectedOption is null || IsLoading)">
-                @(IsLoading ? "Adding…" : "✓ Add Calendar")
+                @(IsLoading ? (requiresAuthentication ? "Opening sign-in…" : "Adding…") : GetSubmitButtonText())
             </FluentButton>
         </div>
     }
@@ -250,6 +260,10 @@
 
     private string? _localDisplayName;
     private string? _lastSeenDisplayName;
+    private string? _stepValidationMessage;
+
+    // Controls whether the Advanced settings section is pre-expanded.
+    private IReadOnlyDictionary<string, object> _advancedOpenAttr = new Dictionary<string, object>();
 
     protected override void OnParametersSet()
     {
@@ -279,12 +293,78 @@
     private void GoBack()
     {
         if (_wizardStep > 1)
+        {
+            _stepValidationMessage = null;
             _wizardStep--;
+        }
     }
 
-    private void GoForward()
+    private async Task ValidateAndGoForwardAsync()
     {
-        if (_wizardStep < 3)
-            _wizardStep++;
+        if (_wizardStep >= 3)
+            return;
+
+        if (_wizardStep == 2 && string.IsNullOrWhiteSpace(GetEffectiveDisplayName()))
+        {
+            _stepValidationMessage = "Please enter a calendar name before continuing.";
+            return;
+        }
+
+        _stepValidationMessage = null;
+        _wizardStep++;
+
+        await DisplayNameChanged.InvokeAsync(GetEffectiveDisplayName());
+
+        _advancedOpenAttr = _wizardStep == 3 && HasRequiredMissingFields()
+            ? new Dictionary<string, object> { { "open", string.Empty } }
+            : new Dictionary<string, object>();
+    }
+
+    private async Task ValidateAndSubmitAsync()
+    {
+        _stepValidationMessage = null;
+
+        var missing = GetMissingRequiredFieldLabels();
+        if (missing.Count > 0)
+        {
+            _advancedOpenAttr = new Dictionary<string, object> { { "open", string.Empty } };
+            _stepValidationMessage = $"Please fill in the following required fields: {string.Join(", ", missing)}.";
+            return;
+        }
+
+        await OnAddAsync.InvokeAsync();
+    }
+
+    private string? GetEffectiveDisplayName()
+        => string.IsNullOrWhiteSpace(_localDisplayName)
+            ? SelectedOption?.DisplayName
+            : _localDisplayName.Trim();
+
+    private string GetSubmitButtonText()
+        => SelectedOption?.RequiresAuthentication == true
+            ? "Continue to sign-in"
+            : "✓ Add Calendar";
+
+    private static bool IsRequiredConfigField(PluginFieldEditor field)
+        => !IsLikelyDefaultValue(field.Placeholder) && string.IsNullOrWhiteSpace(field.Value);
+
+    private static bool IsRequiredSecretField(PluginFieldEditor field)
+        => string.IsNullOrWhiteSpace(field.Value);
+
+    private bool HasRequiredMissingFields()
+        => ConfigurationFields.Any(IsRequiredConfigField)
+           || (HasFieldEditors(SecretFields) && SecretFields.Any(IsRequiredSecretField));
+
+    private List<string> GetMissingRequiredFieldLabels()
+    {
+        var labels = new List<string>();
+
+        if (HasFieldEditors(ConfigurationFields))
+            labels.AddRange(ConfigurationFields.Where(IsRequiredConfigField).Select(f => f.Label));
+
+        if (HasFieldEditors(SecretFields))
+            labels.AddRange(SecretFields.Where(IsRequiredSecretField).Select(f => f.Label));
+
+        return labels;
     }
 }
