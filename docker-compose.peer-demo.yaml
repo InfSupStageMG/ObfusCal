@@ -19,161 +19,160 @@
 
 services:
 
-    # ── Instance A ─────────────────────────────────────────────────────────────
+  # ── Instance A ─────────────────────────────────────────────────────────────
 
-    db-a:
-        image: postgres:18
-        environment:
-            POSTGRES_USER: ${POSTGRES_USER_A}
-            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_A}
-            POSTGRES_DB: ${POSTGRES_DB_A}
-        healthcheck:
-            test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER_A}" ]
-            interval: 5s
-            timeout: 5s
-            retries: 10
-        networks:
-            - peer-demo
+  db-a:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER_A}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_A}
+      POSTGRES_DB: ${POSTGRES_DB_A}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_A} -d ${POSTGRES_DB_A}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - peer-demo
 
-    api-a:
-        build: .
-        read_only: true
-        tmpfs:
-            - /tmp
-        cap_drop:
-            - ALL
-        security_opt:
-            - no-new-privileges:true
-        mem_limit: ${API_MEM_LIMIT:-512m}
-        cpus: ${API_CPUS:-4.0}
-        expose:
-            - "8443"
-        environment:
-            - ApplyMigrationsOnStartup=true
-            - ASPNETCORE_ENVIRONMENT=Development
-            - ConnectionStrings__DefaultConnection=Host=db-a;Database=${POSTGRES_DB_A};Username=${POSTGRES_USER_A};Password=${POSTGRES_PASSWORD_A}
-            - AZUREAD__TENANTID=${AZUREAD__TENANTID}
-            - AZUREAD__CLIENTID=${AZUREAD__CLIENTID}
-            - AZUREAD__CLIENTSECRET=${AZUREAD__CLIENTSECRET}
-            - GRAPHCONSENT__CLIENTID=${GRAPHCONSENT__CLIENTID}
-            - GRAPHCONSENT__CLIENTSECRET=${GRAPHCONSENT__CLIENTSECRET}
-            - GOOGLECONSENT__CLIENTID=${GOOGLECONSENT__CLIENTID}
-            - GOOGLECONSENT__CLIENTSECRET=${GOOGLECONSENT__CLIENTSECRET}
-            - GOOGLECONSENT__REDIRECTURI=${GOOGLECONSENT__REDIRECTURI}
-            - SYNC__INSTANCEID=instance-a
-            - SYNC__APIKEY=${SYNC__APIKEY_A}
-            - COLUMNENCRYPTION__KEY=${COLUMNENCRYPTION__KEY_A}
-            - SECURITYAUDIT__FILEPATH=/tmp/obfuscal/security-audit.ndjson
-            - PEERTRANSPORTSECURITY__ALLOWSELFSIGNEDCERTS=true
-            - ASPNETCORE_URLS=https://+:8443
-            - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/api.pfx
-            - ASPNETCORE_Kestrel__Certificates__Default__Password=${API_CERT_PASSWORD}
-        volumes:
-            - ./certs/api:/https:ro
-            - ./plugins:/app/plugins:ro
-        healthcheck:
-            test: [ "CMD", "curl", "-fk", "https://localhost:8443/health" ]
-            interval: 30s
-            timeout: 5s
-            retries: 3
-        depends_on:
-            db-a:
-                condition: service_healthy
-        networks:
-            - peer-demo
+  api-a:
+    build: .
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${API_MEM_LIMIT:-512m}
+    cpus: ${API_CPUS:-4.0}
+    expose:
+      - "8443"
+    environment:
+      - ApplyMigrationsOnStartup=true
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=db-a;Database=${POSTGRES_DB_A};Username=${POSTGRES_USER_A};Password=${POSTGRES_PASSWORD_A}
+      - AZUREAD__TENANTID=${AZUREAD__TENANTID}
+      - AZUREAD__CLIENTID=${AZUREAD__CLIENTID}
+      - AZUREAD__CLIENTSECRET=${AZUREAD__CLIENTSECRET}
+      - GRAPHCONSENT__CLIENTID=${GRAPHCONSENT__CLIENTID}
+      - GRAPHCONSENT__CLIENTSECRET=${GRAPHCONSENT__CLIENTSECRET}
+      - GOOGLECONSENT__CLIENTID=${GOOGLECONSENT__CLIENTID}
+      - GOOGLECONSENT__CLIENTSECRET=${GOOGLECONSENT__CLIENTSECRET}
+      - GOOGLECONSENT__REDIRECTURI=${GOOGLECONSENT__REDIRECTURI}
+      - SYNC__INSTANCEID=instance-a
+      - SYNC__APIKEY=${SYNC__APIKEY_A}
+      - COLUMNENCRYPTION__KEY=${COLUMNENCRYPTION__KEY_A}
+      - SECURITYAUDIT__FILEPATH=/tmp/obfuscal/security-audit.ndjson
+      - PEERTRANSPORTSECURITY__ALLOWSELFSIGNEDCERTS=true
+      - ASPNETCORE_URLS=https://+:8443
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/api.pfx
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=${API_CERT_PASSWORD}
+    volumes:
+      - ./certs/api:/https:ro
+      - ./plugins:/app/plugins:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fk", "https://localhost:8443/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      db-a:
+        condition: service_healthy
+    networks:
+      - peer-demo
 
-    proxy-a:
-        image: nginx:1.31-alpine
-        depends_on:
-            api-a:
-                condition: service_healthy
-        ports:
-            - "80:80"
-            - "443:443"
-        volumes:
-            - ./nginx-peer-a.conf:/etc/nginx/nginx.conf:ro
-            - ./certs/nginx:/etc/nginx/certs:ro
-        networks:
-            - peer-demo
+  proxy-a:
+    image: nginx:1.31-alpine
+    depends_on:
+      api-a:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-peer-a.conf:/etc/nginx/nginx.conf:ro
+      - ./certs/nginx:/etc/nginx/certs:ro
+    networks:
+      - peer-demo
 
-    # ── Instance B ─────────────────────────────────────────────────────────────
+  # ── Instance B ─────────────────────────────────────────────────────────────
 
-    db-b:
-        image: postgres:18
-        environment:
-            POSTGRES_USER: ${POSTGRES_USER_B}
-            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_B}
-            POSTGRES_DB: ${POSTGRES_DB_B}
-        healthcheck:
-            test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER_B}" ]
-            interval: 5s
-            timeout: 5s
-            retries: 10
-        networks:
-            - peer-demo
+  db-b:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER_B}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_B}
+      POSTGRES_DB: ${POSTGRES_DB_B}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER_B} -d ${POSTGRES_DB_B}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - peer-demo
 
-    api-b:
-        build: .
-        read_only: true
-        tmpfs:
-            - /tmp
-        cap_drop:
-            - ALL
-        security_opt:
-            - no-new-privileges:true
-        mem_limit: ${API_MEM_LIMIT:-512m}
-        cpus: ${API_CPUS:-4.0}
-        expose:
-            - "8443"
-        environment:
-            - ApplyMigrationsOnStartup=true
-            - ASPNETCORE_ENVIRONMENT=Development
-            - ConnectionStrings__DefaultConnection=Host=db-b;Database=${POSTGRES_DB_B};Username=${POSTGRES_USER_B};Password=${POSTGRES_PASSWORD_B}
-            - AZUREAD__TENANTID=${AZUREAD__TENANTID}
-            - AZUREAD__CLIENTID=${AZUREAD__CLIENTID}
-            - AZUREAD__CLIENTSECRET=${AZUREAD__CLIENTSECRET}
-            - GRAPHCONSENT__CLIENTID=${GRAPHCONSENT__CLIENTID}
-            - GRAPHCONSENT__CLIENTSECRET=${GRAPHCONSENT__CLIENTSECRET}
-            - GOOGLECONSENT__CLIENTID=${GOOGLECONSENT__CLIENTID}
-            - GOOGLECONSENT__CLIENTSECRET=${GOOGLECONSENT__CLIENTSECRET}
-            - GOOGLECONSENT__REDIRECTURI=${GOOGLECONSENT__REDIRECTURI}
-            - SYNC__INSTANCEID=instance-b
-            - SYNC__APIKEY=${SYNC__APIKEY_B}
-            - COLUMNENCRYPTION__KEY=${COLUMNENCRYPTION__KEY_B}
-            - SECURITYAUDIT__FILEPATH=/tmp/obfuscal/security-audit.ndjson
-            - PEERTRANSPORTSECURITY__ALLOWSELFSIGNEDCERTS=true
-            - ASPNETCORE_URLS=https://+:8443
-            - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/api.pfx
-            - ASPNETCORE_Kestrel__Certificates__Default__Password=${API_CERT_PASSWORD}
-        volumes:
-            - ./certs/api:/https:ro
-            - ./plugins:/app/plugins:ro
-        healthcheck:
-            test: [ "CMD", "curl", "-fk", "https://localhost:8443/health" ]
-            interval: 30s
-            timeout: 5s
-            retries: 3
-        depends_on:
-            db-b:
-                condition: service_healthy
-        networks:
-            - peer-demo
+  api-b:
+    build: .
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: ${API_MEM_LIMIT:-512m}
+    cpus: ${API_CPUS:-4.0}
+    expose:
+      - "8443"
+    environment:
+      - ApplyMigrationsOnStartup=true
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=db-b;Database=${POSTGRES_DB_B};Username=${POSTGRES_USER_B};Password=${POSTGRES_PASSWORD_B}
+      - AZUREAD__TENANTID=${AZUREAD__TENANTID}
+      - AZUREAD__CLIENTID=${AZUREAD__CLIENTID}
+      - AZUREAD__CLIENTSECRET=${AZUREAD__CLIENTSECRET}
+      - GRAPHCONSENT__CLIENTID=${GRAPHCONSENT__CLIENTID}
+      - GRAPHCONSENT__CLIENTSECRET=${GRAPHCONSENT__CLIENTSECRET}
+      - GOOGLECONSENT__CLIENTID=${GOOGLECONSENT__CLIENTID}
+      - GOOGLECONSENT__CLIENTSECRET=${GOOGLECONSENT__CLIENTSECRET}
+      - GOOGLECONSENT__REDIRECTURI=${GOOGLECONSENT__REDIRECTURI}
+      - SYNC__INSTANCEID=instance-b
+      - SYNC__APIKEY=${SYNC__APIKEY_B}
+      - COLUMNENCRYPTION__KEY=${COLUMNENCRYPTION__KEY_B}
+      - SECURITYAUDIT__FILEPATH=/tmp/obfuscal/security-audit.ndjson
+      - PEERTRANSPORTSECURITY__ALLOWSELFSIGNEDCERTS=true
+      - ASPNETCORE_URLS=https://+:8443
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/api.pfx
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=${API_CERT_PASSWORD}
+    volumes:
+      - ./certs/api:/https:ro
+      - ./plugins:/app/plugins:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fk", "https://localhost:8443/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      db-b:
+        condition: service_healthy
+    networks:
+      - peer-demo
 
-    proxy-b:
-        image: nginx:1.31-alpine
-        depends_on:
-            api-b:
-                condition: service_healthy
-        ports:
-            # No port 80 — instance A already owns :80 on the host.
-            - "4443:443"
-        volumes:
-            - ./nginx-peer-b.conf:/etc/nginx/nginx.conf:ro
-            - ./certs/nginx:/etc/nginx/certs:ro
-        networks:
-            - peer-demo
+  proxy-b:
+    image: nginx:1.31-alpine
+    depends_on:
+      api-b:
+        condition: service_healthy
+    ports:
+      # No port 80 — instance A already owns :80 on the host.
+      - "4443:443"
+    volumes:
+      - ./nginx-peer-b.conf:/etc/nginx/nginx.conf:ro
+      - ./certs/nginx:/etc/nginx/certs:ro
+    networks:
+      - peer-demo
 
 networks:
-    peer-demo:
-        driver: bridge
-
+  peer-demo:
+    driver: bridge
