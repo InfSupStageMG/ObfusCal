@@ -30,6 +30,7 @@ public partial class CalendarOwnerDetail : ComponentBase
     private PluginOption? _selectedPluginOption;
     private string? _newSourceDisplayName;
     private string? _newSourceColorHex;
+    private string? _newSourceAuthenticationActionId;
     private string? _newSourceConfigurationJson;
     private string? _newSourceSecretDataJson;
     private List<PluginFieldEditor> _newSourceConfigurationFields = [];
@@ -45,6 +46,7 @@ public partial class CalendarOwnerDetail : ComponentBase
     private MessageIntent _sourceMessageIntent = MessageIntent.Info;
     private Guid? _lastActionInstanceId;
     private bool _hasWriteBackCapableSource;
+    private bool _hasHandledConsentCompleted;
 
 
     private Guid? _expandedSourceInstanceId;
@@ -103,6 +105,28 @@ public partial class CalendarOwnerDetail : ComponentBase
         {
             _sourceMessage = "✓ Authentication completed. Your calendar is now connected and availability is being synced.";
             _sourceMessageIntent = MessageIntent.Success;
+            _hasHandledConsentCompleted = true;
         }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!ConsentCompleted || _owner is null || _hasHandledConsentCompleted)
+            return;
+
+        _owner = await CalendarOwnerService.GetByIdAsync(Id);
+        if (_owner is null)
+        {
+            _accessDeniedMessage = "Calendar owner was not found.";
+            return;
+        }
+
+        _writeBackEnabled = _owner.WriteBackEnabled;
+        _writeBackPlaceholderTitle = _owner.WriteBackPlaceholderTitle;
+        await LoadSourceInstancesAsync();
+
+        _sourceMessage = "✓ Authentication completed. Your calendar is now connected and availability is being synced.";
+        _sourceMessageIntent = MessageIntent.Success;
+        _hasHandledConsentCompleted = true;
     }
 }

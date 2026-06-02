@@ -21,7 +21,7 @@
             </FluentButton>
             <FluentDataGrid Items="_entries.AsQueryable()" TGridItem="CalendarOwnerStatusEntry" Class="app-data-grid">
                 <PropertyColumn Property="@(e => e.DisplayName)" Title="Name" Sortable="true" />
-                <TemplateColumn Title="Graph Consent">
+                <TemplateColumn Title="Outlook Consent">
                     @if (context.HasGraphConsent)
                     {
                         <FluentBadge Appearance="Appearance.Accent" Color="Color.Success">Yes</FluentBadge>

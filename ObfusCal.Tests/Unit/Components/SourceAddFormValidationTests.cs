@@ -139,6 +139,37 @@ public class SourceAddFormValidationTests
     }
 
     [TestMethod]
+    public void PluginOption_WithSingleAuthenticationAction_DoesNotRequireAuthenticationChoice()
+    {
+        var option = CreatePluginOption(new CalendarSourcePluginActionDescriptor(
+            "google-instance-consent",
+            "Connect Google account",
+            null));
+
+        Assert.IsFalse(option.RequiresAuthenticationChoice);
+        Assert.AreEqual("google-instance-consent", option.DefaultAuthenticationActionId);
+    }
+
+    [TestMethod]
+    public void PluginOption_WithMultipleAuthenticationActions_RequiresAuthenticationChoice()
+    {
+        var option = CreatePluginOption(
+            new CalendarSourcePluginActionDescriptor(
+                "graph-instance-consent-readonly",
+                "Connect Outlook (read-only)",
+                null),
+            new CalendarSourcePluginActionDescriptor(
+                "graph-instance-consent",
+                "Connect Outlook (write-back)",
+                null));
+
+        Assert.IsTrue(option.RequiresAuthentication);
+        Assert.IsTrue(option.RequiresAuthenticationChoice);
+        Assert.IsNull(option.DefaultAuthenticationActionId);
+        Assert.HasCount(2, option.AuthenticationActions);
+    }
+
+    [TestMethod]
     public void PluginOption_WithoutConsentAction_DoesNotRequireAuthentication()
     {
         var option = CreatePluginOption();

@@ -30,8 +30,17 @@ public partial class CalendarOwnerDetail
     {
         public string DisplayLabel => IsExternalPlugin ? $"{DisplayName} (plugin)" : DisplayName;
 
-        public bool RequiresAuthentication => Actions.Any(action =>
-            CalendarSourcePluginActionIds.IsAuthenticationAction(action.ActionId));
+        public IReadOnlyList<CalendarSourcePluginActionDescriptor> AuthenticationActions => Actions
+            .Where(action => CalendarSourcePluginActionIds.IsAuthenticationAction(action.ActionId))
+            .ToList();
+
+        public bool RequiresAuthentication => AuthenticationActions.Count > 0;
+
+        public bool RequiresAuthenticationChoice => AuthenticationActions.Count > 1;
+
+        public string? DefaultAuthenticationActionId => AuthenticationActions.Count == 1
+            ? AuthenticationActions[0].ActionId
+            : null;
     }
 
     public sealed class PluginFieldEditor

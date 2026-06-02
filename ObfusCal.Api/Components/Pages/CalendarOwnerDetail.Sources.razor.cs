@@ -1,7 +1,6 @@
 ﻿using Microsoft.FluentUI.AspNetCore.Components;
 using ObfusCal.Api.Components.CalendarOwnerDetail;
 using ObfusCal.Application.Interfaces;
-using System.Net.Http;
 
 namespace ObfusCal.Api.Components.Pages;
 
@@ -111,6 +110,7 @@ public partial class CalendarOwnerDetail
 
         _newSourceDisplayName = null;
         _newSourceColorHex = null;
+        _newSourceAuthenticationActionId = _selectedPluginOption.DefaultAuthenticationActionId;
         _newSourceConfigurationJson = _selectedPluginOption.ConfigurationJsonTemplate;
         _newSourceSecretDataJson = _selectedPluginOption.SecretDataJsonTemplate;
         _newSourceConfigurationFields = BuildFieldEditorsFromTemplate(_selectedPluginOption.ConfigurationJsonTemplate);
@@ -142,6 +142,16 @@ public partial class CalendarOwnerDetail
         var secretDataJson = HasFieldEditors(_newSourceSecretFields)
             ? SerializeFieldEditors(_newSourceSecretFields)
             : NormalizeJsonInput(_newSourceSecretDataJson);
+        var authAction = ResolveAuthenticationAction(selectedPlugin, _newSourceAuthenticationActionId);
+
+        if (selectedPlugin.RequiresAuthentication && authAction is null)
+        {
+            _sourceMessage = selectedPlugin.RequiresAuthenticationChoice
+                ? $"Choose how {selectedPlugin.DisplayName} should connect before continuing."
+                : $"Authentication for {selectedPlugin.DisplayName} could not be started.";
+            _sourceMessageIntent = MessageIntent.Warning;
+            return;
+        }
 
         _creatingSourceInstance = true;
         try
@@ -174,7 +184,6 @@ public partial class CalendarOwnerDetail
             catch (HttpRequestException) { /* stale list is acceptable */ }
             catch (TaskCanceledException) { /* stale list is acceptable */ }
 
-            var authAction = CalendarSourceAuthFlowService.GetAuthenticationAction(selectedPlugin.Actions);
             if (authAction is null)
             {
                 _showAddForm = false;
@@ -292,6 +301,22 @@ public partial class CalendarOwnerDetail
             _sourceMessage = $"{failedPrefix}: {syncEx.Message}";
             _sourceMessageIntent = MessageIntent.Warning;
         }
+    }
+
+    private static CalendarSourcePluginActionDescriptor? ResolveAuthenticationAction(
+        PluginOption plugin,
+        string? preferredActionId)
+    {
+        if (!plugin.RequiresAuthentication)
+            return null;
+
+        if (string.IsNullOrWhiteSpace(preferredActionId))
+            return plugin.AuthenticationActions.Count == 1
+                ? plugin.AuthenticationActions[0]
+                : null;
+
+        return plugin.AuthenticationActions.FirstOrDefault(action =>
+            string.Equals(action.ActionId, preferredActionId, StringComparison.Ordinal));
     }
 
     private static string? NormalizeJsonInput(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

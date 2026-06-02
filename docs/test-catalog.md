@@ -1,6 +1,6 @@
 # Test Catalog
 
-_Auto-generated from CI run. 712 tests across 78 classes._
+_Auto-generated from CI run. 719 tests across 78 classes._
 
 ## Integration (182/182)
 
@@ -420,7 +420,7 @@ _Auto-generated from CI run. 712 tests across 78 classes._
 
 </details>
 
-## Unit (530/530)
+## Unit (537/537)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 2/2</summary>
@@ -489,7 +489,7 @@ _Auto-generated from CI run. 712 tests across 78 classes._
 </details>
 
 <details>
-<summary><b>GraphCalendarSourceTests</b> - 18/18</summary>
+<summary><b>GraphCalendarSourceTests</b> - 21/21</summary>
 
 <table>
   <thead>
@@ -505,10 +505,13 @@ _Auto-generated from CI run. 712 tests across 78 classes._
     <tr><td><code>GetEventsAsync_ReusesRefreshedToken_ForNextLinkRequests</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_SkipsManagedPlaceholderEvents</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_StopsWhenNextLinkRepeats</code></td><td>✅</td></tr>
+    <tr><td><code>GetReadinessAsync_ForReadOnlySourceInstance_ShowsReadOnlyStatus</code></td><td>✅</td></tr>
+    <tr><td><code>GetReadinessAsync_ForSourceInstance_ReadOnlyChoiceOverridesBroaderReturnedScopes</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_CreatesPlaceholderEvents_ForEachActiveSlot</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_DeletesStaleEvents_WhenNoLongerActiveSlot</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_DoesNotDeleteManagedEvent_WhenStartIsOutsideWindow</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_CreatesPlaceholderEvents</code></td><td>✅</td></tr>
+    <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenReadOnlyChoiceOverridesBroaderReturnedScopes</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenReadOnlyConsent</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenScopesAreNull</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_QueriesManagedEventsOnlyWithinWindow</code></td><td>✅</td></tr>
@@ -817,7 +820,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
 </details>
 
 <details>
-<summary><b>SourceAddFormValidationTests</b> - 19/19</summary>
+<summary><b>SourceAddFormValidationTests</b> - 21/21</summary>
 
 <table>
   <thead>
@@ -840,6 +843,8 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("true")</code></td><td>✅</td></tr>
     <tr><td><code>PluginOption_WithGoogleConsentAction_RequiresAuthentication</code></td><td>✅</td></tr>
     <tr><td><code>PluginOption_WithGraphConsentAction_RequiresAuthentication</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithMultipleAuthenticationActions_RequiresAuthenticationChoice</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithSingleAuthenticationAction_DoesNotRequireAuthenticationChoice</code></td><td>✅</td></tr>
     <tr><td><code>PluginOption_WithoutConsentAction_DoesNotRequireAuthentication</code></td><td>✅</td></tr>
     <tr><td><code>SecretField_WhenEmpty_IsRequired</code></td><td>✅</td></tr>
     <tr><td><code>SecretField_WhenFilled_IsNotRequired</code></td><td>✅</td></tr>
@@ -1138,7 +1143,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
 </details>
 
 <details>
-<summary><b>CalendarOwnerGraphConsentServiceTests</b> - 27/27</summary>
+<summary><b>CalendarOwnerGraphConsentServiceTests</b> - 29/29</summary>
 
 <table>
   <thead>
@@ -1162,6 +1167,8 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentAsync_WithInvalidOwner_Throws</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentAsync_WithNullRefreshToken_StoresNull</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentAsync_WithWhitespaceRefreshToken_StoresNull</code></td><td>✅</td></tr>
+    <tr><td><code>CompleteConsentFromStateAsync_ForSourceInstance_ReadOnlyChoiceCapsStatus_WhenProviderReturnsBroaderScopes</code></td><td>✅</td></tr>
+    <tr><td><code>CompleteConsentFromStateAsync_ForSourceInstance_ReplacingWriteBackWithReadOnly_UpdatesStoredAccessLevel</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentFromStateAsync_RoundTrip_CompletesConsent</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentFromStateAsync_WithInvalidToken_Throws</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentFromStateAsync_WithLegacyNonOwnerState_Throws</code></td><td>✅</td></tr>

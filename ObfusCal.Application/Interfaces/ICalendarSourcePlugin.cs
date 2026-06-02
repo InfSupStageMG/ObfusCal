@@ -28,8 +28,8 @@ public sealed class CalendarSourcePluginUiAttribute(
 /// Built-in action IDs:
 /// <list type="bullet">
 ///   <item><c>google-instance-consent</c> - initiates Google OAuth for a source instance</item>
-///   <item><c>graph-instance-consent-readonly</c> - initiates Microsoft Graph OAuth (read-only) for a source instance</item>
-///   <item><c>graph-instance-consent</c>  - initiates Microsoft Graph OAuth for a source instance</item>
+///   <item><c>graph-instance-consent-readonly</c> - initiates Outlook OAuth via Microsoft Graph (read-only) for a source instance</item>
+///   <item><c>graph-instance-consent</c>  - initiates Outlook OAuth via Microsoft Graph for a source instance</item>
 /// </list>
 /// </para>
 /// </summary>
@@ -62,9 +62,13 @@ public interface ICalendarSourceCatalog
 
 public interface ICalendarOwnerCalendarSourceService
 {
-    Task<IReadOnlyList<CalendarSourceProviderInfo>> ListProvidersAsync(Guid calendarOwnerId, CancellationToken ct = default);
+    Task<IReadOnlyList<CalendarSourceProviderInfo>> ListProvidersAsync(Guid calendarOwnerId,
+        CancellationToken ct = default);
+
     Task<CalendarSourceSelection?> GetSelectionAsync(Guid calendarOwnerId, CancellationToken ct = default);
-    Task<CalendarSourceSelection?> SetSelectionAsync(Guid calendarOwnerId, string pluginId, CancellationToken ct = default);
+
+    Task<CalendarSourceSelection?> SetSelectionAsync(Guid calendarOwnerId, string pluginId,
+        CancellationToken ct = default);
 }
 
 public sealed record CalendarSourcePluginDescriptor(
@@ -122,5 +126,3 @@ public sealed record CalendarSourceSelection(
     string Title,
     string? Detail,
     bool IsExternalPlugin);
-
-

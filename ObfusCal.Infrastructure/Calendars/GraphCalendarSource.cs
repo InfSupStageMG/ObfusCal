@@ -12,19 +12,18 @@ using CalendarEvent = ObfusCal.Domain.Models.CalendarEvent;
 
 namespace ObfusCal.Infrastructure.Calendars;
 
-[CalendarSourcePlugin("graph", "Microsoft Graph")]
+[CalendarSourcePlugin("graph", "Outlook")]
 [CalendarSourcePluginUi(
     supportsMultipleInstances: true,
-    configurationJsonTemplate: "{\"calendarId\":\"primary\"}",
-    setupHint: "Use the Graph consent flow to populate tokens for each source instance.")]
+    setupHint: "Use the Outlook consent flow to populate tokens for each source instance.")]
 [CalendarSourcePluginAction(
     "graph-instance-consent-readonly",
-    "Connect Microsoft (read-only)",
-    hint: "Authorizes ObfusCal to read your Microsoft Graph calendar for this source instance without write-back permissions.")]
+    "Connect Outlook (read-only)",
+    hint: "Authorizes ObfusCal to read your Outlook calendar for this source instance without write-back permissions.")]
 [CalendarSourcePluginAction(
     "graph-instance-consent",
-    "Connect Microsoft (write-back)",
-    hint: "Authorizes ObfusCal to read your Microsoft Graph calendar and maintain ObfusCal-managed busy placeholders for this source instance.")]
+    "Connect Outlook (write-back)",
+    hint: "Authorizes ObfusCal to read your Outlook calendar and maintain ObfusCal-managed busy placeholders for this source instance.")]
 public sealed partial class GraphCalendarSource(
     HttpClient httpClient,
     AppDbContext dbContext,
@@ -146,18 +145,18 @@ public sealed partial class GraphCalendarSource(
         if (!hasConsent)
         {
             return CalendarSourceReadiness.NotReady(
-                "Microsoft Graph consent required.",
-                "This calendar owner has not granted Microsoft Graph calendar consent yet. Complete consent before requesting busy slots.");
+                "Outlook consent required.",
+                "This calendar owner has not granted Outlook calendar consent yet. Complete consent before requesting busy slots.");
         }
 
-        var canWriteBack = AllowsWriteBack(owner.GraphGrantedScopes);
+        var canWriteBack = GraphConsentAccessPolicy.AllowsOwnerWriteBack(owner.GraphGrantedScopes);
         return hasConsent
             ? CalendarSourceReadiness.Ready(
                 canWriteBack ? "Connected (write-back enabled)." : "Connected (read-only).",
                 canWriteBack
-                    ? "Microsoft Graph consent includes calendar write permissions."
-                    : "Microsoft Graph consent is read-only; write-back placeholders are disabled for this connection.")
-            : CalendarSourceReadiness.NotReady("Microsoft Graph consent required.");
+                    ? "Outlook consent includes calendar write permissions."
+                    : "Outlook consent is read-only; write-back placeholders are disabled for this connection.")
+            : CalendarSourceReadiness.NotReady("Outlook consent required.");
     }
 
     public Task<CalendarSourceReadiness> GetReadinessAsync(CalendarSourceInstanceContext instance,
@@ -170,19 +169,19 @@ public sealed partial class GraphCalendarSource(
         if (!hasConsent)
         {
             return Task.FromResult(CalendarSourceReadiness.NotReady(
-                "Microsoft Graph consent required.",
-                "Complete Microsoft Graph consent for this source instance before requesting busy slots."));
+                "Outlook consent required.",
+                "Complete Outlook consent for this source instance before requesting busy slots."));
         }
 
-        var canWriteBack = AllowsWriteBack(secretData?.GrantedScopes);
+        var canWriteBack = GraphConsentAccessPolicy.AllowsInstanceWriteBack(secretData);
 
         return Task.FromResult(hasConsent
             ? CalendarSourceReadiness.Ready(
                 canWriteBack ? "Connected (write-back enabled)." : "Connected (read-only).",
                 canWriteBack
-                    ? "Microsoft Graph consent includes calendar write permissions."
-                    : "Microsoft Graph consent is read-only; write-back placeholders are disabled for this source instance.")
-            : CalendarSourceReadiness.NotReady("Microsoft Graph consent required."));
+                    ? "Outlook consent includes calendar write permissions."
+                    : "Outlook consent is read-only; write-back placeholders are disabled for this source instance.")
+            : CalendarSourceReadiness.NotReady("Outlook consent required."));
     }
 
 
@@ -607,7 +606,4 @@ public sealed partial class GraphCalendarSource(
         return true;
     }
 
-    private static bool AllowsWriteBack(string? grantedScopes)
-        => string.IsNullOrWhiteSpace(grantedScopes)
-           || grantedScopes.Contains("Calendars.ReadWrite", StringComparison.OrdinalIgnoreCase);
 }
