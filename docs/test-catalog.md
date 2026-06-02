@@ -1,8 +1,8 @@
 # Test Catalog
 
-_Auto-generated from CI run. 711 tests across 78 classes._
+_Auto-generated from CI run. 712 tests across 78 classes._
 
-## Integration (181/181)
+## Integration (182/182)
 
 <details>
 <summary><b>AdminPeerConnectionsControllerTests</b> - 7/7</summary>
@@ -240,7 +240,7 @@ _Auto-generated from CI run. 711 tests across 78 classes._
 </details>
 
 <details>
-<summary><b>InfrastructureDependencyInjectionTests</b> - 12/12</summary>
+<summary><b>InfrastructureDependencyInjectionTests</b> - 13/13</summary>
 
 <table>
   <thead>
@@ -252,6 +252,7 @@ _Auto-generated from CI run. 711 tests across 78 classes._
     <tr><td><code>CalendarOwnerIcalFeedService_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarOwnerObfuscationProfileService_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarOwnerScopeResolver_IsRegistered</code></td><td>✅</td></tr>
+    <tr><td><code>CalendarSourceAuthFlowService_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarSourceCatalog_ContainsAllThreeBuiltInPlugins</code></td><td>✅</td></tr>
     <tr><td><code>CalendarSourceCatalog_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarSourceResolver_IsRegistered</code></td><td>✅</td></tr>
