@@ -1996,14 +1996,24 @@ unreadable and must be re-entered. Back up your PostgreSQL data alongside any ot
 <h2 id="cicd">CI/CD</h2>
 <p>Every push to <code>main</code> on GitHub triggers a GitHub Actions workflow that:</p>
 <ol>
+<li>Derives the application semantic version from the latest reachable Git tag matching <code>vX.Y.Z</code> via <code>MinVer</code></li>
 <li>Runs <code>dotnet build</code> and <code>dotnet test</code></li>
-<li>Builds the Docker image using the multi-stage <code>Dockerfile</code></li>
-<li>Pushes the image to GitHub Container Registry (GHCR) tagged with <code>latest</code> and the commit SHA</li>
+<li>Builds the Docker image using the multi-stage <code>Dockerfile</code> and stamps the computed version into the published .NET
+   assemblies (<code>Version</code>, <code>AssemblyVersion</code>, <code>FileVersion</code>, and <code>InformationalVersion</code>)</li>
+<li>Pushes the image to GitHub Container Registry (GHCR) tagged with the semantic version, the same version prefixed
+   with <code>v</code>, <code>latest</code>, and a short commit-SHA tag</li>
 </ol>
-<p>Deploying an update on a running server:</p>
-<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/infsupstagemg/obfuscal-api:latest
+<p>If no valid release tag exists yet, <code>MinVer</code> keeps builds on the <code>1.0</code> line as prereleases (for example
+<code>1.0.0-alpha.0.&lt;height&gt;</code>). Creating a tag such as <code>v1.0.0</code> starts the release line for subsequent builds.</p>
+<p>The repository <code>docker-compose.yaml</code> builds the API image from source (<code>build: .</code>). For a source-based deployment on a
+running server, pull the updated repository contents and rebuild the stack:</p>
+<div class="highlight"><pre><span></span><code>git<span class="w"> </span>pull
 docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--build
 </code></pre></div>
+<p>If you deploy from GHCR instead of building locally, point your service definition at a published image such as
+<code>ghcr.io/infsupstagemg/obfuscal-api:1.2.0</code> and prefer a pinned semantic-version tag over <code>latest</code> for repeatable
+rollouts. The running UI surfaces the stamped application version in the Dashboard and footer so operators can verify
+what build is active.</p>
 <h2 id="poc-vs-production-differences">PoC vs Production Differences</h2>
 <table>
 <thead>
