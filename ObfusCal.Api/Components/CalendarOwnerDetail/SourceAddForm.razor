@@ -315,10 +315,9 @@
 
         await DisplayNameChanged.InvokeAsync(GetEffectiveDisplayName());
 
-        if (_wizardStep == 3 && HasRequiredMissingFields())
-            _advancedOpenAttr = new Dictionary<string, object> { { "open", string.Empty } };
-        else
-            _advancedOpenAttr = new Dictionary<string, object>();
+        _advancedOpenAttr = _wizardStep == 3 && HasRequiredMissingFields()
+            ? new Dictionary<string, object> { { "open", string.Empty } }
+            : new Dictionary<string, object>();
     }
 
     private async Task ValidateAndSubmitAsync()

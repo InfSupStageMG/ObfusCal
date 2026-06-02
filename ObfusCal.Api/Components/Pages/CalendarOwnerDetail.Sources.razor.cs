@@ -170,45 +170,20 @@ public partial class CalendarOwnerDetail
                 await LoadSourceInstancesAsync();
                 sourceInstancesReloaded = true;
             }
-            catch { /* stale list is acceptable */ }
+            catch (Exception) { /* stale list is acceptable */ }
 
-            var authAction = GetAuthActionForPlugin(selectedPlugin);
-            if (authAction is not null)
-            {
-                try
-                {
-                    var baseUri = Navigation.BaseUri.TrimEnd('/');
-                    var callbackUri = $"{baseUri}/consent-callback";
-                    var authUrl = await BuildConsentUrlAsync(authAction.ActionId, created.Id, callbackUri);
-                    _showAddForm = false;
-                    ApplyPluginDefaults();
-                    Navigation.NavigateTo(authUrl, forceLoad: true);
-                }
-                catch (InvalidOperationException ex) when (ex.Message.StartsWith("Unknown auth action", StringComparison.Ordinal))
-                {
-                    _showAddForm = false;
-                    _expandedSourceInstanceId = sourceInstancesReloaded ? created.Id : null;
-                    _sourceMessage = $"Added source instance '{created.DisplayName}', but authentication could not be started because action '{authAction.ActionId}' is not supported by this version of ObfusCal.";
-                    _sourceMessageIntent = MessageIntent.Warning;
-                    ApplyPluginDefaults();
-                }
-                catch (Exception ex)
-                {
-                    _showAddForm = false;
-                    _expandedSourceInstanceId = sourceInstancesReloaded ? created.Id : null;
-                    _sourceMessage = $"Added source instance '{created.DisplayName}', but authentication could not be started: {ex.Message}";
-                    _sourceMessageIntent = MessageIntent.Warning;
-                    ApplyPluginDefaults();
-                }
-            }
-            else
+            var authAction = CalendarSourceAuthFlowService.GetAuthenticationAction(selectedPlugin.Actions);
+            if (authAction is null)
             {
                 _showAddForm = false;
                 ApplyPluginDefaults();
                 await TryRunAvailabilitySyncAsync(
                     $"Added source instance '{created.DisplayName}' and synced availability.",
                     $"Added source instance '{created.DisplayName}', but sync failed");
+                return;
             }
+
+            await StartSourceAuthenticationAsync(created.Id, created.DisplayName, authAction, sourceInstancesReloaded);
         }
         catch (Exception ex)
         {
@@ -258,7 +233,7 @@ public partial class CalendarOwnerDetail
             // Same guard as CreateSourceInstanceAsync: readiness-check failures in the
             // list reload must not prevent the sync trigger.
             try { await LoadSourceInstancesAsync(); }
-            catch { /* stale list is acceptable; the snapshot sync still fires */ }
+            catch (Exception) { /* stale list is acceptable; the snapshot sync still fires */ }
 
             await TryRunAvailabilitySyncAsync(
                 $"Updated source instance '{updated.DisplayName}' and synced availability.",
@@ -344,7 +319,11 @@ public partial class CalendarOwnerDetail
             var baseUri = Navigation.BaseUri.TrimEnd('/');
             var callbackUri = $"{baseUri}/consent-callback";
 
-            var authUrl = await BuildConsentUrlAsync(action.ActionId, instance.Id, callbackUri);
+            var authUrl = await CalendarSourceAuthFlowService.BuildAuthorizationUrlAsync(
+                Id,
+                instance.Id,
+                action.ActionId,
+                callbackUri);
             Navigation.NavigateTo(authUrl, forceLoad: true);
         }
         catch (InvalidOperationException ex) when (ex.Message.StartsWith("Unknown auth action", StringComparison.Ordinal))
@@ -352,7 +331,7 @@ public partial class CalendarOwnerDetail
             _sourceMessage = $"Action '{action.ActionId}' is not handled by this version of ObfusCal.";
             _sourceMessageIntent = MessageIntent.Warning;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException)
         {
             _sourceMessage = $"Could not start action '{action.Label}': {ex.Message}";
             _sourceMessageIntent = MessageIntent.Error;
@@ -364,23 +343,50 @@ public partial class CalendarOwnerDetail
         }
     }
 
-    private static CalendarSourcePluginActionDescriptor? GetAuthActionForPlugin(PluginOption plugin)
+    private async Task StartSourceAuthenticationAsync(
+        Guid sourceInstanceId,
+        string displayName,
+        CalendarSourcePluginActionDescriptor authAction,
+        bool sourceInstancesReloaded)
     {
-        return plugin.Actions.FirstOrDefault(a =>
-            a.ActionId is "google-instance-consent" or "graph-instance-consent" or "graph-instance-consent-readonly");
+        try
+        {
+            var baseUri = Navigation.BaseUri.TrimEnd('/');
+            var callbackUri = $"{baseUri}/consent-callback";
+            var authUrl = await CalendarSourceAuthFlowService.BuildAuthorizationUrlAsync(
+                Id,
+                sourceInstanceId,
+                authAction.ActionId,
+                callbackUri);
+            _showAddForm = false;
+            ApplyPluginDefaults();
+            Navigation.NavigateTo(authUrl, forceLoad: true);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.StartsWith("Unknown auth action", StringComparison.Ordinal))
+        {
+            HandleSourceAuthenticationStartFailure(
+                sourceInstanceId,
+                sourceInstancesReloaded,
+                $"Added source instance '{displayName}', but authentication could not be started because action '{authAction.ActionId}' is not supported by this version of ObfusCal.");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException)
+        {
+            HandleSourceAuthenticationStartFailure(
+                sourceInstanceId,
+                sourceInstancesReloaded,
+                $"Added source instance '{displayName}', but authentication could not be started: {ex.Message}");
+        }
     }
 
-    private async Task<string> BuildConsentUrlAsync(string actionId, Guid instanceId, string callbackUri)
+    private void HandleSourceAuthenticationStartFailure(
+        Guid sourceInstanceId,
+        bool sourceInstancesReloaded,
+        string message)
     {
-        return actionId switch
-        {
-            "google-instance-consent" =>
-                await GoogleConsentService.BuildAuthorizationUrlAsync(Id, instanceId, callbackUri),
-            "graph-instance-consent" =>
-                await GraphConsentService.BuildAuthorizationUrlAsync(Id, instanceId, callbackUri, GraphConsentAccessLevel.ReadWrite),
-            "graph-instance-consent-readonly" =>
-                await GraphConsentService.BuildAuthorizationUrlAsync(Id, instanceId, callbackUri, GraphConsentAccessLevel.ReadOnly),
-            _ => throw new InvalidOperationException($"Unknown auth action: {actionId}")
-        };
+        _showAddForm = false;
+        _expandedSourceInstanceId = sourceInstancesReloaded ? sourceInstanceId : null;
+        _sourceMessage = message;
+        _sourceMessageIntent = MessageIntent.Warning;
+        ApplyPluginDefaults();
     }
 }

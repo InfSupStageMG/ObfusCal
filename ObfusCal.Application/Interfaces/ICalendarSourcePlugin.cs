@@ -86,6 +86,16 @@ public sealed record CalendarSourcePluginActionDescriptor(
     string Label,
     string? Hint);
 
+public static class CalendarSourcePluginActionIds
+{
+    public const string GoogleInstanceConsent = "google-instance-consent";
+    public const string GraphInstanceConsentReadOnly = "graph-instance-consent-readonly";
+    public const string GraphInstanceConsent = "graph-instance-consent";
+
+    public static bool IsAuthenticationAction(string actionId)
+        => actionId is GoogleInstanceConsent or GraphInstanceConsentReadOnly or GraphInstanceConsent;
+}
+
 public sealed record CalendarSourceReadiness(bool IsReady, string Title, string? Detail = null)
 {
     public static CalendarSourceReadiness Ready(string title = "Ready.", string? detail = null) =>

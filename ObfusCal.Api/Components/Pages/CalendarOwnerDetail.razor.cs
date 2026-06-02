@@ -10,9 +10,8 @@ public partial class CalendarOwnerDetail : ComponentBase
     [Inject] private CurrentUserContextAccessor CurrentUserContextAccessor { get; set; } = default!;
     [Inject] private ICalendarOwnerService CalendarOwnerService { get; set; } = default!;
     [Inject] private ICalendarSourceCatalog CalendarSourceCatalog { get; set; } = default!;
+    [Inject] private ICalendarSourceAuthFlowService CalendarSourceAuthFlowService { get; set; } = default!;
     [Inject] private ICalendarSourceInstanceService CalendarSourceInstanceService { get; set; } = default!;
-    [Inject] private ICalendarOwnerGoogleConsentService GoogleConsentService { get; set; } = default!;
-    [Inject] private ICalendarOwnerGraphConsentService GraphConsentService { get; set; } = default!;
     [Inject] private ICalendarOwnerObfuscationProfileService ObfuscationProfileService { get; set; } = default!;
     [Inject] private ICalendarOwnerAvailabilitySyncService AvailabilitySyncService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;

@@ -30,10 +30,8 @@ public partial class CalendarOwnerDetail
     {
         public string DisplayLabel => IsExternalPlugin ? $"{DisplayName} (plugin)" : DisplayName;
 
-        public bool RequiresAuthentication => Actions.Any(action => action.ActionId is
-            "google-instance-consent"
-            or "graph-instance-consent"
-            or "graph-instance-consent-readonly");
+        public bool RequiresAuthentication => Actions.Any(action =>
+            CalendarSourcePluginActionIds.IsAuthenticationAction(action.ActionId));
     }
 
     public sealed class PluginFieldEditor
