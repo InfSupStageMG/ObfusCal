@@ -398,6 +398,106 @@ public class CalendarOwnerGraphConsentServiceTests
     }
 
     [TestMethod]
+    public async Task CompleteConsentFromStateAsync_ForSourceInstance_ReplacingWriteBackWithReadOnly_UpdatesStoredAccessLevel()
+    {
+        var db = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        db.CalendarOwners.Add(new CalendarOwner { Id = ownerId, Name = "Test" });
+        await db.SaveChangesAsync();
+
+        var instanceSvc = new FakeCalendarSourceInstanceService(id => db.CalendarOwners.Any(o => o.Id == id));
+        var dpProvider = DataProtectionProvider.Create("reconsent-readonly-test");
+        var service = new CalendarOwnerGraphConsentService(
+            db,
+            dpProvider,
+            CreateSecretProvider("https://login.microsoftonline.com/", "tenant-x", "client-x"),
+            Options.Create(new GraphConsentOptions
+            {
+                ClientId = "client-x",
+                ReadOnlyScope = "https://graph.microsoft.com/Calendars.Read offline_access",
+                ReadWriteScope = "https://graph.microsoft.com/Calendars.ReadWrite offline_access"
+            }),
+            instanceSvc,
+            instanceSvc,
+            new FakeGraphOAuthTokenClient());
+
+        var created = await instanceSvc.CreateAsync(ownerId, new CreateCalendarSourceInstanceInput("graph", "Outlook"));
+        var instanceId = created!.Id;
+
+        var writeBackUrl = await service.BuildAuthorizationUrlAsync(
+            ownerId,
+            instanceId,
+            "https://localhost/consent-callback",
+            GraphConsentAccessLevel.ReadWrite);
+        var writeBackState = Uri.UnescapeDataString(writeBackUrl.Split("state=")[1].Split('&')[0]);
+
+        await service.CompleteConsentFromStateAsync(FakeGraphOAuthTokenClient.ValidAuthorizationCode, writeBackState);
+
+        var writeBackStatus = await service.GetStatusAsync(ownerId, instanceId);
+        Assert.IsNotNull(writeBackStatus);
+        Assert.AreEqual(GraphConsentAccessLevel.ReadWrite, writeBackStatus.AccessLevel);
+        Assert.IsTrue(writeBackStatus.CanWriteBack);
+
+        var readOnlyUrl = await service.BuildAuthorizationUrlAsync(
+            ownerId,
+            instanceId,
+            "https://localhost/consent-callback",
+            GraphConsentAccessLevel.ReadOnly);
+        var readOnlyState = Uri.UnescapeDataString(readOnlyUrl.Split("state=")[1].Split('&')[0]);
+
+        await service.CompleteConsentFromStateAsync(FakeGraphOAuthTokenClient.ValidAuthorizationCode, readOnlyState);
+
+        var readOnlyStatus = await service.GetStatusAsync(ownerId, instanceId);
+        Assert.IsNotNull(readOnlyStatus);
+        Assert.AreEqual(GraphConsentAccessLevel.ReadOnly, readOnlyStatus.AccessLevel);
+        Assert.IsFalse(readOnlyStatus.CanWriteBack);
+        Assert.AreEqual("https://graph.microsoft.com/Calendars.Read offline_access", readOnlyStatus.GrantedScopes);
+    }
+
+    [TestMethod]
+    public async Task CompleteConsentFromStateAsync_ForSourceInstance_ReadOnlyChoiceCapsStatus_WhenProviderReturnsBroaderScopes()
+    {
+        var db = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        db.CalendarOwners.Add(new CalendarOwner { Id = ownerId, Name = "Test" });
+        await db.SaveChangesAsync();
+
+        var instanceSvc = new FakeCalendarSourceInstanceService(id => db.CalendarOwners.Any(o => o.Id == id));
+        var dpProvider = DataProtectionProvider.Create("reconsent-overgrant-test");
+        var service = new CalendarOwnerGraphConsentService(
+            db,
+            dpProvider,
+            CreateSecretProvider("https://login.microsoftonline.com/", "tenant-x", "client-x"),
+            Options.Create(new GraphConsentOptions
+            {
+                ClientId = "client-x",
+                ReadOnlyScope = "https://graph.microsoft.com/Calendars.Read offline_access",
+                ReadWriteScope = "https://graph.microsoft.com/Calendars.ReadWrite offline_access"
+            }),
+            instanceSvc,
+            instanceSvc,
+            new OvergrantingGraphOAuthTokenClient());
+
+        var created = await instanceSvc.CreateAsync(ownerId, new CreateCalendarSourceInstanceInput("graph", "Outlook"));
+        var instanceId = created!.Id;
+
+        var readOnlyUrl = await service.BuildAuthorizationUrlAsync(
+            ownerId,
+            instanceId,
+            "https://localhost/consent-callback",
+            GraphConsentAccessLevel.ReadOnly);
+        var readOnlyState = Uri.UnescapeDataString(readOnlyUrl.Split("state=")[1].Split('&')[0]);
+
+        await service.CompleteConsentFromStateAsync(FakeGraphOAuthTokenClient.ValidAuthorizationCode, readOnlyState);
+
+        var status = await service.GetStatusAsync(ownerId, instanceId);
+        Assert.IsNotNull(status);
+        Assert.AreEqual(GraphConsentAccessLevel.ReadOnly, status.AccessLevel);
+        Assert.IsFalse(status.CanWriteBack);
+        Assert.AreEqual("https://graph.microsoft.com/Calendars.ReadWrite offline_access", status.GrantedScopes);
+    }
+
+    [TestMethod]
     public async Task CompleteConsentFromStateAsync_WithInvalidToken_Throws()
     {
         var (svc, _, _) = Setup();
@@ -539,6 +639,23 @@ public class CalendarOwnerGraphConsentServiceTests
                 "access-token",
                 "   ", // whitespace-only refresh token
                 scope,
+                DateTimeOffset.UtcNow.AddHours(1)));
+        }
+
+        public Task<GraphOAuthTokenResponse> RefreshAccessTokenAsync(
+            string refreshToken, string? scope = null, CancellationToken ct = default)
+            => throw new NotImplementedException();
+    }
+
+    private sealed class OvergrantingGraphOAuthTokenClient : IGraphOAuthTokenClient
+    {
+        public Task<GraphOAuthTokenResponse> ExchangeAuthorizationCodeAsync(
+            string authorizationCode, string redirectUri, string? scope = null, CancellationToken ct = default)
+        {
+            return Task.FromResult(new GraphOAuthTokenResponse(
+                FakeGraphOAuthTokenClient.AccessToken,
+                FakeGraphOAuthTokenClient.RefreshToken,
+                "https://graph.microsoft.com/Calendars.ReadWrite offline_access",
                 DateTimeOffset.UtcNow.AddHours(1)));
         }
 

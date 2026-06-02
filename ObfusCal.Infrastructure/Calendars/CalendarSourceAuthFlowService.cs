@@ -10,7 +10,15 @@ internal sealed class CalendarSourceAuthFlowService(
     ICalendarOwnerGraphConsentService graphConsentService) : ICalendarSourceAuthFlowService
 {
     public CalendarSourcePluginActionDescriptor? GetAuthenticationAction(IReadOnlyList<CalendarSourcePluginActionDescriptor> actions)
-        => actions.FirstOrDefault(action => CalendarSourcePluginActionIds.IsAuthenticationAction(action.ActionId));
+    {
+        var authenticationActions = actions
+            .Where(action => CalendarSourcePluginActionIds.IsAuthenticationAction(action.ActionId))
+            .ToList();
+
+        return authenticationActions.Count == 1
+            ? authenticationActions[0]
+            : null;
+    }
 
     public Task<string> BuildAuthorizationUrlAsync(
         Guid calendarOwnerId,

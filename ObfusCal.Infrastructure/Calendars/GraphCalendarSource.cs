@@ -149,7 +149,7 @@ public sealed partial class GraphCalendarSource(
                 "This calendar owner has not granted Outlook calendar consent yet. Complete consent before requesting busy slots.");
         }
 
-        var canWriteBack = AllowsOwnerWriteBack(owner.GraphGrantedScopes);
+        var canWriteBack = GraphConsentAccessPolicy.AllowsOwnerWriteBack(owner.GraphGrantedScopes);
         return hasConsent
             ? CalendarSourceReadiness.Ready(
                 canWriteBack ? "Connected (write-back enabled)." : "Connected (read-only).",
@@ -173,7 +173,7 @@ public sealed partial class GraphCalendarSource(
                 "Complete Outlook consent for this source instance before requesting busy slots."));
         }
 
-        var canWriteBack = AllowsInstanceWriteBack(secretData?.GrantedScopes);
+        var canWriteBack = GraphConsentAccessPolicy.AllowsInstanceWriteBack(secretData);
 
         return Task.FromResult(hasConsent
             ? CalendarSourceReadiness.Ready(
@@ -606,11 +606,4 @@ public sealed partial class GraphCalendarSource(
         return true;
     }
 
-    private static bool AllowsOwnerWriteBack(string? grantedScopes)
-        => string.IsNullOrWhiteSpace(grantedScopes)
-           || AllowsInstanceWriteBack(grantedScopes);
-
-    private static bool AllowsInstanceWriteBack(string? grantedScopes)
-        => !string.IsNullOrWhiteSpace(grantedScopes)
-           && grantedScopes.Contains("Calendars.ReadWrite", StringComparison.OrdinalIgnoreCase);
 }

@@ -160,6 +160,10 @@ placeholders carry a stable ObfusCal marker plus slot identifier for safe cleanu
 privacy-preserving: only the configured placeholder title and the start/end timestamps are written. Peer identity,
 attendee data, location, and raw event descriptions are never written back.
 
+For Outlook source instances, the add-calendar flow now makes the delegated-access choice explicit: users choose
+between read-only Microsoft Graph consent and write-back consent before the OAuth redirect starts. Re-consenting an
+existing source instance replaces the stored Graph access level for that source instance.
+
 The write-back path is opt-in per owner (`CalendarOwner.WriteBackEnabled`). Disabling the flag stops future placeholder
 reconciliation on the next sync cycle without performing an immediate destructive cleanup pass, which keeps runtime
 behavior predictable for operators.

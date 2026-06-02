@@ -195,6 +195,9 @@ openssl pkcs12 -export `
     - read-only: `GraphConsent:ReadOnlyScope=https://graph.microsoft.com/Calendars.Read offline_access`
     - write-back: `GraphConsent:ReadWriteScope=https://graph.microsoft.com/Calendars.ReadWrite offline_access`
 
+   In the Blazor add-calendar wizard, Outlook source instances now ask the user to choose which of these access
+   levels should be requested before the sign-in redirect starts.
+
    Source instances connected with read-only consent can sync events but cannot write ObfusCal-managed placeholders.
 
    Google Calendar consent now requires
@@ -387,6 +390,9 @@ Outlook consent via Microsoft Graph supports split scopes by default:
 
 - read-only: `https://graph.microsoft.com/Calendars.Read offline_access`
 - write-back: `https://graph.microsoft.com/Calendars.ReadWrite offline_access`
+
+The add-calendar flow surfaces that choice explicitly for Outlook source instances instead of silently picking one of
+the provider actions.
 
 `GraphConsent:AuthorityTenant` can be set to `common` or `consumers` as groundwork for personal-account consent
 scenarios. Leave it unset to use `AzureAd:TenantId`.

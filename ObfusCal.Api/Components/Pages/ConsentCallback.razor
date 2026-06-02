@@ -133,7 +133,7 @@
             // Navigate back to the calendar owner page so the success message is shown there,
             // keeping the spinner visible until the navigation takes effect.
             _navigatingToOwner = true;
-            Navigation.NavigateTo($"/calendar-owners/{calendarOwnerId}?consentCompleted=true");
+            Navigation.NavigateTo($"/calendar-owners/{calendarOwnerId}?consentCompleted=true", forceLoad: true);
         }
         finally
         {
