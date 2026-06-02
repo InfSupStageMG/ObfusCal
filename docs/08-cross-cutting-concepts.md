@@ -82,7 +82,8 @@ independent chain.
 Integrity verification is currently an operational/forensic check rather than an automatic runtime repair step. To
 verify a file, recompute the hash for each line in order and confirm that each line's `previousEntryHash` matches the
 prior line's `entryHash`, and that the recomputed digest matches the stored `entryHash`. Any deleted, inserted,
-rewritten, or reordered line breaks that sequence and is therefore detectable. ObfusCal currently does not run a full historical
+rewritten, or reordered line breaks that sequence and is therefore detectable. ObfusCal currently does not run a full
+historical
 re-verification pass automatically at startup or per request; the runtime guarantee is append-only chained writes, while
 full-chain validation is triggered when operators review incidents, export audit files, or run external integrity
 checks.
@@ -125,7 +126,7 @@ secret at startup and refuses to start if it is missing:
 # Generate a key (Linux / macOS / Git Bash)
 openssl rand -base64 32
 
-# Generate a key (PowerShell)
+# Generate a key (PowerShell 7)
 [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
 ```
 
