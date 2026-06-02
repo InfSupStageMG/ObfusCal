@@ -1222,10 +1222,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#integration-181181" class="md-nav__link">
+  <a href="#integration-182182" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Integration (181/181)
+        Integration (182/182)
       
     </span>
   </a>
@@ -1233,10 +1233,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#unit-511511" class="md-nav__link">
+  <a href="#unit-530530" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unit (511/511)
+        Unit (530/530)
       
     </span>
   </a>
@@ -1426,10 +1426,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#integration-181181" class="md-nav__link">
+  <a href="#integration-182182" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Integration (181/181)
+        Integration (182/182)
       
     </span>
   </a>
@@ -1437,10 +1437,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#unit-511511" class="md-nav__link">
+  <a href="#unit-530530" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unit (511/511)
+        Unit (530/530)
       
     </span>
   </a>
@@ -1468,8 +1468,8 @@
 
 
 <h1 id="test-catalog">Test Catalog</h1>
-<p><em>Auto-generated from CI run. 692 tests across 77 classes.</em></p>
-<h2 id="integration-181181">Integration (181/181)</h2>
+<p><em>Auto-generated from CI run. 712 tests across 78 classes.</em></p>
+<h2 id="integration-182182">Integration (182/182)</h2>
 <details>
 <summary><b>AdminPeerConnectionsControllerTests</b> - 7/7</summary>
 
@@ -1706,7 +1706,7 @@
 </details>
 
 <details>
-<summary><b>InfrastructureDependencyInjectionTests</b> - 12/12</summary>
+<summary><b>InfrastructureDependencyInjectionTests</b> - 13/13</summary>
 
 <table>
   <thead>
@@ -1718,6 +1718,7 @@
     <tr><td><code>CalendarOwnerIcalFeedService_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarOwnerObfuscationProfileService_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarOwnerScopeResolver_IsRegistered</code></td><td>✅</td></tr>
+    <tr><td><code>CalendarSourceAuthFlowService_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarSourceCatalog_ContainsAllThreeBuiltInPlugins</code></td><td>✅</td></tr>
     <tr><td><code>CalendarSourceCatalog_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarSourceResolver_IsRegistered</code></td><td>✅</td></tr>
@@ -1885,7 +1886,7 @@
 
 </details>
 
-<h2 id="unit-511511">Unit (511/511)</h2>
+<h2 id="unit-530530">Unit (530/530)</h2>
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 2/2</summary>
 
@@ -2275,6 +2276,38 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>ToDisplayName_AllValues_ReturnNonEmpty</code></td><td>✅</td></tr>
     <tr><td><code>ToDisplayName_Client_ReturnsExternal</code></td><td>✅</td></tr>
     <tr><td><code>ToDisplayName_Internal_ReturnsInternal</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>SourceAddFormValidationTests</b> - 19/19</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>GoogleCalendarId_WithPrimaryDefault_IsNotRequired</code></td><td>✅</td></tr>
+    <tr><td><code>ICloudAppleId_WithValueFilled_IsNotRequired</code></td><td>✅</td></tr>
+    <tr><td><code>ICloudAppleId_WithoutValue_IsRequired</code></td><td>✅</td></tr>
+    <tr><td><code>ICloudCalendarUrl_WithDotDotDot_IsRequired</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("See example...")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("https://caldav.icloud.com/.../calendar/")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("user@EXAMPLE.COM")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("you@example.com")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues (null)</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("false")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("https://caldav.icloud.com/calendar/")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("primary")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("true")</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithGoogleConsentAction_RequiresAuthentication</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithGraphConsentAction_RequiresAuthentication</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithoutConsentAction_DoesNotRequireAuthentication</code></td><td>✅</td></tr>
+    <tr><td><code>SecretField_WhenEmpty_IsRequired</code></td><td>✅</td></tr>
+    <tr><td><code>SecretField_WhenFilled_IsNotRequired</code></td><td>✅</td></tr>
   </tbody>
 </table>
 
