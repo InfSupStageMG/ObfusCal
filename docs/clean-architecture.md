@@ -218,6 +218,7 @@ ObfusCal.Application/
 │   ├── ICalendarOwnerScopeResolver.cs
 │   ├── ICalendarOwnerService.cs
 │   ├── ICalendarSource.cs
+│   ├── ICalendarSourceAuthFlowService.cs
 │   ├── ICalendarSourceInstances.cs
 │   ├── ICalendarSourcePlugin.cs
 │   ├── ICalendarWriteBack.cs
@@ -361,6 +362,7 @@ ObfusCal.Infrastructure/
 ├── Calendars/
 │   ├── AggregateCalendarSource.cs
 │   ├── CalendarOwnerCalendarSourceService.cs
+│   ├── CalendarSourceAuthFlowService.cs
 │   ├── CalendarSourceInstanceService.cs
 │   ├── CalendarSourcePluginCatalog.cs
 │   ├── CalendarSourceResolver.cs
@@ -372,6 +374,7 @@ ObfusCal.Infrastructure/
 │   ├── GraphCalendarSource.Models.cs
 │   ├── GraphCalendarSource.WriteBack.cs
 │   ├── GraphCalendarSource.cs
+│   ├── GraphConsentAccessPolicy.cs
 │   ├── GraphOAuthTokenClient.cs
 │   ├── ICalFeedCalendarSource.cs
 │   ├── ICloudCalendarSourceCore.WriteBack.cs

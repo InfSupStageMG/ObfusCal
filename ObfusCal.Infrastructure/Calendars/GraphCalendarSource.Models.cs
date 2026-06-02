@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Serialization;
+using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Infrastructure.Calendars;
 
@@ -85,6 +86,7 @@ public sealed partial class GraphCalendarSource
         string? GrantedScopes,
         DateTimeOffset? ConsentGrantedAtUtc,
         DateTimeOffset? TokenExpiresAtUtc,
-        DateTimeOffset? TokenLastRefreshedAtUtc);
+        DateTimeOffset? TokenLastRefreshedAtUtc,
+        GraphConsentAccessLevel? RequestedAccessLevel = default);
 }
 

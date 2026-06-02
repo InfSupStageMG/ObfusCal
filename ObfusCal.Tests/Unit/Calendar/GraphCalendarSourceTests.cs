@@ -85,6 +85,92 @@ public class GraphCalendarSourceTests
     }
 
     [TestMethod]
+    public async Task GetReadinessAsync_ForReadOnlySourceInstance_ShowsReadOnlyStatus()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        var instanceId = Guid.NewGuid();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK))));
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
+
+        var source = CreateSource(
+            dbContext,
+            httpClient,
+            new StubGraphOAuthTokenClient(),
+            new CapturingLogger<GraphCalendarSource>(),
+            dataProtectionProvider);
+
+        var instance = new CalendarSourceInstanceContext(
+            instanceId,
+            ownerId,
+            "graph",
+            "Outlook",
+            true,
+            null,
+            JsonSerializer.Serialize(new GraphCalendarSource.GraphSourceSecretData(
+                "protected-access-token",
+                "protected-refresh-token",
+                "https://graph.microsoft.com/Calendars.Read offline_access",
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow.AddHours(1),
+                DateTimeOffset.UtcNow)),
+            false);
+
+        var readiness = await source.GetReadinessAsync(instance);
+
+        Assert.IsTrue(readiness.IsReady);
+        Assert.AreEqual("Connected (read-only).", readiness.Title);
+        Assert.AreEqual(
+            "Outlook consent is read-only; write-back placeholders are disabled for this source instance.",
+            readiness.Detail);
+    }
+
+    [TestMethod]
+    public async Task GetReadinessAsync_ForSourceInstance_ReadOnlyChoiceOverridesBroaderReturnedScopes()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        var instanceId = Guid.NewGuid();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK))));
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
+
+        var source = CreateSource(
+            dbContext,
+            httpClient,
+            new StubGraphOAuthTokenClient(),
+            new CapturingLogger<GraphCalendarSource>(),
+            dataProtectionProvider);
+
+        var instance = new CalendarSourceInstanceContext(
+            instanceId,
+            ownerId,
+            "graph",
+            "Outlook",
+            true,
+            null,
+            JsonSerializer.Serialize(new GraphCalendarSource.GraphSourceSecretData(
+                "protected-access-token",
+                "protected-refresh-token",
+                "https://graph.microsoft.com/Calendars.ReadWrite offline_access",
+                DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow.AddHours(1),
+                DateTimeOffset.UtcNow,
+                GraphConsentAccessLevel.ReadOnly)),
+            false);
+
+        var readiness = await source.GetReadinessAsync(instance);
+
+        Assert.IsTrue(readiness.IsReady);
+        Assert.AreEqual("Connected (read-only).", readiness.Title);
+    }
+
+    [TestMethod]
     public async Task GetEventsAsync_MapsGraphAllDayEvent_AsExclusiveUtcDateRange()
     {
         await using var dbContext = TestDbContextFactory.CreateInMemory();
@@ -839,6 +925,8 @@ public class GraphCalendarSourceTests
     [TestMethod]
     public async Task WriteBackSlotsAsync_UsesCustomPlaceholderTitle()
     {
+        const string placeholderTitle = "Custom placeholder title";
+
         await using var dbContext = TestDbContextFactory.CreateInMemory();
         var ownerId = Guid.NewGuid();
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
@@ -886,11 +974,11 @@ public class GraphCalendarSourceTests
         await source.WriteBackSlotsAsync(
             ownerId,
             [new BusySlot("s1", from, from.AddHours(1))],
-            "Niet beschikbaar",
+            placeholderTitle,
             from,
             from.AddHours(1));
 
-        Assert.AreEqual("Niet beschikbaar", capturedSubject);
+        Assert.AreEqual(placeholderTitle, capturedSubject);
     }
 
     [TestMethod]
@@ -1125,6 +1213,60 @@ public class GraphCalendarSourceTests
 
         Assert.IsFalse(called,
             "No Graph HTTP calls should be made for a source instance consented with Calendars.Read only.");
+    }
+
+    [TestMethod]
+    public async Task WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenReadOnlyChoiceOverridesBroaderReturnedScopes()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        await dbContext.CalendarOwners.AddAsync(new CalendarOwner { Id = ownerId, Name = "Owner" });
+        await dbContext.SaveChangesAsync();
+
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var protector = dataProtectionProvider.CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
+        var instances = new FakeCalendarSourceInstanceService(id => id == ownerId);
+        var created = await instances.CreateAsync(
+            ownerId,
+            new CreateCalendarSourceInstanceInput(
+                "graph",
+                "Graph",
+                "{\"calendarId\":\"primary\"}",
+                JsonSerializer.Serialize(new GraphCalendarSource.GraphSourceSecretData(
+                    protector.Protect("access-token"),
+                    protector.Protect("refresh-token"),
+                    "https://graph.microsoft.com/Calendars.ReadWrite offline_access",
+                    DateTimeOffset.UtcNow,
+                    DateTimeOffset.UtcNow.AddHours(1),
+                    DateTimeOffset.UtcNow,
+                    GraphConsentAccessLevel.ReadOnly))));
+        Assert.IsNotNull(created);
+
+        var instance = await instances.GetAsync(ownerId, created.Id);
+        Assert.IsNotNull(instance);
+
+        var called = false;
+        var handler = new DelegatingHttpMessageHandler(_ =>
+        {
+            called = true;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        });
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
+        var source = CreateSource(
+            dbContext,
+            httpClient,
+            new StubGraphOAuthTokenClient(),
+            new CapturingLogger<GraphCalendarSource>(),
+            dataProtectionProvider,
+            instances);
+
+        var from = DateTimeOffset.UtcNow;
+        var to = from.AddHours(1);
+        await source.WriteBackSlotsAsync(instance, [new BusySlot("slot-1", from, to)], "Busy", from, to);
+
+        Assert.IsFalse(called,
+            "No Graph HTTP calls should be made when the latest source-instance consent choice is read-only.");
     }
 
     [TestMethod]

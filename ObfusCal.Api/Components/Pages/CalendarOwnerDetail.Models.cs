@@ -25,9 +25,22 @@ public partial class CalendarOwnerDetail
         bool SupportsMultipleInstances,
         string? ConfigurationJsonTemplate,
         string? SecretDataJsonTemplate,
-        string? SetupHint)
+        string? SetupHint,
+        IReadOnlyList<CalendarSourcePluginActionDescriptor> Actions)
     {
         public string DisplayLabel => IsExternalPlugin ? $"{DisplayName} (plugin)" : DisplayName;
+
+        public IReadOnlyList<CalendarSourcePluginActionDescriptor> AuthenticationActions => Actions
+            .Where(action => CalendarSourcePluginActionIds.IsAuthenticationAction(action.ActionId))
+            .ToList();
+
+        public bool RequiresAuthentication => AuthenticationActions.Count > 0;
+
+        public bool RequiresAuthenticationChoice => AuthenticationActions.Count > 1;
+
+        public string? DefaultAuthenticationActionId => AuthenticationActions.Count == 1
+            ? AuthenticationActions[0].ActionId
+            : null;
     }
 
     public sealed class PluginFieldEditor

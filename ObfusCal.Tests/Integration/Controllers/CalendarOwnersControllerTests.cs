@@ -361,7 +361,7 @@ public class CalendarOwnersControllerTests
 
         var json = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
         using var document = JsonDocument.Parse(json);
-        Assert.AreEqual("Microsoft Graph consent required.", document.RootElement.GetProperty("title").GetString());
+        Assert.AreEqual("Outlook consent required.", document.RootElement.GetProperty("title").GetString());
     }
 
     [TestMethod]
@@ -453,7 +453,7 @@ public class CalendarOwnersControllerTests
 
         var json = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
         using var document = JsonDocument.Parse(json);
-        Assert.AreEqual("Unable to complete Microsoft Graph consent.", document.RootElement.GetProperty("title").GetString());
+        Assert.AreEqual("Unable to complete Outlook consent.", document.RootElement.GetProperty("title").GetString());
     }
 
     [TestMethod]

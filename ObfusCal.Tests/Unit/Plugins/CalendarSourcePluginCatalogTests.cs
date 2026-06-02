@@ -103,9 +103,10 @@ public class CalendarSourcePluginCatalogTests
         var plugins = CalendarSourcePluginCatalog.Discover(includeExternalPlugins: false);
         var graph = plugins.Single(plugin => plugin.Id == "graph");
 
+        Assert.AreEqual("Outlook", graph.DisplayName);
         Assert.IsNotNull(graph.Ui);
         Assert.IsTrue(graph.Ui!.SupportsMultipleInstances);
-        Assert.IsFalse(string.IsNullOrWhiteSpace(graph.Ui.ConfigurationJsonTemplate));
+        Assert.IsTrue(string.IsNullOrWhiteSpace(graph.Ui.ConfigurationJsonTemplate));
     }
 
     [TestMethod]

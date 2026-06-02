@@ -1,8 +1,8 @@
 # Test Catalog
 
-_Auto-generated from CI run. 692 tests across 77 classes._
+_Auto-generated from CI run. 719 tests across 78 classes._
 
-## Integration (181/181)
+## Integration (182/182)
 
 <details>
 <summary><b>AdminPeerConnectionsControllerTests</b> - 7/7</summary>
@@ -240,7 +240,7 @@ _Auto-generated from CI run. 692 tests across 77 classes._
 </details>
 
 <details>
-<summary><b>InfrastructureDependencyInjectionTests</b> - 12/12</summary>
+<summary><b>InfrastructureDependencyInjectionTests</b> - 13/13</summary>
 
 <table>
   <thead>
@@ -252,6 +252,7 @@ _Auto-generated from CI run. 692 tests across 77 classes._
     <tr><td><code>CalendarOwnerIcalFeedService_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarOwnerObfuscationProfileService_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarOwnerScopeResolver_IsRegistered</code></td><td>✅</td></tr>
+    <tr><td><code>CalendarSourceAuthFlowService_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarSourceCatalog_ContainsAllThreeBuiltInPlugins</code></td><td>✅</td></tr>
     <tr><td><code>CalendarSourceCatalog_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarSourceResolver_IsRegistered</code></td><td>✅</td></tr>
@@ -419,7 +420,7 @@ _Auto-generated from CI run. 692 tests across 77 classes._
 
 </details>
 
-## Unit (511/511)
+## Unit (537/537)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 2/2</summary>
@@ -488,7 +489,7 @@ _Auto-generated from CI run. 692 tests across 77 classes._
 </details>
 
 <details>
-<summary><b>GraphCalendarSourceTests</b> - 18/18</summary>
+<summary><b>GraphCalendarSourceTests</b> - 21/21</summary>
 
 <table>
   <thead>
@@ -504,10 +505,13 @@ _Auto-generated from CI run. 692 tests across 77 classes._
     <tr><td><code>GetEventsAsync_ReusesRefreshedToken_ForNextLinkRequests</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_SkipsManagedPlaceholderEvents</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_StopsWhenNextLinkRepeats</code></td><td>✅</td></tr>
+    <tr><td><code>GetReadinessAsync_ForReadOnlySourceInstance_ShowsReadOnlyStatus</code></td><td>✅</td></tr>
+    <tr><td><code>GetReadinessAsync_ForSourceInstance_ReadOnlyChoiceOverridesBroaderReturnedScopes</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_CreatesPlaceholderEvents_ForEachActiveSlot</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_DeletesStaleEvents_WhenNoLongerActiveSlot</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_DoesNotDeleteManagedEvent_WhenStartIsOutsideWindow</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_CreatesPlaceholderEvents</code></td><td>✅</td></tr>
+    <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenReadOnlyChoiceOverridesBroaderReturnedScopes</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenReadOnlyConsent</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenScopesAreNull</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_QueriesManagedEventsOnlyWithinWindow</code></td><td>✅</td></tr>
@@ -816,6 +820,40 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
 </details>
 
 <details>
+<summary><b>SourceAddFormValidationTests</b> - 21/21</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>GoogleCalendarId_WithPrimaryDefault_IsNotRequired</code></td><td>✅</td></tr>
+    <tr><td><code>ICloudAppleId_WithValueFilled_IsNotRequired</code></td><td>✅</td></tr>
+    <tr><td><code>ICloudAppleId_WithoutValue_IsRequired</code></td><td>✅</td></tr>
+    <tr><td><code>ICloudCalendarUrl_WithDotDotDot_IsRequired</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("See example...")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("https://caldav.icloud.com/.../calendar/")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("user@EXAMPLE.COM")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("you@example.com")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues (null)</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("false")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("https://caldav.icloud.com/calendar/")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("primary")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("true")</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithGoogleConsentAction_RequiresAuthentication</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithGraphConsentAction_RequiresAuthentication</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithMultipleAuthenticationActions_RequiresAuthenticationChoice</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithSingleAuthenticationAction_DoesNotRequireAuthenticationChoice</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithoutConsentAction_DoesNotRequireAuthentication</code></td><td>✅</td></tr>
+    <tr><td><code>SecretField_WhenEmpty_IsRequired</code></td><td>✅</td></tr>
+    <tr><td><code>SecretField_WhenFilled_IsNotRequired</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
 <summary><b>ApplicationDependencyInjectionTests</b> - 8/8</summary>
 
 <table>
@@ -1105,7 +1143,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
 </details>
 
 <details>
-<summary><b>CalendarOwnerGraphConsentServiceTests</b> - 27/27</summary>
+<summary><b>CalendarOwnerGraphConsentServiceTests</b> - 29/29</summary>
 
 <table>
   <thead>
@@ -1129,6 +1167,8 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentAsync_WithInvalidOwner_Throws</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentAsync_WithNullRefreshToken_StoresNull</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentAsync_WithWhitespaceRefreshToken_StoresNull</code></td><td>✅</td></tr>
+    <tr><td><code>CompleteConsentFromStateAsync_ForSourceInstance_ReadOnlyChoiceCapsStatus_WhenProviderReturnsBroaderScopes</code></td><td>✅</td></tr>
+    <tr><td><code>CompleteConsentFromStateAsync_ForSourceInstance_ReplacingWriteBackWithReadOnly_UpdatesStoredAccessLevel</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentFromStateAsync_RoundTrip_CompletesConsent</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentFromStateAsync_WithInvalidToken_Throws</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentFromStateAsync_WithLegacyNonOwnerState_Throws</code></td><td>✅</td></tr>

@@ -61,53 +61,6 @@ else
                                     AutomaticColorHex="@Instance.AutomaticColorHex"
                                     @bind-Value="Instance.ColorHex" />
 
-                @if (HasFieldEditors(Instance.ConfigurationFields))
-                {
-                    <h4 class="section-heading">Configuration</h4>
-                    @foreach (var configField in Instance.ConfigurationFields)
-                    {
-                        <div @key="configField.Key" class="config-field">
-                            <div class="field-label-row">
-                                <label>@configField.Label</label>
-                                @if (!string.IsNullOrWhiteSpace(configField.Description))
-                                {
-                                    <span class="field-info-icon" data-tooltip="@configField.Description">i</span>
-                                }
-                            </div>
-                            <input type="text"
-                                   @key="@($"cfg-{Instance.Id}-{configField.Key}")"
-                                   class="form-input"
-                                   placeholder="@(configField.Placeholder ?? "")"
-                                   value="@configField.Value"
-                                   @oninput="@(e => configField.Value = e.Value?.ToString())"/>
-                        </div>
-                    }
-                }
-
-
-                @if (HasFieldEditors(Instance.SecretFields))
-                {
-                    <h4 class="section-heading">Account Credentials</h4>
-                    <p class="secret-hint">Leave a field blank to keep the existing saved value.</p>
-                    @foreach (var secretField in Instance.SecretFields)
-                    {
-                        <div @key="secretField.Key" class="secret-field">
-                            <div class="field-label-row">
-                                <label>@secretField.Label</label>
-                                @if (!string.IsNullOrWhiteSpace(secretField.Description))
-                                {
-                                    <span class="field-info-icon" data-tooltip="@secretField.Description">i</span>
-                                }
-                            </div>
-                            <input type="password"
-                                   @key="@($"sec-{Instance.Id}-{secretField.Key}")"
-                                   class="form-input"
-                                   placeholder="Enter new value to update"
-                                   @oninput="@(e => secretField.Value = e.Value?.ToString())"/>
-                        </div>
-                    }
-                }
-
                 <FluentCheckbox @bind-Value="Instance.IsEnabled" Label="Enabled"/>
 
                 <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" Wrap="true" Class="app-form-actions source-instance-action-row">
@@ -142,25 +95,65 @@ else
                     <FluentMessageBar Intent="@MessageIntent" Class="card-message">@Message</FluentMessageBar>
                 }
 
-                @* Raw JSON is an advanced option for plugins without structured field editors *@
-                @if (!HasFieldEditors(Instance.ConfigurationFields) || !HasFieldEditors(Instance.SecretFields))
-                {
-                    <details class="instance-advanced">
-                        <summary class="instance-advanced-summary">Advanced settings</summary>
-                        <div class="instance-advanced-inner">
-                            @if (!HasFieldEditors(Instance.ConfigurationFields))
+                <details class="instance-advanced">
+                    <summary class="instance-advanced-summary">Advanced settings</summary>
+                    <div class="instance-advanced-inner">
+                        @if (HasFieldEditors(Instance.ConfigurationFields))
+                        {
+                            <h4 class="section-heading">Configuration</h4>
+                            @foreach (var configField in Instance.ConfigurationFields)
                             {
-                                <FluentLabel Class="app-form-label">Configuration JSON</FluentLabel>
-                                <textarea class="config-textarea app-form-control" @bind="Instance.ConfigurationJson"></textarea>
+                                <div @key="configField.Key" class="config-field">
+                                    <div class="field-label-row">
+                                        <label>@configField.Label</label>
+                                        @if (!string.IsNullOrWhiteSpace(configField.Description))
+                                        {
+                                            <span class="field-info-icon" data-tooltip="@configField.Description">i</span>
+                                        }
+                                    </div>
+                                    <input type="text"
+                                           @key="@($"cfg-{Instance.Id}-{configField.Key}")"
+                                           class="form-input"
+                                           placeholder="@(configField.Placeholder ?? "")"
+                                           value="@configField.Value"
+                                           @oninput="@(e => configField.Value = e.Value?.ToString())"/>
+                                </div>
                             }
-                            @if (!HasFieldEditors(Instance.SecretFields))
+                        }
+                        else
+                        {
+                            <FluentLabel Class="app-form-label">Configuration JSON</FluentLabel>
+                            <textarea class="config-textarea app-form-control" @bind="Instance.ConfigurationJson"></textarea>
+                        }
+                        @if (HasFieldEditors(Instance.SecretFields))
+                        {
+                            <h4 class="section-heading">Account Credentials</h4>
+                            <p class="secret-hint">Leave a field blank to keep the existing saved value.</p>
+                            @foreach (var secretField in Instance.SecretFields)
                             {
-                                <FluentLabel Class="app-form-label">Secret JSON</FluentLabel>
-                                <textarea class="secret-textarea app-form-control" @bind="Instance.SecretDataJson"></textarea>
+                                <div @key="secretField.Key" class="secret-field">
+                                    <div class="field-label-row">
+                                        <label>@secretField.Label</label>
+                                        @if (!string.IsNullOrWhiteSpace(secretField.Description))
+                                        {
+                                            <span class="field-info-icon" data-tooltip="@secretField.Description">i</span>
+                                        }
+                                    </div>
+                                    <input type="password"
+                                           @key="@($"sec-{Instance.Id}-{secretField.Key}")"
+                                           class="form-input"
+                                           placeholder="Enter new value to update"
+                                           @oninput="@(e => secretField.Value = e.Value?.ToString())"/>
+                                </div>
                             }
-                        </div>
-                    </details>
-                }
+                        }
+                        else
+                        {
+                            <FluentLabel Class="app-form-label">Secret JSON</FluentLabel>
+                            <textarea class="secret-textarea app-form-control" @bind="Instance.SecretDataJson"></textarea>
+                        }
+                    </div>
+                </details>
             </FluentStack>
         </text>;
 
