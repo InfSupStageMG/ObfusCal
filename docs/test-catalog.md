@@ -1,6 +1,6 @@
 # Test Catalog
 
-_Auto-generated from CI run. 712 tests across 78 classes._
+_Auto-generated from CI run. 713 tests across 78 classes._
 
 ## Integration (182/182)
 
@@ -420,7 +420,7 @@ _Auto-generated from CI run. 712 tests across 78 classes._
 
 </details>
 
-## Unit (530/530)
+## Unit (531/531)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 2/2</summary>
@@ -489,7 +489,7 @@ _Auto-generated from CI run. 712 tests across 78 classes._
 </details>
 
 <details>
-<summary><b>GraphCalendarSourceTests</b> - 18/18</summary>
+<summary><b>GraphCalendarSourceTests</b> - 19/19</summary>
 
 <table>
   <thead>
@@ -505,6 +505,7 @@ _Auto-generated from CI run. 712 tests across 78 classes._
     <tr><td><code>GetEventsAsync_ReusesRefreshedToken_ForNextLinkRequests</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_SkipsManagedPlaceholderEvents</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_StopsWhenNextLinkRepeats</code></td><td>✅</td></tr>
+    <tr><td><code>GetReadinessAsync_ForReadOnlySourceInstance_ShowsReadOnlyStatus</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_CreatesPlaceholderEvents_ForEachActiveSlot</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_DeletesStaleEvents_WhenNoLongerActiveSlot</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_DoesNotDeleteManagedEvent_WhenStartIsOutsideWindow</code></td><td>✅</td></tr>

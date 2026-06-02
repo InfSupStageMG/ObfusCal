@@ -43,7 +43,6 @@ capped at 1 MB by default to reduce DoS risk.
 ## Project structure
 
 <!-- START_TREE path="." max_depth="2" -->
-
 ```text
 ObfusCal/
 ├── ObfusCal.Api/                      # ASP.NET Core entry point, controllers, DI composition root
@@ -141,7 +140,6 @@ ObfusCal/
 ├── renovate.json
 └── stryker-config.json
 ```
-
 <!-- END_TREE -->
 
 ### Layer dependencies
