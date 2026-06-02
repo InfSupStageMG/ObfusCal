@@ -11,6 +11,7 @@ on:
 env:
     REGISTRY: ghcr.io
     IMAGE_NAME: ${{ github.repository }}
+    MINVER_CLI_VERSION: 4.3.0
 
 concurrency:
     group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -23,6 +24,8 @@ jobs:
         steps:
             -   name: Checkout repository
                 uses: actions/checkout@v6
+                with:
+                    fetch-depth: 0
 
             -   name: Setup .NET
                 uses: actions/setup-dotnet@v5
@@ -95,6 +98,8 @@ jobs:
         steps:
             -   name: Checkout repository
                 uses: actions/checkout@v6
+                with:
+                    fetch-depth: 0
 
             -   name: Download test reports artifact
                 uses: actions/download-artifact@v8
@@ -126,6 +131,8 @@ jobs:
         steps:
             -   name: Checkout repository
                 uses: actions/checkout@v6
+                with:
+                    fetch-depth: 0
 
             -   name: Build runtime image
                 run: docker build -t obfuscal-api:ci .
@@ -245,6 +252,8 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             -   uses: actions/checkout@v6
+                with:
+                    fetch-depth: 0
 
             -   name: Setup .NET
                 uses: actions/setup-dotnet@v5
@@ -282,6 +291,37 @@ jobs:
         steps:
             -   name: Checkout repository
                 uses: actions/checkout@v6
+                with:
+                    fetch-depth: 0
+
+            -   name: Setup .NET
+                uses: actions/setup-dotnet@v5
+                with:
+                    global-json-file: global.json
+
+            -   name: Install MinVer CLI
+                run: dotnet tool install --global minver-cli --version ${{ env.MINVER_CLI_VERSION }}
+
+            -   name: Restore dependencies
+                run: dotnet restore ObfusCal.Api/ObfusCal.Api.csproj
+
+            -   name: Determine semantic version
+                id: version
+                shell: bash
+                run: |
+                    VERSION=$(minver --tag-prefix v --minimum-major-minor 1.0)
+                    VERSION=${VERSION//$'\r'/}
+                    MAJOR=${VERSION%%.*}
+                    VERSION_NO_METADATA=${VERSION%%+*}
+                    CORE=${VERSION_NO_METADATA%%-*}
+                    IFS='.' read -r _ MINOR PATCH <<< "$CORE"
+                    ASSEMBLY_VERSION="${MAJOR}.0.0.0"
+                    FILE_VERSION="${MAJOR}.${MINOR}.${PATCH}.0"
+                    INFORMATIONAL_VERSION="${VERSION}+${GITHUB_SHA}"
+                    echo "semver=$VERSION" >> "$GITHUB_OUTPUT"
+                    echo "assembly_version=$ASSEMBLY_VERSION" >> "$GITHUB_OUTPUT"
+                    echo "file_version=$FILE_VERSION" >> "$GITHUB_OUTPUT"
+                    echo "informational_version=$INFORMATIONAL_VERSION" >> "$GITHUB_OUTPUT"
 
             -   name: Log in to GHCR
                 if: github.event_name == 'push'
@@ -297,6 +337,8 @@ jobs:
                 with:
                     images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
                     tags: |
+                        type=raw,value=${{ steps.version.outputs.semver }},enable=${{ github.event_name == 'push' }}
+                        type=raw,value=v${{ steps.version.outputs.semver }},enable=${{ github.event_name == 'push' }}
                         type=raw,value=latest,enable=${{ github.event_name == 'push' }}
                         type=sha,format=short
 
@@ -305,5 +347,10 @@ jobs:
                 with:
                     context: .
                     push: ${{ github.event_name == 'push' }}
+                    build-args: |
+                        VERSION=${{ steps.version.outputs.semver }}
+                        ASSEMBLY_VERSION=${{ steps.version.outputs.assembly_version }}
+                        FILE_VERSION=${{ steps.version.outputs.file_version }}
+                        INFORMATIONAL_VERSION=${{ steps.version.outputs.informational_version }}
                     tags: ${{ steps.meta.outputs.tags }}
                     labels: ${{ steps.meta.outputs.labels }}

@@ -228,16 +228,28 @@ This means:
 
 Every push to `main` on GitHub triggers a GitHub Actions workflow that:
 
-1. Runs `dotnet build` and `dotnet test`
-2. Builds the Docker image using the multi-stage `Dockerfile`
-3. Pushes the image to GitHub Container Registry (GHCR) tagged with `latest` and the commit SHA
+1. Derives the application semantic version from the latest reachable Git tag matching `vX.Y.Z` via `MinVer`
+2. Runs `dotnet build` and `dotnet test`
+3. Builds the Docker image using the multi-stage `Dockerfile` and stamps the computed version into the published .NET
+   assemblies (`Version`, `AssemblyVersion`, `FileVersion`, and `InformationalVersion`)
+4. Pushes the image to GitHub Container Registry (GHCR) tagged with the semantic version, the same version prefixed
+   with `v`, `latest`, and a short commit-SHA tag
 
-Deploying an update on a running server:
+If no valid release tag exists yet, `MinVer` keeps builds on the `1.0` line as prereleases (for example
+`1.0.0-alpha.0.<height>`). Creating a tag such as `v1.0.0` starts the release line for subsequent builds.
+
+The repository `docker-compose.yaml` builds the API image from source (`build: .`). For a source-based deployment on a
+running server, pull the updated repository contents and rebuild the stack:
 
 ```bash
-docker pull ghcr.io/infsupstagemg/obfuscal-api:latest
+git pull
 docker compose up -d --build
 ```
+
+If you deploy from GHCR instead of building locally, point your service definition at a published image such as
+`ghcr.io/infsupstagemg/obfuscal-api:1.2.0` and prefer a pinned semantic-version tag over `latest` for repeatable
+rollouts. The running UI surfaces the stamped application version in the Dashboard and footer so operators can verify
+what build is active.
 
 ## PoC vs Production Differences
 

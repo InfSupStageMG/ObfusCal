@@ -14,6 +14,7 @@ using ObfusCal.Api;
 using ObfusCal.Api.Authentication;
 using ObfusCal.Api.Authorization;
 using ObfusCal.Api.Components;
+using ObfusCal.Api.Components.Layout;
 using ObfusCal.Api.Components.Shared;
 using ObfusCal.Api.Controllers;
 using ObfusCal.Api.RateLimiting;
@@ -116,6 +117,7 @@ try
     });
 
     builder.Services.AddAuthorization(ProgramSetup.ConfigureAuthorizationPolicies);
+    builder.Services.AddSingleton<ApplicationVersionProvider>();
     builder.Services.AddSingleton<MergedFreeBusyCalendarColorResolver>();
     builder.Services.AddScoped<CalendarOwnerAccessEvaluator>();
     builder.Services.AddScoped<CurrentUserContextAccessor>();
