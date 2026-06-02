@@ -15,6 +15,7 @@ Thumbs.db
 
 # Local environment and certificates (including demo)
 .env
+.env.peer-demo
 certs/**
 !certs/
 !certs/README.md
