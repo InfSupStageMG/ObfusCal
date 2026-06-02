@@ -1,6 +1,7 @@
 ﻿using Microsoft.FluentUI.AspNetCore.Components;
 using ObfusCal.Api.Components.CalendarOwnerDetail;
 using ObfusCal.Application.Interfaces;
+using System.Net.Http;
 
 namespace ObfusCal.Api.Components.Pages;
 
@@ -170,7 +171,8 @@ public partial class CalendarOwnerDetail
                 await LoadSourceInstancesAsync();
                 sourceInstancesReloaded = true;
             }
-            catch (Exception) { /* stale list is acceptable */ }
+            catch (HttpRequestException) { /* stale list is acceptable */ }
+            catch (TaskCanceledException) { /* stale list is acceptable */ }
 
             var authAction = CalendarSourceAuthFlowService.GetAuthenticationAction(selectedPlugin.Actions);
             if (authAction is null)
@@ -233,7 +235,8 @@ public partial class CalendarOwnerDetail
             // Same guard as CreateSourceInstanceAsync: readiness-check failures in the
             // list reload must not prevent the sync trigger.
             try { await LoadSourceInstancesAsync(); }
-            catch (Exception) { /* stale list is acceptable; the snapshot sync still fires */ }
+            catch (InvalidOperationException) { /* stale list is acceptable; the snapshot sync still fires */ }
+            catch (TaskCanceledException) { /* stale list is acceptable; the snapshot sync still fires */ }
 
             await TryRunAvailabilitySyncAsync(
                 $"Updated source instance '{updated.DisplayName}' and synced availability.",
