@@ -13,7 +13,7 @@ obj/
 .DS_Store
 Thumbs.db
 
-# Local environment and certificates
+# Local environment and certificates (including demo)
 .env
 certs/**
 !certs/
