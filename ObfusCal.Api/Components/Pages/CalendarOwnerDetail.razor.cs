@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.FluentUI.AspNetCore.Components;
 using ObfusCal.Api.Authorization;
 using ObfusCal.Application.Interfaces;
@@ -8,7 +7,6 @@ namespace ObfusCal.Api.Components.Pages;
 
 public partial class CalendarOwnerDetail : ComponentBase
 {
-    [Inject] private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = default!;
     [Inject] private CurrentUserContextAccessor CurrentUserContextAccessor { get; set; } = default!;
     [Inject] private ICalendarOwnerService CalendarOwnerService { get; set; } = default!;
     [Inject] private ICalendarSourceCatalog CalendarSourceCatalog { get; set; } = default!;
@@ -20,6 +18,8 @@ public partial class CalendarOwnerDetail : ComponentBase
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
     [Parameter] public Guid Id { get; set; }
+
+    [Parameter, SupplyParameterFromQuery] public bool ConsentCompleted { get; set; }
 
     private CalendarOwnerInfo? _owner;
     private bool _isSysadmin;
@@ -99,5 +99,11 @@ public partial class CalendarOwnerDetail : ComponentBase
         LoadPluginCatalog();
         await LoadSourceInstancesAsync();
         await LoadProfilesAsync();
+
+        if (ConsentCompleted)
+        {
+            _sourceMessage = "✓ Authentication completed. Your calendar is now connected and availability is being synced.";
+            _sourceMessageIntent = MessageIntent.Success;
+        }
     }
 }

@@ -95,7 +95,7 @@ else
                                 class="source-tile @(isSelected ? "source-tile--active" : "")"
                                 aria-expanded="@isSelected"
                                 aria-controls="source-editor-panel"
-                                @onclick="@(() => { if (isSelected) { _expandedSourceInstanceId = null; } else { _expandedSourceInstanceId = instance.Id; _sourceMessage = null; } })">
+                                @onclick="@(() => { if (isSelected) { _expandedSourceInstanceId = null; } else { _expandedSourceInstanceId = instance.Id; _showAddForm = false; _sourceMessage = null; } })">
                             <span class="source-tile-color"
                                   style="background-color: @CalendarColorFieldDisplay.ResolvePreviewColor(instance.ColorHex, instance.AutomaticColorHex);"
                                   aria-hidden="true"></span>

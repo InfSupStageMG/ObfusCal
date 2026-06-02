@@ -33,7 +33,8 @@ public partial class CalendarOwnerDetail
                 ui?.SupportsMultipleInstances ?? true,
                 ui?.ConfigurationJsonTemplate,
                 ui?.SecretDataJsonTemplate,
-                ui?.SetupHint));
+                ui?.SetupHint,
+                ui?.Actions ?? []));
         }
 
         _selectedPluginOption = _pluginOptions.FirstOrDefault();
@@ -123,11 +124,13 @@ public partial class CalendarOwnerDetail
         if (_selectedPluginOption is null)
             return;
 
-        if (!_selectedPluginOption.SupportsMultipleInstances
+        var selectedPlugin = _selectedPluginOption;
+
+        if (!selectedPlugin.SupportsMultipleInstances
             && _sourceInstances.Any(instance =>
-                string.Equals(instance.PluginId, _selectedPluginOption.Id, StringComparison.OrdinalIgnoreCase)))
+                string.Equals(instance.PluginId, selectedPlugin.Id, StringComparison.OrdinalIgnoreCase)))
         {
-            _sourceMessage = $"{_selectedPluginOption.DisplayName} supports only one source instance.";
+            _sourceMessage = $"{selectedPlugin.DisplayName} supports only one source instance.";
             _sourceMessageIntent = MessageIntent.Warning;
             return;
         }
@@ -145,9 +148,9 @@ public partial class CalendarOwnerDetail
             var created = await CalendarSourceInstanceService.CreateAsync(
                 Id,
                 new CreateCalendarSourceInstanceInput(
-                    _selectedPluginOption.Id,
+                    selectedPlugin.Id,
                     string.IsNullOrWhiteSpace(_newSourceDisplayName)
-                        ? _selectedPluginOption.DisplayName
+                        ? selectedPlugin.DisplayName
                         : _newSourceDisplayName,
                     configurationJson,
                     secretDataJson,
@@ -161,19 +164,51 @@ public partial class CalendarOwnerDetail
                 return;
             }
 
-            _sourceMessage = $"Added source instance '{created.DisplayName}'. Triggering sync...";
-            _sourceMessageIntent = MessageIntent.Success;
-            _showAddForm = false;
+            var sourceInstancesReloaded = false;
+            try
+            {
+                await LoadSourceInstancesAsync();
+                sourceInstancesReloaded = true;
+            }
+            catch { /* stale list is acceptable */ }
 
-            // Reload the source list, but do not let a readiness-check failure (e.g. a
-            // plugin's CalDAV/OAuth probe throwing) block the sync trigger below.
-            try { await LoadSourceInstancesAsync(); }
-            catch { /* stale list is acceptable; the snapshot sync still fires */ }
-            ApplyPluginDefaults();
-
-            await TryRunAvailabilitySyncAsync(
-                $"Added source instance '{created.DisplayName}' and synced availability.",
-                $"Added source instance '{created.DisplayName}', but sync failed");
+            var authAction = GetAuthActionForPlugin(selectedPlugin);
+            if (authAction is not null)
+            {
+                try
+                {
+                    var baseUri = Navigation.BaseUri.TrimEnd('/');
+                    var callbackUri = $"{baseUri}/consent-callback";
+                    var authUrl = await BuildConsentUrlAsync(authAction.ActionId, created.Id, callbackUri);
+                    _showAddForm = false;
+                    ApplyPluginDefaults();
+                    Navigation.NavigateTo(authUrl, forceLoad: true);
+                }
+                catch (InvalidOperationException ex) when (ex.Message.StartsWith("Unknown auth action", StringComparison.Ordinal))
+                {
+                    _showAddForm = false;
+                    _expandedSourceInstanceId = sourceInstancesReloaded ? created.Id : null;
+                    _sourceMessage = $"Added source instance '{created.DisplayName}', but authentication could not be started because action '{authAction.ActionId}' is not supported by this version of ObfusCal.";
+                    _sourceMessageIntent = MessageIntent.Warning;
+                    ApplyPluginDefaults();
+                }
+                catch (Exception ex)
+                {
+                    _showAddForm = false;
+                    _expandedSourceInstanceId = sourceInstancesReloaded ? created.Id : null;
+                    _sourceMessage = $"Added source instance '{created.DisplayName}', but authentication could not be started: {ex.Message}";
+                    _sourceMessageIntent = MessageIntent.Warning;
+                    ApplyPluginDefaults();
+                }
+            }
+            else
+            {
+                _showAddForm = false;
+                ApplyPluginDefaults();
+                await TryRunAvailabilitySyncAsync(
+                    $"Added source instance '{created.DisplayName}' and synced availability.",
+                    $"Added source instance '{created.DisplayName}', but sync failed");
+            }
         }
         catch (Exception ex)
         {
@@ -309,37 +344,13 @@ public partial class CalendarOwnerDetail
             var baseUri = Navigation.BaseUri.TrimEnd('/');
             var callbackUri = $"{baseUri}/consent-callback";
 
-            string authUrl;
-            switch (action.ActionId)
-            {
-                case "google-instance-consent":
-                    authUrl = await GoogleConsentService.BuildAuthorizationUrlAsync(Id, instance.Id, callbackUri);
-                    Navigation.NavigateTo(authUrl, forceLoad: true);
-                    break;
-
-                case "graph-instance-consent":
-                    authUrl = await GraphConsentService.BuildAuthorizationUrlAsync(
-                        Id,
-                        instance.Id,
-                        callbackUri,
-                        GraphConsentAccessLevel.ReadWrite);
-                    Navigation.NavigateTo(authUrl, forceLoad: true);
-                    break;
-
-                case "graph-instance-consent-readonly":
-                    authUrl = await GraphConsentService.BuildAuthorizationUrlAsync(
-                        Id,
-                        instance.Id,
-                        callbackUri,
-                        GraphConsentAccessLevel.ReadOnly);
-                    Navigation.NavigateTo(authUrl, forceLoad: true);
-                    break;
-
-                default:
-                    _sourceMessage = $"Action '{action.ActionId}' is not handled by this version of ObfusCal.";
-                    _sourceMessageIntent = MessageIntent.Warning;
-                    break;
-            }
+            var authUrl = await BuildConsentUrlAsync(action.ActionId, instance.Id, callbackUri);
+            Navigation.NavigateTo(authUrl, forceLoad: true);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.StartsWith("Unknown auth action", StringComparison.Ordinal))
+        {
+            _sourceMessage = $"Action '{action.ActionId}' is not handled by this version of ObfusCal.";
+            _sourceMessageIntent = MessageIntent.Warning;
         }
         catch (Exception ex)
         {
@@ -351,5 +362,25 @@ public partial class CalendarOwnerDetail
             _executingActionInstanceId = null;
             _executingActionId = null;
         }
+    }
+
+    private static CalendarSourcePluginActionDescriptor? GetAuthActionForPlugin(PluginOption plugin)
+    {
+        return plugin.Actions.FirstOrDefault(a =>
+            a.ActionId is "google-instance-consent" or "graph-instance-consent" or "graph-instance-consent-readonly");
+    }
+
+    private async Task<string> BuildConsentUrlAsync(string actionId, Guid instanceId, string callbackUri)
+    {
+        return actionId switch
+        {
+            "google-instance-consent" =>
+                await GoogleConsentService.BuildAuthorizationUrlAsync(Id, instanceId, callbackUri),
+            "graph-instance-consent" =>
+                await GraphConsentService.BuildAuthorizationUrlAsync(Id, instanceId, callbackUri, GraphConsentAccessLevel.ReadWrite),
+            "graph-instance-consent-readonly" =>
+                await GraphConsentService.BuildAuthorizationUrlAsync(Id, instanceId, callbackUri, GraphConsentAccessLevel.ReadOnly),
+            _ => throw new InvalidOperationException($"Unknown auth action: {actionId}")
+        };
     }
 }

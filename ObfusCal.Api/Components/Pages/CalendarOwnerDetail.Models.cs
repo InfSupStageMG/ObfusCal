@@ -25,9 +25,15 @@ public partial class CalendarOwnerDetail
         bool SupportsMultipleInstances,
         string? ConfigurationJsonTemplate,
         string? SecretDataJsonTemplate,
-        string? SetupHint)
+        string? SetupHint,
+        IReadOnlyList<CalendarSourcePluginActionDescriptor> Actions)
     {
         public string DisplayLabel => IsExternalPlugin ? $"{DisplayName} (plugin)" : DisplayName;
+
+        public bool RequiresAuthentication => Actions.Any(action => action.ActionId is
+            "google-instance-consent"
+            or "graph-instance-consent"
+            or "graph-instance-consent-readonly");
     }
 
     public sealed class PluginFieldEditor

@@ -136,7 +136,7 @@ public partial class CalendarOwnerDetail
 
     // Returns true for values that are real working defaults (e.g. "primary"),
     // and false for example placeholders that the user must replace (e.g. "you@example.com").
-    private static bool IsLikelyDefaultValue(string? value)
+    internal static bool IsLikelyDefaultValue(string? value)
     {
         if (string.IsNullOrEmpty(value))
             return false;
