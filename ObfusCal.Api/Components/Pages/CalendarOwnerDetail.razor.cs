@@ -56,8 +56,6 @@ public partial class CalendarOwnerDetail : ComponentBase
     private string? _ownerSyncMessage;
     private MessageIntent _ownerSyncMessageIntent = MessageIntent.Info;
 
-    private string BackLink => _isSysadmin ? "/calendar-owners" : "/";
-
     private PluginOption? SelectedPluginOption
     {
         get => _selectedPluginOption;

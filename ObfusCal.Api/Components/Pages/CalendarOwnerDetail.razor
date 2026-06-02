@@ -22,12 +22,7 @@ else if (_owner is null)
 else
 {
     <header class="page-header">
-        <FluentStack Orientation="Orientation.Horizontal" HorizontalGap="8" VerticalAlignment="VerticalAlignment.Center">
-            <FluentButton Appearance="Appearance.Lightweight" OnClick="@(() => Navigation.NavigateTo(BackLink))">
-                ← Back
-            </FluentButton>
-            <h1 class="header-title-flex">@_owner.Name</h1>
-        </FluentStack>
+        <h1>@_owner.Name</h1>
         <p class="page-subtitle">
             Connect your calendars, manage privacy settings, and control how your availability is shared with peers.
         </p>
