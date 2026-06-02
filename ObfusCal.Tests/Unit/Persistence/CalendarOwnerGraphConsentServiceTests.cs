@@ -347,7 +347,7 @@ public class CalendarOwnerGraphConsentServiceTests
             Options.Create(new GraphConsentOptions { Scope = "openid", ClientId = "client-x" }),
             instanceSvc, instanceSvc, new FakeGraphOAuthTokenClient());
 
-        var created = await instanceSvc.CreateAsync(ownerId, new CreateCalendarSourceInstanceInput("graph", "Microsoft Graph"));
+        var created = await instanceSvc.CreateAsync(ownerId, new CreateCalendarSourceInstanceInput("graph", "Outlook"));
         var instanceId = created!.Id;
 
         var url = await consoleSvc.BuildAuthorizationUrlAsync(ownerId, instanceId, "https://localhost/consent-callback", GraphConsentAccessLevel.ReadWrite);
@@ -374,7 +374,7 @@ public class CalendarOwnerGraphConsentServiceTests
             instanceSvc, instanceSvc, new FakeGraphOAuthTokenClient());
 
         // Create the graph source instance
-        var created = await instanceSvc.CreateAsync(ownerId, new CreateCalendarSourceInstanceInput("graph", "Microsoft Graph"));
+        var created = await instanceSvc.CreateAsync(ownerId, new CreateCalendarSourceInstanceInput("graph", "Outlook"));
         var instanceId = created!.Id;
 
         // Build the authorization URL (which embeds calendarOwnerId + instanceId in the state)

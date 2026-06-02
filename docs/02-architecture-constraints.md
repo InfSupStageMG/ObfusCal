@@ -2,14 +2,14 @@
 
 ## Technical Constraints
 
-| Constraint                                                     | Reason                                                                                                                                                                               |
-|----------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| No globally shared server or storage                           | Core project requirement. A central server would require all participating organisations to trust a third party with availability metadata, which regulated clients will not accept. |
-| Self-hostable via Docker                                       | Client IT departments must be able to run an instance without understanding the application internals. `docker compose up` is the target deployment experience.                      |
-| .NET 10 (C#)                                                   | Primary language chosen for team expertise and internship company's in-house knowledge.                                                                                              |
-| Microsoft 365 / Exchange Online as the primary calendar source | The production target specified by the assignment. OAuth 2.0 delegated permissions via the Graph API is required.                                                                    |
-| All cross-domain data exchange over HTTPS                      | Raw event data must never travel across a domain boundary. Only obfuscated busy slots may be transmitted.                                                                            |
-| Open-source licence                                            | The solution itself must be open-source (GPL v3). All runtime dependencies must have compatible licences.                                                                            |
+| Constraint                                             | Reason                                                                                                                                                                               |
+|--------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| No globally shared server or storage                   | Core project requirement. A central server would require all participating organisations to trust a third party with availability metadata, which regulated clients will not accept. |
+| Self-hostable via Docker                               | Client IT departments must be able to run an instance without understanding the application internals. `docker compose up` is the target deployment experience.                      |
+| .NET 10 (C#)                                           | Primary language chosen for team expertise and internship company's in-house knowledge.                                                                                              |
+| Outlook / Microsoft 365 as the primary calendar source | The production target specified by the assignment. OAuth 2.0 delegated permissions via the Microsoft Graph API are required.                                                         |
+| All cross-domain data exchange over HTTPS              | Raw event data must never travel across a domain boundary. Only obfuscated busy slots may be transmitted.                                                                            |
+| Open-source licence                                    | The solution itself must be open-source (GPL v3). All runtime dependencies must have compatible licences.                                                                            |
 
 ## Organisational Constraints
 

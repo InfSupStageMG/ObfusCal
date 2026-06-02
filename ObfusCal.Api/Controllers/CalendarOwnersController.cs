@@ -419,7 +419,7 @@ public sealed class CalendarOwnersController(
             return BadRequest(new ProblemDetails
             {
                 Status = StatusCodes.Status400BadRequest,
-                Title = "Unable to complete Microsoft Graph consent.",
+                Title = "Unable to complete Outlook consent.",
                 Detail = ex.Message
             });
         }
@@ -454,7 +454,7 @@ public sealed class CalendarOwnersController(
             return BadRequest(new ProblemDetails
             {
                 Status = StatusCodes.Status400BadRequest,
-                Title = "Unable to complete Microsoft Graph consent.",
+                Title = "Unable to complete Outlook consent.",
                 Detail = ex.Message
             });
         }

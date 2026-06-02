@@ -39,8 +39,8 @@ internal sealed class CalendarOwnerGraphConsentService(
             .Select(owner => new CalendarOwnerGraphConsentStatus(
                 !string.IsNullOrWhiteSpace(owner.GraphAccessTokenProtected)
                 || !string.IsNullOrWhiteSpace(owner.GraphRefreshTokenProtected),
-                ResolveAccessLevel(owner.GraphGrantedScopes),
-                AllowsWriteBack(owner.GraphGrantedScopes),
+                ResolveAccessLevel(owner.GraphGrantedScopes, allowLegacyWriteBackFallback: true),
+                AllowsWriteBack(owner.GraphGrantedScopes, allowLegacyWriteBackFallback: true),
                 owner.GraphGrantedScopes,
                 owner.GraphConsentGrantedAtUtc,
                 owner.GraphTokenExpiresAtUtc,
@@ -61,8 +61,8 @@ internal sealed class CalendarOwnerGraphConsentService(
         return new CalendarOwnerGraphConsentStatus(
             !string.IsNullOrWhiteSpace(secretData?.ProtectedAccessToken)
             || !string.IsNullOrWhiteSpace(secretData?.ProtectedRefreshToken),
-            ResolveAccessLevel(secretData?.GrantedScopes),
-            AllowsWriteBack(secretData?.GrantedScopes),
+            ResolveAccessLevel(secretData?.GrantedScopes, allowLegacyWriteBackFallback: false),
+            AllowsWriteBack(secretData?.GrantedScopes, allowLegacyWriteBackFallback: false),
             secretData?.GrantedScopes,
             secretData?.ConsentGrantedAtUtc,
             secretData?.TokenExpiresAtUtc,
@@ -338,7 +338,7 @@ internal sealed class CalendarOwnerGraphConsentService(
 
         var created = await calendarSourceInstanceService.CreateAsync(
             calendarOwnerId,
-            new CreateCalendarSourceInstanceInput(GraphPluginId, "Microsoft Graph"),
+            new CreateCalendarSourceInstanceInput(GraphPluginId, "Outlook"),
             ct);
 
         return created is null
@@ -391,15 +391,17 @@ internal sealed class CalendarOwnerGraphConsentService(
             : "https://graph.microsoft.com/Calendars.ReadWrite offline_access";
     }
 
-    private static bool AllowsWriteBack(string? scopes)
-        => string.IsNullOrWhiteSpace(scopes)
-           || scopes.Contains("Calendars.ReadWrite", StringComparison.OrdinalIgnoreCase);
+    private static bool AllowsWriteBack(string? scopes, bool allowLegacyWriteBackFallback)
+        => allowLegacyWriteBackFallback
+            ? string.IsNullOrWhiteSpace(scopes)
+              || AllowsWriteBack(scopes, allowLegacyWriteBackFallback: false)
+            : !string.IsNullOrWhiteSpace(scopes)
+              && scopes.Contains("Calendars.ReadWrite", StringComparison.OrdinalIgnoreCase);
 
-    private static GraphConsentAccessLevel ResolveAccessLevel(string? scopes)
-        => !string.IsNullOrWhiteSpace(scopes)
-           && !AllowsWriteBack(scopes)
-            ? GraphConsentAccessLevel.ReadOnly
-            : GraphConsentAccessLevel.ReadWrite;
+    private static GraphConsentAccessLevel ResolveAccessLevel(string? scopes, bool allowLegacyWriteBackFallback)
+        => AllowsWriteBack(scopes, allowLegacyWriteBackFallback)
+            ? GraphConsentAccessLevel.ReadWrite
+            : GraphConsentAccessLevel.ReadOnly;
 
     private sealed record GraphConsentStatePayload(
         Guid CalendarOwnerId,

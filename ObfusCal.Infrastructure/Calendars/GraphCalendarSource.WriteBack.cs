@@ -27,7 +27,7 @@ public sealed partial class GraphCalendarSource
         if (owner is null)
             return;
 
-        if (!AllowsWriteBack(owner.GraphGrantedScopes))
+        if (!AllowsOwnerWriteBack(owner.GraphGrantedScopes))
         {
             logger.LogInformation(
                 "Write-back skipped for calendar owner {CalendarOwnerId}: Graph consent is read-only.",
