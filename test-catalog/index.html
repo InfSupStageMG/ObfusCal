@@ -1233,10 +1233,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#unit-530530" class="md-nav__link">
+  <a href="#unit-537537" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unit (530/530)
+        Unit (537/537)
       
     </span>
   </a>
@@ -1437,10 +1437,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#unit-530530" class="md-nav__link">
+  <a href="#unit-537537" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unit (530/530)
+        Unit (537/537)
       
     </span>
   </a>
@@ -1468,7 +1468,7 @@
 
 
 <h1 id="test-catalog">Test Catalog</h1>
-<p><em>Auto-generated from CI run. 712 tests across 78 classes.</em></p>
+<p><em>Auto-generated from CI run. 719 tests across 78 classes.</em></p>
 <h2 id="integration-182182">Integration (182/182)</h2>
 <details>
 <summary><b>AdminPeerConnectionsControllerTests</b> - 7/7</summary>
@@ -1886,7 +1886,7 @@
 
 </details>
 
-<h2 id="unit-530530">Unit (530/530)</h2>
+<h2 id="unit-537537">Unit (537/537)</h2>
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 2/2</summary>
 
@@ -1954,7 +1954,7 @@
 </details>
 
 <details>
-<summary><b>GraphCalendarSourceTests</b> - 18/18</summary>
+<summary><b>GraphCalendarSourceTests</b> - 21/21</summary>
 
 <table>
   <thead>
@@ -1970,10 +1970,13 @@
     <tr><td><code>GetEventsAsync_ReusesRefreshedToken_ForNextLinkRequests</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_SkipsManagedPlaceholderEvents</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_StopsWhenNextLinkRepeats</code></td><td>✅</td></tr>
+    <tr><td><code>GetReadinessAsync_ForReadOnlySourceInstance_ShowsReadOnlyStatus</code></td><td>✅</td></tr>
+    <tr><td><code>GetReadinessAsync_ForSourceInstance_ReadOnlyChoiceOverridesBroaderReturnedScopes</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_CreatesPlaceholderEvents_ForEachActiveSlot</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_DeletesStaleEvents_WhenNoLongerActiveSlot</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_DoesNotDeleteManagedEvent_WhenStartIsOutsideWindow</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_CreatesPlaceholderEvents</code></td><td>✅</td></tr>
+    <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenReadOnlyChoiceOverridesBroaderReturnedScopes</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenReadOnlyConsent</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenScopesAreNull</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_QueriesManagedEventsOnlyWithinWindow</code></td><td>✅</td></tr>
@@ -2282,7 +2285,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
 </details>
 
 <details>
-<summary><b>SourceAddFormValidationTests</b> - 19/19</summary>
+<summary><b>SourceAddFormValidationTests</b> - 21/21</summary>
 
 <table>
   <thead>
@@ -2305,6 +2308,8 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("true")</code></td><td>✅</td></tr>
     <tr><td><code>PluginOption_WithGoogleConsentAction_RequiresAuthentication</code></td><td>✅</td></tr>
     <tr><td><code>PluginOption_WithGraphConsentAction_RequiresAuthentication</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithMultipleAuthenticationActions_RequiresAuthenticationChoice</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithSingleAuthenticationAction_DoesNotRequireAuthenticationChoice</code></td><td>✅</td></tr>
     <tr><td><code>PluginOption_WithoutConsentAction_DoesNotRequireAuthentication</code></td><td>✅</td></tr>
     <tr><td><code>SecretField_WhenEmpty_IsRequired</code></td><td>✅</td></tr>
     <tr><td><code>SecretField_WhenFilled_IsNotRequired</code></td><td>✅</td></tr>
@@ -2603,7 +2608,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
 </details>
 
 <details>
-<summary><b>CalendarOwnerGraphConsentServiceTests</b> - 27/27</summary>
+<summary><b>CalendarOwnerGraphConsentServiceTests</b> - 29/29</summary>
 
 <table>
   <thead>
@@ -2627,6 +2632,8 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentAsync_WithInvalidOwner_Throws</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentAsync_WithNullRefreshToken_StoresNull</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentAsync_WithWhitespaceRefreshToken_StoresNull</code></td><td>✅</td></tr>
+    <tr><td><code>CompleteConsentFromStateAsync_ForSourceInstance_ReadOnlyChoiceCapsStatus_WhenProviderReturnsBroaderScopes</code></td><td>✅</td></tr>
+    <tr><td><code>CompleteConsentFromStateAsync_ForSourceInstance_ReplacingWriteBackWithReadOnly_UpdatesStoredAccessLevel</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentFromStateAsync_RoundTrip_CompletesConsent</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentFromStateAsync_WithInvalidToken_Throws</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentFromStateAsync_WithLegacyNonOwnerState_Throws</code></td><td>✅</td></tr>

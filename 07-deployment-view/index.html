@@ -1773,9 +1773,9 @@ API calls fall back to an IP-based backstop, and peer sync request bodies are ca
 for cross-owner requests (anti-enumeration), and owner-scoped peer shadow-slot pushes should return <code>403</code> when the peer
 is not mapped to the requested <code>calendarOwnerRef</code>.</p>
 <p>Peer lifecycle operations are also part of deployment validation for sysadmin-enabled environments:
-<code>POST /api/admin/peer-connections/{id}/suspend</code> should return <code>204 No Content</code>, move the peer into <code>Suspended</code>, and cause
-subsequent peer-authenticated sync requests for that peer to fail immediately. Reactivation currently happens through the
-existing <code>approve</code> flow, which returns the peer to <code>Active</code> and issues a new API key.</p>
+<code>POST /api/admin/peer-connections/{id}/suspend</code> should return <code>204 No Content</code>, move the peer into <code>Suspended</code>, and
+cause subsequent peer-authenticated sync requests for that peer to fail immediately. Reactivation currently happens
+through the existing <code>approve</code> flow, which returns the peer to <code>Active</code> and issues a new API key.</p>
 <p>For local API-only debugging, start PostgreSQL first and then run <code>dotnet run --project ObfusCal.Api</code> outside
 containers. Use the HTTPS development URL:</p>
 <ul>
@@ -1857,11 +1857,11 @@ local sign-out cycle.</p>
 </tr>
 <tr>
 <td><code>GraphConsent__ClientId</code></td>
-<td>Microsoft Graph consent client ID (<strong>required at startup</strong>)</td>
+<td>Outlook consent client ID for the Microsoft Graph app registration (<strong>required at startup</strong>)</td>
 </tr>
 <tr>
 <td><code>GraphConsent__ClientSecret</code></td>
-<td>Microsoft Graph consent client secret (optional depending on tenant app registration)</td>
+<td>Outlook consent client secret for the Microsoft Graph app registration (optional depending on tenant app registration)</td>
 </tr>
 <tr>
 <td><code>GraphConsent__Scope</code></td>

@@ -1667,10 +1667,10 @@ independent chain.</p>
 <p>Integrity verification is currently an operational/forensic check rather than an automatic runtime repair step. To
 verify a file, recompute the hash for each line in order and confirm that each line's <code>previousEntryHash</code> matches the
 prior line's <code>entryHash</code>, and that the recomputed digest matches the stored <code>entryHash</code>. Any deleted, inserted,
-rewritten, or reordered line breaks that sequence and is therefore detectable. ObfusCal currently does not run a full historical
-re-verification pass automatically at startup or per request; the runtime guarantee is append-only chained writes, while
-full-chain validation is triggered when operators review incidents, export audit files, or run external integrity
-checks.</p>
+rewritten, or reordered line breaks that sequence and is therefore detectable. ObfusCal currently does not run a full
+historical re-verification pass automatically at startup or per request; the runtime guarantee is append-only chained
+writes, while full-chain validation is triggered when operators review incidents, export audit files, or run external
+integrity checks.</p>
 <p><strong>Rate limiting and payload caps:</strong> Peer sync traffic is rate limited in-process with a peer-ID partition when the
 peer is authenticated and an IP-based backstop for unauthenticated API requests. <code>POST /api/shadow-slots</code> and
 <code>GET /api/sync/busy-slots/{calendarOwnerRef}</code> use separate configurable fixed windows, and API request bodies are
@@ -1681,9 +1681,9 @@ attack surface. Cookie policy defaults are enforced to <code>HttpOnly=Always</co
 <p><strong>Container runtime hardening:</strong> The runtime container executes as a non-root user and the compose service applies a
 read-only root filesystem, drops Linux capabilities (<code>cap_drop: [ALL]</code>), enables <code>no-new-privileges</code>, and limits
 resources with configurable memory/CPU caps. The API is exposed only through the reverse proxy on the internal network.</p>
-<p><strong>Credential encryption and key persistence:</strong> Microsoft Graph OAuth refresh tokens and iCloud credentials are encrypted
-at rest using the .NET Data Protection API (DPAPI) before being written to the database. A database breach yields only
-ciphertext.</p>
+<p><strong>Credential encryption and key persistence:</strong> Outlook / Microsoft Graph OAuth refresh tokens and iCloud credentials are
+encrypted at rest using the .NET Data Protection API (DPAPI) before being written to the database. A database breach
+yields only ciphertext.</p>
 <p>Encryption keys are stored in the container's <code>/dataprotection/keys</code> directory, which must be mounted as a persistent
 volume. Without key persistence:</p>
 <ul>
@@ -1723,12 +1723,15 @@ error when critical values are missing. This prevents deferred runtime failures 
 runtime callback origin via <code>GoogleConsent:RedirectUri</code> / <code>GOOGLECONSENT__REDIRECTURI</code> so container, proxy, and local
 debugging setups can use a single registered callback. <code>.local</code> redirect domains are rejected early because Google does
 not accept them for this flow.</p>
-<p><strong>Microsoft Graph and Google write-back discipline:</strong> when a calendar owner enables write-back, ObfusCal creates and
-reconciles provider-managed placeholder events in Microsoft 365 and Google Calendar using provider-native metadata
-(<code>singleValueExtendedProperties</code> for Graph, <code>extendedProperties.private</code> for Google). Those placeholders carry a stable
-ObfusCal marker plus slot identifier for safe cleanup, but the payload itself remains privacy-preserving: only the
-configured placeholder title and the start/end timestamps are written. Peer identity, attendee data, location, and raw
-event descriptions are never written back.</p>
+<p><strong>Outlook and Google write-back discipline:</strong> when a calendar owner enables write-back, ObfusCal creates and
+reconciles provider-managed placeholder events in Outlook / Microsoft 365 and Google Calendar using provider-native
+metadata (<code>singleValueExtendedProperties</code> for Microsoft Graph, <code>extendedProperties.private</code> for Google). Those
+placeholders carry a stable ObfusCal marker plus slot identifier for safe cleanup, but the payload itself remains
+privacy-preserving: only the configured placeholder title and the start/end timestamps are written. Peer identity,
+attendee data, location, and raw event descriptions are never written back.</p>
+<p>For Outlook source instances, the add-calendar flow now makes the delegated-access choice explicit: users choose
+between read-only Microsoft Graph consent and write-back consent before the OAuth redirect starts. Re-consenting an
+existing source instance replaces the stored Graph access level for that source instance.</p>
 <p>The write-back path is opt-in per owner (<code>CalendarOwner.WriteBackEnabled</code>). Disabling the flag stops future placeholder
 reconciliation on the next sync cycle without performing an immediate destructive cleanup pass, which keeps runtime
 behavior predictable for operators.</p>
