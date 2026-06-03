@@ -29,7 +29,11 @@ WORKDIR /app
 COPY --from=build /app/publish .
 EXPOSE 8443
 
-RUN chown -R 1000:1000 /app
+RUN chown -R 1000:1000 /app && \
+    mkdir -p /tmp/SecurityAudit && \
+    chown 1000:1000 /tmp/SecurityAudit && \
+    chmod 755 /tmp/SecurityAudit
+
 USER 1000
 
 ENTRYPOINT ["dotnet", "ObfusCal.Api.dll"]

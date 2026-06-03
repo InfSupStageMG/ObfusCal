@@ -124,6 +124,55 @@ public class FileSecurityAuditServiceTests
     }
 
     [TestMethod]
+    public async Task WriteAsync_WithDirectoryFilePath_WritesToDefaultNdjsonFile()
+    {
+        var directoryPath = Path.Join(Path.GetTempPath(), "ObfusCal", "tests", $"dir-{Guid.NewGuid():N}") + Path.DirectorySeparatorChar;
+        var resolvedFilePath = Path.Join(directoryPath, SecurityAuditOptions.DefaultFileName);
+        var options = Options.Create(new SecurityAuditOptions { FilePath = directoryPath });
+        var redactor = new DefaultLogRedactor();
+        using var service = new FileSecurityAuditService(options, redactor, new NullLogger<FileSecurityAuditService>());
+
+        await service.WriteAsync(new SecurityAuditEvent(
+            SecurityAuditEventCodes.AuthSuccess,
+            SecurityAuditOutcomes.Success,
+            "peer-directory-path",
+            "/api/shadow-slots",
+            null,
+            "corr-directory-path"), TestContext.CancellationToken);
+
+        Assert.IsTrue(File.Exists(resolvedFilePath));
+
+        var entries = await ReadAuditFileAsync(resolvedFilePath);
+        Assert.AreEqual(1, entries.Count);
+        Assert.AreEqual(SecurityAuditEventCodes.AuthSuccess, entries[0].EventCode);
+    }
+
+    [TestMethod]
+    public async Task WriteAsync_WithExplicitJsonFilePath_WritesToConfiguredFile()
+    {
+        var directoryPath = Path.Join(Path.GetTempPath(), "ObfusCal", "tests", $"json-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directoryPath);
+        var filePath = Path.Join(directoryPath, "security-audit.json");
+        var options = Options.Create(new SecurityAuditOptions { FilePath = filePath });
+        var redactor = new DefaultLogRedactor();
+        using var service = new FileSecurityAuditService(options, redactor, new NullLogger<FileSecurityAuditService>());
+
+        await service.WriteAsync(new SecurityAuditEvent(
+            SecurityAuditEventCodes.AuthFailure,
+            SecurityAuditOutcomes.Failure,
+            "peer-explicit-file",
+            "/api/shadow-slots",
+            null,
+            "corr-explicit-file"), TestContext.CancellationToken);
+
+        Assert.IsTrue(File.Exists(filePath));
+
+        var entries = await ReadAuditFileAsync(filePath);
+        Assert.AreEqual(1, entries.Count);
+        Assert.AreEqual(SecurityAuditEventCodes.AuthFailure, entries[0].EventCode);
+    }
+
+    [TestMethod]
     public async Task WriteAsync_MultipleEvents_BuildsTamperEvidenceChain()
     {
         var filePath = GetTempAuditFilePath();
@@ -217,6 +266,46 @@ public class FileSecurityAuditServiceTests
         var tempDir = Path.Join(Path.GetTempPath(), "ObfusCal", "tests", $"unit-{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
         return Path.Join(tempDir, "audit.ndjson");
+    }
+
+    // --- BEFORE protection: demonstrates credential exposure without log redaction ---
+
+    [TestMethod]
+    public async Task WriteAsync_WithoutRedactor_ExposesSensitiveValuesInAuditLog()
+    {
+        // Before ILogRedactor was plumbed into the audit sink, any value passed in metadata
+        // was written verbatim. This test demonstrates that state by using a pass-through
+        // redactor implementation that leaves all values unchanged.
+        var filePath = GetTempAuditFilePath();
+        var options = Options.Create(new SecurityAuditOptions { FilePath = filePath });
+
+        // The pass-through redactor simulates the pre-protection state: no pattern matching.
+        using var service = new FileSecurityAuditService(options, new PassThroughRedactor(), new NullLogger<FileSecurityAuditService>());
+
+        const string sensitiveToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.Signature";
+        var auditEvent = new SecurityAuditEvent(
+            EventCode: "AUTH_FAILURE",
+            Outcome: "failure",
+            ActorIdentity: "peer-attacker",
+            TargetResource: "/api/shadow-slots",
+            TargetId: null,
+            CorrelationId: "corr-before",
+            Metadata: new Dictionary<string, string?> { { "token", $"Bearer {sensitiveToken}" } });
+
+        await service.WriteAsync(auditEvent, CancellationToken.None);
+
+        var lines = (await File.ReadAllLinesAsync(filePath)).Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
+        Assert.AreEqual(1, lines.Length);
+
+        Assert.IsTrue(
+            lines[0].Contains(sensitiveToken, StringComparison.Ordinal),
+            "Without redaction, the raw bearer token value appears verbatim in the audit log — demonstrating the pre-hardening vulnerability.");
+    }
+
+    // Minimal pass-through redactor that represents the pre-ILogRedactor state.
+    private sealed class PassThroughRedactor : ILogRedactor
+    {
+        public string Redact(string input) => input;
     }
 
     private static async Task<IReadOnlyList<AuditEntry>> ReadAuditFileAsync(string filePath)

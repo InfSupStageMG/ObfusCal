@@ -80,6 +80,8 @@ Before starting the containers:
 5. Ensure the Entra ID app role `Sysadmin` exists on the API app registration and is assigned to designated
    administrators.
 6. Optionally set `SecurityAudit__FilePath` to a persistent path so security audit records survive container restarts.
+   You can provide either a full filename or a writable directory path ending in `/` or `\`. Directory paths are
+   resolved to `security-audit.ndjson` inside that directory.
 
 Bring up a full instance (reverse proxy + API + PostgreSQL):
 
@@ -186,7 +188,7 @@ local sign-out cycle.
 | `Sync__WriteBackLookAheadDays`                        | Provider-managed placeholder reconciliation horizon in days (default `90`)                                    |
 | `Sync__WriteBackPlaceholderTitle`                     | Fallback title used for write-back placeholders (default `Busy`)                                              |
 | `PeerTransportSecurity__AllowSelfSignedCerts`         | Accept self-signed peer certificates when `true` (default `false`)                                            |
-| `SecurityAudit__FilePath`                             | Optional dedicated append-only NDJSON audit sink path                                                          |
+| `SecurityAudit__FilePath`                             | Optional dedicated append-only NDJSON audit sink path; directory values resolve to `security-audit.ndjson`    |
 | `PeerConnections.PinnedCertificateThumbprint`         | Optional peer leaf certificate thumbprint used to pin the expected server certificate                         |
 | `PeerConnections.ClientCertificateThumbprint`         | Optional peer client certificate thumbprint used as mTLS groundwork                                           |
 | `Secrets__Provider`                                   | Secret provider mode (`Environment` default, `External` stub)                                                 |

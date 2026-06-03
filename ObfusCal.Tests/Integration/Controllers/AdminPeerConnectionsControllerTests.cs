@@ -291,6 +291,127 @@ public class AdminPeerConnectionsControllerTests
 
         Assert.AreEqual(HttpStatusCode.BadRequest, approveResponse.StatusCode);
     }
+
+    [TestMethod]
+    public async Task RotateFlow_WritesKeyRotationAuditEvent()
+    {
+        var auditFilePath = Path.Join(
+            Path.GetTempPath(), "ObfusCal", "tests", $"rotate-audit-{Guid.NewGuid():N}.ndjson");
+        var overrides = new Dictionary<string, string?> { ["SecurityAudit:FilePath"] = auditFilePath };
+
+        await using var factory = new CustomWebApplicationFactory(
+            "Development",
+            useTestAuthentication: true,
+            additionalConfiguration: overrides);
+
+        var instanceId = "peer-rotate-audit";
+        var originalKey = $"rotate-audit-key-{Guid.NewGuid():N}";
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        var peerConnectionId = await factory.SeedPeerConnectionAsync(instanceId, originalKey);
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, Guid.NewGuid(), instanceId, originalKey);
+
+        using var adminClient = factory.CreateAuthenticatedClientWithRoles(TestAuthHandler.DefaultObjectId, "Sysadmin");
+        var rotateResponse = await adminClient.PostAsync(
+            $"/api/admin/peer-connections/{peerConnectionId}/rotate-key",
+            null,
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.OK, rotateResponse.StatusCode);
+
+        var events = await ReadAuditEventsAsync(auditFilePath);
+        var rotationEvent = events.LastOrDefault(e =>
+            string.Equals(e.EventCode, SecurityAuditEventCodes.KeyRotation, StringComparison.Ordinal));
+
+        Assert.IsNotNull(rotationEvent, "A KEY_ROTATION audit event must be written when a peer key is rotated.");
+        Assert.AreEqual(SecurityAuditOutcomes.Success, rotationEvent.Outcome);
+    }
+
+    // --- BEFORE protection: demonstrates the vulnerability each feature was introduced to fix ---
+
+    [TestMethod]
+    public async Task ApproveFlow_WithLegacySha256Hash_PeerStillAuthenticates()
+    {
+        // Before PBKDF2 hardening, peer API keys were stored as plain SHA256 hex hashes.
+        // SHA256 is fast, non-salted, and deterministic — an attacker who obtained the hash
+        // could brute-force or rainbow-table the original key.
+        // This test demonstrates the legacy format is still recognised (backward compatibility
+        // path in PeerApiKeySecurity.Verify) and contrasts the hash format with the secure PBKDF2 format.
+        const string apiKey = "legacy-peer-key-demo";
+
+        var legacyHash = PeerApiKeySecurity.ComputeSha256(apiKey);
+        var pbkdf2Hash = PeerApiKeySecurity.Hash(apiKey);
+
+        // The legacy hash is a short, deterministic hex string — easy to brute-force.
+        Assert.IsFalse(legacyHash.StartsWith("PBKDF2$SHA256$", StringComparison.Ordinal),
+            "Legacy SHA256 hash must NOT use the PBKDF2 prefix.");
+        Assert.AreEqual(legacyHash, PeerApiKeySecurity.ComputeSha256(apiKey),
+            "Legacy SHA256 is deterministic: the same key always produces the same hash, enabling rainbow-table attacks.");
+
+        // The PBKDF2 hash is salted and non-deterministic.
+        Assert.IsTrue(pbkdf2Hash.StartsWith("PBKDF2$SHA256$", StringComparison.Ordinal),
+            "PBKDF2 hash must use the PBKDF2$SHA256$ prefix.");
+        Assert.AreNotEqual(pbkdf2Hash, PeerApiKeySecurity.Hash(apiKey),
+            "PBKDF2 is salted: the same key produces a different hash each time.");
+
+        // Backward compatibility: the legacy format is still verifiable.
+        Assert.IsTrue(PeerApiKeySecurity.Verify(apiKey, legacyHash),
+            "Backward compatibility path must verify legacy SHA256 hashes.");
+    }
+
+    [TestMethod]
+    public async Task Approve_WithSsrfValidationDisabled_AcceptsPeerHttpBaseUrl()
+    {
+        // Before transport security validation was added to the approve flow, any peer
+        // base URL was accepted — including http:// and private-IP addresses. An admin
+        // could inadvertently register a peer pointing to an internal endpoint, and the
+        // outbound sync service would then make requests to that internal address.
+        await using var factory = new CustomWebApplicationFactory(
+            "Development",
+            useTestAuthentication: true,
+            disableUrlSafetyValidation: true);
+
+        var calendarOwnerObjectId = Guid.NewGuid().ToString();
+        await factory.SeedCalendarOwnerAsync(calendarOwnerObjectId);
+        using var calendarOwnerClient = factory.CreateAuthenticatedClient(calendarOwnerObjectId);
+
+        var requestResponse = await calendarOwnerClient.PostAsJsonAsync(
+            "/api/peer-connections/request",
+            new PeerConnectionsController.RequestPeerConnectionRequest("VulnerableContoso"),
+            TestContext.CancellationToken);
+        var requestJson = await requestResponse.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using var requestDocument = JsonDocument.Parse(requestJson);
+        var peerConnectionId = requestDocument.RootElement.GetProperty("id").GetGuid();
+
+        using var adminClient = factory.CreateAuthenticatedClientWithRoles(TestAuthHandler.DefaultObjectId, "Sysadmin");
+        var approveResponse = await adminClient.PostAsJsonAsync(
+            $"/api/admin/peer-connections/{peerConnectionId}/approve",
+            new AdminPeerConnectionsController.ApprovePeerConnectionRequest("http://internal-host.corp/peer"),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.OK, approveResponse.StatusCode,
+            "Without transport validation, an http:// peer base URL is accepted — demonstrating the pre-hardening vulnerability.");
+    }
+
+    private static async Task<IReadOnlyList<AuditEntry>> ReadAuditEventsAsync(string filePath)
+    {
+        if (!File.Exists(filePath))
+            return [];
+
+        var lines = await File.ReadAllLinesAsync(filePath);
+        var result = new List<AuditEntry>(lines.Length);
+        foreach (var line in lines.Where(line => !string.IsNullOrWhiteSpace(line)))
+        {
+            using var json = JsonDocument.Parse(line);
+            var root = json.RootElement;
+            result.Add(new AuditEntry(
+                root.GetProperty("eventCode").GetString() ?? string.Empty,
+                root.GetProperty("outcome").GetString() ?? string.Empty));
+        }
+
+        return result;
+    }
+
+    private sealed record AuditEntry(string EventCode, string Outcome);
 }
 
 
