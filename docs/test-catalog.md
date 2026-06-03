@@ -1,8 +1,8 @@
 # Test Catalog
 
-_Auto-generated from CI run. 719 tests across 78 classes._
+_Auto-generated from CI run. 746 tests across 81 classes._
 
-## Integration (182/182)
+## Integration (198/198)
 
 <details>
 <summary><b>AdminPeerConnectionsControllerTests</b> - 7/7</summary>
@@ -19,6 +19,29 @@ _Auto-generated from CI run. 719 tests across 78 classes._
     <tr><td><code>RevokeFlow_SetsRevokedAt_AndPeerAuthStopsImmediately</code></td><td>✅</td></tr>
     <tr><td><code>RotateFlow_InvalidatesOldApiKeyAndActivatesNewApiKey</code></td><td>✅</td></tr>
     <tr><td><code>SuspendFlow_SetsStatusToSuspended_AndAuthStopsImmediately</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>AdminPluginAllowlistControllerTests</b> - 10/10</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>DisabledPlugin_IsRemovedFromInMemoryCache_Immediately</code></td><td>✅</td></tr>
+    <tr><td><code>ListPlugins_ReturnsForbidden_ForNonSysadmin</code></td><td>✅</td></tr>
+    <tr><td><code>ListPlugins_ReturnsOk_ForSysadmin</code></td><td>✅</td></tr>
+    <tr><td><code>ListPlugins_ReturnsUnauthorized_WhenNotAuthenticated</code></td><td>✅</td></tr>
+    <tr><td><code>ReenabledPlugin_IsRemovedFromInMemoryCache_Immediately</code></td><td>✅</td></tr>
+    <tr><td><code>RemoveOverride_ClearsOverride_PluginReturnsToDefaultEnabledState</code></td><td>✅</td></tr>
+    <tr><td><code>SetEnabled_DisablesPlugin_IsReflectedInSubsequentList</code></td><td>✅</td></tr>
+    <tr><td><code>SetEnabled_ReenablesPlugin_IsReflectedInSubsequentList</code></td><td>✅</td></tr>
+    <tr><td><code>SetEnabled_ReturnsBadRequest_WhenPluginIdIsWhitespace</code></td><td>✅</td></tr>
+    <tr><td><code>SetEnabled_ReturnsForbidden_ForNonSysadmin</code></td><td>✅</td></tr>
   </tbody>
 </table>
 
@@ -134,6 +157,25 @@ _Auto-generated from CI run. 719 tests across 78 classes._
     <tr><td><code>RequestPeerConnection_ReturnsConflict_WhenDuplicateForSameCalendarOwner</code></td><td>✅</td></tr>
     <tr><td><code>RequestPeerConnection_ReturnsUnauthorized_WhenUnauthenticated</code></td><td>✅</td></tr>
     <tr><td><code>RequestPeerConnection_ReturnsValidationProblemDetails_WhenClientOrganisationNameMissing</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>RateLimitingTests</b> - 6/6</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>ApiBackstop_Returns429_WhenGlobalLimitExceeded</code></td><td>✅</td></tr>
+    <tr><td><code>PullBusySlots_Returns429_AfterPermitLimitExceeded</code></td><td>✅</td></tr>
+    <tr><td><code>PullBusySlots_Returns429_WithRetryAfterHeader</code></td><td>✅</td></tr>
+    <tr><td><code>PushShadowSlots_Returns429_AfterPermitLimitExceeded</code></td><td>✅</td></tr>
+    <tr><td><code>PushShadowSlots_Returns429_WithRetryAfterHeader</code></td><td>✅</td></tr>
+    <tr><td><code>RateLimited_Response_HasProblemDetailsBody</code></td><td>✅</td></tr>
   </tbody>
 </table>
 
@@ -420,7 +462,7 @@ _Auto-generated from CI run. 719 tests across 78 classes._
 
 </details>
 
-## Unit (537/537)
+## Unit (548/548)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 2/2</summary>
@@ -1389,6 +1431,30 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>Encrypt_EmptyString_RoundTrips</code></td><td>✅</td></tr>
     <tr><td><code>Encrypt_ProducesCiphertextDifferentFromPlaintext</code></td><td>✅</td></tr>
     <tr><td><code>Encrypt_SamePlaintext_ProducesDifferentCiphertexts_PerCall</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>FileSecurityAuditServiceTests</b> - 11/11</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>NewServiceInstance_ContinuesHashChain_FromExistingFile</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_AppendsOneNdjsonLine_PerEvent</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_ConcurrentWrites_ProduceCorrectLineCount</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_CreatesFile_WhenFileDoesNotExist</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_EachEntry_HasNonEmptyEntryHash</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_FirstEntry_HasNullPreviousEntryHash</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_HashChain_IsConsistentAcrossAllEntries</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_RedactsSensitivePatterns_InMetadataValues</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_SanitizesNewlines_InFieldValues</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_SecondEntry_PreviousHashMatchesFirstEntryHash</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_TruncatesFieldValues_LongerThan256Characters</code></td><td>✅</td></tr>
   </tbody>
 </table>
 
