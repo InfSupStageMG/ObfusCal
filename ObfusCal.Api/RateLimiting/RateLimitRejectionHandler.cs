@@ -24,12 +24,11 @@ internal static class RateLimitRejectionHandler
             httpContext.Request.Path.Value ?? string.Empty);
 
         httpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-        httpContext.Response.ContentType = "application/problem+json";
         await httpContext.Response.WriteAsJsonAsync(new ProblemDetails
         {
             Status = StatusCodes.Status429TooManyRequests,
             Title = "Too many requests."
-        }, cancellationToken);
+        }, options: null, contentType: "application/problem+json", cancellationToken: cancellationToken);
     }
 
     internal static async Task RejectAsync(HttpContext context, string subject, int retryAfterSeconds,
@@ -38,7 +37,6 @@ internal static class RateLimitRejectionHandler
         var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("RateLimiting");
 
         context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-        context.Response.ContentType = "application/problem+json";
         context.Response.Headers.RetryAfter = retryAfterSeconds.ToString(CultureInfo.InvariantCulture);
 
         logger.LogWarning(
@@ -51,7 +49,7 @@ internal static class RateLimitRejectionHandler
         {
             Status = StatusCodes.Status429TooManyRequests,
             Title = "Too many requests."
-        }, cancellationToken);
+        }, options: null, contentType: "application/problem+json", cancellationToken: cancellationToken);
     }
 
     private static int GetRetryAfterSeconds(RateLimitLease lease)
