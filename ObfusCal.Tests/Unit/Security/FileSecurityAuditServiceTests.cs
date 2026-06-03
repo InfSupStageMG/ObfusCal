@@ -56,7 +56,7 @@ public class FileSecurityAuditServiceTests
         await service.WriteAsync(BuildEvent("CONFIG_CHANGE"));
 
         var lines = await ReadNonEmptyLinesAsync();
-        Assert.AreEqual(3, lines.Length, "Each WriteAsync call must produce exactly one NDJSON line.");
+        Assert.HasCount(3, lines, "Each WriteAsync call must produce exactly one NDJSON line.");
     }
 
     [TestMethod]
@@ -127,7 +127,7 @@ public class FileSecurityAuditServiceTests
         await service.WriteAsync(BuildEvent("AUTH_SUCCESS", actorIdentity: longValue));
 
         var entry = ParseEntry((await ReadNonEmptyLinesAsync())[0]);
-        Assert.IsTrue(entry.ActorIdentity.Length <= 256,
+        Assert.IsLessThanOrEqualTo(256, entry.ActorIdentity.Length,
             "Field values longer than 256 characters must be truncated before persisting.");
     }
 
@@ -184,7 +184,7 @@ public class FileSecurityAuditServiceTests
         await secondInstance.WriteAsync(BuildEvent("KEY_ROTATION"));
 
         var lines = await ReadNonEmptyLinesAsync();
-        Assert.AreEqual(3, lines.Length);
+        Assert.HasCount(3, lines);
 
         var entries = lines.Select(ParseEntry).ToArray();
         Assert.AreEqual(entries[1].EntryHash, entries[2].PreviousEntryHash,
@@ -201,7 +201,7 @@ public class FileSecurityAuditServiceTests
             .Select(i => service.WriteAsync(BuildEvent($"CONCURRENT_{i}"))));
 
         var lines = await ReadNonEmptyLinesAsync();
-        Assert.AreEqual(concurrentWrites, lines.Length,
+        Assert.HasCount(concurrentWrites, lines,
             "Concurrent writes must not corrupt the file or drop events.");
     }
 

@@ -12,10 +12,6 @@ public class AdminPluginAllowlistControllerTests
 {
     public TestContext TestContext { get; set; } = null!;
 
-    // -------------------------------------------------------------------------
-    // Authentication and authorisation enforcement
-    // -------------------------------------------------------------------------
-
     [TestMethod]
     public async Task ListPlugins_ReturnsOk_ForSysadmin()
     {
@@ -65,10 +61,6 @@ public class AdminPluginAllowlistControllerTests
 
         Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
     }
-
-    // -------------------------------------------------------------------------
-    // Runtime enable / disable of plugins
-    // -------------------------------------------------------------------------
 
     [TestMethod]
     public async Task SetEnabled_DisablesPlugin_IsReflectedInSubsequentList()
@@ -152,10 +144,6 @@ public class AdminPluginAllowlistControllerTests
         }
     }
 
-    // -------------------------------------------------------------------------
-    // In-memory cache coherence: runtime block is immediately effective
-    // -------------------------------------------------------------------------
-
     [TestMethod]
     public async Task DisabledPlugin_IsRemovedFromInMemoryCache_Immediately()
     {
@@ -172,7 +160,7 @@ public class AdminPluginAllowlistControllerTests
         // Verify the in-memory PluginAllowlistCache reflects the change without a restart.
         using var scope = factory.Services.CreateScope();
         var cache = scope.ServiceProvider.GetRequiredService<PluginAllowlistCache>();
-        Assert.IsTrue(cache.GetBlockedPluginIds().Contains("mock"),
+        Assert.Contains("mock", cache.GetBlockedPluginIds(),
             "Blocking a plugin via the admin API must update the in-memory cache immediately.");
     }
 
@@ -195,13 +183,9 @@ public class AdminPluginAllowlistControllerTests
 
         using var scope = factory.Services.CreateScope();
         var cache = scope.ServiceProvider.GetRequiredService<PluginAllowlistCache>();
-        Assert.IsFalse(cache.GetBlockedPluginIds().Contains("mock"),
+        Assert.DoesNotContain("mock", cache.GetBlockedPluginIds(),
             "Re-enabling a plugin via the admin API must remove it from the in-memory blocked set immediately.");
     }
-
-    // -------------------------------------------------------------------------
-    // Input validation
-    // -------------------------------------------------------------------------
 
     [TestMethod]
     public async Task SetEnabled_ReturnsBadRequest_WhenPluginIdIsWhitespace()
