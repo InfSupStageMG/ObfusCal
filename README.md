@@ -603,10 +603,10 @@ ObfusCal started as an internship project and is being prepared for long-term op
 
 If you want to contribute:
 
-1. read `CONTRIBUTING.md`
+1. read the [Contributing guide](CONTRIBUTING.md)
 2. check the open issues for scoped work items
 3. prefer issues labelled `good first issue` or `help wanted` if you are new to the project
-4. follow the PR checklist in `.github/pull_request_template.md`
+4. follow the [PR checklist](.github/pull_request_template.md)
 
 ---
 
