@@ -1,7 +1,7 @@
 # Contributing to ObfusCal
 
-Thank you for considering a contribution to ObfusCal! This document covers everything you need
-to know to get started, from setting up a development environment to opening a pull request.
+Thank you for considering a contribution to ObfusCal! This document covers everything you need to know to get started,
+from setting up a development environment to opening a pull request.
 
 ---
 
@@ -9,9 +9,9 @@ to know to get started, from setting up a development environment to opening a p
 
 - [Code of conduct](#code-of-conduct)
 - [How to contribute](#how-to-contribute)
-  - [Reporting bugs](#reporting-bugs)
-  - [Suggesting enhancements](#suggesting-enhancements)
-  - [Your first code contribution](#your-first-code-contribution)
+    - [Reporting bugs](#reporting-bugs)
+    - [Suggesting enhancements](#suggesting-enhancements)
+    - [Your first code contribution](#your-first-code-contribution)
 - [Development setup](#development-setup)
 - [Architecture overview](#architecture-overview)
 - [Coding conventions](#coding-conventions)
@@ -23,9 +23,9 @@ to know to get started, from setting up a development environment to opening a p
 
 ## Code of conduct
 
-This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). By
-participating you agree to uphold it. Please report unacceptable behaviour to the maintainers
-via a [GitHub private security advisory](https://github.com/InfSupStageMG/ObfusCal/security/advisories/new).
+This project follows the [Code of Conduct](CODE_OF_CONDUCT.md). By participating you agree to uphold it. Please report
+unacceptable behaviour as described in `CODE_OF_CONDUCT.md`. Security vulnerabilities must be reported via the
+[security policy](.github/SECURITY.md), not through public issues.
 
 ---
 
@@ -34,22 +34,22 @@ via a [GitHub private security advisory](https://github.com/InfSupStageMG/ObfusC
 ### Reporting bugs
 
 Before filing a bug, search [open issues](https://github.com/InfSupStageMG/ObfusCal/issues)
-to avoid duplicates. Then open a new issue using the **Task (Bug / Chore / Docs / Refactor)**
-template and fill in the reproduction steps, expected behaviour, and actual behaviour.
+to avoid duplicates. Then open a new issue using the **Task (Bug / Chore / Docs / Refactor)** template and fill in the
+reproduction steps, expected behaviour, and actual behaviour.
 
-If you believe the bug has security implications, **do not open a public issue**. Follow the
-[security policy](.github/SECURITY.md) instead.
+If you believe the bug has security implications, **do not open a public issue**. Follow
+the [security policy](.github/SECURITY.md) instead.
 
 ### Suggesting enhancements
 
-Open an issue using the **User Story / Feature** template. Describe the problem the feature
-solves, who benefits, and any design constraints you are aware of.
+Open an issue using the **User Story / Feature** template. Describe the problem the feature solves, who benefits, and
+any design constraints you are aware of.
 
 ### Your first code contribution
 
 Issues labelled [`good first issue`](https://github.com/InfSupStageMG/ObfusCal/labels/good%20first%20issue)
-are a good starting point. Comment on the issue to let others know you are working on it, then
-open a pull request once you have something to show.
+are a good starting point. Comment on the issue to let others know you are working on it, then open a pull request once
+you have something to show.
 
 ---
 
@@ -57,11 +57,11 @@ open a pull request once you have something to show.
 
 ### Prerequisites
 
-| Tool | Minimum version |
-|------|----------------|
-| [.NET SDK](https://dotnet.microsoft.com/download) | 10 |
-| [Docker](https://www.docker.com/products/docker-desktop) or [Podman](https://podman.io/) | any recent |
-| [OpenSSL](https://openssl-library.org/source/) | any recent |
+| Tool                                                                                     | Minimum version |
+|------------------------------------------------------------------------------------------|-----------------|
+| [.NET SDK](https://dotnet.microsoft.com/download)                                        | 10              |
+| [Docker](https://www.docker.com/products/docker-desktop) or [Podman](https://podman.io/) | any recent      |
+| [OpenSSL](https://openssl-library.org/source/)                                           | any recent      |
 
 ### Run the full stack locally
 
@@ -80,8 +80,8 @@ open a pull request once you have something to show.
      -passout pass:your_cert_password
    ```
 
-2. **Create a `.env` file** from `.env.example` and fill in the placeholder values. You will
-   need an Azure AD app registration with a web redirect URI for
+2. **Create a `.env` file** from `.env.example` and fill in the placeholder values. You will need an Azure AD app
+   registration with a web redirect URI for
    `https://localhost:7001/signin-oidc`.
 
 3. **Start the compose stack**:
@@ -128,17 +128,15 @@ ObfusCal.Api           ← entry point, Blazor UI, controllers, DI composition r
 ```
 
 Key rules:
-- Interfaces live in `ObfusCal.Application`; implementations in `ObfusCal.Infrastructure`.
-- `ObfusCal.Infrastructure` must never be referenced from `ObfusCal.Application` or
-  `ObfusCal.Domain`.
-- Composition and wiring happen only in `ObfusCal.Api/Program.cs`,
-  `ObfusCal.Api/ProgramSetup.cs`, and `ObfusCal.Infrastructure/DependencyInjection.cs`.
-- Calendar source plugins live in `ObfusCal.Plugins.*` and are loaded at startup via the plugin
-  catalog.
 
-Full architecture documentation (arc42) is served at
-[https://infsupstagemg.github.io/ObfusCal/](https://infsupstagemg.github.io/ObfusCal/) and
-maintained under `docs/`.
+- Interfaces live in `ObfusCal.Application`; implementations in `ObfusCal.Infrastructure`.
+- `ObfusCal.Infrastructure` must never be referenced from `ObfusCal.Application` or `ObfusCal.Domain`.
+- Composition and wiring happen only in `ObfusCal.Api/Program.cs`, `ObfusCal.Api/ProgramSetup.cs`, and
+  `ObfusCal.Infrastructure/DependencyInjection.cs`.
+- Calendar source plugins live in `ObfusCal.Plugins.*` and are loaded at startup via the plugin catalog.
+
+Full architecture documentation (arc42) is served
+at [https://infsupstagemg.github.io/ObfusCal/](https://infsupstagemg.github.io/ObfusCal/) and maintained under `docs/`.
 
 ---
 
@@ -147,8 +145,7 @@ maintained under `docs/`.
 ### General
 
 - No raw credential or secret reads outside of `ISecretProvider`.
-- Use `ILogRedactor` wherever exception messages or request bodies might contain sensitive
-  calendar data.
+- Use `ILogRedactor` wherever exception messages or request bodies might contain sensitive calendar data.
 - All timestamps are stored and transmitted as UTC; use `DateTimeOffset` throughout.
 - Keep `dotnet build` output warning-free; treat architecture-drift warnings as findings.
 - Do not add `TODO` comments without a linked GitHub issue.
@@ -164,8 +161,8 @@ maintained under `docs/`.
 ### Blazor
 
 - Keep page markup in `*.razor` and page logic in matching `*.razor.cs` partial files.
-- `*.razor.cs` is for component code-behind only. Shared helpers belong in plain `*.cs` files
-  in the appropriate `Components/` subfolder.
+- `*.razor.cs` is for component code-behind only. Shared helpers belong in plain `*.cs` files in the appropriate
+  `Components/` subfolder.
 
 ---
 
@@ -192,8 +189,7 @@ type(scope): short summary
 
 ## Pull request process
 
-1. **Open an issue first** (or comment on an existing one) so the scope is agreed before you
-   invest time coding.
+1. **Open an issue first** (or comment on an existing one) so the scope is agreed before you invest time coding.
 2. Fork the repository and create a feature branch: `git checkout -b 123-short-description`.
 3. Make your changes following the coding conventions above.
 4. Ensure `dotnet build` produces zero errors and zero warnings.
@@ -206,14 +202,12 @@ type(scope): short summary
 
 ## Testing
 
-| Layer | Framework | Notes |
-|-------|-----------|-------|
-| Unit | xUnit | For parsing, transformer, and domain logic |
-| Integration | xUnit + Testcontainers PostgreSQL | For controllers, persistence, and sync flows |
-| Mutation | Stryker.NET | Run before opening a PR for logic-heavy changes |
+| Layer       | Framework                          | Notes                                           |
+|-------------|------------------------------------|-------------------------------------------------|
+| Unit        | MSTest                             | For parsing, transformer, and domain logic      |
+| Integration | MSTest + Testcontainers PostgreSQL | For controllers, persistence, and sync flows    |
+| Mutation    | Stryker.NET                        | Run before opening a PR for logic-heavy changes |
 
 - Add or update tests for every bug fix and behaviour change.
-- Keep tests deterministic: no wall-clock coupling, no random ordering assumptions, no external
-  network calls.
-- Prefer unit tests for obfuscation pipeline logic and integration tests for repository and
-  sync adapter layers.
+- Keep tests deterministic: no wall-clock coupling, no random ordering assumptions, no external network calls.
+- Prefer unit tests for obfuscation pipeline logic and integration tests for repository and sync adapter layers.

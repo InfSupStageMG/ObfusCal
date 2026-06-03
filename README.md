@@ -1,4 +1,8 @@
-﻿# ObfusCal
+# ObfusCal
+
+[![Build](https://github.com/InfSupStageMG/ObfusCal/actions/workflows/docker.yaml/badge.svg?branch=main)](https://github.com/InfSupStageMG/ObfusCal/actions/workflows/docker.yaml)
+[![Docs](https://img.shields.io/badge/docs-MkDocs-blue)](https://infsupstagemg.github.io/ObfusCal/)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE.md)
 
 ObfusCal is an open-source calendar synchronisation tool that lets users stay in sync across multiple domains without
 exposing sensitive information. Events from external domains appear in your calendar as obfuscated busy blocks where
@@ -37,12 +41,26 @@ capped at 1 MB by default to reduce DoS risk.
 
 - [Home](https://infsupstagemg.github.io/ObfusCal/)
 - [ICloud CalDAV setup guide](https://infsupstagemg.github.io/ObfusCal/icloud-caldav-setup/)
+- [Contributing guide](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security policy](.github/SECURITY.md)
+- [Changelog](CHANGELOG.md)
+
+---
+
+## Community & project policies
+
+- Contributions are welcome through issues and pull requests; start with `CONTRIBUTING.md`.
+- Community expectations are documented in `CODE_OF_CONDUCT.md`.
+- Security vulnerabilities should be reported privately through `.github/SECURITY.md`.
+- Review ownership for sensitive or security-relevant areas is documented in `.github/CODEOWNERS`.
 
 ---
 
 ## Project structure
 
 <!-- START_TREE path="." max_depth="2" -->
+
 ```text
 ObfusCal/
 ├── ObfusCal.Api/                      # ASP.NET Core entry point, controllers, DI composition root
@@ -140,6 +158,7 @@ ObfusCal/
 ├── renovate.json
 └── stryker-config.json
 ```
+
 <!-- END_TREE -->
 
 ### Layer dependencies
@@ -580,8 +599,14 @@ completed in this sprint. Preparations for completing the project and open-sourc
 
 ## Contributing
 
-This project is developed as an internship assignment at internship company. Contributions and
-feedback are welcome. Please open an issue before submitting a pull request.
+ObfusCal started as an internship project and is being prepared for long-term open-source maintenance.
+
+If you want to contribute:
+
+1. read `CONTRIBUTING.md`
+2. check the open issues for scoped work items
+3. prefer issues labelled `good first issue` or `help wanted` if you are new to the project
+4. follow the PR checklist in `.github/pull_request_template.md`
 
 ---
 
