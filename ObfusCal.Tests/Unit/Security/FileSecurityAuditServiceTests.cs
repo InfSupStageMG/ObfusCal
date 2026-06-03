@@ -15,17 +15,26 @@ public class FileSecurityAuditServiceTests
     [TestInitialize]
     public void Setup()
     {
+        var tempRoot = Path.GetTempPath();
+        const string appSegment = "ObfusCal";
+        const string testSegment = "audit-tests";
+        if (Path.IsPathRooted(appSegment) || Path.IsPathRooted(testSegment))
+            throw new InvalidOperationException("Directory segments must be relative path segments.");
+        var baseDir = Path.Combine(tempRoot, appSegment);
+        baseDir = Path.Combine(baseDir, testSegment);
 
-        var baseDir = Path.Combine(Path.GetTempPath(), "ObfusCal", "audit-tests");
         var leaf = Guid.NewGuid()
             .ToString("N")
             .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (Path.IsPathRooted(leaf))
+            throw new InvalidOperationException("Leaf directory name must be a relative path segment.");
         var dir = Path.Combine(baseDir, leaf);
         Directory.CreateDirectory(dir);
+
         const string auditFileName = "security-audit.ndjson";
         if (Path.IsPathRooted(auditFileName))
             throw new InvalidOperationException("Audit file name must be a relative path segment.");
-        _auditFilePath = Path.Combine(dir, auditFileName);
+        _auditFilePath = Path.Join(dir, Path.GetFileName(auditFileName));
     }
 
     [TestCleanup]
