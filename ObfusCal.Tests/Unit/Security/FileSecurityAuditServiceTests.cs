@@ -58,7 +58,8 @@ public class FileSecurityAuditServiceTests
 
         await service.WriteAsync(BuildEvent("AUTH_SUCCESS"));
 
-        var entry = ParseEntry(await ReadNonEmptyLinesAsync().ContinueWith(t => t.Result[0]));
+        var lines = await ReadNonEmptyLinesAsync();
+        var entry = ParseEntry(lines[0]);
         Assert.IsNull(entry.PreviousEntryHash, "The very first entry must have a null previousEntryHash.");
     }
 
@@ -141,8 +142,6 @@ public class FileSecurityAuditServiceTests
     public async Task WriteAsync_RedactsSensitivePatterns_InMetadataValues()
     {
         using var service = CreateService();
-        // DefaultLogRedactor rule 1: "******" => "******"
-        // Use a value that contains that full pattern so the redactor fires on the value alone.
         var tokenString = "Bearer " + "test-token-for-redaction-demo";
         var metadata = new Dictionary<string, string?>
         {
