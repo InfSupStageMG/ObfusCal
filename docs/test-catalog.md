@@ -1,11 +1,11 @@
 # Test Catalog
 
-_Auto-generated from CI run. 746 tests across 81 classes._
+_Auto-generated from CI run. 800 tests across 85 classes._
 
-## Integration (198/198)
+## Integration (212/212)
 
 <details>
-<summary><b>AdminPeerConnectionsControllerTests</b> - 7/7</summary>
+<summary><b>AdminPeerConnectionsControllerTests</b> - 10/10</summary>
 
 <table>
   <thead>
@@ -14,10 +14,13 @@ _Auto-generated from CI run. 746 tests across 81 classes._
   <tbody>
     <tr><td><code>AdminEndpoints_EnforceRoleAndAuthentication</code></td><td>✅</td></tr>
     <tr><td><code>ApproveFlow_ReturnsApiKeyOnce_AndStoresOnlySha256Hash</code></td><td>✅</td></tr>
+    <tr><td><code>ApproveFlow_WithLegacySha256Hash_PeerStillAuthenticates</code></td><td>✅</td></tr>
     <tr><td><code>Approve_ReturnsBadRequest_WhenPeerBaseUrlUsesHttpScheme</code></td><td>✅</td></tr>
     <tr><td><code>Approve_ReturnsBadRequest_WhenPeerBaseUrlUsesPrivateIpHost</code></td><td>✅</td></tr>
+    <tr><td><code>Approve_WithSsrfValidationDisabled_AcceptsPeerHttpBaseUrl</code></td><td>✅</td></tr>
     <tr><td><code>RevokeFlow_SetsRevokedAt_AndPeerAuthStopsImmediately</code></td><td>✅</td></tr>
     <tr><td><code>RotateFlow_InvalidatesOldApiKeyAndActivatesNewApiKey</code></td><td>✅</td></tr>
+    <tr><td><code>RotateFlow_WritesKeyRotationAuditEvent</code></td><td>✅</td></tr>
     <tr><td><code>SuspendFlow_SetsStatusToSuspended_AndAuthStopsImmediately</code></td><td>✅</td></tr>
   </tbody>
 </table>
@@ -48,7 +51,7 @@ _Auto-generated from CI run. 746 tests across 81 classes._
 </details>
 
 <details>
-<summary><b>CalendarOwnersControllerIcalFeedsTests</b> - 12/12</summary>
+<summary><b>CalendarOwnersControllerIcalFeedsTests</b> - 14/14</summary>
 
 <table>
   <thead>
@@ -64,6 +67,8 @@ _Auto-generated from CI run. 746 tests across 81 classes._
     <tr><td><code>AddIcalFeed_ReturnsUnauthorized_WithoutToken</code></td><td>✅</td></tr>
     <tr><td><code>AddIcalFeed_ReturnsValidationProblemDetails_WhenFeedUrlIsMissing</code></td><td>✅</td></tr>
     <tr><td><code>AddIcalFeed_SwitchesCalendarSourcePluginToIcal_WhenOwnerUsesPlaceholderProvider</code></td><td>✅</td></tr>
+    <tr><td><code>AddIcalFeed_WithSsrfValidationDisabled_AcceptsHttpUrl</code></td><td>✅</td></tr>
+    <tr><td><code>AddIcalFeed_WithSsrfValidationDisabled_AcceptsPrivateIpUrl</code></td><td>✅</td></tr>
     <tr><td><code>DeleteIcalFeed_ReturnsNoContent_AndRemovesFeed</code></td><td>✅</td></tr>
     <tr><td><code>DeleteIcalFeed_ReturnsNotFound_WhenFeedDoesNotExist</code></td><td>✅</td></tr>
     <tr><td><code>ListIcalFeeds_ReturnsOk_WithConfiguredFeeds</code></td><td>✅</td></tr>
@@ -182,7 +187,7 @@ _Auto-generated from CI run. 746 tests across 81 classes._
 </details>
 
 <details>
-<summary><b>ShadowSlotsControllerTests</b> - 19/19</summary>
+<summary><b>ShadowSlotsControllerTests</b> - 25/25</summary>
 
 <table>
   <thead>
@@ -194,9 +199,14 @@ _Auto-generated from CI run. 746 tests across 81 classes._
     <tr><td><code>PullBusySlotsForPeer_WithValidApiKeyButNoMapping_ReturnsForbidden</code></td><td>✅</td></tr>
     <tr><td><code>PullBusySlotsForPeer_WithoutApiKey_ReturnsUnauthorized</code></td><td>✅</td></tr>
     <tr><td><code>PullBusySlots_WhenPeerExceedsSeparateRateLimit_ReturnsTooManyRequests</code></td><td>✅</td></tr>
+    <tr><td><code>PushShadowSlots_DifferentEndpointHasSeparateRateLimit_PullDoesNotBlockPush</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_ReturnsBadRequest_WhenSlotBatchExceedsMaximum</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_ReturnsPayloadTooLarge_WhenRequestBodyExceedsConfiguredLimit</code></td><td>✅</td></tr>
+    <tr><td><code>PushShadowSlots_ReturnsRetryAfterHeaderWithCorrectValue</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WhenPeerExceedsRateLimit_ReturnsTooManyRequestsAndKeepsOtherPeersUnthrottled</code></td><td>✅</td></tr>
+    <tr><td><code>PushShadowSlots_WhenRateLimitIsEffectivelyDisabled_AcceptsHighVolume</code></td><td>✅</td></tr>
+    <tr><td><code>PushShadowSlots_WhenTimestampToleranceIsMaximum_AcceptsStaleTimestamp</code></td><td>✅</td></tr>
+    <tr><td><code>PushShadowSlots_WhenUnauthenticatedRequestExceedsBackstopRateLimit_ReturnsTooManyRequests</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WithExpiredReplayTimestamp_ReturnsUnauthorized</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WithInvalidApiKey_ReturnsUnauthorizedAndStoresNothing</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WithInvalidApiKey_WritesAuthFailureAuditEventWithoutCredentialValue</code></td><td>✅</td></tr>
@@ -207,6 +217,7 @@ _Auto-generated from CI run. 746 tests across 81 classes._
     <tr><td><code>PushShadowSlots_WithValidApiKeyButNoOwnerMappings_ReturnsForbidden</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WithValidApiKeyButNoOwnerMappings_WritesPeerSlotRejectedAuditEvent</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WithValidApiKey_StoresSlotsAndReturnsCreated</code></td><td>✅</td></tr>
+    <tr><td><code>PushShadowSlots_WithValidApiKey_WritesSuccessAuditEvent</code></td><td>✅</td></tr>
     <tr><td><code>PushShadowSlots_WithoutApiKeyHeader_ReturnsUnauthorized</code></td><td>✅</td></tr>
   </tbody>
 </table>
@@ -355,6 +366,22 @@ _Auto-generated from CI run. 746 tests across 81 classes._
 </details>
 
 <details>
+<summary><b>SecurityHeadersIntegrationTests</b> - 3/3</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>SecurityHeaders_ArePresent_OnHealthEndpoint</code></td><td>✅</td></tr>
+    <tr><td><code>SecurityHeaders_ArePresent_OnNotFoundResponse</code></td><td>✅</td></tr>
+    <tr><td><code>SecurityHeaders_ArePresent_OnUnauthorizedApiResponse</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
 <summary><b>EfCoreShadowSlotStoreTests</b> - 7/7</summary>
 
 <table>
@@ -462,7 +489,7 @@ _Auto-generated from CI run. 746 tests across 81 classes._
 
 </details>
 
-## Unit (548/548)
+## Unit (588/588)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 2/2</summary>
@@ -1437,7 +1464,34 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
 </details>
 
 <details>
-<summary><b>FileSecurityAuditServiceTests</b> - 11/11</summary>
+<summary><b>DefaultLogRedactorTests</b> - 14/14</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>Redact_WithAccessToken_RedactsValue</code></td><td>✅</td></tr>
+    <tr><td><code>Redact_WithApiKeyParameter_RedactsValue</code></td><td>✅</td></tr>
+    <tr><td><code>Redact_WithBearerToken_RedactsTokenValue</code></td><td>✅</td></tr>
+    <tr><td><code>Redact_WithClientSecret_RedactsValue</code></td><td>✅</td></tr>
+    <tr><td><code>Redact_WithCodeParameterInQueryString_RedactsCodeValue</code></td><td>✅</td></tr>
+    <tr><td><code>Redact_WithConnectionString_RedactsPasswordPart</code></td><td>✅</td></tr>
+    <tr><td><code>Redact_WithEmptyString_ReturnsEmpty</code></td><td>✅</td></tr>
+    <tr><td><code>Redact_WithMultipleCredentialTypes_RedactsAll</code></td><td>✅</td></tr>
+    <tr><td><code>Redact_WithNoSensitiveData_ReturnsUnchanged</code></td><td>✅</td></tr>
+    <tr><td><code>Redact_WithNullString_ReturnsNull</code></td><td>✅</td></tr>
+    <tr><td><code>Redact_WithOAuthAuthorizationCode_RedactsCodeValue</code></td><td>✅</td></tr>
+    <tr><td><code>Redact_WithPassword_RedactsValue</code></td><td>✅</td></tr>
+    <tr><td><code>Redact_WithRefreshToken_RedactsValue</code></td><td>✅</td></tr>
+    <tr><td><code>Redact_WithWhitespaceString_ReturnsWhitespace</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>FileSecurityAuditServiceTests</b> - 21/21</summary>
 
 <table>
   <thead>
@@ -1449,19 +1503,29 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>WriteAsync_ConcurrentWrites_ProduceCorrectLineCount</code></td><td>✅</td></tr>
     <tr><td><code>WriteAsync_CreatesFile_WhenFileDoesNotExist</code></td><td>✅</td></tr>
     <tr><td><code>WriteAsync_EachEntry_HasNonEmptyEntryHash</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_EmitsCorrectEventCode</code></td><td>✅</td></tr>
     <tr><td><code>WriteAsync_FirstEntry_HasNullPreviousEntryHash</code></td><td>✅</td></tr>
     <tr><td><code>WriteAsync_HashChain_IsConsistentAcrossAllEntries</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_MultipleEvents_BuildsTamperEvidenceChain</code></td><td>✅</td></tr>
     <tr><td><code>WriteAsync_RedactsSensitivePatterns_InMetadataValues</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_SanitizesCredentialPatterns_ApiKeyInKeyValue</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_SanitizesCredentialPatterns_BearerToken</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_SanitizesCredentialPatterns_ConnectionString</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_SanitizesMultipleFields</code></td><td>✅</td></tr>
     <tr><td><code>WriteAsync_SanitizesNewlines_InFieldValues</code></td><td>✅</td></tr>
     <tr><td><code>WriteAsync_SecondEntry_PreviousHashMatchesFirstEntryHash</code></td><td>✅</td></tr>
     <tr><td><code>WriteAsync_TruncatesFieldValues_LongerThan256Characters</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_TruncatesLongValues</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_WithDirectoryFilePath_WritesToDefaultNdjsonFile</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_WithExplicitJsonFilePath_WritesToConfiguredFile</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_WithoutRedactor_ExposesSensitiveValuesInAuditLog</code></td><td>✅</td></tr>
   </tbody>
 </table>
 
 </details>
 
 <details>
-<summary><b>PeerApiKeySecurityTests</b> - 3/3</summary>
+<summary><b>PeerApiKeySecurityTests</b> - 5/5</summary>
 
 <table>
   <thead>
@@ -1469,6 +1533,8 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
   </thead>
   <tbody>
     <tr><td><code>Hash_ProducesPbkdf2FormattedHash_AndVerifyPasses</code></td><td>✅</td></tr>
+    <tr><td><code>LegacySha256Hash_IsDeterministic_RevealingRainbowTableVulnerability</code></td><td>✅</td></tr>
+    <tr><td><code>Pbkdf2Hash_IsNonDeterministic_EvenForSameKey</code></td><td>✅</td></tr>
     <tr><td><code>Verify_WithDifferentKey_Fails</code></td><td>✅</td></tr>
     <tr><td><code>Verify_WithLegacySha256Hash_RemainsSupported</code></td><td>✅</td></tr>
   </tbody>
@@ -1488,6 +1554,46 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>ValidateRemoteCertificate_AcceptsPinnedCertificate_EvenWhenChainErrorsExist</code></td><td>✅</td></tr>
     <tr><td><code>ValidateRemoteCertificate_AcceptsSelfSignedCertificate_WhenExplicitlyAllowed</code></td><td>✅</td></tr>
     <tr><td><code>ValidateRemoteCertificate_RejectsMismatchedPinnedCertificate</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>SecretStartupValidatorTests</b> - 7/7</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>ValidateOrThrow_ErrorMessageListsAllMissingKeys</code></td><td>✅</td></tr>
+    <tr><td><code>ValidateOrThrow_WhenAllRequiredSecretsArePresent_DoesNotThrow</code></td><td>✅</td></tr>
+    <tr><td><code>ValidateOrThrow_WhenNoRequiredSecretsAreConfigured_DoesNotThrow</code></td><td>✅</td></tr>
+    <tr><td><code>ValidateOrThrow_WhenRequiredSecretIsMissing_ThrowsInvalidOperationException</code></td><td>✅</td></tr>
+    <tr><td><code>ValidateOrThrow_WhenRequiredSecretIsNull_ThrowsInvalidOperationException</code></td><td>✅</td></tr>
+    <tr><td><code>ValidateOrThrow_WhenSecretIsWhitespaceOnly_ThrowsInvalidOperationException</code></td><td>✅</td></tr>
+    <tr><td><code>WithoutValidation_AppWouldStartWithMissingEncryptionKey</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>SecurityHeadersMiddlewareTests</b> - 7/7</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>InvokeAsync_SetsReferrerPolicyHeader</code></td><td>✅</td></tr>
+    <tr><td><code>InvokeAsync_SetsXContentTypeOptionsHeader</code></td><td>✅</td></tr>
+    <tr><td><code>InvokeAsync_SetsXFrameOptionsHeader</code></td><td>✅</td></tr>
+    <tr><td><code>InvokeAsync_StillInvokesNextMiddleware</code></td><td>✅</td></tr>
+    <tr><td><code>WithoutSecurityHeadersMiddleware_ReferrerPolicyIsAbsent</code></td><td>✅</td></tr>
+    <tr><td><code>WithoutSecurityHeadersMiddleware_XContentTypeOptionsIsAbsent</code></td><td>✅</td></tr>
+    <tr><td><code>WithoutSecurityHeadersMiddleware_XFrameOptionsIsAbsent</code></td><td>✅</td></tr>
   </tbody>
 </table>
 

@@ -404,6 +404,9 @@ startup.
   connection-string passwords) before they are logged
 - Security audit trail: `ISecurityAuditService` writes append-only NDJSON audit events to a dedicated sink
   (`SecurityAudit:FilePath`) with hash chaining (`previousEntryHash` -> `entryHash`) for tamper-evidence
+  - When `SecurityAudit:FilePath` is a full filename, ObfusCal writes to that exact file.
+  - When it ends with a directory separator (for example `/tmp/SecurityAudit/` in the container), ObfusCal creates
+    `security-audit.ndjson` inside that directory.
 
 Environment variable names use the standard double-underscore mapping (for example `GRAPHCONSENT__CLIENTSECRET` and
 `CONNECTIONSTRINGS__DEFAULTCONNECTION`).

@@ -82,6 +82,8 @@ Before starting the containers:
 6. Optionally set `SecurityAudit__FilePath` to a persistent path so security audit records survive container restarts.
    The audit sink resumes its hash chain from the last stored `entryHash` in that file; rotating or truncating the file
    starts a new independent chain unless the old file is preserved and verified separately.
+   You can provide either a full filename or a writable directory path ending in `/` or `\`. Directory paths are
+   resolved to `security-audit.ndjson` inside that directory.
 
 Bring up a full instance (reverse proxy + API + PostgreSQL):
 

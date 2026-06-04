@@ -60,7 +60,7 @@
                 }
                 else
                 {
-                    <FluentDataGrid Items="_adminPeers.AsQueryable()" TGridItem="PeerConnectionSummary" Class="app-data-grid">
+                    <FluentDataGrid Items="_adminPeers.AsQueryable()" TGridItem="PeerConnectionSummary" Class="app-data-grid" RowSize="DataGridRowSize.Medium">
                         <TemplateColumn Title="Instance ID" Sortable="true">
                             <span class="text-truncate">@context.InstanceId</span>
                         </TemplateColumn>
@@ -240,15 +240,37 @@
         if (string.IsNullOrWhiteSpace(_newInstanceId) || string.IsNullOrWhiteSpace(_newBaseAddress) || string.IsNullOrWhiteSpace(_newApiKey))
             return;
 
-        await PeerConnectionService.CreateAsync(_newInstanceId, _newBaseAddress, _newApiKey);
+        var instanceId = _newInstanceId.Trim();
+        try
+        {
+            await PeerConnectionService.CreateAsync(_newInstanceId, _newBaseAddress, _newApiKey);
 
-        _message = $"Peer '{_newInstanceId.Trim()}' added.";
-        _messageIntent = MessageIntent.Success;
+            _message = $"Peer '{instanceId}' added.";
+            _messageIntent = MessageIntent.Success;
+            ResetAddPeerForm();
+            await LoadAdminDataAsync();
+        }
+        catch (ArgumentException ex)
+        {
+            _message = ex.Message;
+            _messageIntent = MessageIntent.Error;
+            ResetAddPeerForm();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _message = string.IsNullOrWhiteSpace(ex.Message)
+                ? "Failed to add peer connection. Please verify the values and try again."
+                : ex.Message;
+            _messageIntent = MessageIntent.Error;
+            ResetAddPeerForm();
+        }
+    }
+
+    private void ResetAddPeerForm()
+    {
         _newInstanceId = null;
         _newBaseAddress = null;
         _newApiKey = null;
-
-        await LoadAdminDataAsync();
     }
 
     private async Task DeletePeerAsync(Guid peerId)
