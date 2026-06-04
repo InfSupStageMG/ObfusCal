@@ -256,9 +256,11 @@
             _messageIntent = MessageIntent.Error;
             ResetAddPeerForm();
         }
-        catch (Exception)
+        catch (InvalidOperationException ex)
         {
-            _message = "Failed to add peer connection. Please verify the values and try again.";
+            _message = string.IsNullOrWhiteSpace(ex.Message)
+                ? "Failed to add peer connection. Please verify the values and try again."
+                : ex.Message;
             _messageIntent = MessageIntent.Error;
             ResetAddPeerForm();
         }
