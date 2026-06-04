@@ -196,9 +196,11 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
             .GroupBy(x => x.InstanceId)
             .ToDictionary(
                 g => g.Key,
+                // Prefer the human-readable organisation name from the request/approve flow;
+                // fall back to the instance ID for sysadmin-created connections where no name was supplied.
                 g => !string.IsNullOrWhiteSpace(g.First().ClientOrganisationName)
                     ? g.First().ClientOrganisationName
-                    : "Unknown Peer");
+                    : g.Key);
 
         var result = entities.Select(e => new CoreBusySlot(
             e.SourceEventId,

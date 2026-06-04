@@ -230,7 +230,7 @@ internal sealed class PeerConnectionService(
         return true;
     }
 
-    public async Task<LinkOwnerToPeerResult> LinkOwnerToPeerAsync(Guid calendarOwnerId, Guid peerConnectionId, CancellationToken ct = default)
+    public async Task<LinkOwnerToPeerResult> LinkOwnerToPeerAsync(Guid calendarOwnerId, Guid peerConnectionId, Guid? calendarOwnerRef = null, CancellationToken ct = default)
     {
         var ownerExists = await dbContext.CalendarOwners.AnyAsync(o => o.Id == calendarOwnerId, ct);
         if (!ownerExists) return new LinkOwnerToPeerResult(LinkOwnerToPeerOutcome.OwnerNotFound);
@@ -247,7 +247,7 @@ internal sealed class PeerConnectionService(
             Id = Guid.NewGuid(),
             CalendarOwnerId = calendarOwnerId,
             PeerConnectionId = peerConnectionId,
-            CalendarOwnerRef = Guid.NewGuid()
+            CalendarOwnerRef = calendarOwnerRef ?? Guid.NewGuid()
         };
 
         dbContext.CalendarOwnerPeerMappings.Add(mapping);
