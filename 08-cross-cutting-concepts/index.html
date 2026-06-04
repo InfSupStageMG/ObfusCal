@@ -1872,7 +1872,7 @@ secret at startup and refuses to start if it is missing:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Generate a key (Linux / macOS / Git Bash)</span>
 openssl<span class="w"> </span>rand<span class="w"> </span>-base64<span class="w"> </span><span class="m">32</span>
 
-<span class="c1"># Generate a key (PowerShell)</span>
+<span class="c1"># Generate a key (PowerShell 7)</span>
 <span class="o">[</span>Convert<span class="o">]</span>::ToBase64String<span class="o">([</span>System.Security.Cryptography.RandomNumberGenerator<span class="o">]</span>::GetBytes<span class="o">(</span><span class="m">32</span><span class="o">))</span>
 </code></pre></div>
 <p>Set the output in <code>.env</code>:</p>

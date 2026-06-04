@@ -1878,7 +1878,7 @@ certificate for mTLS groundwork.</p>
 <li><strong>Generate a column encryption key</strong> and set it as <code>COLUMNENCRYPTION__KEY</code> in <code>.env</code>. The application refuses to
    start without it. Generate it once and back it up:</li>
 </ol>
-<div class="highlight"><pre><span></span><code><span class="c"># PowerShell</span>
+<div class="highlight"><pre><span></span><code><span class="c"># PowerShell 7</span>
 <span class="no">[Convert]</span><span class="p">::</span><span class="n">ToBase64String</span><span class="p">(</span><span class="no">[System.Security.Cryptography.RandomNumberGenerator]</span><span class="p">::</span><span class="n">GetBytes</span><span class="p">(</span><span class="n">32</span><span class="p">))</span>
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><span class="c1"># bash / openssl</span>
