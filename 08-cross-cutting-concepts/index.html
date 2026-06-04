@@ -1827,7 +1827,9 @@ within <code>Sync:PeerRequestTimestampToleranceSeconds</code> (default 300 secon
 <p><strong>Security audit taxonomy and sink:</strong> Security-relevant code paths emit dedicated audit events with stable event codes
 (<code>AUTH_SUCCESS</code>, <code>AUTH_FAILURE</code>, <code>PEER_SLOT_PUSH</code>, <code>PEER_SLOT_REJECTED</code>, <code>CONFIG_CHANGE</code>, <code>KEY_ROTATION</code>,
 <code>KEY_REVOCATION</code>). These events are written to a dedicated append-only NDJSON sink configured by
-<code>SecurityAudit:FilePath</code> and include UTC timestamp, actor identity, target resource, outcome, and correlation ID.</p>
+<code>SecurityAudit:FilePath</code> and include UTC timestamp, actor identity, target resource, outcome, and correlation ID.
+If the configured value ends in a directory separator, the runtime writes to <code>security-audit.ndjson</code> inside that
+directory; otherwise it writes to the configured filename as-is.</p>
 <p>Before an entry is persisted, the sink redacts and normalizes string fields, sorts metadata keys deterministically, and
 builds a hash payload from the sanitized event data plus the prior entry's hash. The resulting SHA-256 digest is stored
 as <code>entryHash</code>, while <code>previousEntryHash</code> stores the predecessor's <code>entryHash</code>. The first entry in a file therefore has

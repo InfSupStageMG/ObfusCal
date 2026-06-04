@@ -1903,7 +1903,9 @@ unreadable. Back it up alongside your DataProtection keys.</p>
    administrators.</li>
 <li>Optionally set <code>SecurityAudit__FilePath</code> to a persistent path so security audit records survive container restarts.
    The audit sink resumes its hash chain from the last stored <code>entryHash</code> in that file; rotating or truncating the file
-   starts a new independent chain unless the old file is preserved and verified separately.</li>
+   starts a new independent chain unless the old file is preserved and verified separately.
+   You can provide either a full filename or a writable directory path ending in <code>/</code> or <code>\</code>. Directory paths are
+   resolved to <code>security-audit.ndjson</code> inside that directory.</li>
 </ol>
 <p>Bring up a full instance (reverse proxy + API + PostgreSQL):</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Docker</span>
