@@ -99,6 +99,11 @@
                                           EmptyMessage="No peers found"
                                           @bind-SelectedOption="_selectedPeer" />
                     </div>
+                    <FluentTextField @bind-Value="_linkCalendarOwnerRef" Immediate="true"
+                                     Placeholder="Peer ref (leave blank to generate)"
+                                     Class="app-form-item app-form-control"
+                                     Style="width: 100%; max-width: 320px; min-width: 0;"
+                                     title="Optional: paste the CalendarOwnerRef shown on the other instance after it linked to this peer. Both instances must share the same ref for sync to work." />
                     <FluentButton Appearance="Appearance.Accent" OnClick="LinkOwnerToPeerAsync"
                                   Disabled="@(_selectedOwner is null || _selectedPeer is null)" Class="peer-link-button app-form-button">
                         Link
@@ -172,6 +177,7 @@
 
     private OwnerOption? _selectedOwner;
     private PeerOption? _selectedPeer;
+    private string? _linkCalendarOwnerRef;
     private string? _linkMessage;
     private MessageIntent _linkMessageIntent = MessageIntent.Info;
 
@@ -279,18 +285,33 @@
         _linkMessage = null;
         if (_selectedOwner is null || _selectedPeer is null) return;
 
-        var result = await PeerConnectionService.LinkOwnerToPeerAsync(_selectedOwner.Id, _selectedPeer.Id);
+        Guid? parsedRef = null;
+        if (!string.IsNullOrWhiteSpace(_linkCalendarOwnerRef))
+        {
+            if (!Guid.TryParse(_linkCalendarOwnerRef.Trim(), out var refGuid))
+            {
+                _linkMessage = "Peer ref must be a valid GUID (e.g. 3fa85f64-5717-4562-b3fc-2c963f66afa6).";
+                _linkMessageIntent = MessageIntent.Error;
+                return;
+            }
+            parsedRef = refGuid;
+        }
+
+        var result = await PeerConnectionService.LinkOwnerToPeerAsync(_selectedOwner.Id, _selectedPeer.Id, parsedRef);
         switch (result.Outcome)
         {
             case LinkOwnerToPeerOutcome.Linked:
                 _linkMessage = $"Linked '{_selectedOwner.Name}' to '{_selectedPeer.InstanceId}' (ref: {result.CalendarOwnerRef}).";
                 _linkMessageIntent = MessageIntent.Success;
+                _linkCalendarOwnerRef = null;
                 await LoadAdminDataAsync();
                 break;
             case LinkOwnerToPeerOutcome.AlreadyLinked:
                 _linkMessage = "This owner is already linked to this peer.";
                 _linkMessageIntent = MessageIntent.Warning;
                 break;
+            case LinkOwnerToPeerOutcome.OwnerNotFound:
+            case LinkOwnerToPeerOutcome.PeerNotFound:
             default:
                 _linkMessage = "Failed to link.";
                 _linkMessageIntent = MessageIntent.Error;

@@ -127,7 +127,7 @@ secret at startup and refuses to start if it is missing:
 # Generate a key (Linux / macOS / Git Bash)
 openssl rand -base64 32
 
-# Generate a key (PowerShell)
+# Generate a key (PowerShell 7)
 [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
 ```
 

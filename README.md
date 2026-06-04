@@ -452,7 +452,7 @@ file (or secret store). Never reuse the same key across instances and never rota
 data first.
 
 ```powershell
-# PowerShell
+# PowerShell 7
 [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
 ```
 

@@ -57,7 +57,7 @@ Before starting the containers:
    start without it. Generate it once and back it up:
 
    ```powershell
-   # PowerShell
+   # PowerShell 7
    [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
    ```
 
