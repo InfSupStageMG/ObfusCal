@@ -51,16 +51,18 @@ public sealed class IcalFeedCalendarSource(
         if (calendarOwnerId is null)
             return await fallbackSource.GetEventsAsync(from, to, ct: ct);
 
+        var ownerId = calendarOwnerId.Value;
+
         var ownerExists = await dbContext.CalendarOwners
             .AsNoTracking()
-            .AnyAsync(x => x.Id == calendarOwnerId.Value, ct);
+            .AnyAsync(x => x.Id == ownerId, ct);
 
         if (!ownerExists)
             return [];
 
         var feeds = await dbContext.CalendarOwnerICalFeeds
             .AsNoTracking()
-            .Where(f => f.CalendarOwnerId == calendarOwnerId.Value)
+            .Where(f => f.CalendarOwnerId == ownerId)
             .ToListAsync(ct);
 
         if (feeds.Count == 0)
@@ -70,7 +72,7 @@ public sealed class IcalFeedCalendarSource(
 
         foreach (var feed in feeds)
         {
-            var feedEvents = await FetchFeedEventsAsync(feed.FeedUrl, calendarOwnerId.Value, ct);
+            var feedEvents = await FetchFeedEventsAsync(feed.FeedUrl, ownerId, ct);
             allEvents.AddRange(feedEvents);
         }
 
@@ -175,11 +177,34 @@ public sealed class IcalFeedCalendarSource(
             var content = await response.Content.ReadAsStringAsync(ct);
             return IcsCalendarEventParser.ParseEvents(content);
         }
-        catch (OperationCanceledException)
+        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
         {
-            throw;
+            logger.LogWarning(
+                ex,
+                "iCal feed fetch or parse failed for calendar owner {CalendarOwnerId} at {FeedUrl}.",
+                calendarOwnerId,
+                feedUrl);
+            return [];
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "iCal feed fetch or parse failed for calendar owner {CalendarOwnerId} at {FeedUrl}.",
+                calendarOwnerId,
+                feedUrl);
+            return [];
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "iCal feed fetch or parse failed for calendar owner {CalendarOwnerId} at {FeedUrl}.",
+                calendarOwnerId,
+                feedUrl);
+            return [];
+        }
+        catch (FormatException ex)
         {
             logger.LogWarning(
                 ex,
@@ -199,7 +224,7 @@ public sealed class IcalFeedCalendarSource(
         {
             return JsonSerializer.Deserialize<IcalFeedConfiguration>(configurationJson)?.FeedUrl;
         }
-        catch
+        catch (JsonException)
         {
             return null;
         }

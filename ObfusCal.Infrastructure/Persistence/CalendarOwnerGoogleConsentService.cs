@@ -321,7 +321,7 @@ internal sealed class CalendarOwnerGoogleConsentService(
         {
             return JsonSerializer.Deserialize<GoogleCalendarSourceCore.GoogleSourceSecretData>(secretDataJson);
         }
-        catch
+        catch (JsonException)
         {
             return null;
         }

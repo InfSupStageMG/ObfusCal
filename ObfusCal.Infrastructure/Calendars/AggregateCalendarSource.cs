@@ -165,15 +165,9 @@ internal sealed class AggregateCalendarSource(
         {
             try
             {
-                IReadOnlyList<CalendarEvent> instanceEvents;
-                if (sourceInstance.Source is ICalendarSourceInstanceHandler instanceHandler)
-                {
-                    instanceEvents = await instanceHandler.GetEventsAsync(sourceInstance.Instance, from, to, ct);
-                }
-                else
-                {
-                    instanceEvents = await sourceInstance.Source.GetEventsAsync(from, to, ownerId, ct);
-                }
+                var instanceEvents = sourceInstance.Source is ICalendarSourceInstanceHandler instanceHandler
+                    ? await instanceHandler.GetEventsAsync(sourceInstance.Instance, from, to, ct)
+                    : await sourceInstance.Source.GetEventsAsync(from, to, ownerId, ct);
 
                 eventsByInstanceId[sourceInstance.Instance.Id] = instanceEvents
                     .Select(calendarEvent => calendarEvent with

@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
+using System.Xml;
 using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -136,11 +137,28 @@ public sealed partial class ICloudCalendarSourceCore
             var responseBody = await response.Content.ReadAsStringAsync(ct);
             return ParseManagedCalDavEvents(responseBody);
         }
-        catch (OperationCanceledException)
+        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
         {
-            throw;
+            logger.LogWarning(ex,
+                "Failed to fetch CalDAV managed events for calendar owner {CalendarOwnerId}.",
+                calendarOwnerId);
+            return [];
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex,
+                "Failed to fetch CalDAV managed events for calendar owner {CalendarOwnerId}.",
+                calendarOwnerId);
+            return [];
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex,
+                "Failed to fetch CalDAV managed events for calendar owner {CalendarOwnerId}.",
+                calendarOwnerId);
+            return [];
+        }
+        catch (XmlException ex)
         {
             logger.LogWarning(ex,
                 "Failed to fetch CalDAV managed events for calendar owner {CalendarOwnerId}.",
@@ -208,11 +226,21 @@ public sealed partial class ICloudCalendarSourceCore
                 calendarOwnerId,
                 (int)response.StatusCode);
         }
-        catch (OperationCanceledException)
+        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
         {
-            throw;
+            logger.LogWarning(ex,
+                "Exception while writing placeholder event for slot {SlotId} for calendar owner {CalendarOwnerId}.",
+                slot.SourceEventId,
+                calendarOwnerId);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex,
+                "Exception while writing placeholder event for slot {SlotId} for calendar owner {CalendarOwnerId}.",
+                slot.SourceEventId,
+                calendarOwnerId);
+        }
+        catch (InvalidOperationException ex)
         {
             logger.LogWarning(ex,
                 "Exception while writing placeholder event for slot {SlotId} for calendar owner {CalendarOwnerId}.",
@@ -275,11 +303,21 @@ public sealed partial class ICloudCalendarSourceCore
                 calendarOwnerId,
                 (int)response.StatusCode);
         }
-        catch (OperationCanceledException)
+        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
         {
-            throw;
+            logger.LogWarning(ex,
+                "Exception while deleting managed CalDAV event at {Href} for calendar owner {CalendarOwnerId}.",
+                href,
+                calendarOwnerId);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex,
+                "Exception while deleting managed CalDAV event at {Href} for calendar owner {CalendarOwnerId}.",
+                href,
+                calendarOwnerId);
+        }
+        catch (InvalidOperationException ex)
         {
             logger.LogWarning(ex,
                 "Exception while deleting managed CalDAV event at {Href} for calendar owner {CalendarOwnerId}.",
@@ -338,7 +376,11 @@ public sealed partial class ICloudCalendarSourceCore
 
             return managedEvents;
         }
-        catch
+        catch (XmlException)
+        {
+            return [];
+        }
+        catch (InvalidOperationException)
         {
             return [];
         }
@@ -395,7 +437,7 @@ public sealed partial class ICloudCalendarSourceCore
         return isManaged ? new ManagedCalDavEvent(href, slotId, summary, start, end) : null;
     }
 
-    private static bool TryParseCalDavUtcDateTime(string value, out DateTimeOffset result)
+    private static void TryParseCalDavUtcDateTime(string value, out DateTimeOffset result)
     {
         if (DateTimeOffset.TryParseExact(
                 value,
@@ -404,11 +446,10 @@ public sealed partial class ICloudCalendarSourceCore
                 DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
                 out result))
         {
-            return true;
+            return;
         }
 
         result = default;
-        return false;
     }
 
     private static List<string> UnfoldCalDavLines(string content)
@@ -417,9 +458,8 @@ public sealed partial class ICloudCalendarSourceCore
         var lines = normalized.Split('\n');
         var unfolded = new List<string>();
 
-        foreach (var rawLine in lines)
+        foreach (var line in lines.Select(static rawLine => rawLine.TrimEnd()))
         {
-            var line = rawLine.TrimEnd();
             if (string.IsNullOrEmpty(line))
                 continue;
 

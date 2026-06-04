@@ -95,7 +95,7 @@ public class GetBusySlotsQueryHandlerTests
     {
         var events = Enumerable.Range(0, 3)
             .Select(i => new CalendarEvent($"evt-{i}", "Meeting", null,
-                From.AddHours(9 + i * 2), From.AddHours(10 + i * 2), [], null))
+                From.AddHours(9d + (i * 2d)), From.AddHours(10d + (i * 2d)), [], null))
             .ToArray();
 
         var handler = CreateHandler(events);

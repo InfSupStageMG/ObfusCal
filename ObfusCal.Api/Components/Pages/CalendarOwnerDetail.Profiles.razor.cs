@@ -20,9 +20,9 @@ public partial class CalendarOwnerDetail
             RemoveSourceLabel = p.RemoveSourceLabel
         }).ToList();
 
-        foreach (var ctx in Enum.GetValues<ObfuscationAuditContext>())
+        foreach (var ctx in Enum.GetValues<ObfuscationAuditContext>()
+                     .Where(ctx => _profiles.All(profile => profile.Context != ctx)))
         {
-            if (_profiles.Any(p => p.Context == ctx)) continue;
             var def = ObfuscationProfileSettings.CreateDefault(ctx);
             _profiles.Add(new ProfileViewModel
             {

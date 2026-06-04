@@ -73,20 +73,18 @@ public class ICloudCalendarSourceCoreWriteBackTests
         "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
         "<d:multistatus xmlns:d=\"DAV:\" xmlns:cal=\"urn:ietf:params:xml:ns:caldav\"></d:multistatus>";
 
-    private static CalendarOwner SeedOwnerWithICloudConfig(AppDbContext db, Guid ownerId,
+    private static void SeedOwnerWithICloudConfig(AppDbContext db, Guid ownerId,
         string calendarUrl = "https://caldav.icloud.com/user/calendar/")
     {
-        var owner = new CalendarOwner
+        db.CalendarOwners.Add(new CalendarOwner
         {
             Id = ownerId,
             Name = "Test Owner",
             ICloudCalendarUrl = calendarUrl,
             ICloudAppleIdProtected = "user@example.com",
             ICloudAppSpecificPasswordProtected = "app-password"
-        };
-        db.CalendarOwners.Add(owner);
+        });
         db.SaveChanges();
-        return owner;
     }
 
     [TestMethod]
@@ -97,10 +95,11 @@ public class ICloudCalendarSourceCoreWriteBackTests
         var handler = new StubHttpMessageHandler(_ =>
         {
             httpCalled = true;
-            return new HttpResponseMessage(HttpStatusCode.Created);
+            return TestHttpResponses.Create(HttpStatusCode.Created);
         });
 
-        var core = CreateCore(new HttpClient(handler), db);
+        using var httpClient = new HttpClient(handler);
+        var core = CreateCore(httpClient, db);
 
         await core.WriteBackSlotsAsync(Guid.NewGuid(), [], "Busy", DateTimeOffset.UtcNow,
             DateTimeOffset.UtcNow.AddDays(1));
@@ -120,10 +119,11 @@ public class ICloudCalendarSourceCoreWriteBackTests
         var handler = new StubHttpMessageHandler(_ =>
         {
             httpCalled = true;
-            return new HttpResponseMessage(HttpStatusCode.Created);
+            return TestHttpResponses.Create(HttpStatusCode.Created);
         });
 
-        var core = CreateCore(new HttpClient(handler), db);
+        using var httpClient = new HttpClient(handler);
+        var core = CreateCore(httpClient, db);
 
         await core.WriteBackSlotsAsync(ownerId, [], "Busy", DateTimeOffset.UtcNow,
             DateTimeOffset.UtcNow.AddDays(1));
@@ -150,13 +150,11 @@ public class ICloudCalendarSourceCoreWriteBackTests
             if (request.Method == HttpMethod.Put)
                 putRequests.Add(request);
 
-            return new HttpResponseMessage(HttpStatusCode.Created)
-            {
-                Content = new StringContent(BuildEmptyCalDavReportResponse(), Encoding.UTF8, "application/xml")
-            };
+            return TestHttpResponses.Xml(HttpStatusCode.Created, BuildEmptyCalDavReportResponse());
         });
 
-        var core = CreateCore(new HttpClient(handler), db);
+        using var httpClient = new HttpClient(handler);
+        var core = CreateCore(httpClient, db);
 
         await core.WriteBackSlotsAsync(ownerId, [slot], "Busy", start.AddHours(-1), end.AddHours(1));
 
@@ -185,13 +183,11 @@ public class ICloudCalendarSourceCoreWriteBackTests
             if (request.Method == HttpMethod.Put && request.Content is not null)
                 capturedBody = await request.Content.ReadAsStringAsync();
 
-            return new HttpResponseMessage(HttpStatusCode.Created)
-            {
-                Content = new StringContent(BuildEmptyCalDavReportResponse(), Encoding.UTF8, "application/xml")
-            };
+            return TestHttpResponses.Xml(HttpStatusCode.Created, BuildEmptyCalDavReportResponse());
         });
 
-        var core = CreateCore(new HttpClient(handler), db);
+        using var httpClient = new HttpClient(handler);
+        var core = CreateCore(httpClient, db);
 
         await core.WriteBackSlotsAsync(ownerId, [slot], "Obfuscated Busy", start.AddHours(-1), end.AddHours(1));
 
@@ -219,13 +215,11 @@ public class ICloudCalendarSourceCoreWriteBackTests
             if (request.Method == HttpMethod.Put && request.Content is not null)
                 capturedBody = await request.Content.ReadAsStringAsync();
 
-            return new HttpResponseMessage(HttpStatusCode.Created)
-            {
-                Content = new StringContent(BuildEmptyCalDavReportResponse(), Encoding.UTF8, "application/xml")
-            };
+            return TestHttpResponses.Xml(HttpStatusCode.Created, BuildEmptyCalDavReportResponse());
         });
 
-        var core = CreateCore(new HttpClient(handler), db);
+        using var httpClient = new HttpClient(handler);
+        var core = CreateCore(httpClient, db);
         await core.WriteBackSlotsAsync(ownerId, [slot], "Busy", start.AddHours(-1), end.AddHours(1));
 
         Assert.IsNotNull(capturedBody);
@@ -255,13 +249,11 @@ public class ICloudCalendarSourceCoreWriteBackTests
         var handler = new StubHttpMessageHandler(request =>
         {
             if (request.Method == HttpMethod.Put) putCount++;
-            return new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(reportXml, Encoding.UTF8, "application/xml")
-            };
+            return TestHttpResponses.Xml(HttpStatusCode.OK, reportXml);
         });
 
-        var core = CreateCore(new HttpClient(handler), db);
+        using var httpClient = new HttpClient(handler);
+        var core = CreateCore(httpClient, db);
         await core.WriteBackSlotsAsync(ownerId, [slot], title, start.AddHours(-1), end.AddHours(1));
 
         Assert.AreEqual(0, putCount, "PUT should be skipped when the existing event is already up-to-date.");
@@ -291,13 +283,11 @@ public class ICloudCalendarSourceCoreWriteBackTests
             if (request.Method == HttpMethod.Delete)
                 deleteUris.Add(request.RequestUri!.ToString());
 
-            return new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(reportXml, Encoding.UTF8, "application/xml")
-            };
+            return TestHttpResponses.Xml(HttpStatusCode.OK, reportXml);
         });
 
-        var core = CreateCore(new HttpClient(handler), db);
+        using var httpClient = new HttpClient(handler);
+        var core = CreateCore(httpClient, db);
 
         await core.WriteBackSlotsAsync(ownerId, [], "Busy", windowStart, windowEnd);
 
@@ -325,13 +315,11 @@ public class ICloudCalendarSourceCoreWriteBackTests
         var handler = new StubHttpMessageHandler(request =>
         {
             if (request.Method == HttpMethod.Delete) deleteCount++;
-            return new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(reportXml, Encoding.UTF8, "application/xml")
-            };
+            return TestHttpResponses.Xml(HttpStatusCode.OK, reportXml);
         });
 
-        var core = CreateCore(new HttpClient(handler), db);
+        using var httpClient = new HttpClient(handler);
+        var core = CreateCore(httpClient, db);
 
         await core.WriteBackSlotsAsync(ownerId, [MakeSlot(slotId, start, end)], title, start.AddHours(-1),
             end.AddHours(1));
@@ -492,10 +480,11 @@ public class ICloudCalendarSourceCoreWriteBackTests
         var handler = new StubHttpMessageHandler(_ =>
         {
             httpCalled = true;
-            return new HttpResponseMessage(HttpStatusCode.Created);
+            return TestHttpResponses.Create(HttpStatusCode.Created);
         });
 
-        var core = CreateCore(new HttpClient(handler), db);
+        using var httpClient = new HttpClient(handler);
+        var core = CreateCore(httpClient, db);
 
         var instance = new CalendarSourceInstanceContext(
             Guid.NewGuid(), ownerId, "icloud", "iCloud Calendar",
