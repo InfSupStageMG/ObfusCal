@@ -19,7 +19,7 @@ public interface IPeerConnectionService
     Task<RevokePeerConnectionResult> RevokeAsync(Guid id, CancellationToken ct = default);
     Task<bool> SuspendAsync(Guid id, CancellationToken ct = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
-    Task<LinkOwnerToPeerResult> LinkOwnerToPeerAsync(Guid calendarOwnerId, Guid peerConnectionId, CancellationToken ct = default);
+    Task<LinkOwnerToPeerResult> LinkOwnerToPeerAsync(Guid calendarOwnerId, Guid peerConnectionId, Guid? calendarOwnerRef = null, CancellationToken ct = default);
 }
 
 public sealed record PeerConnectionSummary(Guid Id, string InstanceId, string BaseAddress, int MappingCount);
