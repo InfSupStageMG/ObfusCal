@@ -591,15 +591,7 @@ public class CalendarOwnerAvailabilitySyncServiceTests
     {
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
         var secretProtector = new CalendarSourceSecretProtector(dataProtectionProvider);
-        var core = new ICloudCalendarSourceCore(
-            new HttpClient(new DelegatingHttpMessageHandler(handler), disposeHandler: true),
-            dbContext,
-            dataProtectionProvider,
-            secretProtector,
-            Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 }),
-            NullLogger<ICloudCalendarSourceCore>.Instance);
-
-        return new PerCallICloudCalendarSource(core);
+        return new PerCallICloudCalendarSource(dbContext, dataProtectionProvider, secretProtector, handler);
     }
 
     private static TestCalendarOwnerAvailabilitySyncService CreateService(
@@ -896,15 +888,34 @@ public class CalendarOwnerAvailabilitySyncServiceTests
             => handler(request);
     }
 
-    private sealed class PerCallICloudCalendarSource(ICloudCalendarSourceCore core)
+    private sealed class PerCallICloudCalendarSource(
+        AppDbContext dbContext,
+        IDataProtectionProvider dataProtectionProvider,
+        ICalendarSourceSecretProtector secretProtector,
+        Func<HttpRequestMessage, Task<HttpResponseMessage>> handler)
         : ICalendarSource, ICalendarWriteBack
     {
+        private async Task<TResult> WithInnerSourceAsync<TResult>(Func<ICloudCalendarSourceCore, Task<TResult>> action)
+        {
+            using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(handler), disposeHandler: true);
+
+            var core = new ICloudCalendarSourceCore(
+                httpClient,
+                dbContext,
+                dataProtectionProvider,
+                secretProtector,
+                Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 }),
+                NullLogger<ICloudCalendarSourceCore>.Instance);
+
+            return await action(core);
+        }
+
         public Task<IReadOnlyList<CalendarEvent>> GetEventsAsync(
             DateTimeOffset from,
             DateTimeOffset to,
             Guid? calendarOwnerId = null,
             CancellationToken ct = default)
-            => core.GetEventsAsync(from, to, calendarOwnerId, ct);
+            => WithInnerSourceAsync(core => core.GetEventsAsync(from, to, calendarOwnerId, ct));
 
         public Task WriteBackSlotsAsync(
             Guid calendarOwnerId,
@@ -913,6 +924,10 @@ public class CalendarOwnerAvailabilitySyncServiceTests
             DateTimeOffset windowStart,
             DateTimeOffset windowEnd,
             CancellationToken ct = default)
-            => core.WriteBackSlotsAsync(calendarOwnerId, busySlots, placeholderTitle, windowStart, windowEnd, ct);
+            => WithInnerSourceAsync(async core =>
+            {
+                await core.WriteBackSlotsAsync(calendarOwnerId, busySlots, placeholderTitle, windowStart, windowEnd, ct);
+                return 0;
+            });
     }
 }

@@ -320,16 +320,6 @@ public sealed partial class ICloudCalendarSourceCore(
             // Legacy/raw JSON at rest should be migrated to protected storage.
             return storedSecretData.TrimStart().StartsWith('{');
         }
-        catch (CryptographicException)
-        {
-            // Unknown failure (e.g., key ring mismatch): avoid destructive rewrites.
-            return false;
-        }
-        catch (FormatException)
-        {
-            // Unknown failure (e.g., key ring mismatch): avoid destructive rewrites.
-            return false;
-        }
     }
 
     private async Task<ICloudCalendarQueryResult> QueryCalendarAsync(
