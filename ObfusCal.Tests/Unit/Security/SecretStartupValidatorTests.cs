@@ -129,7 +129,6 @@ public class SecretStartupValidatorTests
             RequiredSecretKeys = [SecretKeys.ColumnEncryptionKey]
         });
         var provider = new FakeSecretProvider(new Dictionary<string, string?>());
-        var validator = new SecretStartupValidator(provider, options);
 
         // Without calling ValidateOrThrow(), missing secrets are silently ignored.
         // This is the "before" state: app starts, but the key is missing.

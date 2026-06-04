@@ -250,7 +250,7 @@
             _messageIntent = MessageIntent.Error;
             ResetAddPeerForm();
         }
-        catch
+        catch (Exception)
         {
             _message = "Failed to add peer connection. Please verify the values and try again.";
             _messageIntent = MessageIntent.Error;

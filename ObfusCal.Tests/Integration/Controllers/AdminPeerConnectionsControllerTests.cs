@@ -398,17 +398,17 @@ public class AdminPeerConnectionsControllerTests
             return [];
 
         var lines = await File.ReadAllLinesAsync(filePath);
-        var result = new List<AuditEntry>(lines.Length);
-        foreach (var line in lines.Where(line => !string.IsNullOrWhiteSpace(line)))
-        {
-            using var json = JsonDocument.Parse(line);
-            var root = json.RootElement;
-            result.Add(new AuditEntry(
-                root.GetProperty("eventCode").GetString() ?? string.Empty,
-                root.GetProperty("outcome").GetString() ?? string.Empty));
-        }
-
-        return result;
+        return lines
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .Select(line =>
+            {
+                using var json = JsonDocument.Parse(line);
+                var root = json.RootElement;
+                return new AuditEntry(
+                    root.GetProperty("eventCode").GetString() ?? string.Empty,
+                    root.GetProperty("outcome").GetString() ?? string.Empty);
+            })
+            .ToList();
     }
 
     private sealed record AuditEntry(string EventCode, string Outcome);
