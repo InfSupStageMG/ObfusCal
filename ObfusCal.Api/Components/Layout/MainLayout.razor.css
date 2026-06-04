@@ -146,6 +146,10 @@
     flex: 1 0 auto;
 }
 
+.layout-page-content:focus {
+    outline: none;
+}
+
 .layout-footer {
     margin-top: auto;
     padding-top: 1rem;
