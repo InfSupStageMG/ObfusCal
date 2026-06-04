@@ -1,12 +1,14 @@
 ﻿@inherits LayoutComponentBase
 @using FluentIcons = Microsoft.FluentUI.AspNetCore.Components.Icons
+@using ObfusCal.Application.Configuration
 @inject NavigationManager Navigation
 @inject ApplicationVersionProvider VersionProvider
+@inject IConfiguration Configuration
 
 <FluentDesignTheme Mode="DesignThemeModes.Light" CustomColor="#0078d4" />
 
 <FluentLayout>
-    <FluentHeader Class="layout-header">
+    <FluentHeader Class="@HeaderClass" Style="@HeaderStyle">
         <div class="layout-header-bar">
             <span class="layout-brand">ObfusCal</span>
             <AuthorizeView>
@@ -58,6 +60,28 @@
 <FluentDialogProvider />
 
 @code {
+    private string HeaderClass
+    {
+        get
+        {
+            var instanceId = Configuration[$"{SyncOptions.SectionName}:InstanceId"];
+            return string.Equals(instanceId, "instance-b", StringComparison.OrdinalIgnoreCase)
+                ? "layout-header layout-header--instance-secondary"
+                : "layout-header";
+        }
+    }
+
+    private string? HeaderStyle
+    {
+        get
+        {
+            var instanceId = Configuration[$"{SyncOptions.SectionName}:InstanceId"];
+            return string.Equals(instanceId, "instance-b", StringComparison.OrdinalIgnoreCase)
+                ? "--accent-fill-rest: #b42318; --accent-foreground-rest: #821109;"
+                : null;
+        }
+    }
+
     private void NavigateToLogin()
         => Navigation.NavigateTo("/account/login?returnUrl=%2F", forceLoad: true);
 

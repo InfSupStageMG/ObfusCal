@@ -5,6 +5,10 @@ Two ObfusCal instances running on one machine, demonstrating cross-domain availa
 - **Instance A** → `https://localhost`
 - **Instance B** → `https://localhost:4443`
 
+Visual cue in the app shell:
+- **Instance A** keeps the default blue top bar.
+- **Instance B** shows a red top bar so it's obvious when you've switched tabs.
+
 Both share the same Entra app registration. Peer-to-peer auth uses independent API keys,
 completely separate from Entra.
 
