@@ -1,8 +1,8 @@
 # Test Catalog
 
-_Auto-generated from CI run. 710 tests across 78 classes._
+_Auto-generated from CI run. 746 tests across 81 classes._
 
-## Integration (184/184)
+## Integration (198/198)
 
 <details>
 <summary><b>AdminPeerConnectionsControllerTests</b> - 7/7</summary>
@@ -19,6 +19,29 @@ _Auto-generated from CI run. 710 tests across 78 classes._
     <tr><td><code>RevokeFlow_SetsRevokedAt_AndPeerAuthStopsImmediately</code></td><td>✅</td></tr>
     <tr><td><code>RotateFlow_InvalidatesOldApiKeyAndActivatesNewApiKey</code></td><td>✅</td></tr>
     <tr><td><code>SuspendFlow_SetsStatusToSuspended_AndAuthStopsImmediately</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>AdminPluginAllowlistControllerTests</b> - 10/10</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>DisabledPlugin_IsRemovedFromInMemoryCache_Immediately</code></td><td>✅</td></tr>
+    <tr><td><code>ListPlugins_ReturnsForbidden_ForNonSysadmin</code></td><td>✅</td></tr>
+    <tr><td><code>ListPlugins_ReturnsOk_ForSysadmin</code></td><td>✅</td></tr>
+    <tr><td><code>ListPlugins_ReturnsUnauthorized_WhenNotAuthenticated</code></td><td>✅</td></tr>
+    <tr><td><code>ReenabledPlugin_IsRemovedFromInMemoryCache_Immediately</code></td><td>✅</td></tr>
+    <tr><td><code>RemoveOverride_ClearsOverride_PluginReturnsToDefaultEnabledState</code></td><td>✅</td></tr>
+    <tr><td><code>SetEnabled_DisablesPlugin_IsReflectedInSubsequentList</code></td><td>✅</td></tr>
+    <tr><td><code>SetEnabled_ReenablesPlugin_IsReflectedInSubsequentList</code></td><td>✅</td></tr>
+    <tr><td><code>SetEnabled_ReturnsBadRequest_WhenPluginIdIsWhitespace</code></td><td>✅</td></tr>
+    <tr><td><code>SetEnabled_ReturnsForbidden_ForNonSysadmin</code></td><td>✅</td></tr>
   </tbody>
 </table>
 
@@ -140,6 +163,25 @@ _Auto-generated from CI run. 710 tests across 78 classes._
 </details>
 
 <details>
+<summary><b>RateLimitingTests</b> - 6/6</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>ApiBackstop_Returns429_WhenGlobalLimitExceeded</code></td><td>✅</td></tr>
+    <tr><td><code>PullBusySlots_Returns429_AfterPermitLimitExceeded</code></td><td>✅</td></tr>
+    <tr><td><code>PullBusySlots_Returns429_WithRetryAfterHeader</code></td><td>✅</td></tr>
+    <tr><td><code>PushShadowSlots_Returns429_AfterPermitLimitExceeded</code></td><td>✅</td></tr>
+    <tr><td><code>PushShadowSlots_Returns429_WithRetryAfterHeader</code></td><td>✅</td></tr>
+    <tr><td><code>RateLimited_Response_HasProblemDetailsBody</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
 <summary><b>ShadowSlotsControllerTests</b> - 22/22</summary>
 
 <table>
@@ -243,7 +285,7 @@ _Auto-generated from CI run. 710 tests across 78 classes._
 </details>
 
 <details>
-<summary><b>InfrastructureDependencyInjectionTests</b> - 12/12</summary>
+<summary><b>InfrastructureDependencyInjectionTests</b> - 13/13</summary>
 
 <table>
   <thead>
@@ -255,6 +297,7 @@ _Auto-generated from CI run. 710 tests across 78 classes._
     <tr><td><code>CalendarOwnerIcalFeedService_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarOwnerObfuscationProfileService_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarOwnerScopeResolver_IsRegistered</code></td><td>✅</td></tr>
+    <tr><td><code>CalendarSourceAuthFlowService_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarSourceCatalog_ContainsAllThreeBuiltInPlugins</code></td><td>✅</td></tr>
     <tr><td><code>CalendarSourceCatalog_IsRegistered</code></td><td>✅</td></tr>
     <tr><td><code>CalendarSourceResolver_IsRegistered</code></td><td>✅</td></tr>
@@ -422,7 +465,7 @@ _Auto-generated from CI run. 710 tests across 78 classes._
 
 </details>
 
-## Unit (526/526)
+## Unit (548/548)
 
 <details>
 <summary><b>AggregateCalendarSourceTests</b> - 2/2</summary>
@@ -434,6 +477,21 @@ _Auto-generated from CI run. 710 tests across 78 classes._
   <tbody>
     <tr><td><code>GetEventsAsync_AssignsConfiguredColorToInstanceEvents</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_WritesOtherSourceBusySlotsToEachWritableDestination</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>CalendarColorPaletteTests</b> - 2/2</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>CreateReadableForeground_DarkAccentOnTint_ReturnsAccent</code></td><td>✅</td></tr>
+    <tr><td><code>CreateReadableForeground_WhiteAccentOnTint_ReturnsDarkFallback</code></td><td>✅</td></tr>
   </tbody>
 </table>
 
@@ -491,7 +549,7 @@ _Auto-generated from CI run. 710 tests across 78 classes._
 </details>
 
 <details>
-<summary><b>GraphCalendarSourceTests</b> - 18/18</summary>
+<summary><b>GraphCalendarSourceTests</b> - 21/21</summary>
 
 <table>
   <thead>
@@ -507,10 +565,13 @@ _Auto-generated from CI run. 710 tests across 78 classes._
     <tr><td><code>GetEventsAsync_ReusesRefreshedToken_ForNextLinkRequests</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_SkipsManagedPlaceholderEvents</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_StopsWhenNextLinkRepeats</code></td><td>✅</td></tr>
+    <tr><td><code>GetReadinessAsync_ForReadOnlySourceInstance_ShowsReadOnlyStatus</code></td><td>✅</td></tr>
+    <tr><td><code>GetReadinessAsync_ForSourceInstance_ReadOnlyChoiceOverridesBroaderReturnedScopes</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_CreatesPlaceholderEvents_ForEachActiveSlot</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_DeletesStaleEvents_WhenNoLongerActiveSlot</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_DoesNotDeleteManagedEvent_WhenStartIsOutsideWindow</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_CreatesPlaceholderEvents</code></td><td>✅</td></tr>
+    <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenReadOnlyChoiceOverridesBroaderReturnedScopes</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenReadOnlyConsent</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenScopesAreNull</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_QueriesManagedEventsOnlyWithinWindow</code></td><td>✅</td></tr>
@@ -688,6 +749,25 @@ _Auto-generated from CI run. 710 tests across 78 classes._
 </details>
 
 <details>
+<summary><b>ApplicationVersionProviderTests</b> - 6/6</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>NormalizeDisplayVersion_BlankValue_ReturnsDev</code></td><td>✅</td></tr>
+    <tr><td><code>NormalizeDisplayVersion_RemovesPrefixAndMetadata ("  v3.4.5-rc.2+sha.123456  ","3.4.5-rc.2")</code></td><td>✅</td></tr>
+    <tr><td><code>NormalizeDisplayVersion_RemovesPrefixAndMetadata ("1.2.3","1.2.3")</code></td><td>✅</td></tr>
+    <tr><td><code>NormalizeDisplayVersion_RemovesPrefixAndMetadata ("1.2.3+Branch.main.Sha.abcdef","1.2.3")</code></td><td>✅</td></tr>
+    <tr><td><code>NormalizeDisplayVersion_RemovesPrefixAndMetadata ("1.2.3-beta.4","1.2.3-beta.4")</code></td><td>✅</td></tr>
+    <tr><td><code>NormalizeDisplayVersion_RemovesPrefixAndMetadata ("v2.0.1","2.0.1")</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
 <summary><b>CalendarColorFieldDisplayTests</b> - 6/6</summary>
 
 <table>
@@ -794,6 +874,40 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>ToDisplayName_AllValues_ReturnNonEmpty</code></td><td>✅</td></tr>
     <tr><td><code>ToDisplayName_Client_ReturnsExternal</code></td><td>✅</td></tr>
     <tr><td><code>ToDisplayName_Internal_ReturnsInternal</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>SourceAddFormValidationTests</b> - 21/21</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>GoogleCalendarId_WithPrimaryDefault_IsNotRequired</code></td><td>✅</td></tr>
+    <tr><td><code>ICloudAppleId_WithValueFilled_IsNotRequired</code></td><td>✅</td></tr>
+    <tr><td><code>ICloudAppleId_WithoutValue_IsRequired</code></td><td>✅</td></tr>
+    <tr><td><code>ICloudCalendarUrl_WithDotDotDot_IsRequired</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("See example...")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("https://caldav.icloud.com/.../calendar/")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("user@EXAMPLE.COM")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues ("you@example.com")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsFalseForExamplesAndEmptyValues (null)</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("false")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("https://caldav.icloud.com/calendar/")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("primary")</code></td><td>✅</td></tr>
+    <tr><td><code>IsLikelyDefaultValue_ReturnsTrueForRealDefaults ("true")</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithGoogleConsentAction_RequiresAuthentication</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithGraphConsentAction_RequiresAuthentication</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithMultipleAuthenticationActions_RequiresAuthenticationChoice</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithSingleAuthenticationAction_DoesNotRequireAuthenticationChoice</code></td><td>✅</td></tr>
+    <tr><td><code>PluginOption_WithoutConsentAction_DoesNotRequireAuthentication</code></td><td>✅</td></tr>
+    <tr><td><code>SecretField_WhenEmpty_IsRequired</code></td><td>✅</td></tr>
+    <tr><td><code>SecretField_WhenFilled_IsNotRequired</code></td><td>✅</td></tr>
   </tbody>
 </table>
 
@@ -1089,7 +1203,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
 </details>
 
 <details>
-<summary><b>CalendarOwnerGraphConsentServiceTests</b> - 27/27</summary>
+<summary><b>CalendarOwnerGraphConsentServiceTests</b> - 29/29</summary>
 
 <table>
   <thead>
@@ -1113,6 +1227,8 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentAsync_WithInvalidOwner_Throws</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentAsync_WithNullRefreshToken_StoresNull</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentAsync_WithWhitespaceRefreshToken_StoresNull</code></td><td>✅</td></tr>
+    <tr><td><code>CompleteConsentFromStateAsync_ForSourceInstance_ReadOnlyChoiceCapsStatus_WhenProviderReturnsBroaderScopes</code></td><td>✅</td></tr>
+    <tr><td><code>CompleteConsentFromStateAsync_ForSourceInstance_ReplacingWriteBackWithReadOnly_UpdatesStoredAccessLevel</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentFromStateAsync_RoundTrip_CompletesConsent</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentFromStateAsync_WithInvalidToken_Throws</code></td><td>✅</td></tr>
     <tr><td><code>CompleteConsentFromStateAsync_WithLegacyNonOwnerState_Throws</code></td><td>✅</td></tr>
@@ -1333,6 +1449,30 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>Encrypt_EmptyString_RoundTrips</code></td><td>✅</td></tr>
     <tr><td><code>Encrypt_ProducesCiphertextDifferentFromPlaintext</code></td><td>✅</td></tr>
     <tr><td><code>Encrypt_SamePlaintext_ProducesDifferentCiphertexts_PerCall</code></td><td>✅</td></tr>
+  </tbody>
+</table>
+
+</details>
+
+<details>
+<summary><b>FileSecurityAuditServiceTests</b> - 11/11</summary>
+
+<table>
+  <thead>
+    <tr><th>Test</th><th>Result</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>NewServiceInstance_ContinuesHashChain_FromExistingFile</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_AppendsOneNdjsonLine_PerEvent</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_ConcurrentWrites_ProduceCorrectLineCount</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_CreatesFile_WhenFileDoesNotExist</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_EachEntry_HasNonEmptyEntryHash</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_FirstEntry_HasNullPreviousEntryHash</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_HashChain_IsConsistentAcrossAllEntries</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_RedactsSensitivePatterns_InMetadataValues</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_SanitizesNewlines_InFieldValues</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_SecondEntry_PreviousHashMatchesFirstEntryHash</code></td><td>✅</td></tr>
+    <tr><td><code>WriteAsync_TruncatesFieldValues_LongerThan256Characters</code></td><td>✅</td></tr>
   </tbody>
 </table>
 

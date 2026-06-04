@@ -96,6 +96,8 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
             e.Property(instance => instance.DisplayName)
                 .IsRequired()
                 .HasMaxLength(256);
+            e.Property(instance => instance.ColorHex)
+                .HasMaxLength(7);
             e.Property(instance => instance.ConfigurationJson)
                 .HasMaxLength(32768);
             e.Property(instance => instance.SecretDataJson)
@@ -209,6 +211,8 @@ public class AppDbContext : DbContext, IDataProtectionKeyContext
             e.Property(slot => slot.SourceEventId).IsRequired();
             e.Property(slot => slot.AttendeeEmails)
                 .HasColumnType("text[]");
+            e.Property(slot => slot.ColorHex)
+                .HasMaxLength(7);
             e.HasIndex(slot => slot.CalendarOwnerId);
             e.HasIndex(slot => new { slot.CalendarOwnerId, slot.Start, slot.End });
         });

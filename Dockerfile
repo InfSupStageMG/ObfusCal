@@ -2,6 +2,7 @@
 WORKDIR /src
 
 COPY ObfusCal.slnx .
+COPY Directory.Build.props .
 COPY ObfusCal.Domain/ObfusCal.Domain.csproj ObfusCal.Domain/
 COPY ObfusCal.Application/ObfusCal.Application.csproj ObfusCal.Application/
 COPY ObfusCal.Infrastructure/ObfusCal.Infrastructure.csproj ObfusCal.Infrastructure/
@@ -13,7 +14,15 @@ COPY ObfusCal.Tests/ObfusCal.Tests.csproj ObfusCal.Tests/
 RUN dotnet restore
 
 COPY . .
-RUN dotnet publish ObfusCal.Api -c Release -o /app/publish
+ARG VERSION=0.0.0-local
+ARG ASSEMBLY_VERSION=0.0.0.0
+ARG FILE_VERSION=0.0.0.0
+ARG INFORMATIONAL_VERSION=0.0.0-local
+RUN dotnet publish ObfusCal.Api -c Release -o /app/publish \
+    -p:Version=${VERSION} \
+    -p:AssemblyVersion=${ASSEMBLY_VERSION} \
+    -p:FileVersion=${FILE_VERSION} \
+    -p:InformationalVersion=${INFORMATIONAL_VERSION}
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 

@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.FluentUI.AspNetCore.Components;
 using ObfusCal.Api.Authorization;
 using ObfusCal.Application.Interfaces;
@@ -8,18 +7,18 @@ namespace ObfusCal.Api.Components.Pages;
 
 public partial class CalendarOwnerDetail : ComponentBase
 {
-    [Inject] private AuthenticationStateProvider AuthenticationStateProvider { get; set; } = default!;
     [Inject] private CurrentUserContextAccessor CurrentUserContextAccessor { get; set; } = default!;
     [Inject] private ICalendarOwnerService CalendarOwnerService { get; set; } = default!;
     [Inject] private ICalendarSourceCatalog CalendarSourceCatalog { get; set; } = default!;
+    [Inject] private ICalendarSourceAuthFlowService CalendarSourceAuthFlowService { get; set; } = default!;
     [Inject] private ICalendarSourceInstanceService CalendarSourceInstanceService { get; set; } = default!;
-    [Inject] private ICalendarOwnerGoogleConsentService GoogleConsentService { get; set; } = default!;
-    [Inject] private ICalendarOwnerGraphConsentService GraphConsentService { get; set; } = default!;
     [Inject] private ICalendarOwnerObfuscationProfileService ObfuscationProfileService { get; set; } = default!;
     [Inject] private ICalendarOwnerAvailabilitySyncService AvailabilitySyncService { get; set; } = default!;
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
     [Parameter] public Guid Id { get; set; }
+
+    [Parameter, SupplyParameterFromQuery] public bool ConsentCompleted { get; set; }
 
     private CalendarOwnerInfo? _owner;
     private bool _isSysadmin;
@@ -30,6 +29,8 @@ public partial class CalendarOwnerDetail : ComponentBase
     private readonly List<SourceInstanceEditor> _sourceInstances = [];
     private PluginOption? _selectedPluginOption;
     private string? _newSourceDisplayName;
+    private string? _newSourceColorHex;
+    private string? _newSourceAuthenticationActionId;
     private string? _newSourceConfigurationJson;
     private string? _newSourceSecretDataJson;
     private List<PluginFieldEditor> _newSourceConfigurationFields = [];
@@ -45,6 +46,7 @@ public partial class CalendarOwnerDetail : ComponentBase
     private MessageIntent _sourceMessageIntent = MessageIntent.Info;
     private Guid? _lastActionInstanceId;
     private bool _hasWriteBackCapableSource;
+    private bool _hasHandledConsentCompleted;
 
 
     private Guid? _expandedSourceInstanceId;
@@ -54,8 +56,6 @@ public partial class CalendarOwnerDetail : ComponentBase
     private bool _triggeringSyncForOwner;
     private string? _ownerSyncMessage;
     private MessageIntent _ownerSyncMessageIntent = MessageIntent.Info;
-
-    private string BackLink => _isSysadmin ? "/calendar-owners" : "/";
 
     private PluginOption? SelectedPluginOption
     {
@@ -100,5 +100,33 @@ public partial class CalendarOwnerDetail : ComponentBase
         LoadPluginCatalog();
         await LoadSourceInstancesAsync();
         await LoadProfilesAsync();
+
+        if (ConsentCompleted)
+        {
+            _sourceMessage = "✓ Authentication completed. Your calendar is now connected and availability is being synced.";
+            _sourceMessageIntent = MessageIntent.Success;
+            _hasHandledConsentCompleted = true;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!ConsentCompleted || _owner is null || _hasHandledConsentCompleted)
+            return;
+
+        _owner = await CalendarOwnerService.GetByIdAsync(Id);
+        if (_owner is null)
+        {
+            _accessDeniedMessage = "Calendar owner was not found.";
+            return;
+        }
+
+        _writeBackEnabled = _owner.WriteBackEnabled;
+        _writeBackPlaceholderTitle = _owner.WriteBackPlaceholderTitle;
+        await LoadSourceInstancesAsync();
+
+        _sourceMessage = "✓ Authentication completed. Your calendar is now connected and availability is being synced.";
+        _sourceMessageIntent = MessageIntent.Success;
+        _hasHandledConsentCompleted = true;
     }
 }

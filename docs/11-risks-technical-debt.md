@@ -4,7 +4,7 @@
 
 | ID   | Risk                                                                                                                | Likelihood | Impact | Mitigation                                                                                          |
 |------|---------------------------------------------------------------------------------------------------------------------|------------|--------|-----------------------------------------------------------------------------------------------------|
-| R-01 | Microsoft Graph API permissions are blocked by a client organisation's Conditional Access policies                  | Medium     | High   | iCal feed fallback is supported as an alternative ingestion path                                    |
+| R-01 | Outlook / Microsoft Graph API permissions are blocked by a client organisation's Conditional Access policies        | Medium     | High   | iCal feed fallback is supported as an alternative ingestion path                                    |
 | R-02 | OAuth refresh token expiry causes silent sync failures                                                              | Medium     | Medium | Token expiry is detected and logged; sysadmin status endpoint surfaces expired tokens               |
 | R-03 | Plugin DLL compiled against an older version of `ObfusCal.Application` / `ObfusCal.Domain` fails to load at startup | Low        | Medium | Plugin load errors are caught and logged; the application continues without the failing plugin      |
 | R-04 | A peer ID is spoofed in an inbound push request                                                                     | Medium     | Medium | Only configured peer IDs are accepted today; stronger signed peer auth is tracked as technical debt |

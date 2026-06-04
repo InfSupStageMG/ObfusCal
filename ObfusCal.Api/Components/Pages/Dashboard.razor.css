@@ -1,4 +1,24 @@
-﻿.dashboard-quick-actions-card {
+﻿.dashboard-page-header-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.dashboard-version-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    background: var(--neutral-fill-secondary-rest, var(--neutral-layer-2));
+    border: 1px solid var(--neutral-stroke-rest);
+    color: var(--neutral-foreground-hint);
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.dashboard-quick-actions-card {
     overflow: hidden;
 }
 
@@ -155,6 +175,10 @@
 }
 
 @media (max-width: 860px) {
+    .dashboard-page-header-topline {
+        align-items: flex-start;
+    }
+
     .combined-calendar-field--owner,
     .combined-calendar-field--timezone {
         grid-column: span 12;

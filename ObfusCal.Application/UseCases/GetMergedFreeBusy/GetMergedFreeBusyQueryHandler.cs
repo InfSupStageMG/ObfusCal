@@ -71,7 +71,8 @@ public sealed class GetMergedFreeBusyUseCase(
                 s.Location,
                 s.SourceLabel,
                 s.SourceSlots,
-                s.IsAllDay))
+                s.IsAllDay,
+                s.ColorHex))
             .ToList();
 
         logger.LogInformation(

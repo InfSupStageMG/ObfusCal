@@ -22,3 +22,11 @@ into each connected calendar so that everyone's availability is visible from wit
 ![Use Case Diagram](img/use-case-diagram.png){ width="600" }
 
 Read more about our [Federated Architecture](adr/0001-federated-architecture.md)
+
+## Project & Community
+
+- [Contributing Guide](https://github.com/InfSupStageMG/ObfusCal/blob/main/CONTRIBUTING.md)
+- [Code of Conduct](https://github.com/InfSupStageMG/ObfusCal/blob/main/CODE_OF_CONDUCT.md)
+- [Security Policy](https://github.com/InfSupStageMG/ObfusCal/blob/main/.github/SECURITY.md)
+- [Changelog](https://github.com/InfSupStageMG/ObfusCal/blob/main/CHANGELOG.md)
+

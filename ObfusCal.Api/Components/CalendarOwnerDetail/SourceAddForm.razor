@@ -40,7 +40,7 @@
         @* ── Step 2: Name the calendar ── *@
         <h4 class="wizard-step-heading">What would you like to call this calendar?</h4>
         <p class="hint-text">
-            This name is just for you — pick something that helps you recognise which calendar this is.
+            This name is just for you; pick something that helps you recognise which calendar this is.
         </p>
 
         <FluentTextField Value="@_localDisplayName"
@@ -48,20 +48,32 @@
                          Immediate="true"
                          Class="app-form-control"
                          Style="width: 100%; max-width: 420px; min-width: 0;"
-                         Placeholder="@(SelectedOption?.DisplayLabel ?? "My calendar")"/>
+                         Placeholder="@(SelectedOption?.DisplayName ?? "My calendar")"/>
+
+        <CalendarColorField InputId="source-color-input"
+                            AutomaticColorHex="@AutomaticColorHex"
+                            Value="@ColorHex"
+                            ValueChanged="@(EventCallback.Factory.Create<string?>(this, OnColorHexChangedAsync))" />
 
         <div class="wizard-nav-row">
             <FluentButton Appearance="Appearance.Outline" OnClick="GoBack">← Back</FluentButton>
-            <FluentButton Appearance="Appearance.Accent" OnClick="GoForward">Continue →</FluentButton>
+            <FluentButton Appearance="Appearance.Accent" OnClick="ValidateAndGoForwardAsync">Continue →</FluentButton>
         </div>
     }
     else
     {
         @* ── Step 3: Review and confirm ── *@
-        var effectiveName = string.IsNullOrWhiteSpace(_localDisplayName) ? SelectedOption?.DisplayLabel : _localDisplayName;
+        var effectiveName = string.IsNullOrWhiteSpace(_localDisplayName) ? SelectedOption?.DisplayName : _localDisplayName;
+        var requiresAuthentication = SelectedOption?.RequiresAuthentication == true;
+        var selectedAuthenticationAction = SelectedOption?.AuthenticationActions.FirstOrDefault(action =>
+            string.Equals(action.ActionId, SelectedAuthenticationActionId, StringComparison.Ordinal));
 
         <h4 class="wizard-step-heading">Are you happy with these settings?</h4>
-        <p class="hint-text">Review your choices below. You can always edit or remove this calendar later.</p>
+        <p class="hint-text">
+            @(requiresAuthentication
+                ? "Review your choices below. After you confirm, you'll continue to sign in and grant access before ObfusCal finishes connecting this calendar."
+                : "Review your choices below. You can always edit or remove this calendar later.")
+        </p>
 
         <div class="wizard-summary">
             <div class="wizard-summary-row">
@@ -72,12 +84,46 @@
                 <span class="wizard-summary-label">Name</span>
                 <span class="wizard-summary-value">@effectiveName</span>
             </div>
+            @if (SelectedOption?.RequiresAuthenticationChoice == true)
+            {
+                <div class="wizard-summary-row">
+                    <span class="wizard-summary-label">Access level</span>
+                    <span class="wizard-summary-value">@(selectedAuthenticationAction?.Label ?? "Choose an access level below")</span>
+                </div>
+            }
         </div>
 
-        <details class="wizard-advanced">
+        @if (SelectedOption?.RequiresAuthenticationChoice == true)
+        {
+            <div class="wizard-auth-choice-section">
+                <h5 class="section-heading">How should ObfusCal connect to this calendar?</h5>
+                <p class="hint-text">
+                    Choose read-only if ObfusCal should only import events. Choose write-back if ObfusCal may also
+                    maintain ObfusCal-managed placeholder events in this calendar.
+                </p>
+                <div class="wizard-plugin-grid">
+                    @foreach (var action in SelectedOption.AuthenticationActions)
+                    {
+                        var capturedAction = action;
+                        var isSelected = string.Equals(SelectedAuthenticationActionId, action.ActionId, StringComparison.Ordinal);
+                        <button type="button"
+                                class="wizard-plugin-card @(isSelected ? "wizard-plugin-card--selected" : "")"
+                                @onclick="@(() => SelectAuthenticationActionAsync(capturedAction.ActionId))">
+                            <span class="wizard-plugin-name">@action.Label</span>
+                            @if (!string.IsNullOrWhiteSpace(action.Hint))
+                            {
+                                <span class="hint-text">@action.Hint</span>
+                            }
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+
+        <details class="wizard-advanced" @attributes="_advancedOpenAttr">
             <summary class="wizard-advanced-summary">
                 Advanced settings
-                <span class="wizard-advanced-subtext"> — only change these if you know what you're doing</span>
+                <span class="wizard-advanced-subtext"> - only change these if you know what you're doing</span>
             </summary>
             <div class="wizard-advanced-body">
                 @if (!string.IsNullOrWhiteSpace(SelectedOption?.SetupHint))
@@ -157,6 +203,11 @@
             </div>
         </details>
 
+        @if (_stepValidationMessage is not null)
+        {
+            <FluentMessageBar Intent="MessageIntent.Warning" Class="card-message">@_stepValidationMessage</FluentMessageBar>
+        }
+
         @if (Message is not null)
         {
             <FluentMessageBar Intent="@MessageIntent" Class="card-message">@Message</FluentMessageBar>
@@ -165,9 +216,9 @@
         <div class="wizard-nav-row">
             <FluentButton Appearance="Appearance.Outline" OnClick="GoBack" Disabled="IsLoading">← Back</FluentButton>
             <FluentButton Appearance="Appearance.Accent"
-                          OnClick="OnAddAsync"
+                          OnClick="ValidateAndSubmitAsync"
                           Disabled="@(SelectedOption is null || IsLoading)">
-                @(IsLoading ? "Adding…" : "✓ Add Calendar")
+                @(IsLoading ? (requiresAuthentication ? "Opening sign-in…" : "Adding…") : GetSubmitButtonText())
             </FluentButton>
         </div>
     }
@@ -189,6 +240,21 @@
 
     [Parameter]
     public EventCallback<string?> DisplayNameChanged { get; set; }
+
+    [Parameter]
+    public string? ColorHex { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> ColorHexChanged { get; set; }
+
+    [Parameter]
+    public string? SelectedAuthenticationActionId { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> SelectedAuthenticationActionIdChanged { get; set; }
+
+    [Parameter]
+    public string? AutomaticColorHex { get; set; }
 
     [Parameter]
     public List<PluginFieldEditor> ConfigurationFields { get; set; } = [];
@@ -234,30 +300,134 @@
 
     private int _wizardStep = 1;
 
-    // Tracks the display name locally so transitions between steps don't lose edits.
     private string? _localDisplayName;
+    private string? _lastSeenDisplayName;
+    private string? _stepValidationMessage;
+
+    // Controls whether the Advanced settings section is pre-expanded.
+    private IReadOnlyDictionary<string, object> _advancedOpenAttr = new Dictionary<string, object>();
+
+    protected override void OnParametersSet()
+    {
+        if (string.Equals(_lastSeenDisplayName, DisplayName, StringComparison.Ordinal)) return;
+        _localDisplayName = DisplayName;
+        _lastSeenDisplayName = DisplayName;
+    }
 
     private static bool HasFieldEditors(IReadOnlyCollection<PluginFieldEditor> fields) => fields.Count > 0;
+
+    internal Task OnColorHexChangedAsync(string? value)
+    {
+        ColorHex = value;
+        return ColorHexChanged.InvokeAsync(value);
+    }
 
     private async Task SelectPluginAndAdvance(PluginOption option)
     {
         SelectedOption = option;
         await SelectedOptionChanged.InvokeAsync(option);
-        // Pre-fill the name with the plugin display label as a convenient starting point.
-        _localDisplayName = option.DisplayLabel;
+        var defaultAuthenticationActionId = option.DefaultAuthenticationActionId;
+        SelectedAuthenticationActionId = defaultAuthenticationActionId;
+        await SelectedAuthenticationActionIdChanged.InvokeAsync(defaultAuthenticationActionId);
+        _localDisplayName = option.DisplayName;
+        _lastSeenDisplayName = _localDisplayName;
         await DisplayNameChanged.InvokeAsync(_localDisplayName);
         _wizardStep = 2;
     }
 
     private void GoBack()
     {
-        if (_wizardStep > 1)
-            _wizardStep--;
+        if (_wizardStep <= 1) return;
+        _stepValidationMessage = null;
+        _wizardStep--;
     }
 
-    private void GoForward()
+    private async Task ValidateAndGoForwardAsync()
     {
         if (_wizardStep < 3)
+        {
+            if (_wizardStep == 2 && string.IsNullOrWhiteSpace(GetEffectiveDisplayName()))
+            {
+                _stepValidationMessage = "Please enter a calendar name before continuing.";
+                return;
+            }
+
+            _stepValidationMessage = null;
             _wizardStep++;
+
+            await DisplayNameChanged.InvokeAsync(GetEffectiveDisplayName());
+
+            _advancedOpenAttr = _wizardStep == 3 && HasRequiredMissingFields()
+                ? new Dictionary<string, object> { { "open", string.Empty } }
+                : new Dictionary<string, object>();
+        }
+    }
+
+    private async Task ValidateAndSubmitAsync()
+    {
+        _stepValidationMessage = null;
+
+        var missing = GetMissingRequiredFieldLabels();
+        if (missing.Count > 0)
+        {
+            _advancedOpenAttr = new Dictionary<string, object> { { "open", string.Empty } };
+            _stepValidationMessage = $"Please fill in the following required fields: {string.Join(", ", missing)}.";
+            return;
+        }
+
+        if (SelectedOption?.RequiresAuthenticationChoice == true
+            && string.IsNullOrWhiteSpace(SelectedAuthenticationActionId))
+        {
+            _stepValidationMessage = "Please choose whether this calendar should connect with read-only or write-back access.";
+            return;
+        }
+
+        await OnAddAsync.InvokeAsync();
+    }
+
+    private string? GetEffectiveDisplayName()
+        => string.IsNullOrWhiteSpace(_localDisplayName)
+            ? SelectedOption?.DisplayName
+            : _localDisplayName.Trim();
+
+    private string GetSubmitButtonText()
+    {
+        if (SelectedOption?.RequiresAuthentication != true)
+            return "✓ Add Calendar";
+
+        var selectedAuthenticationAction = SelectedOption.AuthenticationActions.FirstOrDefault(action =>
+            string.Equals(action.ActionId, SelectedAuthenticationActionId, StringComparison.Ordinal));
+
+        return selectedAuthenticationAction?.Label ?? "Continue to sign-in";
+    }
+
+    private async Task SelectAuthenticationActionAsync(string actionId)
+    {
+        SelectedAuthenticationActionId = actionId;
+        _stepValidationMessage = null;
+        await SelectedAuthenticationActionIdChanged.InvokeAsync(actionId);
+    }
+
+    private static bool IsRequiredConfigField(PluginFieldEditor field)
+        => !IsLikelyDefaultValue(field.Placeholder) && string.IsNullOrWhiteSpace(field.Value);
+
+    private static bool IsRequiredSecretField(PluginFieldEditor field)
+        => string.IsNullOrWhiteSpace(field.Value);
+
+    private bool HasRequiredMissingFields()
+        => ConfigurationFields.Any(IsRequiredConfigField)
+           || (HasFieldEditors(SecretFields) && SecretFields.Any(IsRequiredSecretField));
+
+    private List<string> GetMissingRequiredFieldLabels()
+    {
+        var labels = new List<string>();
+
+        if (HasFieldEditors(ConfigurationFields))
+            labels.AddRange(ConfigurationFields.Where(IsRequiredConfigField).Select(f => f.Label));
+
+        if (HasFieldEditors(SecretFields))
+            labels.AddRange(SecretFields.Where(IsRequiredSecretField).Select(f => f.Label));
+
+        return labels;
     }
 }

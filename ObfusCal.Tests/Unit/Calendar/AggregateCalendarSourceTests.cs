@@ -13,6 +13,54 @@ namespace ObfusCal.Tests.Unit.Calendar;
 public class AggregateCalendarSourceTests
 {
     [TestMethod]
+    public async Task GetEventsAsync_AssignsConfiguredColorToInstanceEvents()
+    {
+        var ownerId = Guid.NewGuid();
+        var instanceService = new FakeCalendarSourceInstanceService();
+
+        var created = await instanceService.CreateAsync(
+            ownerId,
+            new CreateCalendarSourceInstanceInput("google-test", "Google", ColorHex: "#2563EB"));
+        Assert.IsNotNull(created);
+
+        var googleEvent = new CalendarEvent(
+            "google-1",
+            "Google event",
+            null,
+            new DateTimeOffset(2026, 5, 18, 9, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 5, 18, 10, 0, 0, TimeSpan.Zero),
+            [],
+            null);
+
+        var googleSource = new GoogleWritableTestSource([googleEvent]);
+
+        using var applicationServices = new ServiceCollection()
+            .AddLogging()
+            .AddApplication()
+            .BuildServiceProvider();
+        using var sourceServices = new ServiceCollection()
+            .AddSingleton(googleSource)
+            .BuildServiceProvider();
+
+        var aggregate = new AggregateCalendarSource(
+            ownerId,
+            new FakeCatalog(new CalendarSourcePluginDescriptor("google-test", "Google", typeof(GoogleWritableTestSource), false)),
+            instanceService,
+            sourceServices,
+            applicationServices.GetRequiredService<ObfuscationPipeline>(),
+            new StubCalendarOwnerObfuscationProfileService(),
+            NullLogger<AggregateCalendarSource>.Instance);
+
+        var result = await aggregate.GetEventsAsync(
+            new DateTimeOffset(2026, 5, 18, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 5, 19, 0, 0, 0, TimeSpan.Zero));
+
+        Assert.HasCount(1, result);
+        Assert.AreEqual("Google", result[0].SourceLabel);
+        Assert.AreEqual("#2563EB", result[0].ColorHex);
+    }
+
+    [TestMethod]
     public async Task WriteBackSlotsAsync_WritesOtherSourceBusySlotsToEachWritableDestination()
     {
         var ownerId = Guid.NewGuid();

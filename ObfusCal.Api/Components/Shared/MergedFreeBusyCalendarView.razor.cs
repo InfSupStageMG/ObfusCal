@@ -6,11 +6,11 @@ namespace ObfusCal.Api.Components.Shared;
 
 /// <summary>
 /// Code-behind for the MergedFreeBusyCalendarView component.
-/// Handles calendar grid construction, day/modal selection, timezone formatting,
-/// and per-source color assignment.
+/// Handles calendar grid construction, day/modal selection, and timezone formatting.
 /// </summary>
 public partial class MergedFreeBusyCalendarView : ComponentBase
 {
+    [Inject] public required MergedFreeBusyCalendarColorResolver ColorResolver { get; set; }
     [Parameter] public required List<MergedFreeBusyResponse> Slots { get; set; }
     [Parameter] public required TimeZoneInfo TimeZone { get; set; }
     [Parameter] public DateTime? DisplayDate { get; set; }
@@ -24,20 +24,8 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
     private DateTime _viewMonth = DateTime.UtcNow.Date;
     private List<MergedFreeBusyResponse>? _lastSeenSlots;
     private DateTime? _lastDisplayDate;
-    private Dictionary<string, (string Accent, string Bg)> _labelColors = [];
+    private Dictionary<string, CalendarDisplayColor> _labelColors = [];
     private Dictionary<DateTime, List<MergedFreeBusyResponse>> _slotsByDate = [];
-
-    private static readonly (string Accent, string Bg)[] _palette =
-    [
-        ("#1976d2", "#e3f2fd"), // blue
-        ("#388e3c", "#e8f5e9"), // green
-        ("#7b1fa2", "#f3e5f5"), // purple
-        ("#e65100", "#fff3e0"), // deep-orange
-        ("#00838f", "#e0f7fa"), // cyan
-        ("#ad1457", "#fce4ec"), // pink
-        ("#283593", "#e8eaf6"), // indigo
-        ("#558b2f", "#f9fbe7"), // light-green
-    ];
 
     protected override void OnParametersSet()
     {
@@ -59,26 +47,7 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
     }
 
     private void BuildLabelColors()
-    {
-        var labels = Slots
-            .SelectMany(GetAllLabels)
-            .Where(l => !string.IsNullOrWhiteSpace(l))
-            .Distinct()
-            .OrderBy(l => l)
-            .ToList();
-
-        _labelColors = [];
-        for (var i = 0; i < labels.Count; i++)
-            _labelColors[labels[i]!] = _palette[i % _palette.Length];
-    }
-
-    private static IEnumerable<string?> GetAllLabels(MergedFreeBusyResponse slot)
-    {
-        yield return slot.SourceLabel;
-        if (slot.SourceSlots is not { Count: > 0 }) yield break;
-        foreach (var source in slot.SourceSlots)
-            yield return source.SourceLabel;
-    }
+        => _labelColors = ColorResolver.BuildLabelColors(Slots);
 
     private void BuildSlotIndex()
     {
@@ -118,31 +87,11 @@ public partial class MergedFreeBusyCalendarView : ComponentBase
             TimeZoneInfo.ConvertTime(slot.End, TimeZone).Date);
     }
 
-    private (string Accent, string Bg) GetColor(string? label)
-    {
-        if (string.IsNullOrWhiteSpace(label) || !_labelColors.TryGetValue(label, out var color))
-            return ("#9e9e9e", "#f5f5f5");
-        return color;
-    }
+    private CalendarDisplayColor GetColor(Domain.Models.BusySlot slot)
+        => ColorResolver.ResolveForSource(slot, _labelColors);
 
-    private (string Accent, string Bg) GetSlotColor(MergedFreeBusyResponse evt)
-    {
-        if (evt.SourceSlots is not { Count: > 1 })
-            return GetColor(evt.SourceLabel);
-
-        var distinctLabels = evt.SourceSlots
-            .Select(s => s.SourceLabel)
-            .Where(l => !string.IsNullOrWhiteSpace(l))
-            .Distinct()
-            .ToList();
-
-        // All sources share the same label → use that color
-        return distinctLabels.Count == 1
-            ? GetColor(distinctLabels[0])
-            :
-            // Mixed sources → neutral blue-grey to signal a multi-source merge
-            ("#546e7a", "#eceff1");
-    }
+    private CalendarDisplayColor GetSlotColor(MergedFreeBusyResponse evt)
+        => ColorResolver.ResolveForEvent(evt, _labelColors);
 
     private void PreviousMonth()
     {

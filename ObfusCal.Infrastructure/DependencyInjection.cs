@@ -224,6 +224,7 @@ public static class DependencyInjection
         services.AddScoped<ICalendarOwnerScopeResolver, EfCoreCalendarOwnerScopeResolver>();
         services.AddScoped<ICalendarOwnerProvisioningService, CalendarOwnerProvisioningService>();
         services.AddScoped<ICalendarOwnerService, CalendarOwnerService>();
+        services.AddScoped<ICalendarSourceAuthFlowService, CalendarSourceAuthFlowService>();
         services.AddScoped<ICalendarOwnerGraphConsentService, CalendarOwnerGraphConsentService>();
         services.AddScoped<ICalendarOwnerGoogleConsentService, CalendarOwnerGoogleConsentService>();
         services.AddScoped<ICalendarOwnerCalendarSourceService, CalendarOwnerCalendarSourceService>();

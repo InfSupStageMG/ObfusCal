@@ -9,5 +9,6 @@ public record CalendarEvent(
     IReadOnlyList<string> AttendeeEmails,
     string? Location,
     string? SourceLabel = null,
-    bool IsAllDay = false
+    bool IsAllDay = false,
+    string? ColorHex = null
 );

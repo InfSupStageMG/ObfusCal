@@ -1,0 +1,20 @@
+# Default reviewers
+* @GijsPenningsInfoSupport @MatthiasHendrickx-InfoSupport
+
+# Repository automation and contribution flow
+/.github/ @GijsPenningsInfoSupport @MatthiasHendrickx-InfoSupport
+/.github/workflows/ @GijsPenningsInfoSupport @MatthiasHendrickx-InfoSupport
+/CONTRIBUTING.md @GijsPenningsInfoSupport @MatthiasHendrickx-InfoSupport
+/CODE_OF_CONDUCT.md @GijsPenningsInfoSupport @MatthiasHendrickx-InfoSupport
+/CHANGELOG.md @GijsPenningsInfoSupport @MatthiasHendrickx-InfoSupport
+/README.md @GijsPenningsInfoSupport @MatthiasHendrickx-InfoSupport
+/docs/ @GijsPenningsInfoSupport @MatthiasHendrickx-InfoSupport
+
+# Security-sensitive areas
+/ObfusCal.Api/Authentication/ @GijsPenningsInfoSupport @MatthiasHendrickx-InfoSupport
+/ObfusCal.Api/Authorization/ @GijsPenningsInfoSupport @MatthiasHendrickx-InfoSupport
+/ObfusCal.Api/Controllers/ @GijsPenningsInfoSupport @MatthiasHendrickx-InfoSupport
+/ObfusCal.Infrastructure/Security/ @GijsPenningsInfoSupport @MatthiasHendrickx-InfoSupport
+/ObfusCal.Infrastructure/Persistence/ @GijsPenningsInfoSupport @MatthiasHendrickx-InfoSupport
+/ObfusCal.Infrastructure/Sync/ @GijsPenningsInfoSupport @MatthiasHendrickx-InfoSupport
+

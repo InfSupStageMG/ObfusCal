@@ -80,6 +80,8 @@ Before starting the containers:
 5. Ensure the Entra ID app role `Sysadmin` exists on the API app registration and is assigned to designated
    administrators.
 6. Optionally set `SecurityAudit__FilePath` to a persistent path so security audit records survive container restarts.
+   The audit sink resumes its hash chain from the last stored `entryHash` in that file; rotating or truncating the file
+   starts a new independent chain unless the old file is preserved and verified separately.
    You can provide either a full filename or a writable directory path ending in `/` or `\`. Directory paths are
    resolved to `security-audit.ndjson` inside that directory.
 
@@ -98,6 +100,10 @@ the API container.
 
 The API container remains single-purpose for the API process. Runtime still depends on external infrastructure
 (PostgreSQL, TLS key material, and environment-provided secrets).
+
+Owner-configured calendar source colors are stored in the same application database as source-instance settings and
+availability snapshots. No extra service is required, but database migrations must be applied before the UI can persist
+or replay those colors from stored snapshots.
 
 ### Loading Custom Plugins
 
@@ -132,6 +138,11 @@ Runtime authorization semantics are part of deployment validation: calendar-owne
 for cross-owner requests (anti-enumeration), and owner-scoped peer shadow-slot pushes should return `403` when the peer
 is not mapped to the requested `calendarOwnerRef`.
 
+Peer lifecycle operations are also part of deployment validation for sysadmin-enabled environments:
+`POST /api/admin/peer-connections/{id}/suspend` should return `204 No Content`, move the peer into `Suspended`, and
+cause subsequent peer-authenticated sync requests for that peer to fail immediately. Reactivation currently happens
+through the existing `approve` flow, which returns the peer to `Active` and issues a new API key.
+
 For local API-only debugging, start PostgreSQL first and then run `dotnet run --project ObfusCal.Api` outside
 containers. Use the HTTPS development URL:
 
@@ -146,52 +157,52 @@ local sign-out cycle.
 
 ## Environment Variables
 
-| Variable                                              | Purpose                                                                                                       |
-|-------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
-| `ASPNETCORE_ENVIRONMENT`                              | Set to `Development` for Swagger UI; `Production` for live deployments                                        |
-| `ASPNETCORE_URLS`                                     | Kestrel listen URL inside the container (e.g. `https://+:8443`)                                               |
-| `ASPNETCORE_Kestrel__Certificates__Default__Path`     | Path to the PFX certificate file mounted into the container                                                   |
-| `ASPNETCORE_Kestrel__Certificates__Default__Password` | Password for the PFX certificate (sourced from `.env`)                                                        |
-| `API_CERT_PASSWORD`                                   | Passed to `docker compose` via `.env`; sets the Kestrel cert password                                         |
-| `API_MEM_LIMIT`                                       | API container memory limit used by Compose (default `512m`)                                                   |
-| `API_CPUS`                                            | API container CPU quota used by Compose (default `4.0`)                                                       |
-| `DATAPROTECTION_KEYS_PATH`                            | *Removed* - keys are now persisted to PostgreSQL via `DataProtectionKeys` table                               |
-| `PeerConnections.ApiKeyHash` (database)               | Salted PBKDF2-SHA256 hash of peer API keys used by peer authentication                                        |
-| `PeerConnections.Scopes` (database)                   | Space-separated peer scopes (`push_shadow_slots`, `pull_busy_slots`)                                          |
-| `PeerConnections.RevokedAt` (database)                | Revocation timestamp; non-null peers are rejected by peer authentication                                      |
-| `ConnectionStrings__DefaultConnection`                | PostgreSQL connection string (**required at startup**)                                                        |
-| `AzureAd__TenantId`                                   | Entra tenant ID (**required at startup**)                                                                     |
-| `AzureAd__ClientId`                                   | Entra app/client ID (**required at startup**)                                                                 |
-| `AzureAd__ClientSecret`                               | Entra web-app client secret for browser SSO (**required at startup**)                                         |
-| `GraphConsent__ClientId`                              | Microsoft Graph consent client ID (**required at startup**)                                                   |
-| `GraphConsent__ClientSecret`                          | Microsoft Graph consent client secret (optional depending on tenant app registration)                         |
-| `GraphConsent__Scope`                                 | Graph OAuth scope set; keep `https://graph.microsoft.com/Calendars.ReadWrite offline_access` for two-way sync |
-| `GoogleConsent__ClientId`                             | Google OAuth client ID (required for Google Calendar source)                                                  |
-| `GoogleConsent__ClientSecret`                         | Google OAuth client secret (required for Google Calendar source)                                              |
-| `GoogleConsent__Scope`                                | Google OAuth scope set; keep `https://www.googleapis.com/auth/calendar.events` for Google two-way sync        |
-| `GoogleConsent__RedirectUri`                          | Optional Google OAuth callback override; must exactly match the URI registered in Google Cloud                |
-| `ColumnEncryption__Key`                               | Base64-encoded 256-bit AES key for column-level encryption (**required at startup**)                          |
-| `Sync__InstanceId`                                    | Local instance identifier used in peer sync headers                                                           |
-| `Sync__ApiKey`                                        | Shared API key used for peer sync authentication                                                              |
-| `Sync__PeerRequestTimestampToleranceSeconds`          | Replay window tolerance for `X-Peer-Timestamp` (default `300`)                                                |
-| `Sync__PeerRequestRateLimitPermitLimit`               | Global peer/IP backstop request limit for API traffic (default `240` per `60` seconds)                        |
-| `Sync__PeerRequestRateLimitWindowSeconds`             | Window for the peer/IP backstop (default `60`)                                                                |
-| `Sync__PushShadowSlotsRateLimitPermitLimit`           | Per-peer limit for `POST /api/shadow-slots` (default `60` per `60` seconds)                                   |
-| `Sync__PushShadowSlotsRateLimitWindowSeconds`         | Window for `POST /api/shadow-slots` rate limiting (default `60`)                                              |
-| `Sync__PullBusySlotsRateLimitPermitLimit`             | Per-peer limit for `GET /api/sync/busy-slots/{calendarOwnerRef}` (default `120` per `60` s)                   |
-| `Sync__PullBusySlotsRateLimitWindowSeconds`           | Window for `GET /api/sync/busy-slots/{calendarOwnerRef}` rate limiting (default `60`)                         |
-| `Sync__MaxRequestBodySizeBytes`                       | Maximum API request body size (default `1048576` bytes)                                                       |
-| `Sync__SyncIntervalSeconds`                           | How often the background sync runs (default: `900` = 15 minutes)                                              |
-| `Sync__MaxQueryWindowDays`                            | Maximum allowed inbound query window in days for busy/free-busy endpoints (default `90`)                      |
-| `Sync__MaxShadowSlotsPerRequest`                      | Maximum allowed shadow slots in one push payload (default `500`)                                              |
-| `Sync__ShadowSlotRetentionDays`                       | Days to retain received shadow slots before automatic purge (default `90`)                                    |
-| `Sync__WriteBackLookAheadDays`                        | Provider-managed placeholder reconciliation horizon in days (default `90`)                                    |
-| `Sync__WriteBackPlaceholderTitle`                     | Fallback title used for write-back placeholders (default `Busy`)                                              |
-| `PeerTransportSecurity__AllowSelfSignedCerts`         | Accept self-signed peer certificates when `true` (default `false`)                                            |
-| `SecurityAudit__FilePath`                             | Optional dedicated append-only NDJSON audit sink path; directory values resolve to `security-audit.ndjson`    |
-| `PeerConnections.PinnedCertificateThumbprint`         | Optional peer leaf certificate thumbprint used to pin the expected server certificate                         |
-| `PeerConnections.ClientCertificateThumbprint`         | Optional peer client certificate thumbprint used as mTLS groundwork                                           |
-| `Secrets__Provider`                                   | Secret provider mode (`Environment` default, `External` stub)                                                 |
+| Variable                                              | Purpose                                                                                                                                    |
+|-------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+| `ASPNETCORE_ENVIRONMENT`                              | Set to `Development` for Swagger UI; `Production` for live deployments                                                                     |
+| `ASPNETCORE_URLS`                                     | Kestrel listen URL inside the container (e.g. `https://+:8443`)                                                                            |
+| `ASPNETCORE_Kestrel__Certificates__Default__Path`     | Path to the PFX certificate file mounted into the container                                                                                |
+| `ASPNETCORE_Kestrel__Certificates__Default__Password` | Password for the PFX certificate (sourced from `.env`)                                                                                     |
+| `API_CERT_PASSWORD`                                   | Passed to `docker compose` via `.env`; sets the Kestrel cert password                                                                      |
+| `API_MEM_LIMIT`                                       | API container memory limit used by Compose (default `512m`)                                                                                |
+| `API_CPUS`                                            | API container CPU quota used by Compose (default `4.0`)                                                                                    |
+| `DATAPROTECTION_KEYS_PATH`                            | *Removed* - keys are now persisted to PostgreSQL via `DataProtectionKeys` table                                                            |
+| `PeerConnections.ApiKeyHash` (database)               | Salted PBKDF2-SHA256 hash of peer API keys used by peer authentication                                                                     |
+| `PeerConnections.Scopes` (database)                   | Space-separated peer scopes (`push_shadow_slots`, `pull_busy_slots`)                                                                       |
+| `PeerConnections.RevokedAt` (database)                | Revocation timestamp; non-null peers are rejected by peer authentication                                                                   |
+| `ConnectionStrings__DefaultConnection`                | PostgreSQL connection string (**required at startup**)                                                                                     |
+| `AzureAd__TenantId`                                   | Entra tenant ID (**required at startup**)                                                                                                  |
+| `AzureAd__ClientId`                                   | Entra app/client ID (**required at startup**)                                                                                              |
+| `AzureAd__ClientSecret`                               | Entra web-app client secret for browser SSO (**required at startup**)                                                                      |
+| `GraphConsent__ClientId`                              | Outlook consent client ID for the Microsoft Graph app registration (**required at startup**)                                               |
+| `GraphConsent__ClientSecret`                          | Outlook consent client secret for the Microsoft Graph app registration (optional depending on tenant app registration)                     |
+| `GraphConsent__Scope`                                 | Graph OAuth scope set; keep `https://graph.microsoft.com/Calendars.ReadWrite offline_access` for two-way sync                              |
+| `GoogleConsent__ClientId`                             | Google OAuth client ID (required for Google Calendar source)                                                                               |
+| `GoogleConsent__ClientSecret`                         | Google OAuth client secret (required for Google Calendar source)                                                                           |
+| `GoogleConsent__Scope`                                | Google OAuth scope set; keep `https://www.googleapis.com/auth/calendar.events` for Google two-way sync                                     |
+| `GoogleConsent__RedirectUri`                          | Optional Google OAuth callback override; must exactly match the URI registered in Google Cloud                                             |
+| `ColumnEncryption__Key`                               | Base64-encoded 256-bit AES key for column-level encryption (**required at startup**)                                                       |
+| `Sync__InstanceId`                                    | Local instance identifier used in peer sync headers                                                                                        |
+| `Sync__ApiKey`                                        | Shared API key used for peer sync authentication                                                                                           |
+| `Sync__PeerRequestTimestampToleranceSeconds`          | Replay window tolerance for `X-Peer-Timestamp` (default `300`)                                                                             |
+| `Sync__PeerRequestRateLimitPermitLimit`               | Global peer/IP backstop request limit for API traffic (default `240` per `60` seconds)                                                     |
+| `Sync__PeerRequestRateLimitWindowSeconds`             | Window for the peer/IP backstop (default `60`)                                                                                             |
+| `Sync__PushShadowSlotsRateLimitPermitLimit`           | Per-peer limit for `POST /api/shadow-slots` (default `60` per `60` seconds)                                                                |
+| `Sync__PushShadowSlotsRateLimitWindowSeconds`         | Window for `POST /api/shadow-slots` rate limiting (default `60`)                                                                           |
+| `Sync__PullBusySlotsRateLimitPermitLimit`             | Per-peer limit for `GET /api/sync/busy-slots/{calendarOwnerRef}` (default `120` per `60` s)                                                |
+| `Sync__PullBusySlotsRateLimitWindowSeconds`           | Window for `GET /api/sync/busy-slots/{calendarOwnerRef}` rate limiting (default `60`)                                                      |
+| `Sync__MaxRequestBodySizeBytes`                       | Maximum API request body size (default `1048576` bytes)                                                                                    |
+| `Sync__SyncIntervalSeconds`                           | How often the background sync runs (default: `900` = 15 minutes)                                                                           |
+| `Sync__MaxQueryWindowDays`                            | Maximum allowed inbound query window in days for busy/free-busy endpoints (default `90`)                                                   |
+| `Sync__MaxShadowSlotsPerRequest`                      | Maximum allowed shadow slots in one push payload (default `500`)                                                                           |
+| `Sync__ShadowSlotRetentionDays`                       | Days to retain received shadow slots before automatic purge (default `90`)                                                                 |
+| `Sync__WriteBackLookAheadDays`                        | Provider-managed placeholder reconciliation horizon in days (default `90`)                                                                 |
+| `Sync__WriteBackPlaceholderTitle`                     | Fallback title used for write-back placeholders (default `Busy`)                                                                           |
+| `PeerTransportSecurity__AllowSelfSignedCerts`         | Accept self-signed peer certificates when `true` (default `false`)                                                                         |
+| `SecurityAudit__FilePath`                             | Optional dedicated append-only NDJSON audit sink path; keep it on persistent storage if you want one continuous hash chain across restarts |
+| `PeerConnections.PinnedCertificateThumbprint`         | Optional peer leaf certificate thumbprint used to pin the expected server certificate                                                      |
+| `PeerConnections.ClientCertificateThumbprint`         | Optional peer client certificate thumbprint used as mTLS groundwork                                                                        |
+| `Secrets__Provider`                                   | Secret provider mode (`Environment` default, `External` stub)                                                                              |
 
 At startup, ObfusCal validates required secrets and fails fast with a descriptive error when one is missing. This now
 includes the Entra browser-login client secret because the Blazor UI signs users in with the server-side OpenID
@@ -219,16 +230,28 @@ This means:
 
 Every push to `main` on GitHub triggers a GitHub Actions workflow that:
 
-1. Runs `dotnet build` and `dotnet test`
-2. Builds the Docker image using the multi-stage `Dockerfile`
-3. Pushes the image to GitHub Container Registry (GHCR) tagged with `latest` and the commit SHA
+1. Derives the application semantic version from the latest reachable Git tag matching `vX.Y.Z` via `MinVer`
+2. Runs `dotnet build` and `dotnet test`
+3. Builds the Docker image using the multi-stage `Dockerfile` and stamps the computed version into the published .NET
+   assemblies (`Version`, `AssemblyVersion`, `FileVersion`, and `InformationalVersion`)
+4. Pushes the image to GitHub Container Registry (GHCR) tagged with the semantic version, the same version prefixed
+   with `v`, `latest`, and a short commit-SHA tag
 
-Deploying an update on a running server:
+If no valid release tag exists yet, `MinVer` keeps builds on the `1.0` line as prereleases (for example
+`1.0.0-alpha.0.<height>`). Creating a tag such as `v1.0.0` starts the release line for subsequent builds.
+
+The repository `docker-compose.yaml` builds the API image from source (`build: .`). For a source-based deployment on a
+running server, pull the updated repository contents and rebuild the stack:
 
 ```bash
-docker pull ghcr.io/infsupstagemg/obfuscal-api:latest
+git pull
 docker compose up -d --build
 ```
+
+If you deploy from GHCR instead of building locally, point your service definition at a published image such as
+`ghcr.io/infsupstagemg/obfuscal-api:1.2.0` and prefer a pinned semantic-version tag over `latest` for repeatable
+rollouts. The running UI surfaces the stamped application version in the Dashboard and footer so operators can verify
+what build is active.
 
 ## PoC vs Production Differences
 

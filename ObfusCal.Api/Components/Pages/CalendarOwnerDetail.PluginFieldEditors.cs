@@ -136,7 +136,7 @@ public partial class CalendarOwnerDetail
 
     // Returns true for values that are real working defaults (e.g. "primary"),
     // and false for example placeholders that the user must replace (e.g. "you@example.com").
-    private static bool IsLikelyDefaultValue(string? value)
+    internal static bool IsLikelyDefaultValue(string? value)
     {
         if (string.IsNullOrEmpty(value))
             return false;
@@ -150,7 +150,7 @@ public partial class CalendarOwnerDetail
     private static string? GetFieldDescription(string key) => key.ToLowerInvariant() switch
     {
         "calendarid" =>
-            "Your Google Calendar ID. 'primary' means your main calendar — that's the right choice for most people. " +
+            "Your Google Calendar ID. 'primary' means your main calendar; that's the right choice for most people. " +
             "You can find other calendar IDs in Google Calendar → Settings → click a calendar → Integrate calendar.",
         "calendarurl" =>
             "The CalDAV address of your iCloud calendar. " +

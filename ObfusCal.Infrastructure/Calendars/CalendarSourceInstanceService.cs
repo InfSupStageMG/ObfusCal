@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
+using ObfusCal.Application.Calendars;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Persistence;
 
@@ -37,7 +38,8 @@ internal sealed class CalendarSourceInstanceService(
                 readiness.IsReady,
                 readiness.Title,
                 readiness.Detail,
-                context.IsExternalPlugin));
+                context.IsExternalPlugin,
+                context.ColorHex));
         }
 
         return summaries;
@@ -99,6 +101,7 @@ internal sealed class CalendarSourceInstanceService(
             throw new ArgumentException("Display name must be 256 characters or fewer.");
 
         await ValidateIcalConfigurationAsync(plugin.Id, input.ConfigurationJson, ct);
+        var colorHex = CalendarColorPalette.NormalizeHexColorOrNull(input.ColorHex);
 
         var instance = new CalendarSourceInstance
         {
@@ -106,6 +109,7 @@ internal sealed class CalendarSourceInstanceService(
             CalendarOwnerId = calendarOwnerId,
             PluginId = plugin.Id,
             DisplayName = displayName,
+            ColorHex = colorHex,
             IsEnabled = input.IsEnabled,
             ConfigurationJson = input.ConfigurationJson,
             SecretDataJson = input.SecretDataJson is null ? null : secretProtector.Protect(input.SecretDataJson),
@@ -128,7 +132,8 @@ internal sealed class CalendarSourceInstanceService(
             readiness.IsReady,
             readiness.Title,
             readiness.Detail,
-            context.IsExternalPlugin);
+            context.IsExternalPlugin,
+            context.ColorHex);
     }
 
     public async Task<CalendarSourceInstanceSummary?> UpdateAsync(
@@ -150,6 +155,9 @@ internal sealed class CalendarSourceInstanceService(
                 throw new ArgumentException("Display name must be 256 characters or fewer.");
             instance.DisplayName = newName;
         }
+
+        if (input.ColorHex is not null)
+            instance.ColorHex = CalendarColorPalette.NormalizeHexColorOrNull(input.ColorHex);
 
         if (input.ConfigurationJson is not null)
         {
@@ -178,7 +186,8 @@ internal sealed class CalendarSourceInstanceService(
             readiness.IsReady,
             readiness.Title,
             readiness.Detail,
-            context.IsExternalPlugin);
+            context.IsExternalPlugin,
+            context.ColorHex);
     }
 
     public async Task<bool> DeleteAsync(Guid calendarOwnerId, Guid instanceId, CancellationToken ct = default)
@@ -235,7 +244,8 @@ internal sealed class CalendarSourceInstanceService(
             instance.IsEnabled,
             instance.ConfigurationJson,
             TryUnprotectSecret(instance.SecretDataJson),
-            plugin?.IsExternalPlugin ?? false);
+            plugin?.IsExternalPlugin ?? false,
+            instance.ColorHex);
     }
 
     private string? TryUnprotectSecret(string? protectedValue)
@@ -265,7 +275,7 @@ internal sealed class CalendarSourceInstanceService(
         if (string.IsNullOrWhiteSpace(configurationJson))
             return;
 
-        string? feedUrl = null;
+        string? feedUrl;
         try
         {
             using var doc = JsonDocument.Parse(configurationJson);

@@ -73,7 +73,7 @@
                                      @if (evt.IsAllDay)
                                      {
                                          <div class="calendar-event-badge calendar-event-badge--allday"
-                                              style="background-color: @c.Bg; border-left: 3px solid @c.Accent; color: var(--color-text-primary);"
+                                              style="background-color: @c.Bg; border-left: 5px solid @c.Accent; color: var(--color-text-primary);"
                                               title="@(evt.Title ?? "Busy") - All day">
                                              <span class="event-time">All day</span>
                                          </div>
@@ -81,7 +81,7 @@
                                      else
                                      {
                                          <div class="calendar-event-badge"
-                                              style="background-color: @c.Bg; border-left: 3px solid @c.Accent; color: var(--color-text-primary);"
+                                              style="background-color: @c.Bg; border-left: 5px solid @c.Accent; color: var(--color-text-primary);"
                                               title="@(evt.Title ?? "Busy") - @FormatTime(evt) to @FormatEndTime(evt)">
                                              <span class="event-time">@FormatTime(evt)-@FormatEndTime(evt)</span>
                                          </div>
@@ -121,7 +121,7 @@
                     @foreach (var evt in _selectedDayEvents)
                     {
                         var slotColor = GetSlotColor(evt);
-                        <div class="event-item" style="border-left: 4px solid @slotColor.Accent;">
+                        <div class="event-item" style="border-left: 6px solid @slotColor.Accent;">
                             @if (evt.SourceSlots?.Count > 1)
                             {
                                 <!-- Merged block with multiple source events -->
@@ -147,7 +147,7 @@
                                 <div class="merged-sources">
                                     @foreach (var source in evt.SourceSlots)
                                     {
-                                        var sc = GetColor(source.SourceLabel);
+                                            var sc = GetColor(source);
                                         <div class="source-event" style="border-left-color: @sc.Accent;">
                                             <div class="source-event-header">
                                                 @if (!string.IsNullOrWhiteSpace(source.Title))
@@ -161,7 +161,7 @@
                                                 @if (!string.IsNullOrWhiteSpace(source.SourceLabel))
                                                 {
                                                     <span class="source-label-badge"
-                                                          style="background-color: @sc.Bg; color: @sc.Accent; border-color: @sc.Accent;">@source.SourceLabel</span>
+                                                          style="background-color: @sc.Bg; color: @sc.Foreground; border-color: @sc.Foreground;">@source.SourceLabel</span>
                                                 }
                                             </div>
                                             <div class="source-event-details">
@@ -211,7 +211,7 @@
                                     @if (!string.IsNullOrWhiteSpace(evt.SourceLabel))
                                     {
                                         <span class="source-label-badge"
-                                              style="background-color: @slotColor.Bg; color: @slotColor.Accent; border-color: @slotColor.Accent;">@evt.SourceLabel</span>
+                                              style="background-color: @slotColor.Bg; color: @slotColor.Foreground; border-color: @slotColor.Foreground;">@evt.SourceLabel</span>
                                     }
                                 </div>
                                 @if (!string.IsNullOrWhiteSpace(evt.Title))

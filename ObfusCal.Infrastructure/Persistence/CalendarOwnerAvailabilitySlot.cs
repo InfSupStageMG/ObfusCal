@@ -19,6 +19,8 @@ public class CalendarOwnerAvailabilitySlot
     public string? Location { get; set; }
     [MaxLength(512)]
     public string? SourceLabel { get; set; }
+    [MaxLength(7)]
+    public string? ColorHex { get; set; }
     public bool IsAllDay { get; set; }
     /// <summary>
     /// JSON array of merged source slots. Each object contains Start, End, Title, Description, AttendeeEmails, Location.

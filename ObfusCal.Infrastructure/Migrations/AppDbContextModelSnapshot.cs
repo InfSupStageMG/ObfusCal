@@ -179,6 +179,10 @@ namespace ObfusCal.Infrastructure.Migrations
                     b.Property<Guid>("CalendarOwnerId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ColorHex")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
                     b.Property<string>("Description")
                         .HasMaxLength(4096)
                         .HasColumnType("character varying(4096)");
@@ -274,6 +278,10 @@ namespace ObfusCal.Infrastructure.Migrations
 
                     b.Property<Guid>("CalendarOwnerId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("ColorHex")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
 
                     b.Property<string>("ConfigurationJson")
                         .HasMaxLength(32768)

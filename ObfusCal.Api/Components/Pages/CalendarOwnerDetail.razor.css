@@ -40,6 +40,10 @@
     margin-top: 1rem;
 }
 
+.source-selection-hint {
+    margin: 0.35rem 0 0;
+}
+
 .source-tile {
     display: flex;
     flex-direction: column;
@@ -58,6 +62,7 @@
     font-family: inherit;
     color: inherit;
     overflow: hidden;
+    position: relative;
 }
 
 .source-tile:hover {
@@ -66,11 +71,38 @@
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
+.source-tile:focus-visible {
+    outline: 2px solid var(--accent-fill-rest);
+    outline-offset: 3px;
+}
+
 .source-tile--active {
     border-color: var(--accent-fill-rest);
     border-width: 2px;
     background: var(--neutral-fill-secondary-rest);
     box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+}
+
+.source-tile--active::after {
+    content: "Editing";
+    position: absolute;
+    top: 0.55rem;
+    right: 0.65rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-fill-rest) 14%, transparent);
+    color: var(--accent-fill-rest);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.source-tile-color {
+    inline-size: 0.95rem;
+    block-size: 0.95rem;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--neutral-stroke-rest) 65%, transparent);
+    flex: 0 0 auto;
 }
 
 .source-tile-name {
@@ -104,6 +136,21 @@
 /* ── Inline source editor panel ── */
 .source-editor-panel {
     animation: panelSlideDown 0.2s ease-out;
+}
+
+.source-editor-panel-header {
+    margin-bottom: 0.75rem;
+}
+
+.source-editor-panel-title {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.source-editor-panel-hint {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    color: var(--neutral-foreground-hint);
 }
 
 @keyframes panelSlideDown {
@@ -233,3 +280,16 @@
 .page-advanced-inner {
     padding: 0 1.25rem 1.25rem;
 }
+
+@media (max-width: 640px) {
+    .source-tile {
+        min-height: 110px;
+        padding-top: 1.75rem;
+    }
+
+    .source-tile--active::after {
+        top: 0.45rem;
+        right: 0.5rem;
+    }
+}
+

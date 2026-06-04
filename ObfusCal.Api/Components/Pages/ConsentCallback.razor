@@ -27,7 +27,7 @@
     else
     {
         <FluentMessageBar Intent="MessageIntent.Success">
-            ✓ Authorization completed successfully. You can now close this window.
+            ✓ Authorization completed. Redirecting back to your calendar…
         </FluentMessageBar>
     }
 </FluentStack>
@@ -41,6 +41,8 @@
 
     private bool _loading = true;
     private string? _errorMessage;
+    // Keeps the spinner visible until the navigation takes effect.
+    private bool _navigatingToOwner;
 
     protected override async Task OnInitializedAsync()
     {
@@ -121,19 +123,25 @@
             }
             catch (Exception ex)
             {
-                // Non-fatal: log and continue to success page. The scheduled background sync will
+                // Non-fatal: log and continue to redirect. The scheduled background sync will
                 // pick up the new source on its next cycle.
                 Logger.LogWarning(ex,
                     "Post-consent availability sync failed for calendar owner {CalendarOwnerId}; the snapshot will be refreshed on the next scheduled sync.",
                     calendarOwnerId);
             }
+
+            // Navigate back to the calendar owner page so the success message is shown there,
+            // keeping the spinner visible until the navigation takes effect.
+            _navigatingToOwner = true;
+            Navigation.NavigateTo($"/calendar-owners/{calendarOwnerId}?consentCompleted=true", forceLoad: true);
         }
         finally
         {
             if (shouldReleaseState && stateToken is not null)
                 ProcessedStates.TryRemove(stateToken, out _);
 
-            _loading = false;
+            if (!_navigatingToOwner)
+                _loading = false;
         }
     }
 

@@ -1,4 +1,8 @@
-﻿# ObfusCal
+# ObfusCal
+
+[![Build](https://github.com/InfSupStageMG/ObfusCal/actions/workflows/docker.yaml/badge.svg?branch=main)](https://github.com/InfSupStageMG/ObfusCal/actions/workflows/docker.yaml)
+[![Docs](https://img.shields.io/badge/docs-MkDocs-blue)](https://infsupstagemg.github.io/ObfusCal/)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE.md)
 
 ObfusCal is an open-source calendar synchronisation tool that lets users stay in sync across multiple domains without
 exposing sensitive information. Events from external domains appear in your calendar as obfuscated busy blocks where
@@ -15,13 +19,17 @@ Each organisation runs their own instance of ObfusCal within their own network. 
 slots over a secured API. Peer endpoints are expected to use HTTPS; the application rejects `http://` peer base URLs and
 validates the upstream certificate chain by default. No raw event data ever crosses a domain boundary. Calendar owners
 authenticate with their existing company credentials via Entra ID (Azure AD), and the system fetches their calendar
-automatically on a configurable schedule. Supported calendar sources include Microsoft Graph (Microsoft 365), Google
-Calendar, iCloud CalDAV, and read-only iCal (`.ics`) feeds.
+automatically on a configurable schedule. Supported calendar sources include Outlook (Microsoft 365 via Microsoft
+Graph), Google Calendar, iCloud CalDAV, and read-only iCal (`.ics`) feeds.
 
-For Microsoft Graph and Google Calendar owners who enable write-back, the sync cycle also writes
-**ObfusCal-managed placeholder events** into the connected calendar. These placeholders contain only the configured
-title plus start/end time, are tagged with provider metadata for safe cleanup, and never include peer identity,
-attendee lists, locations, or event content.
+Calendar owners can configure multiple source instances, assign an optional color to each source, and review the merged
+availability view with those colors carried through the legend, event badges, and merged-event details. When no color is
+configured, ObfusCal falls back to an automatic palette.
+
+For Outlook and Google Calendar owners who enable write-back, the sync cycle also writes **ObfusCal-managed placeholder
+events** into the connected calendar. These placeholders contain only the configured title plus start/end time, are
+tagged with provider metadata for safe cleanup, and never include peer identity, attendee lists, locations, or event
+content.
 
 Peer sync traffic is also rate limited per authenticated peer, with an IP-based backstop for unauthenticated requests.
 The shadow-slot push and busy-slot pull endpoints each use their own configurable window, and API request bodies are
@@ -32,7 +40,20 @@ capped at 1 MB by default to reduce DoS risk.
 ## Documentation
 
 - [Home](https://infsupstagemg.github.io/ObfusCal/)
-- [ICloud CalDAV setup guide](https://infsupstagemg.github.io/ObfusCal/docs/icloud-caldav-setup/)
+- [ICloud CalDAV setup guide](https://infsupstagemg.github.io/ObfusCal/icloud-caldav-setup/)
+- [Contributing guide](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security policy](.github/SECURITY.md)
+- [Changelog](CHANGELOG.md)
+
+---
+
+## Community & project policies
+
+- Contributions are welcome through issues and pull requests; start with `CONTRIBUTING.md`.
+- Community expectations are documented in `CODE_OF_CONDUCT.md`.
+- Security vulnerabilities should be reported privately through `.github/SECURITY.md`.
+- Review ownership for sensitive or security-relevant areas is documented in `.github/CODEOWNERS`.
 
 ---
 
@@ -58,6 +79,7 @@ ObfusCal/
 │   ├── appsettings.Development.json
 │   └── appsettings.json
 ├── ObfusCal.Application/              # Use cases (CQRS), interfaces, obfuscation pipeline
+│   ├── Calendars/
 │   ├── Configuration/
 │   ├── Interfaces/
 │   ├── Obfuscation/
@@ -121,6 +143,10 @@ ObfusCal/
 ├── .gitignore
 ├── .gitmessage
 ├── AGENTS.md
+├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── Directory.Build.props
 ├── Dockerfile
 ├── LICENSE.md
 ├── ObfusCal.slnx
@@ -185,9 +211,12 @@ openssl pkcs12 -export `
    must include a web redirect URI for `https://localhost:7001/signin-oidc` (and any reverse-proxy hostnames you use)
    and you must provide `AZUREAD__CLIENTSECRET`.
 
-   Microsoft Graph consent now supports two access modes:
+   Outlook consent via Microsoft Graph now supports two access modes:
     - read-only: `GraphConsent:ReadOnlyScope=https://graph.microsoft.com/Calendars.Read offline_access`
     - write-back: `GraphConsent:ReadWriteScope=https://graph.microsoft.com/Calendars.ReadWrite offline_access`
+
+   In the Blazor add-calendar wizard, Outlook source instances now ask the user to choose which of these access
+   levels should be requested before the sign-in redirect starts.
 
    Source instances connected with read-only consent can sync events but cannot write ObfusCal-managed placeholders.
 
@@ -345,6 +374,22 @@ To view test results:
    are retained for 14 days. You can download these and open them in Visual Studio or Rider for deeper analysis of
    failed tests.
 
+### Release versioning
+
+ObfusCal derives its application version from Git tags via `MinVer`.
+
+- Create release tags in the form `vX.Y.Z` (for example `v1.2.0`).
+- CI/CD uses the latest reachable matching tag to calculate the semantic version for builds and published images.
+- If no valid `vX.Y.Z` tag exists yet, builds stay on the `1.0` line as prereleases (for example
+  `1.0.0-alpha.0.<height>`).
+- The Docker publishing workflow stamps the computed version into the .NET assemblies and publishes GHCR image tags for
+  the semantic version, the same version with the `v` prefix, `latest`, and a short commit-SHA tag.
+- The running application shows its current version in the Blazor footer and on the Dashboard so operators can confirm
+  what build is deployed.
+
+For repeatable deployments, prefer pinning server environments to a semantic-version image tag instead of relying on
+`latest`.
+
 ## Secret management
 
 ObfusCal now uses a central abstraction (`ISecretProvider`) for secret access and validates required secrets during
@@ -364,10 +409,13 @@ startup.
 Environment variable names use the standard double-underscore mapping (for example `GRAPHCONSENT__CLIENTSECRET` and
 `CONNECTIONSTRINGS__DEFAULTCONNECTION`).
 
-Graph consent supports split scopes by default:
+Outlook consent via Microsoft Graph supports split scopes by default:
 
 - read-only: `https://graph.microsoft.com/Calendars.Read offline_access`
 - write-back: `https://graph.microsoft.com/Calendars.ReadWrite offline_access`
+
+The add-calendar flow surfaces that choice explicitly for Outlook source instances instead of silently picking one of
+the provider actions.
 
 `GraphConsent:AuthorityTenant` can be set to `common` or `consumers` as groundwork for personal-account consent
 scenarios. Leave it unset to use `AzureAd:TenantId`.
@@ -528,30 +576,41 @@ in-memory busy slot storage, REST API with OpenAPI/Swagger, push/pull shadow slo
 logging, nginx reverse proxy with HTTPS, EF Core + PostgreSQL persistence.
 
 **Sprint 2 (complete):** Entra ID login for calendar owners, per-owner data scoping, peer API key authentication,
-Microsoft Graph OAuth consent flow and calendar fetch, configurable periodic re-sync scheduler, per-owner configurable
-obfuscation rules, obfuscation audit log, iCal feed import, outbound/inbound peer sync transport, sync resilience and
-per-peer isolation, status and health endpoint, manual sync trigger, Blazor Server web UI with FluentUI, mutation
-testing setup (Stryker), test coverage improvements, Plugin architecture end-to-end.
+Outlook (Microsoft Graph) OAuth consent flow and calendar fetch, configurable periodic re-sync scheduler, per-owner
+configurable obfuscation rules, obfuscation audit log, iCal feed import, outbound/inbound peer sync transport, sync
+resilience and per-peer isolation, status and health endpoint, manual sync trigger, Blazor Server web UI with FluentUI,
+mutation testing setup (Stryker), test coverage improvements, Plugin architecture end-to-end.
 
 **Sprint 3 (complete):** Google Calendar plugin, iCloud CalDAV plugin, centralised secrets and log redaction, end-to-end
 peer trust hardening, input validation and SSRF protection, CI/CD and dependency security automation, Centralized
 Secrets and Cryptographic Key Management, peer connection request and fallback, sysadmin peer approval and credential
 configuration.
 
-**Sprint 4 (in progress):** API authorisation and tenant boundary enforcement, data protection and privacy controls,
+**Sprint 4 (complete):** API authorisation and tenant boundary enforcement, data protection and privacy controls,
 rate limiting and sync endpoint DoS protection, plugin supply-chain hardening, container and host runtime hardening,
 inter-peer transport security, dashboard calendar view, Entra ID tenant integration and sysadmin role, automated
 deployment to host server, Proton Calendar plugin, two-way sync, security logging and auditing.
 
-**Sprint 5 (planned):** Booking link generation, continuous security verification program, public availability view via
-booking link, appointment proposal and calendar write-back, booking link revocation
+**Sprint 5 (complete):** Calendar week start on Monday, write-back that respects obfuscation rules, clearer
+obfuscation profile labels, sync progress indicator, UX/UI usability improvements, full-day event display and UTC
+handling fixes, source-label propagation through the pipeline, migration fixes, and iCloud sync bug fixes.
+
+**Sprint 6 (ongoing):** Security review preparation and auth flow integration in the calendar source add wizard are
+currently in progress. Semantic versioning, color updates, and calendar source editor UX improvements have been
+completed in this sprint. Preparations for completing the project and open-sourcing are underway.
 
 ---
 
 ## Contributing
 
-This project is developed as an internship assignment at internship company. Contributions and
-feedback are welcome. Please open an issue before submitting a pull request.
+ObfusCal started as an internship project and is being prepared for long-term open-source maintenance.
+
+If you want to contribute:
+
+1. read the [Contributing guide](CONTRIBUTING.md)
+2. check the open issues for scoped work items
+3. prefer issues labelled `good first issue` or `help wanted` if you are new to the project
+4. follow the [PR checklist](.github/pull_request_template.md)
 
 ---
 

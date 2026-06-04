@@ -62,6 +62,11 @@ nav:
             -   "Incident Response Playbook": incident-response.md
             -   "SBOM (Software Bill of Materials)": sbom/index.md
             -   "iCloud CalDAV Setup": icloud-caldav-setup.md
+    -   Project & Community:
+            -   "Contributing Guide": https://github.com/InfSupStageMG/ObfusCal/blob/main/CONTRIBUTING.md
+            -   "Code of Conduct": https://github.com/InfSupStageMG/ObfusCal/blob/main/CODE_OF_CONDUCT.md
+            -   "Security Policy": https://github.com/InfSupStageMG/ObfusCal/blob/main/.github/SECURITY.md
+            -   "Changelog": https://github.com/InfSupStageMG/ObfusCal/blob/main/CHANGELOG.md
 
 markdown_extensions:
     - attr_list

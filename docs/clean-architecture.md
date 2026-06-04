@@ -99,7 +99,7 @@ ObfusCal.Domain/
 
 #### Key patterns
 
-**Domain models are lightweight immutable records — no inheritance, no framework dependencies:**
+**Domain models are lightweight immutable records; no inheritance, no framework dependencies:**
 
 <!-- START_SNIPPET path="ObfusCal.Domain/Models/CalendarEvent.cs" -->
 ```cs
@@ -114,7 +114,8 @@ public record CalendarEvent(
     IReadOnlyList<string> AttendeeEmails,
     string? Location,
     string? SourceLabel = null,
-    bool IsAllDay = false
+    bool IsAllDay = false,
+    string? ColorHex = null
 );
 ```
 <!-- END_SNIPPET -->
@@ -133,12 +134,13 @@ public record BusySlot(
     string? Location = null,
     string? SourceLabel = null,
     IReadOnlyList<BusySlot>? SourceSlots = null,
-    bool IsAllDay = false
+    bool IsAllDay = false,
+    string? ColorHex = null
 );
 ```
 <!-- END_SNIPPET -->
 
-**Obfuscation contracts are defined in Domain — declared here, implemented in Infrastructure or loaded as plugins:**
+**Obfuscation contracts are defined in Domain; declared here, implemented in Infrastructure or loaded as plugins:**
 
 <!-- START_SNIPPET path="ObfusCal.Domain/Obfuscation/IObfuscationTransformer.cs" -->
 ```cs
@@ -188,6 +190,8 @@ public interface IObfuscationTransformer
 <!-- START_TREE path="ObfusCal.Application" max_depth="2" -->
 ```text
 ObfusCal.Application/
+├── Calendars/
+│   └── CalendarColorPalette.cs
 ├── Configuration/
 │   ├── CalendarSourceOptions.cs
 │   ├── GoogleConsentOptions.cs
@@ -214,6 +218,7 @@ ObfusCal.Application/
 │   ├── ICalendarOwnerScopeResolver.cs
 │   ├── ICalendarOwnerService.cs
 │   ├── ICalendarSource.cs
+│   ├── ICalendarSourceAuthFlowService.cs
 │   ├── ICalendarSourceInstances.cs
 │   ├── ICalendarSourcePlugin.cs
 │   ├── ICalendarWriteBack.cs
@@ -254,7 +259,7 @@ ObfusCal.Application/
 
 #### Key patterns
 
-**Use cases are declared as interfaces in Application — controllers and callers depend only on the interface:**
+**Use cases are declared as interfaces in Application; controllers and callers depend only on the interface:**
 
 ```csharp
 public interface IGetMergedFreeBusyUseCase
@@ -357,6 +362,7 @@ ObfusCal.Infrastructure/
 ├── Calendars/
 │   ├── AggregateCalendarSource.cs
 │   ├── CalendarOwnerCalendarSourceService.cs
+│   ├── CalendarSourceAuthFlowService.cs
 │   ├── CalendarSourceInstanceService.cs
 │   ├── CalendarSourcePluginCatalog.cs
 │   ├── CalendarSourceResolver.cs
@@ -368,6 +374,7 @@ ObfusCal.Infrastructure/
 │   ├── GraphCalendarSource.Models.cs
 │   ├── GraphCalendarSource.WriteBack.cs
 │   ├── GraphCalendarSource.cs
+│   ├── GraphConsentAccessPolicy.cs
 │   ├── GraphOAuthTokenClient.cs
 │   ├── ICalFeedCalendarSource.cs
 │   ├── ICloudCalendarSourceCore.WriteBack.cs
@@ -560,7 +567,7 @@ ObfusCal.Api/
 
 #### Key patterns
 
-**Controllers are delivery mechanisms only — inject use case interfaces, never infrastructure implementations:**
+**Controllers are delivery mechanisms only. Inject use case interfaces, never infrastructure implementations:**
 
 ```csharp
 [ApiController]
@@ -622,7 +629,7 @@ Validation failures are communicated via `RequestValidationException` thrown by 
 exception middleware, and mapped to `400 ValidationProblemDetails`. Unexpected failures (DB unreachable, calendar
 API errors) propagate as exceptions and are returned as `500` problem details without stack traces or internal detail.
 
-- Domain is free of error types — it defines records and interfaces only.
+- Domain is free of error types. It defines records and interfaces only.
 - Use cases surface input-validation failures via `RequestValidationException`.
 - The API maps these to RFC 9457 problem detail responses (`ValidationProblemDetails` or `ProblemDetails`).
 - Unhandled exceptions are caught by the ASP.NET Core exception handler middleware.

@@ -123,6 +123,8 @@ public class CalendarOwnerAvailabilitySyncServiceTests
     [TestMethod]
     public async Task RunSyncForOwnerAsync_WithWriteBackEnabled_WritesManagedGraphPlaceholderUsingConfiguredTitle()
     {
+        const string placeholderTitle = "Custom placeholder title";
+
         await using var dbContext = SyncIntegrationTestHelpers.CreateDbContext();
         var ownerId = Guid.NewGuid();
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
@@ -132,9 +134,9 @@ public class CalendarOwnerAvailabilitySyncServiceTests
         dbContext.CalendarOwners.Add(new CalendarOwner
         {
             Id = ownerId,
-            Name = "Graph owner",
+            Name = "Outlook owner",
             WriteBackEnabled = true,
-            WriteBackPlaceholderTitle = "Niet beschikbaar",
+            WriteBackPlaceholderTitle = placeholderTitle,
             GraphAccessTokenProtected = protector.Protect("access-token"),
             GraphRefreshTokenProtected = protector.Protect("refresh-token"),
             GraphTokenExpiresAtUtc = now.AddHours(1)
@@ -175,7 +177,7 @@ public class CalendarOwnerAvailabilitySyncServiceTests
 
         var post = requests.Single(entry => entry.Method == HttpMethod.Post);
         using var doc = JsonDocument.Parse(post.Body!);
-        Assert.AreEqual("Niet beschikbaar", doc.RootElement.GetProperty("subject").GetString());
+        Assert.AreEqual(placeholderTitle, doc.RootElement.GetProperty("subject").GetString());
         Assert.IsFalse(doc.RootElement.TryGetProperty("attendees", out _));
         Assert.IsFalse(doc.RootElement.TryGetProperty("location", out _));
         Assert.IsFalse(doc.RootElement.TryGetProperty("body", out _));
@@ -193,7 +195,7 @@ public class CalendarOwnerAvailabilitySyncServiceTests
         dbContext.CalendarOwners.Add(new CalendarOwner
         {
             Id = ownerId,
-            Name = "Graph owner",
+            Name = "Outlook owner",
             WriteBackEnabled = true,
             GraphAccessTokenProtected = protector.Protect("access-token"),
             GraphRefreshTokenProtected = protector.Protect("refresh-token"),
@@ -287,7 +289,7 @@ public class CalendarOwnerAvailabilitySyncServiceTests
         dbContext.CalendarOwners.Add(new CalendarOwner
         {
             Id = ownerId,
-            Name = "Graph owner",
+            Name = "Outlook owner",
             WriteBackEnabled = false,
             GraphAccessTokenProtected = protector.Protect("access-token"),
             GraphRefreshTokenProtected = protector.Protect("refresh-token"),
@@ -330,6 +332,8 @@ public class CalendarOwnerAvailabilitySyncServiceTests
     [TestMethod]
     public async Task RunSyncForOwnerAsync_WithWriteBackEnabled_WritesManagedGooglePlaceholderUsingConfiguredTitle()
     {
+        const string placeholderTitle = "Custom placeholder title";
+
         await using var dbContext = SyncIntegrationTestHelpers.CreateDbContext();
         var ownerId = Guid.NewGuid();
 
@@ -338,7 +342,7 @@ public class CalendarOwnerAvailabilitySyncServiceTests
             Id = ownerId,
             Name = "Google owner",
             WriteBackEnabled = true,
-            WriteBackPlaceholderTitle = "Niet beschikbaar"
+            WriteBackPlaceholderTitle = placeholderTitle
         });
         await dbContext.SaveChangesAsync();
 
@@ -375,7 +379,7 @@ public class CalendarOwnerAvailabilitySyncServiceTests
 
         var post = requests.Single(entry => entry.Method == HttpMethod.Post);
         using var doc = JsonDocument.Parse(post.Body!);
-        Assert.AreEqual("Niet beschikbaar", doc.RootElement.GetProperty("summary").GetString());
+        Assert.AreEqual(placeholderTitle, doc.RootElement.GetProperty("summary").GetString());
         Assert.IsFalse(doc.RootElement.TryGetProperty("attendees", out _));
         Assert.IsFalse(doc.RootElement.TryGetProperty("location", out _));
         Assert.IsFalse(doc.RootElement.TryGetProperty("description", out _));
@@ -513,6 +517,8 @@ public class CalendarOwnerAvailabilitySyncServiceTests
     [TestMethod]
     public async Task RunSyncForOwnerAsync_WithWriteBackEnabled_WritesManagedICloudPlaceholderUsingConfiguredTitle()
     {
+        const string placeholderTitle = "Custom placeholder title";
+
         await using var dbContext = SyncIntegrationTestHelpers.CreateDbContext();
         var ownerId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
@@ -522,7 +528,7 @@ public class CalendarOwnerAvailabilitySyncServiceTests
             Id = ownerId,
             Name = "iCloud owner",
             WriteBackEnabled = true,
-            WriteBackPlaceholderTitle = "Niet beschikbaar",
+            WriteBackPlaceholderTitle = placeholderTitle,
             ICloudCalendarUrl = "https://caldav.icloud.com/user/calendar/",
             ICloudAppleIdProtected = "user@icloud.com",
             ICloudAppSpecificPasswordProtected = "app-specific-pw"
@@ -555,7 +561,7 @@ public class CalendarOwnerAvailabilitySyncServiceTests
 
         Assert.HasCount(1, putRequests);
         Assert.Contains("X-OBFUSCAL-MANAGED:TRUE", putRequests[0].Body);
-        Assert.Contains("SUMMARY:Niet beschikbaar", putRequests[0].Body);
+        Assert.Contains($"SUMMARY:{placeholderTitle}", putRequests[0].Body);
     }
 
     [TestMethod]

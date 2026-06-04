@@ -9,13 +9,17 @@
 @inject ICalendarOwnerService CalendarOwnerService
 @inject ICalendarOwnerAvailabilitySyncService AvailabilitySyncService
 @inject CurrentUserContextAccessor CurrentUserContextAccessor
+@inject ApplicationVersionProvider VersionProvider
 @inject IOptions<SyncOptions> SyncOptions
 @inject IJSRuntime Js
 
 <PageTitle>Dashboard - ObfusCal</PageTitle>
 
-<header class="page-header">
-    <h1>Dashboard</h1>
+<header class="page-header dashboard-page-header">
+    <div class="dashboard-page-header-topline">
+        <h1>Dashboard</h1>
+        <span class="dashboard-version-badge">Version @VersionProvider.DisplayVersion</span>
+    </div>
     <p class="page-subtitle">
         @if (_isSysadmin)
         {

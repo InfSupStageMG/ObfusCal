@@ -1,10 +1,25 @@
 ﻿using Microsoft.FluentUI.AspNetCore.Components;
+using ObfusCal.Api.Components.CalendarOwnerDetail;
 using ObfusCal.Application.Interfaces;
 
 namespace ObfusCal.Api.Components.Pages;
 
 public partial class CalendarOwnerDetail
 {
+    private string NewSourceAutomaticColorHex
+    {
+        get
+        {
+            var candidateLabels = _sourceInstances
+                .Select(instance => instance.DisplayName)
+                .Concat(GetNewSourceDisplayNameCandidates());
+
+            return CalendarColorFieldDisplay.ResolveAutomaticColor(
+                GetPendingNewSourceDisplayName(),
+                candidateLabels);
+        }
+    }
+
     private void LoadPluginCatalog()
     {
         _pluginOptions.Clear();
@@ -18,7 +33,8 @@ public partial class CalendarOwnerDetail
                 ui?.SupportsMultipleInstances ?? true,
                 ui?.ConfigurationJsonTemplate,
                 ui?.SecretDataJsonTemplate,
-                ui?.SetupHint));
+                ui?.SetupHint,
+                ui?.Actions ?? []));
         }
 
         _selectedPluginOption = _pluginOptions.FirstOrDefault();
@@ -29,6 +45,16 @@ public partial class CalendarOwnerDetail
     {
         _sourceInstances.Clear();
         var instances = await CalendarSourceInstanceService.ListAsync(Id);
+        var automaticColorsByDisplayName = instances
+            .Select(instance => instance.DisplayName)
+            .Distinct(StringComparer.Ordinal)
+            .ToDictionary(
+                displayName => displayName,
+                displayName => CalendarColorFieldDisplay.ResolveAutomaticColor(
+                    displayName,
+                    instances.Select(source => source.DisplayName)),
+                StringComparer.Ordinal);
+
         foreach (var instance in instances)
         {
             var plugin = _pluginOptions.FirstOrDefault(option =>
@@ -45,6 +71,8 @@ public partial class CalendarOwnerDetail
                 PluginId = instance.PluginId,
                 PluginDisplayName = plugin?.DisplayName ?? instance.PluginId,
                 DisplayName = instance.DisplayName,
+                ColorHex = instance.ColorHex,
+                AutomaticColorHex = automaticColorsByDisplayName[instance.DisplayName],
                 IsEnabled = instance.IsEnabled,
                 IsReady = instance.IsReady,
                 Title = instance.Title,
@@ -81,6 +109,8 @@ public partial class CalendarOwnerDetail
         }
 
         _newSourceDisplayName = null;
+        _newSourceColorHex = null;
+        _newSourceAuthenticationActionId = _selectedPluginOption.DefaultAuthenticationActionId;
         _newSourceConfigurationJson = _selectedPluginOption.ConfigurationJsonTemplate;
         _newSourceSecretDataJson = _selectedPluginOption.SecretDataJsonTemplate;
         _newSourceConfigurationFields = BuildFieldEditorsFromTemplate(_selectedPluginOption.ConfigurationJsonTemplate);
@@ -95,11 +125,13 @@ public partial class CalendarOwnerDetail
         if (_selectedPluginOption is null)
             return;
 
-        if (!_selectedPluginOption.SupportsMultipleInstances
+        var selectedPlugin = _selectedPluginOption;
+
+        if (!selectedPlugin.SupportsMultipleInstances
             && _sourceInstances.Any(instance =>
-                string.Equals(instance.PluginId, _selectedPluginOption.Id, StringComparison.OrdinalIgnoreCase)))
+                string.Equals(instance.PluginId, selectedPlugin.Id, StringComparison.OrdinalIgnoreCase)))
         {
-            _sourceMessage = $"{_selectedPluginOption.DisplayName} supports only one source instance.";
+            _sourceMessage = $"{selectedPlugin.DisplayName} supports only one source instance.";
             _sourceMessageIntent = MessageIntent.Warning;
             return;
         }
@@ -110,6 +142,16 @@ public partial class CalendarOwnerDetail
         var secretDataJson = HasFieldEditors(_newSourceSecretFields)
             ? SerializeFieldEditors(_newSourceSecretFields)
             : NormalizeJsonInput(_newSourceSecretDataJson);
+        var authAction = ResolveAuthenticationAction(selectedPlugin, _newSourceAuthenticationActionId);
+
+        if (selectedPlugin.RequiresAuthentication && authAction is null)
+        {
+            _sourceMessage = selectedPlugin.RequiresAuthenticationChoice
+                ? $"Choose how {selectedPlugin.DisplayName} should connect before continuing."
+                : $"Authentication for {selectedPlugin.DisplayName} could not be started.";
+            _sourceMessageIntent = MessageIntent.Warning;
+            return;
+        }
 
         _creatingSourceInstance = true;
         try
@@ -117,13 +159,14 @@ public partial class CalendarOwnerDetail
             var created = await CalendarSourceInstanceService.CreateAsync(
                 Id,
                 new CreateCalendarSourceInstanceInput(
-                    _selectedPluginOption.Id,
+                    selectedPlugin.Id,
                     string.IsNullOrWhiteSpace(_newSourceDisplayName)
-                        ? _selectedPluginOption.DisplayName
+                        ? selectedPlugin.DisplayName
                         : _newSourceDisplayName,
                     configurationJson,
                     secretDataJson,
-                    _newSourceIsEnabled));
+                    _newSourceIsEnabled,
+                    _newSourceColorHex));
 
             if (created is null)
             {
@@ -132,19 +175,26 @@ public partial class CalendarOwnerDetail
                 return;
             }
 
-            _sourceMessage = $"Added source instance '{created.DisplayName}'. Triggering sync...";
-            _sourceMessageIntent = MessageIntent.Success;
-            _showAddForm = false;
+            var sourceInstancesReloaded = false;
+            try
+            {
+                await LoadSourceInstancesAsync();
+                sourceInstancesReloaded = true;
+            }
+            catch (HttpRequestException) { /* stale list is acceptable */ }
+            catch (TaskCanceledException) { /* stale list is acceptable */ }
 
-            // Reload the source list, but do not let a readiness-check failure (e.g. a
-            // plugin's CalDAV/OAuth probe throwing) block the sync trigger below.
-            try { await LoadSourceInstancesAsync(); }
-            catch { /* stale list is acceptable; the snapshot sync still fires */ }
-            ApplyPluginDefaults();
+            if (authAction is null)
+            {
+                _showAddForm = false;
+                ApplyPluginDefaults();
+                await TryRunAvailabilitySyncAsync(
+                    $"Added source instance '{created.DisplayName}' and synced availability.",
+                    $"Added source instance '{created.DisplayName}', but sync failed");
+                return;
+            }
 
-            await TryRunAvailabilitySyncAsync(
-                $"Added source instance '{created.DisplayName}' and synced availability.",
-                $"Added source instance '{created.DisplayName}', but sync failed");
+            await StartSourceAuthenticationAsync(created.Id, created.DisplayName, authAction, sourceInstancesReloaded);
         }
         catch (Exception ex)
         {
@@ -178,7 +228,8 @@ public partial class CalendarOwnerDetail
                     string.IsNullOrWhiteSpace(instance.DisplayName) ? null : instance.DisplayName,
                     configurationJson,
                     secretDataJson,
-                    instance.IsEnabled));
+                    instance.IsEnabled,
+                    instance.ColorHex ?? string.Empty));
 
             if (updated is null)
             {
@@ -193,7 +244,8 @@ public partial class CalendarOwnerDetail
             // Same guard as CreateSourceInstanceAsync: readiness-check failures in the
             // list reload must not prevent the sync trigger.
             try { await LoadSourceInstancesAsync(); }
-            catch { /* stale list is acceptable; the snapshot sync still fires */ }
+            catch (InvalidOperationException) { /* stale list is acceptable; the snapshot sync still fires */ }
+            catch (TaskCanceledException) { /* stale list is acceptable; the snapshot sync still fires */ }
 
             await TryRunAvailabilitySyncAsync(
                 $"Updated source instance '{updated.DisplayName}' and synced availability.",
@@ -251,7 +303,35 @@ public partial class CalendarOwnerDetail
         }
     }
 
+    private static CalendarSourcePluginActionDescriptor? ResolveAuthenticationAction(
+        PluginOption plugin,
+        string? preferredActionId)
+    {
+        if (!plugin.RequiresAuthentication)
+            return null;
+
+        if (string.IsNullOrWhiteSpace(preferredActionId))
+            return plugin.AuthenticationActions.Count == 1
+                ? plugin.AuthenticationActions[0]
+                : null;
+
+        return plugin.AuthenticationActions.FirstOrDefault(action =>
+            string.Equals(action.ActionId, preferredActionId, StringComparison.Ordinal));
+    }
+
     private static string? NormalizeJsonInput(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private IEnumerable<string> GetNewSourceDisplayNameCandidates()
+    {
+        var pendingDisplayName = GetPendingNewSourceDisplayName();
+        if (!string.IsNullOrWhiteSpace(pendingDisplayName))
+            yield return pendingDisplayName;
+    }
+
+    private string? GetPendingNewSourceDisplayName()
+        => string.IsNullOrWhiteSpace(_newSourceDisplayName)
+            ? _selectedPluginOption?.DisplayName
+            : _newSourceDisplayName.Trim();
 
     private async Task InvokePluginActionAsync(SourceInstanceEditor instance,
         CalendarSourcePluginActionDescriptor action)
@@ -267,39 +347,19 @@ public partial class CalendarOwnerDetail
             var baseUri = Navigation.BaseUri.TrimEnd('/');
             var callbackUri = $"{baseUri}/consent-callback";
 
-            string authUrl;
-            switch (action.ActionId)
-            {
-                case "google-instance-consent":
-                    authUrl = await GoogleConsentService.BuildAuthorizationUrlAsync(Id, instance.Id, callbackUri);
-                    Navigation.NavigateTo(authUrl, forceLoad: true);
-                    break;
-
-                case "graph-instance-consent":
-                    authUrl = await GraphConsentService.BuildAuthorizationUrlAsync(
-                        Id,
-                        instance.Id,
-                        callbackUri,
-                        GraphConsentAccessLevel.ReadWrite);
-                    Navigation.NavigateTo(authUrl, forceLoad: true);
-                    break;
-
-                case "graph-instance-consent-readonly":
-                    authUrl = await GraphConsentService.BuildAuthorizationUrlAsync(
-                        Id,
-                        instance.Id,
-                        callbackUri,
-                        GraphConsentAccessLevel.ReadOnly);
-                    Navigation.NavigateTo(authUrl, forceLoad: true);
-                    break;
-
-                default:
-                    _sourceMessage = $"Action '{action.ActionId}' is not handled by this version of ObfusCal.";
-                    _sourceMessageIntent = MessageIntent.Warning;
-                    break;
-            }
+            var authUrl = await CalendarSourceAuthFlowService.BuildAuthorizationUrlAsync(
+                Id,
+                instance.Id,
+                action.ActionId,
+                callbackUri);
+            Navigation.NavigateTo(authUrl, forceLoad: true);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex) when (ex.Message.StartsWith("Unknown auth action", StringComparison.Ordinal))
+        {
+            _sourceMessage = $"Action '{action.ActionId}' is not handled by this version of ObfusCal.";
+            _sourceMessageIntent = MessageIntent.Warning;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException)
         {
             _sourceMessage = $"Could not start action '{action.Label}': {ex.Message}";
             _sourceMessageIntent = MessageIntent.Error;
@@ -309,5 +369,52 @@ public partial class CalendarOwnerDetail
             _executingActionInstanceId = null;
             _executingActionId = null;
         }
+    }
+
+    private async Task StartSourceAuthenticationAsync(
+        Guid sourceInstanceId,
+        string displayName,
+        CalendarSourcePluginActionDescriptor authAction,
+        bool sourceInstancesReloaded)
+    {
+        try
+        {
+            var baseUri = Navigation.BaseUri.TrimEnd('/');
+            var callbackUri = $"{baseUri}/consent-callback";
+            var authUrl = await CalendarSourceAuthFlowService.BuildAuthorizationUrlAsync(
+                Id,
+                sourceInstanceId,
+                authAction.ActionId,
+                callbackUri);
+            _showAddForm = false;
+            ApplyPluginDefaults();
+            Navigation.NavigateTo(authUrl, forceLoad: true);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.StartsWith("Unknown auth action", StringComparison.Ordinal))
+        {
+            HandleSourceAuthenticationStartFailure(
+                sourceInstanceId,
+                sourceInstancesReloaded,
+                $"Added source instance '{displayName}', but authentication could not be started because action '{authAction.ActionId}' is not supported by this version of ObfusCal.");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or UriFormatException)
+        {
+            HandleSourceAuthenticationStartFailure(
+                sourceInstanceId,
+                sourceInstancesReloaded,
+                $"Added source instance '{displayName}', but authentication could not be started: {ex.Message}");
+        }
+    }
+
+    private void HandleSourceAuthenticationStartFailure(
+        Guid sourceInstanceId,
+        bool sourceInstancesReloaded,
+        string message)
+    {
+        _showAddForm = false;
+        _expandedSourceInstanceId = sourceInstancesReloaded ? sourceInstanceId : null;
+        _sourceMessage = message;
+        _sourceMessageIntent = MessageIntent.Warning;
+        ApplyPluginDefaults();
     }
 }
