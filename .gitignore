@@ -28,6 +28,10 @@ site/
 # Security Audit output
 SecurityAudit/
 
+# Generated security test result artifacts
+TestResults/Security/*.md
+TestResults/Security/*.trx
+
 # pycache
 __pycache__/
 *.pyc

@@ -22,7 +22,8 @@ public sealed class CustomWebApplicationFactory(
     string environmentName,
     bool useTestAuthentication = false,
     bool enableBackgroundServices = false,
-    IReadOnlyDictionary<string, string?>? additionalConfiguration = null) : WebApplicationFactory<Program>
+    IReadOnlyDictionary<string, string?>? additionalConfiguration = null,
+    bool disableUrlSafetyValidation = false) : WebApplicationFactory<Program>
 {
     public const string IntegrationTestPeerInstanceId = "peer-a";
     public const string IntegrationTestPeerApiKey = "integration-test-peer-api-key";
@@ -122,6 +123,16 @@ public sealed class CustomWebApplicationFactory(
                 options.Configuration = configuration;
                 options.ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(configuration);
             });
+
+            if (disableUrlSafetyValidation)
+            {
+                var urlValidatorDescriptor = services.SingleOrDefault(
+                    d => d.ServiceType == typeof(IUrlSafetyValidator));
+                if (urlValidatorDescriptor is not null)
+                    services.Remove(urlValidatorDescriptor);
+
+                services.AddSingleton<IUrlSafetyValidator, PassThroughUrlSafetyValidator>();
+            }
 
             if (!useTestAuthentication) return;
             services.AddAuthentication(options =>

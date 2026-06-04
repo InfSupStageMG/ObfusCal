@@ -321,5 +321,55 @@ public class CalendarOwnersControllerIcalFeedsTests
 
         Assert.AreEqual(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    // --- BEFORE protection: demonstrates SSRF vulnerability without URL safety validation ---
+
+    [TestMethod]
+    public async Task AddIcalFeed_WithSsrfValidationDisabled_AcceptsHttpUrl()
+    {
+        // Before SSRF protection was introduced, the iCal service accepted any URL including
+        // plain http:// ones. An attacker could register internal HTTP endpoints and use
+        // ObfusCal as a proxy to probe or reach internal services.
+        // This test demonstrates that state by disabling the URL safety validator.
+        await using var factory = new CustomWebApplicationFactory(
+            "Development",
+            useTestAuthentication: true,
+            disableUrlSafetyValidation: true);
+
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/ical-feeds",
+            new CalendarOwnersController.AddIcalFeedRequest("http://internal-server.example.com/feed.ics"),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Created, response.StatusCode,
+            "Without SSRF validation, an http:// URL is accepted — demonstrating the pre-hardening vulnerability.");
+    }
+
+    [TestMethod]
+    public async Task AddIcalFeed_WithSsrfValidationDisabled_AcceptsPrivateIpUrl()
+    {
+        // Before SSRF protection was introduced, private IP addresses were also accepted,
+        // allowing the server to fetch from RFC-1918 ranges such as 192.168.x.x or 10.x.x.x.
+        await using var factory = new CustomWebApplicationFactory(
+            "Development",
+            useTestAuthentication: true,
+            disableUrlSafetyValidation: true);
+
+        var objectId = Guid.NewGuid().ToString();
+        var calendarOwnerId = await SeedAuthenticatedCalendarOwnerAsync(factory, objectId);
+        using var client = factory.CreateAuthenticatedClient(objectId);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/calendar-owners/{calendarOwnerId}/ical-feeds",
+            new CalendarOwnersController.AddIcalFeedRequest("https://192.168.1.100/internal-feed.ics"),
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Created, response.StatusCode,
+            "Without SSRF validation, a private IP URL is accepted — demonstrating the pre-hardening vulnerability.");
+    }
 }
 

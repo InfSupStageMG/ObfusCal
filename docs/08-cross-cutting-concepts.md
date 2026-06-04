@@ -69,6 +69,8 @@ within `Sync:PeerRequestTimestampToleranceSeconds` (default 300 seconds) to limi
 (`AUTH_SUCCESS`, `AUTH_FAILURE`, `PEER_SLOT_PUSH`, `PEER_SLOT_REJECTED`, `CONFIG_CHANGE`, `KEY_ROTATION`,
 `KEY_REVOCATION`). These events are written to a dedicated append-only NDJSON sink configured by
 `SecurityAudit:FilePath` and include UTC timestamp, actor identity, target resource, outcome, and correlation ID.
+If the configured value ends in a directory separator, the runtime writes to `security-audit.ndjson` inside that
+directory; otherwise it writes to the configured filename as-is.
 
 Before an entry is persisted, the sink redacts and normalizes string fields, sorts metadata keys deterministically, and
 builds a hash payload from the sanitized event data plus the prior entry's hash. The resulting SHA-256 digest is stored

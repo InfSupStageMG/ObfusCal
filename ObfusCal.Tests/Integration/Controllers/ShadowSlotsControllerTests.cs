@@ -533,6 +533,237 @@ public class ShadowSlotsControllerTests
         Assert.AreEqual(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
     }
 
+    [TestMethod]
+    public async Task PushShadowSlots_WhenUnauthenticatedRequestExceedsBackstopRateLimit_ReturnsTooManyRequests()
+    {
+        var overrides = new Dictionary<string, string?>
+        {
+            ["Sync:PeerRequestRateLimitPermitLimit"] = "1",
+            ["Sync:PeerRequestRateLimitWindowSeconds"] = "3600"
+        };
+
+        await using var factory = new CustomWebApplicationFactory("Development", additionalConfiguration: overrides);
+        using var client = factory.CreateClient();
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, Guid.NewGuid());
+
+        var payload = new[]
+        {
+            new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(30) }
+        };
+
+        // First request without authentication (no ApiKey header)
+        var firstResponse = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+        Assert.AreEqual(HttpStatusCode.Unauthorized, firstResponse.StatusCode);
+
+        // Second request also without authentication — should be rate-limited per IP (backstop)
+        var secondResponse = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+        Assert.AreEqual(HttpStatusCode.TooManyRequests, secondResponse.StatusCode);
+        Assert.IsTrue(secondResponse.Headers.RetryAfter is not null);
+    }
+
+    [TestMethod]
+    public async Task PushShadowSlots_ReturnsRetryAfterHeaderWithCorrectValue()
+    {
+        var overrides = new Dictionary<string, string?>
+        {
+            ["Sync:PeerRequestRateLimitPermitLimit"] = "1",
+            ["Sync:PeerRequestRateLimitWindowSeconds"] = "10",
+            ["Sync:PushShadowSlotsRateLimitPermitLimit"] = "1",
+            ["Sync:PushShadowSlotsRateLimitWindowSeconds"] = "10"
+        };
+
+        await using var factory = new CustomWebApplicationFactory("Development", additionalConfiguration: overrides);
+        using var client = factory.CreateClient();
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, Guid.NewGuid());
+
+        var payload = new[]
+        {
+            new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(30) }
+        };
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "ApiKey",
+            CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
+
+        // First request succeeds
+        var firstResponse = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+        Assert.AreEqual(HttpStatusCode.Created, firstResponse.StatusCode);
+
+        // Second request hits rate limit
+        var secondResponse = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+        Assert.AreEqual(HttpStatusCode.TooManyRequests, secondResponse.StatusCode);
+
+        // Verify Retry-After header exists and contains a valid value
+        Assert.IsTrue(secondResponse.Headers.RetryAfter is not null);
+        var retryAfter = secondResponse.Headers.RetryAfter;
+
+        // Retry-After can be delta-seconds or HTTP-date; for FixedWindowRateLimiter it's typically delta-seconds
+        if (retryAfter.Delta.HasValue)
+        {
+            Assert.IsTrue(retryAfter.Delta.Value.TotalSeconds > 0);
+            Assert.IsTrue(retryAfter.Delta.Value.TotalSeconds <= 10);
+        }
+        else
+        {
+            Assert.IsNotNull(retryAfter.Date, "Retry-After should have either Delta or Date");
+        }
+    }
+
+    [TestMethod]
+    public async Task PushShadowSlots_DifferentEndpointHasSeparateRateLimit_PullDoesNotBlockPush()
+    {
+        var overrides = new Dictionary<string, string?>
+        {
+            ["Sync:PushShadowSlotsRateLimitPermitLimit"] = "1",
+            ["Sync:PushShadowSlotsRateLimitWindowSeconds"] = "3600",
+            ["Sync:PullBusySlotsRateLimitPermitLimit"] = "1",
+            ["Sync:PullBusySlotsRateLimitWindowSeconds"] = "3600"
+        };
+
+        await using var factory = new CustomWebApplicationFactory("Development", additionalConfiguration: overrides);
+        using var client = factory.CreateClient();
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        var calendarOwnerRef = Guid.NewGuid();
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, calendarOwnerRef);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "ApiKey",
+            CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
+
+        // Exhaust pull limit
+        var from = DateTimeOffset.UtcNow.ToString("O");
+        var to = DateTimeOffset.UtcNow.AddDays(1).ToString("O");
+        var firstPull = await client.GetAsync(
+            $"/api/sync/busy-slots/{calendarOwnerRef}?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}",
+            TestContext.CancellationToken);
+        var secondPull = await client.GetAsync(
+            $"/api/sync/busy-slots/{calendarOwnerRef}?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.OK, firstPull.StatusCode);
+        Assert.AreEqual(HttpStatusCode.TooManyRequests, secondPull.StatusCode);
+
+        // Push should still succeed (separate rate limit)
+        var payload = new[]
+        {
+            new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(30) }
+        };
+        var pushResponse = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+        Assert.AreEqual(HttpStatusCode.Created, pushResponse.StatusCode);
+    }
+
+    // --- BEFORE protection: demonstrates the vulnerability each feature was introduced to fix ---
+
+    [TestMethod]
+    public async Task PushShadowSlots_WhenTimestampToleranceIsMaximum_AcceptsStaleTimestamp()
+    {
+        // Before replay protection was added, there was no timestamp check at all.
+        // Any timestamp, no matter how old, was accepted.
+        // This test simulates that state by setting tolerance to the maximum possible window,
+        // which approximates "no tolerance check" without disabling authentication.
+        var overrides = new Dictionary<string, string?>
+        {
+            ["Sync:PeerRequestTimestampToleranceSeconds"] = int.MaxValue.ToString()
+        };
+
+        await using var factory = new CustomWebApplicationFactory("Development", additionalConfiguration: overrides);
+        using var client = factory.CreateClient();
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, Guid.NewGuid());
+
+        var payload = new[]
+        {
+            new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(30) }
+        };
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "ApiKey",
+            CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+
+        // Timestamp from 10 minutes ago — normally blocked, but accepted under maximum tolerance.
+        SetReplayHeader(client, DateTimeOffset.UtcNow.AddMinutes(-10));
+
+        var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Created, response.StatusCode,
+            "Without a bounded tolerance window the stale timestamp is accepted, demonstrating the replay vulnerability.");
+    }
+
+    [TestMethod]
+    public async Task PushShadowSlots_WhenRateLimitIsEffectivelyDisabled_AcceptsHighVolume()
+    {
+        // Before per-peer rate limiting was introduced, any peer could push an unlimited
+        // number of requests in a window, enabling denial-of-service by slot flooding.
+        // This test demonstrates that state by setting the limit to a very high value.
+        var overrides = new Dictionary<string, string?>
+        {
+            ["Sync:PushShadowSlotsRateLimitPermitLimit"] = int.MaxValue.ToString(),
+            ["Sync:PushShadowSlotsRateLimitWindowSeconds"] = "3600",
+            ["Sync:PeerRequestRateLimitPermitLimit"] = int.MaxValue.ToString(),
+            ["Sync:PeerRequestRateLimitWindowSeconds"] = "3600"
+        };
+
+        await using var factory = new CustomWebApplicationFactory("Development", additionalConfiguration: overrides);
+        using var client = factory.CreateClient();
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, Guid.NewGuid());
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "ApiKey",
+            CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+
+        var allSucceeded = true;
+        for (var i = 0; i < 20; i++)
+        {
+            SetReplayHeader(client, DateTimeOffset.UtcNow);
+            var payload = new[] { new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(1) } };
+            var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+            if (response.StatusCode != HttpStatusCode.Created)
+            {
+                allSucceeded = false;
+                break;
+            }
+        }
+
+        Assert.IsTrue(allSucceeded,
+            "Without rate limiting, all 20 requests succeed — demonstrating unconstrained push volume.");
+    }
+
+    [TestMethod]
+    public async Task PushShadowSlots_WithValidApiKey_WritesSuccessAuditEvent()
+    {
+        var (factory, auditFilePath) = CreateFactoryWithAuditFile();
+        await using var _ = factory;
+        using var client = factory.CreateClient();
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, Guid.NewGuid());
+
+        var payload = new[]
+        {
+            new { start = DateTimeOffset.UtcNow, end = DateTimeOffset.UtcNow.AddMinutes(30) }
+        };
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "ApiKey",
+            CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
+
+        var response = await client.PostAsJsonAsync("/api/shadow-slots", payload, TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
+
+        var events = await ReadAuditEventsAsync(auditFilePath);
+        var pushEvent = events.LastOrDefault(e =>
+            string.Equals(e.EventCode, SecurityAuditEventCodes.PeerSlotPush, StringComparison.Ordinal));
+
+        Assert.IsNotNull(pushEvent, "A PEER_SLOT_PUSH audit event must be written for every accepted push.");
+        Assert.AreEqual(SecurityAuditOutcomes.Success, pushEvent.Outcome);
+    }
+
     private static void SetReplayHeader(HttpClient client, DateTimeOffset timestamp)
     {
         client.DefaultRequestHeaders.Remove(PeerTimestampHeaderName);

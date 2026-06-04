@@ -2,23 +2,21 @@
 
 public sealed class SecurityAuditOptions
 {
-	public const string SectionName = "SecurityAudit";
+    public const string SectionName = "SecurityAudit";
+    public const string DefaultFileName = "security-audit.ndjson";
 
-	public string? FilePath { get; set; }
+    public string? FilePath { get; set; }
 
-	public string ResolveFilePath()
-	{
-		if (!string.IsNullOrWhiteSpace(FilePath))
-		{
-			var trimmedPath = FilePath.Trim();
-			// Sanitize path to prevent traversal attacks
-			if (trimmedPath.Contains("..") || trimmedPath.Contains("../") || trimmedPath.Contains(@"\.."))
-				throw new InvalidOperationException("FilePath cannot contain '..' sequences to prevent path traversal attacks.");
-
-			return trimmedPath;
-		}
-
-		return Path.Join(Path.GetTempPath(), "ObfusCal", "security-audit.ndjson");
-	}
+    public string ResolveFilePath()
+    {
+        if (string.IsNullOrWhiteSpace(FilePath))
+            return Path.Join(Path.GetTempPath(), "ObfusCal", DefaultFileName);
+        var trimmedPath = FilePath.Trim();
+        if (trimmedPath.Contains("..") || trimmedPath.Contains("../") || trimmedPath.Contains(@"\.."))
+            throw new InvalidOperationException(
+                "FilePath cannot contain '..' sequences to prevent path traversal attacks.");
+        if (Path.EndsInDirectorySeparator(trimmedPath))
+            return Path.Join(trimmedPath, DefaultFileName);
+        return trimmedPath;
+    }
 }
-

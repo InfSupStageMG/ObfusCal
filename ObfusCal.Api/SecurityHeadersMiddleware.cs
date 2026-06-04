@@ -1,6 +1,6 @@
 ﻿namespace ObfusCal.Api;
 
-internal sealed class SecurityHeadersMiddleware(RequestDelegate next)
+public sealed class SecurityHeadersMiddleware(RequestDelegate next)
 {
     public async Task InvokeAsync(HttpContext context)
     {
