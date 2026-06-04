@@ -314,9 +314,7 @@ public class FileSecurityAuditServiceTests
             return [];
 
         var lines = (await File.ReadAllLinesAsync(filePath)).Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
-        var result = new List<AuditEntry>();
-
-        foreach (var line in lines)
+        var result = lines.Select(line =>
         {
             using var json = JsonDocument.Parse(line);
             var root = json.RootElement;
@@ -330,15 +328,15 @@ public class FileSecurityAuditServiceTests
                 }
             }
 
-            result.Add(new AuditEntry(
+            return new AuditEntry(
                 EventCode: root.GetProperty("eventCode").GetString() ?? string.Empty,
                 ActorIdentity: root.GetProperty("actorIdentity").GetString() ?? string.Empty,
                 TargetResource: root.GetProperty("targetResource").GetString() ?? string.Empty,
                 Outcome: root.GetProperty("outcome").GetString() ?? string.Empty,
                 CorrelationId: root.GetProperty("correlationId").GetString() ?? string.Empty,
                 EntryHash: root.GetProperty("entryHash").GetString(),
-                Metadata: metadata));
-        }
+                Metadata: metadata);
+        }).ToList();
 
         return result;
     }
