@@ -124,10 +124,6 @@ public class SecretStartupValidatorTests
         //
         // This test confirms the vulnerable state: constructing a validator with missing
         // config but NOT calling ValidateOrThrow means no exception is raised.
-        var options = Options.Create(new SecretValidationOptions
-        {
-            RequiredSecretKeys = [SecretKeys.ColumnEncryptionKey]
-        });
         var provider = new FakeSecretProvider(new Dictionary<string, string?>());
 
         // Without calling ValidateOrThrow(), missing secrets are silently ignored.
