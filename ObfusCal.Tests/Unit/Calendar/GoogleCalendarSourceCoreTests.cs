@@ -1,5 +1,4 @@
 ﻿using System.Net;
-using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Logging;
@@ -58,18 +57,17 @@ public class GoogleCalendarSourceCoreTests
                        }
                        """;
 
-            return await Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(json, Encoding.UTF8, "application/json")
-            });
+            return await Task.FromResult(TestHttpResponses.Json(HttpStatusCode.OK, json));
         });
+
+        using var httpClient = new HttpClient(handler);
 
         var source = CreateSource(
             dbContext,
             instances,
             secretProtector,
             new StubGoogleOAuthTokenClient(),
-            new HttpClient(handler),
+            httpClient,
             new CapturingLogger<GoogleCalendarSourceCore>());
 
         var from = new DateTimeOffset(2026, 6, 10, 0, 0, 0, TimeSpan.Zero);
@@ -104,36 +102,32 @@ public class GoogleCalendarSourceCoreTests
                 SerializeSecret(secretProtector, "access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))));
         Assert.IsNotNull(created);
 
-        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(
-                """
+        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(TestHttpResponses.Json(
+            HttpStatusCode.OK,
+            """
+            {
+              "items": [
                 {
-                  "items": [
-                    {
-                      "id": "managed-1",
-                      "summary": "Busy",
-                      "start": { "dateTime": "2026-06-10T08:00:00Z" },
-                      "end": { "dateTime": "2026-06-10T09:00:00Z" },
-                      "extendedProperties": {
-                        "private": {
-                          "ObfusCal.Managed": "1",
-                          "ObfusCal.SlotId": "slot-1"
-                        }
-                      }
-                    },
-                    {
-                      "id": "google-evt-2",
-                      "summary": "Real event",
-                      "start": { "dateTime": "2026-06-10T10:00:00Z" },
-                      "end": { "dateTime": "2026-06-10T11:00:00Z" }
+                  "id": "managed-1",
+                  "summary": "Busy",
+                  "start": { "dateTime": "2026-06-10T08:00:00Z" },
+                  "end": { "dateTime": "2026-06-10T09:00:00Z" },
+                  "extendedProperties": {
+                    "private": {
+                      "ObfusCal.Managed": "1",
+                      "ObfusCal.SlotId": "slot-1"
                     }
-                  ]
+                  }
+                },
+                {
+                  "id": "google-evt-2",
+                  "summary": "Real event",
+                  "start": { "dateTime": "2026-06-10T10:00:00Z" },
+                  "end": { "dateTime": "2026-06-10T11:00:00Z" }
                 }
-                """,
-                Encoding.UTF8,
-                "application/json")
-        }));
+              ]
+            }
+            """)));
         using var httpClient = new HttpClient(handler);
 
         var source = CreateSource(
@@ -182,18 +176,17 @@ public class GoogleCalendarSourceCoreTests
         {
             Assert.AreEqual("fresh-access", request.Headers.Authorization?.Parameter);
             const string json = "{ \"items\": [] }";
-            return await Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(json, Encoding.UTF8, "application/json")
-            });
+            return await Task.FromResult(TestHttpResponses.Json(HttpStatusCode.OK, json));
         });
+
+        using var httpClient = new HttpClient(handler);
 
         var source = CreateSource(
             dbContext,
             instances,
             secretProtector,
             tokenClient,
-            new HttpClient(handler),
+            httpClient,
             new CapturingLogger<GoogleCalendarSourceCore>());
 
         var from = new DateTimeOffset(2026, 6, 10, 0, 0, 0, TimeSpan.Zero);
@@ -227,18 +220,20 @@ public class GoogleCalendarSourceCoreTests
             new CreateCalendarSourceInstanceInput("google", "Google Calendar", "{\"calendarId\":\"primary\"}"));
         Assert.IsNotNull(created);
 
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ => throw new AssertFailedException("Should not call Google API.")));
+
         var source = CreateSource(
             dbContext,
             instances,
             secretProtector,
             new StubGoogleOAuthTokenClient(),
-            new HttpClient(new DelegatingHttpMessageHandler(_ => throw new AssertFailedException("Should not call Google API."))),
+            httpClient,
             new CapturingLogger<GoogleCalendarSourceCore>());
 
         var readiness = await source.GetReadinessAsync(ownerId);
 
         Assert.IsFalse(readiness.IsReady);
-        StringAssert.Contains(readiness.Title, "Google consent required");
+        Assert.Contains("Google consent required", readiness.Title);
     }
 
     [TestMethod]
@@ -270,18 +265,7 @@ public class GoogleCalendarSourceCoreTests
             var body = request.Content is null ? null : await request.Content.ReadAsStringAsync();
             requestLog.Add((request.Method, request.RequestUri!.ToString(), body));
 
-            if (request.Method == HttpMethod.Get)
-            {
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent("{\"items\":[]}", Encoding.UTF8, "application/json")
-                };
-            }
-
-            return new HttpResponseMessage(HttpStatusCode.Created)
-            {
-                Content = new StringContent("{\"id\":\"new-google-event\"}", Encoding.UTF8, "application/json")
-            };
+            return request.Method == HttpMethod.Get ? TestHttpResponses.Json(HttpStatusCode.OK, "{\"items\":[]}") : TestHttpResponses.Json(HttpStatusCode.Created, "{\"id\":\"new-google-event\"}");
         });
 
         using var httpClient = new HttpClient(handler);
@@ -348,18 +332,7 @@ public class GoogleCalendarSourceCoreTests
             var body = request.Content is null ? null : await request.Content.ReadAsStringAsync();
             requestLog.Add((request.Method, request.RequestUri!.ToString(), body));
 
-            if (request.Method == HttpMethod.Get)
-            {
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent("{\"items\":[]}", Encoding.UTF8, "application/json")
-                };
-            }
-
-            return new HttpResponseMessage(HttpStatusCode.Created)
-            {
-                Content = new StringContent("{\"id\":\"new-google-event\"}", Encoding.UTF8, "application/json")
-            };
+            return request.Method == HttpMethod.Get ? TestHttpResponses.Json(HttpStatusCode.OK, "{\"items\":[]}") : TestHttpResponses.Json(HttpStatusCode.Created, "{\"id\":\"new-google-event\"}");
         });
 
         using var httpClient = new HttpClient(handler);
@@ -383,7 +356,7 @@ public class GoogleCalendarSourceCoreTests
             to.AddHours(1));
 
         var post = requestLog.Single(entry => entry.Method == HttpMethod.Post);
-        StringAssert.Contains(post.Uri, "/calendar/v3/calendars/primary/events");
+        Assert.Contains("/calendar/v3/calendars/primary/events", post.Uri);
         Assert.IsNotNull(post.Body);
 
         using var doc = JsonDocument.Parse(post.Body);
@@ -447,20 +420,14 @@ public class GoogleCalendarSourceCoreTests
             await Task.CompletedTask;
             if (request.Method == HttpMethod.Get)
             {
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent(getManagedJson, Encoding.UTF8, "application/json")
-                };
+                return TestHttpResponses.Json(HttpStatusCode.OK, getManagedJson);
             }
 
             if (request.Method != HttpMethod.Delete)
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent("{\"id\":\"patched\"}", Encoding.UTF8, "application/json")
-                };
+                return TestHttpResponses.Json(HttpStatusCode.OK, "{\"id\":\"patched\"}");
             var deletedId = request.RequestUri!.Segments.Last().TrimEnd('/');
             deletedIds.Add(deletedId);
-            return new HttpResponseMessage(HttpStatusCode.NoContent);
+            return TestHttpResponses.Create(HttpStatusCode.NoContent);
 
         });
 
@@ -477,7 +444,8 @@ public class GoogleCalendarSourceCoreTests
             to.AddHours(1));
 
         Assert.HasCount(1, deletedIds, "Exactly one duplicate event should have been deleted.");
-        Assert.Contains(deletedIds[0], "google-evt-Agoogle-evt-B",
+        Assert.IsTrue(
+            deletedIds[0] == "google-evt-A" || deletedIds[0] == "google-evt-B",
             "The deleted event must be one of the two duplicate managed events.");
     }
 
@@ -500,24 +468,20 @@ public class GoogleCalendarSourceCoreTests
                 "{\"calendarId\":\"primary\"}",
                 SerializeSecret(secretProtector, "access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))));
 
-        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(
-                """
+        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(TestHttpResponses.Json(
+            HttpStatusCode.OK,
+            """
+            {
+              "items": [
                 {
-                  "items": [
-                    {
-                      "id": "allday-evt-1",
-                      "summary": "Public Holiday",
-                      "start": { "date": "2026-06-04" },
-                      "end":   { "date": "2026-06-05" }
-                    }
-                  ]
+                  "id": "allday-evt-1",
+                  "summary": "Public Holiday",
+                  "start": { "date": "2026-06-04" },
+                  "end":   { "date": "2026-06-05" }
                 }
-                """,
-                Encoding.UTF8,
-                "application/json")
-        }));
+              ]
+            }
+            """)));
 
         using var httpClient = new HttpClient(handler);
         var source = CreateSource(dbContext, instances, secretProtector,
@@ -554,24 +518,20 @@ public class GoogleCalendarSourceCoreTests
                 "{\"calendarId\":\"primary\"}",
                 SerializeSecret(secretProtector, "access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))));
 
-        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(
-                """
+        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(TestHttpResponses.Json(
+            HttpStatusCode.OK,
+            """
+            {
+              "items": [
                 {
-                  "items": [
-                    {
-                      "id": "allday-evt-2",
-                      "summary": "Conference",
-                      "start": { "date": "2026-06-06" },
-                      "end":   { "date": "2026-06-08" }
-                    }
-                  ]
+                  "id": "allday-evt-2",
+                  "summary": "Conference",
+                  "start": { "date": "2026-06-06" },
+                  "end":   { "date": "2026-06-08" }
                 }
-                """,
-                Encoding.UTF8,
-                "application/json")
-        }));
+              ]
+            }
+            """)));
 
         using var httpClient = new HttpClient(handler);
         var source = CreateSource(dbContext, instances, secretProtector,
@@ -609,12 +569,14 @@ public class GoogleCalendarSourceCoreTests
                 SerializeSecret(secretProtector, "access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))));
         Assert.IsNotNull(created);
 
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ => throw new AssertFailedException("Should not call Google API.")));
+
         var source = CreateSource(
             dbContext,
             instances,
             secretProtector,
             new StubGoogleOAuthTokenClient(),
-            new HttpClient(new DelegatingHttpMessageHandler(_ => throw new AssertFailedException("Should not call Google API."))),
+            httpClient,
             new CapturingLogger<GoogleCalendarSourceCore>(),
             new GoogleConsentOptions());
 

@@ -9,6 +9,7 @@ using ObfusCal.Domain.Models;
 using ObfusCal.Infrastructure.Persistence;
 using ObfusCal.Infrastructure.Security;
 using ObfusCal.Infrastructure.Sync;
+using ObfusCal.Tests.Helpers;
 
 namespace ObfusCal.Tests.Integration.Sync;
 
@@ -24,12 +25,13 @@ public class OutboundPeerSyncServiceTests
         SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
 
         CapturedRequest? capturedRequest = null;
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(
+        using var httpClient = new HttpClient(
             new DelegatingHttpMessageHandler(async request =>
             {
                 capturedRequest = await CapturedRequest.FromAsync(request);
-                return new HttpResponseMessage(HttpStatusCode.Accepted);
-            })));
+                return TestHttpResponses.Create(HttpStatusCode.Accepted);
+            }));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(
             dbContext,
@@ -84,12 +86,13 @@ public class OutboundPeerSyncServiceTests
         SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
 
         CapturedRequest? capturedRequest = null;
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(
+        using var httpClient = new HttpClient(
             new DelegatingHttpMessageHandler(async request =>
             {
                 capturedRequest = await CapturedRequest.FromAsync(request);
-                return new HttpResponseMessage(HttpStatusCode.Accepted);
-            })));
+                return TestHttpResponses.Create(HttpStatusCode.Accepted);
+            }));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var profileService = new StubCalendarOwnerObfuscationProfileService();
         await profileService.SetProfileAsync(
@@ -138,12 +141,13 @@ public class OutboundPeerSyncServiceTests
         SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
 
         CapturedRequest? capturedRequest = null;
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(
+        using var httpClient = new HttpClient(
             new DelegatingHttpMessageHandler(async request =>
             {
                 capturedRequest = await CapturedRequest.FromAsync(request);
-                return new HttpResponseMessage(HttpStatusCode.Accepted);
-            })));
+                return TestHttpResponses.Create(HttpStatusCode.Accepted);
+            }));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(
             dbContext,
@@ -178,8 +182,9 @@ public class OutboundPeerSyncServiceTests
         var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a",
             "https://peer-a.local/");
 
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)))));
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(TestHttpResponses.Create(HttpStatusCode.OK))));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(dbContext, httpClientFactory, new StubCalendarSource([]));
         var beforeSync = DateTimeOffset.UtcNow;
@@ -202,8 +207,9 @@ public class OutboundPeerSyncServiceTests
         var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a",
             "https://peer-a.local/");
 
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)))));
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(TestHttpResponses.Create(HttpStatusCode.ServiceUnavailable))));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(dbContext, httpClientFactory, new StubCalendarSource([]));
         var beforeSync = DateTimeOffset.UtcNow;
@@ -227,13 +233,14 @@ public class OutboundPeerSyncServiceTests
 
         var logger = new CapturingLogger<OutboundPeerSyncService>();
         var attemptedHosts = new List<string>();
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(request =>
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(request =>
         {
             attemptedHosts.Add(request.RequestUri!.Host);
             return Task.FromResult(request.RequestUri!.Host == "peer-a.local"
-                ? new HttpResponseMessage(HttpStatusCode.InternalServerError)
-                : new HttpResponseMessage(HttpStatusCode.OK));
-        })));
+                ? TestHttpResponses.Create(HttpStatusCode.InternalServerError)
+                : TestHttpResponses.Create(HttpStatusCode.OK));
+        }));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(
             dbContext,
@@ -300,11 +307,12 @@ public class OutboundPeerSyncServiceTests
         SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, Guid.NewGuid(), "peer-a", "https://peer-a.local/");
 
         var httpRequestMade = false;
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
         {
             httpRequestMade = true;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
-        })));
+            return Task.FromResult(TestHttpResponses.Create(HttpStatusCode.OK));
+        }));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(
             dbContext, httpClientFactory, new StubCalendarSource([]),
@@ -324,11 +332,12 @@ public class OutboundPeerSyncServiceTests
         SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, Guid.NewGuid(), "peer-a", "https://peer-a.local/");
 
         var httpRequestMade = false;
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
         {
             httpRequestMade = true;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
-        })));
+            return Task.FromResult(TestHttpResponses.Create(HttpStatusCode.OK));
+        }));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(
             dbContext, httpClientFactory, new StubCalendarSource([]),
@@ -348,11 +357,12 @@ public class OutboundPeerSyncServiceTests
         SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, Guid.NewGuid(), "peer-a", "https://peer-a.local/");
 
         var httpRequestMade = false;
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
         {
             httpRequestMade = true;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
-        })));
+            return Task.FromResult(TestHttpResponses.Create(HttpStatusCode.OK));
+        }));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(
             dbContext, httpClientFactory, new StubCalendarSource([
@@ -376,11 +386,12 @@ public class OutboundPeerSyncServiceTests
         await dbContext.SaveChangesAsync();
 
         var httpRequestMade = false;
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
         {
             httpRequestMade = true;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
-        })));
+            return Task.FromResult(TestHttpResponses.Create(HttpStatusCode.OK));
+        }));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(dbContext, httpClientFactory, new StubCalendarSource([]));
 
@@ -397,8 +408,9 @@ public class OutboundPeerSyncServiceTests
         var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, Guid.NewGuid(), "peer-bad",
             "http://peer-bad.local/");
 
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)))));
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(TestHttpResponses.Create(HttpStatusCode.OK))));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(dbContext, httpClientFactory, new StubCalendarSource([]));
 
@@ -428,7 +440,7 @@ public class OutboundPeerSyncServiceTests
         using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(async request =>
         {
             capturedRequest = await CapturedRequest.FromAsync(request);
-            return new HttpResponseMessage(HttpStatusCode.OK);
+            return TestHttpResponses.Create(HttpStatusCode.OK);
         }));
         var httpClientFactory = new StubHttpClientFactory(httpClient);
 
@@ -460,12 +472,6 @@ public class OutboundPeerSyncServiceTests
             Guid? calendarOwnerId = null,
             CancellationToken ct = default)
             => Task.FromResult(events);
-    }
-
-    private sealed class FixedCalendarSourceResolver(ICalendarSource source) : ICalendarSourceResolver
-    {
-        public Task<ICalendarSource> ResolveAsync(Guid? calendarOwnerId = null, CancellationToken ct = default) =>
-            Task.FromResult(source);
     }
 
     private sealed record CapturedRequest(
@@ -565,7 +571,6 @@ public class OutboundPeerSyncServiceTests
                 e.Description,
                 e.AttendeeEmails,
                 e.Location,
-                null,
                 IsAllDay: e.IsAllDay)).ToList();
         }
     }

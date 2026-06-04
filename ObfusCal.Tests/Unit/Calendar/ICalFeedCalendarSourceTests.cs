@@ -834,10 +834,7 @@ public class IcalFeedCalendarSourceTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var (statusCode, content) = handler(request);
-            return Task.FromResult(new HttpResponseMessage(statusCode)
-            {
-                Content = new StringContent(content)
-            });
+            return Task.FromResult(TestHttpResponses.Text(statusCode, content));
         }
     }
 

@@ -72,7 +72,8 @@ internal sealed class GoogleOAuthTokenClient(
         IReadOnlyDictionary<string, string> form,
         CancellationToken ct)
     {
-        using var response = await httpClient.PostAsync(tokenEndpoint, new FormUrlEncodedContent(form), ct);
+        using var content = new FormUrlEncodedContent(form);
+        using var response = await httpClient.PostAsync(tokenEndpoint, content, ct);
 
         if (!response.IsSuccessStatusCode)
         {

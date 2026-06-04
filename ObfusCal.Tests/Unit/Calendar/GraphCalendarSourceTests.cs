@@ -1,6 +1,5 @@
 ﻿using System.Globalization;
 using System.Net;
-using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -57,10 +56,7 @@ public class GraphCalendarSourceTests
                        }
                        """;
 
-            return await Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(json, Encoding.UTF8, "application/json")
-            });
+            return await Task.FromResult(TestHttpResponses.Json(HttpStatusCode.OK, json));
         });
 
         using var httpClient = new HttpClient(handler);
@@ -93,7 +89,7 @@ public class GraphCalendarSourceTests
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
 
         using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK))));
+            Task.FromResult(TestHttpResponses.Create(HttpStatusCode.OK))));
         httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
 
         var source = CreateSource(
@@ -137,7 +133,7 @@ public class GraphCalendarSourceTests
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
 
         using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK))));
+            Task.FromResult(TestHttpResponses.Create(HttpStatusCode.OK))));
         httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
 
         var source = CreateSource(
@@ -188,25 +184,21 @@ public class GraphCalendarSourceTests
         });
         await dbContext.SaveChangesAsync();
 
-        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(
-                """
+        var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(TestHttpResponses.Json(
+            HttpStatusCode.OK,
+            """
+            {
+              "value": [
                 {
-                  "value": [
-                    {
-                      "id": "evt-allday-1",
-                      "subject": "Holiday",
-                      "isAllDay": true,
-                      "start": { "dateTime": "2026-06-04T00:00:00.0000000", "timeZone": "W. Europe Standard Time" },
-                      "end": { "dateTime": "2026-06-05T00:00:00.0000000", "timeZone": "W. Europe Standard Time" }
-                    }
-                  ]
+                  "id": "evt-allday-1",
+                  "subject": "Holiday",
+                  "isAllDay": true,
+                  "start": { "dateTime": "2026-06-04T00:00:00.0000000", "timeZone": "W. Europe Standard Time" },
+                  "end": { "dateTime": "2026-06-05T00:00:00.0000000", "timeZone": "W. Europe Standard Time" }
                 }
-                """,
-                Encoding.UTF8,
-                "application/json")
-        }));
+              ]
+            }
+            """)));
 
         using var httpClient = new HttpClient(handler);
         httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
@@ -257,10 +249,7 @@ public class GraphCalendarSourceTests
             Assert.AreEqual("new-access-token", request.Headers.Authorization?.Parameter);
 
             const string json = "{ \"value\": [] }";
-            return await Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(json, Encoding.UTF8, "application/json")
-            });
+            return await Task.FromResult(TestHttpResponses.Json(HttpStatusCode.OK, json));
         });
 
         using var httpClient = new HttpClient(handler);
@@ -362,15 +351,12 @@ public class GraphCalendarSourceTests
             if (callCount == 1)
             {
                 Assert.AreEqual("expired-access-token", request.Headers.Authorization?.Parameter);
-                return await Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized));
+                return await Task.FromResult(TestHttpResponses.Create(HttpStatusCode.Unauthorized));
             }
 
             Assert.AreEqual("fresh-access-token", request.Headers.Authorization?.Parameter);
             const string json = "{ \"value\": [] }";
-            return await Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(json, Encoding.UTF8, "application/json")
-            });
+            return await Task.FromResult(TestHttpResponses.Json(HttpStatusCode.OK, json));
         });
 
         using var httpClient = new HttpClient(handler);
@@ -425,7 +411,7 @@ public class GraphCalendarSourceTests
             var requestUri = request.RequestUri!.ToString();
             if (seenTokens.Count == 1)
             {
-                var unauthorized = new HttpResponseMessage(HttpStatusCode.Unauthorized);
+                var unauthorized = TestHttpResponses.Create(HttpStatusCode.Unauthorized);
                 createdResponses.Add(unauthorized);
                 return Task.FromResult(unauthorized);
             }
@@ -445,10 +431,7 @@ public class GraphCalendarSourceTests
                                            "@odata.nextLink": "https://graph.microsoft.com/v1.0/me/calendarView?$skiptoken=page2"
                                          }
                                          """;
-                var page1Response = new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent(page1Json, Encoding.UTF8, "application/json")
-                };
+                var page1Response = TestHttpResponses.Json(HttpStatusCode.OK, page1Json);
                 createdResponses.Add(page1Response);
                 return Task.FromResult(page1Response);
             }
@@ -465,10 +448,7 @@ public class GraphCalendarSourceTests
                                        ]
                                      }
                                      """;
-            var page2Response = new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(page2Json, Encoding.UTF8, "application/json")
-            };
+            var page2Response = TestHttpResponses.Json(HttpStatusCode.OK, page2Json);
             createdResponses.Add(page2Response);
             return Task.FromResult(page2Response);
         });
@@ -519,33 +499,29 @@ public class GraphCalendarSourceTests
         await dbContext.SaveChangesAsync();
 
         const string managedPropId = "String {e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0} Name ObfusCal.Managed";
-        using var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(
-                $$"""
+        using var handler = new DelegatingHttpMessageHandler(_ => Task.FromResult(TestHttpResponses.Json(
+            HttpStatusCode.OK,
+            $$"""
+            {
+              "value": [
                 {
-                  "value": [
-                    {
-                      "id": "managed-1",
-                      "subject": "Busy",
-                      "start": { "dateTime": "2026-05-02T08:00:00Z", "timeZone": "UTC" },
-                      "end": { "dateTime": "2026-05-02T09:00:00Z", "timeZone": "UTC" },
-                      "singleValueExtendedProperties": [
-                        { "id": "{{managedPropId}}", "value": "1" }
-                      ]
-                    },
-                    {
-                      "id": "evt-1",
-                      "subject": "Client Workshop",
-                      "start": { "dateTime": "2026-05-02T10:00:00Z", "timeZone": "UTC" },
-                      "end": { "dateTime": "2026-05-02T11:00:00Z", "timeZone": "UTC" }
-                    }
+                  "id": "managed-1",
+                  "subject": "Busy",
+                  "start": { "dateTime": "2026-05-02T08:00:00Z", "timeZone": "UTC" },
+                  "end": { "dateTime": "2026-05-02T09:00:00Z", "timeZone": "UTC" },
+                  "singleValueExtendedProperties": [
+                    { "id": "{{managedPropId}}", "value": "1" }
                   ]
+                },
+                {
+                  "id": "evt-1",
+                  "subject": "Client Workshop",
+                  "start": { "dateTime": "2026-05-02T10:00:00Z", "timeZone": "UTC" },
+                  "end": { "dateTime": "2026-05-02T11:00:00Z", "timeZone": "UTC" }
                 }
-                """,
-                Encoding.UTF8,
-                "application/json")
-        }));
+              ]
+            }
+            """)));
         using var httpClient = new HttpClient(handler);
         httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
 
@@ -619,12 +595,7 @@ public class GraphCalendarSourceTests
 
         var requestLog = new List<string>();
         static HttpResponseMessage CreateJsonOkResponse(string payload)
-        {
-            return new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(payload, Encoding.UTF8, "application/json")
-            };
-        }
+            => TestHttpResponses.Json(HttpStatusCode.OK, payload);
 
         var handler = new DelegatingHttpMessageHandler(request =>
         {
@@ -703,10 +674,7 @@ public class GraphCalendarSourceTests
                          }
                          """;
 
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(json, Encoding.UTF8, "application/json")
-            });
+            return Task.FromResult(TestHttpResponses.Json(HttpStatusCode.OK, json));
         });
 
         using var httpClient = new HttpClient(handler);
@@ -761,17 +729,11 @@ public class GraphCalendarSourceTests
             // Simulate empty list of managed events on GET
             if (request.Method == HttpMethod.Get)
             {
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent("{\"value\":[]}", Encoding.UTF8, "application/json")
-                };
+                return TestHttpResponses.Json(HttpStatusCode.OK, "{\"value\":[]}");
             }
 
             // Return Created for POST
-            return new HttpResponseMessage(HttpStatusCode.Created)
-            {
-                Content = new StringContent("{\"id\":\"new-event-id\"}", Encoding.UTF8, "application/json")
-            };
+            return TestHttpResponses.Json(HttpStatusCode.Created, "{\"id\":\"new-event-id\"}");
         });
 
         using var httpClient = new HttpClient(handler);
@@ -857,11 +819,8 @@ public class GraphCalendarSourceTests
         {
             requestLog.Add((request.Method, request.RequestUri!.ToString()));
             if (request.Method != HttpMethod.Get)
-                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
-            var response = new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(managedEventsJson, Encoding.UTF8, "application/json")
-            };
+                return Task.FromResult(TestHttpResponses.Create(HttpStatusCode.NoContent));
+            var response = TestHttpResponses.Json(HttpStatusCode.OK, managedEventsJson);
             return Task.FromResult(response);
 
         });
@@ -904,7 +863,7 @@ public class GraphCalendarSourceTests
         var handler = new DelegatingHttpMessageHandler(_ =>
         {
             called = true;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+            return Task.FromResult(TestHttpResponses.Create(HttpStatusCode.OK));
         });
         using var httpClient = new HttpClient(handler);
         httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
@@ -946,19 +905,13 @@ public class GraphCalendarSourceTests
         {
             if (request.Method == HttpMethod.Get)
             {
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent("{\"value\":[]}", Encoding.UTF8, "application/json")
-                };
+                return TestHttpResponses.Json(HttpStatusCode.OK, "{\"value\":[]}");
             }
 
             var body = await request.Content!.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(body);
             capturedSubject = doc.RootElement.GetProperty("subject").GetString();
-            return new HttpResponseMessage(HttpStatusCode.Created)
-            {
-                Content = new StringContent("{\"id\":\"new\"}", Encoding.UTF8, "application/json")
-            };
+            return TestHttpResponses.Json(HttpStatusCode.Created, "{\"id\":\"new\"}");
         });
 
         using var httpClient = new HttpClient(handler);
@@ -1027,11 +980,8 @@ public class GraphCalendarSourceTests
         {
             if (request.Method == HttpMethod.Delete) deleteCalledCount++;
             return Task.FromResult(request.Method == HttpMethod.Get
-                ? new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent(managedEventsJson, Encoding.UTF8, "application/json")
-                }
-                : new HttpResponseMessage(HttpStatusCode.NoContent));
+                ? TestHttpResponses.Json(HttpStatusCode.OK, managedEventsJson)
+                : TestHttpResponses.Create(HttpStatusCode.NoContent));
         });
 
         using var httpClient = new HttpClient(handler);
@@ -1073,10 +1023,7 @@ public class GraphCalendarSourceTests
         var handler = new DelegatingHttpMessageHandler(request =>
         {
             requestUri = request.RequestUri!.ToString();
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent("{\"value\":[]}", Encoding.UTF8, "application/json")
-            });
+            return Task.FromResult(TestHttpResponses.Json(HttpStatusCode.OK, "{\"value\":[]}"));
         });
 
         using var httpClient = new HttpClient(handler);
@@ -1140,7 +1087,7 @@ public class GraphCalendarSourceTests
         var handler = new DelegatingHttpMessageHandler(_ =>
         {
             called = true;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+            return Task.FromResult(TestHttpResponses.Create(HttpStatusCode.OK));
         });
         using var httpClient = new HttpClient(handler);
         httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
@@ -1195,7 +1142,7 @@ public class GraphCalendarSourceTests
         var handler = new DelegatingHttpMessageHandler(_ =>
         {
             called = true;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+            return Task.FromResult(TestHttpResponses.Create(HttpStatusCode.OK));
         });
         using var httpClient = new HttpClient(handler);
         httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
@@ -1249,7 +1196,7 @@ public class GraphCalendarSourceTests
         var handler = new DelegatingHttpMessageHandler(_ =>
         {
             called = true;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+            return Task.FromResult(TestHttpResponses.Create(HttpStatusCode.OK));
         });
         using var httpClient = new HttpClient(handler);
         httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
@@ -1306,16 +1253,10 @@ public class GraphCalendarSourceTests
 
             if (request.Method == HttpMethod.Get)
             {
-                return new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = new StringContent("{\"value\":[]}", Encoding.UTF8, "application/json")
-                };
+                return TestHttpResponses.Json(HttpStatusCode.OK, "{\"value\":[]}");
             }
 
-            return new HttpResponseMessage(HttpStatusCode.Created)
-            {
-                Content = new StringContent("{\"id\":\"new-event-id\"}", Encoding.UTF8, "application/json")
-            };
+            return TestHttpResponses.Json(HttpStatusCode.Created, "{\"id\":\"new-event-id\"}");
         });
 
         using var httpClient = new HttpClient(handler);

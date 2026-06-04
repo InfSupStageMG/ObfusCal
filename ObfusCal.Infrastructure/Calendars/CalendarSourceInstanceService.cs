@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Security.Cryptography;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using ObfusCal.Application.Calendars;
@@ -256,7 +257,14 @@ internal sealed class CalendarSourceInstanceService(
         {
             return secretProtector.Unprotect(protectedValue);
         }
-        catch (Exception)
+        catch (CryptographicException)
+        {
+            // Data was not encrypted (legacy plaintext data) or key material changed.
+            // Treat as unavailable at this shared layer; plugin-specific compatibility
+            // handling belongs in the plugin implementation.
+            return null;
+        }
+        catch (FormatException)
         {
             // Data was not encrypted (legacy plaintext data) or key material changed.
             // Treat as unavailable at this shared layer; plugin-specific compatibility

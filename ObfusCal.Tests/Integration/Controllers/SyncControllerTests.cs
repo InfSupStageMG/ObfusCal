@@ -20,7 +20,7 @@ public class SyncControllerTests
             TestAuthHandler.DefaultObjectId, "Sysadmin");
         await Factory.SeedCalendarOwnerAsync(TestAuthHandler.DefaultObjectId);
 
-        var response = await client.GetAsync("/api/sync/peers");
+        using var response = await client.GetAsync("/api/sync/peers");
 
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
     }
@@ -30,7 +30,7 @@ public class SyncControllerTests
     {
         var client = Factory.CreateAuthenticatedClient();
 
-        var response = await client.GetAsync("/api/sync/peers");
+        using var response = await client.GetAsync("/api/sync/peers");
 
         Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -40,7 +40,7 @@ public class SyncControllerTests
     {
         var client = Factory.CreateClient();
 
-        var response = await client.GetAsync("/api/sync/peers");
+        using var response = await client.GetAsync("/api/sync/peers");
 
         Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -52,7 +52,7 @@ public class SyncControllerTests
             TestAuthHandler.DefaultObjectId, "Sysadmin");
         await Factory.SeedCalendarOwnerAsync(TestAuthHandler.DefaultObjectId);
 
-        var response = await client.PostAsync("/api/sync/trigger", null);
+        using var response = await client.PostAsync("/api/sync/trigger", null);
 
         Assert.AreEqual(HttpStatusCode.Accepted, response.StatusCode);
     }
@@ -65,7 +65,7 @@ public class SyncControllerTests
         var ownerId = await Factory.SeedCalendarOwnerAsync(TestAuthHandler.DefaultObjectId);
 
         var payload = new { calendarOwnerId = ownerId };
-        var response = await client.PostAsJsonAsync("/api/sync/trigger", payload);
+        using var response = await client.PostAsJsonAsync("/api/sync/trigger", payload);
 
         Assert.AreEqual(HttpStatusCode.Accepted, response.StatusCode);
     }
@@ -76,7 +76,7 @@ public class SyncControllerTests
         var client = Factory.CreateAuthenticatedClient();
         await Factory.SeedCalendarOwnerAsync(TestAuthHandler.DefaultObjectId);
 
-        var response = await client.PostAsync("/api/sync/trigger", null);
+        using var response = await client.PostAsync("/api/sync/trigger", null);
 
         Assert.AreEqual(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -86,7 +86,7 @@ public class SyncControllerTests
     {
         var client = Factory.CreateClient();
 
-        var response = await client.PostAsync("/api/sync/trigger", null);
+        using var response = await client.PostAsync("/api/sync/trigger", null);
 
         Assert.AreEqual(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -108,7 +108,7 @@ public class SyncControllerTests
             "ApiKey",
             CustomWebApplicationFactory.IntegrationTestPeerApiKey);
         SetReplayHeader(client);
-        var response = await client.PostAsJsonAsync("/api/shadow-slots", payload);
+        using var response = await client.PostAsJsonAsync("/api/shadow-slots", payload);
 
         Assert.AreEqual(HttpStatusCode.Created, response.StatusCode);
         Assert.IsNotNull(response.Headers.Location, "Created response should have a Location header");
@@ -129,7 +129,7 @@ public class SyncControllerTests
             CustomWebApplicationFactory.IntegrationTestPeerApiKey);
         SetReplayHeader(client);
 
-        var response = await client.GetAsync(
+        using var response = await client.GetAsync(
             $"/api/sync/busy-slots/{calendarOwnerRef}?to=2023-01-02T00:00:00Z");
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
@@ -149,7 +149,7 @@ public class SyncControllerTests
             CustomWebApplicationFactory.IntegrationTestPeerApiKey);
         SetReplayHeader(client);
 
-        var response = await client.GetAsync(
+        using var response = await client.GetAsync(
             $"/api/sync/busy-slots/{calendarOwnerRef}?from=2023-01-01T00:00:00Z");
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
@@ -168,8 +168,8 @@ public class SyncControllerTests
         SetReplayHeader(client);
 
         // Send a plain string (not an array or object with slots)
-        var content = new StringContent("\"not-an-array-or-object\"", System.Text.Encoding.UTF8, "application/json");
-        var response = await client.PostAsync("/api/shadow-slots", content);
+        using var content = new StringContent("\"not-an-array-or-object\"", System.Text.Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync("/api/shadow-slots", content);
 
         Assert.AreEqual(HttpStatusCode.BadRequest, response.StatusCode);
     }

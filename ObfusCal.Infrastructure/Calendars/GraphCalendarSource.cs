@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -58,8 +59,10 @@ public sealed partial class GraphCalendarSource(
         if (calendarOwnerId is null)
             return [];
 
+        var ownerId = calendarOwnerId.Value;
+
         var owner = await dbContext.CalendarOwners
-            .SingleOrDefaultAsync(x => x.Id == calendarOwnerId.Value, ct);
+            .SingleOrDefaultAsync(x => x.Id == ownerId, ct);
 
         if (owner is null)
             return [];
@@ -74,7 +77,7 @@ public sealed partial class GraphCalendarSource(
         {
             logger.LogWarning(
                 "Graph calendar fetch failed for calendar owner {CalendarOwnerId} with HTTP {StatusCode}.",
-                calendarOwnerId.Value,
+                ownerId,
                 (int)response.StatusCode);
             return [];
         }
@@ -150,13 +153,11 @@ public sealed partial class GraphCalendarSource(
         }
 
         var canWriteBack = GraphConsentAccessPolicy.AllowsOwnerWriteBack(owner.GraphGrantedScopes);
-        return hasConsent
-            ? CalendarSourceReadiness.Ready(
-                canWriteBack ? "Connected (write-back enabled)." : "Connected (read-only).",
-                canWriteBack
-                    ? "Outlook consent includes calendar write permissions."
-                    : "Outlook consent is read-only; write-back placeholders are disabled for this connection.")
-            : CalendarSourceReadiness.NotReady("Outlook consent required.");
+        return CalendarSourceReadiness.Ready(
+            canWriteBack ? "Connected (write-back enabled)." : "Connected (read-only).",
+            canWriteBack
+                ? "Outlook consent includes calendar write permissions."
+                : "Outlook consent is read-only; write-back placeholders are disabled for this connection.");
     }
 
     public Task<CalendarSourceReadiness> GetReadinessAsync(CalendarSourceInstanceContext instance,
@@ -175,13 +176,12 @@ public sealed partial class GraphCalendarSource(
 
         var canWriteBack = GraphConsentAccessPolicy.AllowsInstanceWriteBack(secretData);
 
-        return Task.FromResult(hasConsent
-            ? CalendarSourceReadiness.Ready(
+        return Task.FromResult(
+            CalendarSourceReadiness.Ready(
                 canWriteBack ? "Connected (write-back enabled)." : "Connected (read-only).",
                 canWriteBack
                     ? "Outlook consent includes calendar write permissions."
-                    : "Outlook consent is read-only; write-back placeholders are disabled for this source instance.")
-            : CalendarSourceReadiness.NotReady("Outlook consent required."));
+                    : "Outlook consent is read-only; write-back placeholders are disabled for this source instance."));
     }
 
 
@@ -195,7 +195,14 @@ public sealed partial class GraphCalendarSource(
         {
             accessToken = _tokenProtector.Unprotect(owner.GraphAccessTokenProtected);
         }
-        catch (Exception ex)
+        catch (CryptographicException ex)
+        {
+            logger.LogWarning(ex,
+                "Unable to read Graph access token for calendar owner {CalendarOwnerId}.",
+                owner.Id);
+            return null;
+        }
+        catch (FormatException ex)
         {
             logger.LogWarning(ex,
                 "Unable to read Graph access token for calendar owner {CalendarOwnerId}.",
@@ -245,7 +252,15 @@ public sealed partial class GraphCalendarSource(
             accessToken = _tokenProtector.Unprotect(secretData.ProtectedAccessToken!);
             return true;
         }
-        catch (Exception ex)
+        catch (CryptographicException ex)
+        {
+            logger.LogWarning(ex,
+                "Unable to read Graph access token for calendar source instance {CalendarSourceInstanceId}; returning no events.",
+                instance.Id);
+            accessToken = null;
+            return false;
+        }
+        catch (FormatException ex)
         {
             logger.LogWarning(ex,
                 "Unable to read Graph access token for calendar source instance {CalendarSourceInstanceId}; returning no events.",
@@ -292,7 +307,14 @@ public sealed partial class GraphCalendarSource(
         {
             refreshToken = _tokenProtector.Unprotect(owner.GraphRefreshTokenProtected);
         }
-        catch (Exception ex)
+        catch (CryptographicException ex)
+        {
+            logger.LogWarning(ex,
+                "Graph access token refresh failed for calendar owner {CalendarOwnerId}: refresh token could not be read.",
+                owner.Id);
+            return string.Empty;
+        }
+        catch (FormatException ex)
         {
             logger.LogWarning(ex,
                 "Graph access token refresh failed for calendar owner {CalendarOwnerId}: refresh token could not be read.",
@@ -316,7 +338,21 @@ public sealed partial class GraphCalendarSource(
             await dbContext.SaveChangesAsync(ct);
             return refreshed.AccessToken;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex,
+                "Graph access token refresh failed for calendar owner {CalendarOwnerId}; returning no events.",
+                owner.Id);
+            return string.Empty;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex,
+                "Graph access token refresh failed for calendar owner {CalendarOwnerId}; returning no events.",
+                owner.Id);
+            return string.Empty;
+        }
+        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
         {
             logger.LogWarning(ex,
                 "Graph access token refresh failed for calendar owner {CalendarOwnerId}; returning no events.",
@@ -353,7 +389,14 @@ public sealed partial class GraphCalendarSource(
         {
             refreshToken = _tokenProtector.Unprotect(secretData.ProtectedRefreshToken);
         }
-        catch (Exception ex)
+        catch (CryptographicException ex)
+        {
+            logger.LogWarning(ex,
+                "Graph access token refresh failed for calendar source instance {CalendarSourceInstanceId}: refresh token could not be read.",
+                instance.Id);
+            return GraphTokenRefreshResult.Empty(secretData);
+        }
+        catch (FormatException ex)
         {
             logger.LogWarning(ex,
                 "Graph access token refresh failed for calendar source instance {CalendarSourceInstanceId}: refresh token could not be read.",
@@ -383,7 +426,21 @@ public sealed partial class GraphCalendarSource(
 
             return new GraphTokenRefreshResult(refreshed.AccessToken, updatedSecretData);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex,
+                "Graph access token refresh failed for calendar source instance {CalendarSourceInstanceId}; returning no events.",
+                instance.Id);
+            return GraphTokenRefreshResult.Empty(secretData);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex,
+                "Graph access token refresh failed for calendar source instance {CalendarSourceInstanceId}; returning no events.",
+                instance.Id);
+            return GraphTokenRefreshResult.Empty(secretData);
+        }
+        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
         {
             logger.LogWarning(ex,
                 "Graph access token refresh failed for calendar source instance {CalendarSourceInstanceId}; returning no events.",
@@ -490,7 +547,7 @@ public sealed partial class GraphCalendarSource(
         {
             return JsonSerializer.Deserialize<GraphSourceSecretData>(secretDataJson);
         }
-        catch
+        catch (JsonException)
         {
             return null;
         }

@@ -9,6 +9,7 @@ using ObfusCal.Infrastructure.Persistence;
 using ObfusCal.Infrastructure.Storage;
 using ObfusCal.Infrastructure.Security;
 using ObfusCal.Infrastructure.Sync;
+using ObfusCal.Tests.Helpers;
 using CoreBusySlot = ObfusCal.Domain.Models.BusySlot;
 
 namespace ObfusCal.Tests.Integration.Sync;
@@ -37,14 +38,12 @@ public class InboundPeerPullSyncServiceTests
             new { start = new DateTimeOffset(2026, 4, 30, 9, 0, 0, TimeSpan.Zero), end = new DateTimeOffset(2026, 4, 30, 10, 0, 0, TimeSpan.Zero) }
         };
 
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(async request =>
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(async request =>
         {
             capturedRequest = await CapturedRequest.FromAsync(request);
-            return new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(JsonSerializer.Serialize(pulledSlots))
-            };
-        })));
+            return TestHttpResponses.Text(HttpStatusCode.OK, JsonSerializer.Serialize(pulledSlots));
+        }));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(dbContext, store, httpClientFactory);
 
@@ -79,8 +78,9 @@ public class InboundPeerPullSyncServiceTests
         var existingSlot = new CoreBusySlot("existing", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(30));
         await store.SetSlotsAsync("peer-a", calendarOwnerId, [existingSlot]);
 
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadGateway)))));
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(TestHttpResponses.Create(HttpStatusCode.BadGateway))));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(dbContext, store, httpClientFactory);
 
@@ -110,11 +110,9 @@ public class InboundPeerPullSyncServiceTests
             }
         };
 
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(JsonSerializer.Serialize(pulledSlots))
-            }))));
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(TestHttpResponses.Text(HttpStatusCode.OK, JsonSerializer.Serialize(pulledSlots)))));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(dbContext, store, httpClientFactory);
 
@@ -134,11 +132,9 @@ public class InboundPeerPullSyncServiceTests
         var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
 
         var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent("[]")
-            }))));
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(TestHttpResponses.Text(HttpStatusCode.OK, "[]"))));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(dbContext, store, httpClientFactory);
         var beforeSync = DateTimeOffset.UtcNow;
@@ -161,8 +157,9 @@ public class InboundPeerPullSyncServiceTests
         var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
 
         var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)))));
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(TestHttpResponses.Create(HttpStatusCode.ServiceUnavailable))));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(dbContext, store, httpClientFactory);
         var beforeSync = DateTimeOffset.UtcNow;
@@ -190,13 +187,14 @@ public class InboundPeerPullSyncServiceTests
         var logger = new CapturingLogger<InboundPeerPullSyncService>();
 
         var attemptedHosts = new List<string>();
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(request =>
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(request =>
         {
             attemptedHosts.Add(request.RequestUri!.Host);
             return Task.FromResult(request.RequestUri!.Host == "peer-a.local"
-                ? new HttpResponseMessage(HttpStatusCode.InternalServerError)
-                : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") });
-        })));
+                ? TestHttpResponses.Create(HttpStatusCode.InternalServerError)
+                : TestHttpResponses.Text(HttpStatusCode.OK, "[]"));
+        }));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(dbContext, store, httpClientFactory, logger);
 
@@ -217,8 +215,9 @@ public class InboundPeerPullSyncServiceTests
 
         var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
         var logger = new CapturingLogger<InboundPeerPullSyncService>();
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
-            throw new HttpRequestException("No route to host"))));
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            throw new HttpRequestException("No route to host")));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(dbContext, store, httpClientFactory, logger);
 
@@ -240,11 +239,12 @@ public class InboundPeerPullSyncServiceTests
 
         var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
         var httpRequestMade = false;
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
         {
             httpRequestMade = true;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") });
-        })));
+            return Task.FromResult(TestHttpResponses.Text(HttpStatusCode.OK, "[]"));
+        }));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = new InboundPeerPullSyncService(
             dbContext, store, httpClientFactory,
@@ -272,11 +272,12 @@ public class InboundPeerPullSyncServiceTests
 
         var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
         var httpRequestMade = false;
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
         {
             httpRequestMade = true;
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") });
-        })));
+            return Task.FromResult(TestHttpResponses.Text(HttpStatusCode.OK, "[]"));
+        }));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = new InboundPeerPullSyncService(
             dbContext, store, httpClientFactory,
@@ -305,11 +306,12 @@ public class InboundPeerPullSyncServiceTests
 
         var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
         string? capturedUri = null;
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(request =>
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(request =>
         {
             capturedUri = request.RequestUri!.ToString();
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") });
-        })));
+            return Task.FromResult(TestHttpResponses.Text(HttpStatusCode.OK, "[]"));
+        }));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = new InboundPeerPullSyncService(
             dbContext, store, httpClientFactory,
@@ -338,8 +340,9 @@ public class InboundPeerPullSyncServiceTests
         var peerConnectionId = SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-bad", "http://peer-bad.local/");
 
         var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
-        var httpClientFactory = new StubHttpClientFactory(new HttpClient(new DelegatingHttpMessageHandler(_ =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") }))));
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(TestHttpResponses.Text(HttpStatusCode.OK, "[]"))));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
 
         var service = CreateService(dbContext, store, httpClientFactory);
 
@@ -369,7 +372,7 @@ public class InboundPeerPullSyncServiceTests
         using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(async request =>
         {
             capturedRequest = await CapturedRequest.FromAsync(request);
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("[]") };
+            return TestHttpResponses.Text(HttpStatusCode.OK, "[]");
         }));
         var httpClientFactory = new StubHttpClientFactory(httpClient);
 

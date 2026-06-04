@@ -117,9 +117,9 @@ public class CalendarOwnerGoogleConsentServiceTests
     private static string GetQueryValue(string url, string key)
     {
         var query = new Uri(url).Query.TrimStart('?');
-        foreach (var segment in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        foreach (var parts in query.Split('&', StringSplitOptions.RemoveEmptyEntries)
+                     .Select(segment => segment.Split('=', 2)))
         {
-            var parts = segment.Split('=', 2);
             if (parts.Length == 2 && string.Equals(parts[0], key, StringComparison.Ordinal))
                 return Uri.UnescapeDataString(parts[1]);
         }

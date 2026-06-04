@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
@@ -46,14 +47,16 @@ public sealed partial class GoogleCalendarSourceCore(
         if (calendarOwnerId is null)
             return [];
 
+        var ownerId = calendarOwnerId.Value;
+
         var ownerExists = await dbContext.CalendarOwners
             .AsNoTracking()
-            .AnyAsync(owner => owner.Id == calendarOwnerId.Value, ct);
+            .AnyAsync(owner => owner.Id == ownerId, ct);
 
         if (!ownerExists)
             return [];
 
-        var instance = await calendarSourceInstanceStore.GetFirstAsync(calendarOwnerId.Value, GooglePluginId, ct);
+        var instance = await calendarSourceInstanceStore.GetFirstAsync(ownerId, GooglePluginId, ct);
         if (instance is null)
             return [];
 
@@ -124,7 +127,15 @@ public sealed partial class GoogleCalendarSourceCore(
             accessToken = secretProtector.Unprotect(secretData.ProtectedAccessToken!);
             return true;
         }
-        catch (Exception ex)
+        catch (CryptographicException ex)
+        {
+            logger.LogWarning(ex,
+                "Unable to read Google access token for calendar source instance {CalendarSourceInstanceId}; returning no events.",
+                instance.Id);
+            accessToken = null;
+            return false;
+        }
+        catch (FormatException ex)
         {
             logger.LogWarning(ex,
                 "Unable to read Google access token for calendar source instance {CalendarSourceInstanceId}; returning no events.",
@@ -203,11 +214,12 @@ public sealed partial class GoogleCalendarSourceCore(
         var hasConsent = !string.IsNullOrWhiteSpace(secretData?.ProtectedAccessToken)
                          || !string.IsNullOrWhiteSpace(secretData?.ProtectedRefreshToken);
 
-        return Task.FromResult(hasConsent
-            ? CalendarSourceReadiness.Ready("Google Calendar is configured.")
-            : CalendarSourceReadiness.NotReady(
-                "Google consent required.",
-                "Complete Google consent for this source instance before requesting busy slots."));
+        return Task.FromResult(
+            hasConsent
+                ? CalendarSourceReadiness.Ready("Google Calendar is configured.")
+                : CalendarSourceReadiness.NotReady(
+                    "Google consent required.",
+                    "Complete Google consent for this source instance before requesting busy slots."));
     }
 
     private async Task<string> RefreshIfExpiringAsync(
@@ -241,7 +253,14 @@ public sealed partial class GoogleCalendarSourceCore(
         {
             refreshToken = secretProtector.Unprotect(secretData.ProtectedRefreshToken);
         }
-        catch (Exception ex)
+        catch (CryptographicException ex)
+        {
+            logger.LogWarning(ex,
+                "Google access token refresh failed for calendar source instance {CalendarSourceInstanceId}: refresh token could not be read.",
+                instance.Id);
+            return string.Empty;
+        }
+        catch (FormatException ex)
         {
             logger.LogWarning(ex,
                 "Google access token refresh failed for calendar source instance {CalendarSourceInstanceId}: refresh token could not be read.",
@@ -270,7 +289,21 @@ public sealed partial class GoogleCalendarSourceCore(
 
             return refreshed.AccessToken;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex,
+                "Google access token refresh failed for calendar source instance {CalendarSourceInstanceId}; returning no events.",
+                instance.Id);
+            return string.Empty;
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex,
+                "Google access token refresh failed for calendar source instance {CalendarSourceInstanceId}; returning no events.",
+                instance.Id);
+            return string.Empty;
+        }
+        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
         {
             logger.LogWarning(ex,
                 "Google access token refresh failed for calendar source instance {CalendarSourceInstanceId}; returning no events.",
@@ -408,7 +441,7 @@ public sealed partial class GoogleCalendarSourceCore(
         {
             return JsonSerializer.Deserialize<GoogleSourceConfiguration>(configurationJson);
         }
-        catch
+        catch (JsonException)
         {
             return null;
         }
@@ -423,7 +456,7 @@ public sealed partial class GoogleCalendarSourceCore(
         {
             return JsonSerializer.Deserialize<GoogleSourceSecretData>(secretDataJson);
         }
-        catch
+        catch (JsonException)
         {
             return null;
         }

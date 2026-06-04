@@ -144,7 +144,7 @@
 
     private List<TimeZoneOption> _timeZones = [];
     private TimeZoneOption? _selectedTimeZone;
-    private static string? _sCachedTimeZoneId;
+    private string? _cachedTimeZoneId;
 
 
     protected override async Task OnInitializedAsync()
@@ -186,7 +186,7 @@
             .ToList();
 
         _selectedTimeZone = _timeZones.FirstOrDefault(tz =>
-                                tz.Id.Equals(_sCachedTimeZoneId, StringComparison.OrdinalIgnoreCase))
+                                tz.Id.Equals(_cachedTimeZoneId, StringComparison.OrdinalIgnoreCase))
                             // Romance Standard Time = Brussels/Paris/Madrid on Windows; Europe/Brussels on Linux/IANA
                             ?? _timeZones.FirstOrDefault(tz => tz.Id.Equals("Romance Standard Time", StringComparison.OrdinalIgnoreCase))
                             ?? _timeZones.FirstOrDefault(tz => tz.Id.Equals("Europe/Brussels", StringComparison.OrdinalIgnoreCase))
@@ -255,7 +255,7 @@
             if (string.IsNullOrWhiteSpace(browserTimeZone))
                 return;
 
-            _sCachedTimeZoneId = browserTimeZone;
+            _cachedTimeZoneId = browserTimeZone;
 
             var option = _timeZones.FirstOrDefault(tz => tz.Id.Equals(browserTimeZone, StringComparison.OrdinalIgnoreCase));
             if (option is null || Equals(option, _selectedTimeZone))

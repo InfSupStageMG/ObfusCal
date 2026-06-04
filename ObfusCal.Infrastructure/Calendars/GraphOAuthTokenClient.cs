@@ -79,7 +79,8 @@ internal sealed class GraphOAuthTokenClient(
         IReadOnlyDictionary<string, string> form,
         CancellationToken ct)
     {
-        using var response = await httpClient.PostAsync(tokenEndpoint, new FormUrlEncodedContent(form), ct);
+        using var content = new FormUrlEncodedContent(form);
+        using var response = await httpClient.PostAsync(tokenEndpoint, content, ct);
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync(ct);

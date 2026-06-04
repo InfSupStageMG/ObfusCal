@@ -13,10 +13,9 @@ public partial class CalendarOwnerDetail
         if (!TryParseFlatValues(currentValuesJson, out var currentValues))
             return fields;
 
-        foreach (var field in fields)
+        foreach (var field in fields.Where(field => currentValues.ContainsKey(field.Key)))
         {
-            if (currentValues.TryGetValue(field.Key, out var value))
-                field.Value = value;
+            field.Value = currentValues[field.Key];
         }
 
         return fields;
@@ -30,12 +29,10 @@ public partial class CalendarOwnerDetail
             return null;
 
         var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var field in fields)
+        foreach (var field in fields.Where(field => !string.IsNullOrWhiteSpace(field.Value)))
         {
-            if (string.IsNullOrWhiteSpace(field.Value))
-                continue;
 
-            values[field.Key] = field.Value.Trim();
+            values[field.Key] = field.Value!.Trim();
         }
 
         return values.Count == 0 ? null : JsonSerializer.Serialize(values);

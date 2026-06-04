@@ -138,7 +138,7 @@ internal sealed class CalendarOwnerIcalFeedService(
         {
             return JsonSerializer.Deserialize<IcalFeedConfiguration>(configurationJson)?.FeedUrl;
         }
-        catch
+        catch (JsonException)
         {
             return null;
         }

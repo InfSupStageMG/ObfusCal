@@ -366,7 +366,7 @@ internal sealed class CalendarOwnerGraphConsentService(
         {
             return JsonSerializer.Deserialize<GraphCalendarSource.GraphSourceSecretData>(secretDataJson);
         }
-        catch
+        catch (JsonException)
         {
             return null;
         }

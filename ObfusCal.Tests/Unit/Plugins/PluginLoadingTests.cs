@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using System.Runtime.Loader;
+﻿using System.Runtime.Loader;
 using Microsoft.Extensions.Logging.Abstractions;
 using ObfusCal.Application.Configuration;
 using ObfusCal.Infrastructure.Calendars;
@@ -83,19 +82,19 @@ public class PluginLoadingTests
     {
         // Try to find the plugins directory in the output
         var currentDir = AppContext.BaseDirectory;
-        var pluginDir = Path.Combine(currentDir, "plugins");
+        var pluginDir = Path.Join(currentDir, "plugins");
         if (Directory.Exists(pluginDir))
             return pluginDir;
 
         // If not in the current directory, try looking in the Api output
-        var apiPluginDir = Path.Combine(
+        var apiPluginDir = Path.Join(
             AppContext.BaseDirectory,
             "..", "..", "..", "ObfusCal.Api", "bin", "Debug", "net10.0", "plugins");
         if (Directory.Exists(apiPluginDir))
             return Path.GetFullPath(apiPluginDir);
 
         // Last resort, use the plugins directory relative to solution root
-        var solutionRoot = Path.Combine(
+        var solutionRoot = Path.Join(
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "plugins");
         return Path.GetFullPath(solutionRoot);

@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -75,7 +76,7 @@ public sealed class InboundPeerPullSyncService(
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogWarning(
                     ex,
@@ -162,11 +163,27 @@ public sealed class InboundPeerPullSyncService(
                 mapping.CalendarOwnerId);
             await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: true);
         }
-        catch (OperationCanceledException)
+        catch (HttpRequestException ex)
         {
-            throw;
+            logger.LogWarning(
+                ex,
+                "Peer pull failed for peer {PeerId} and calendar owner {CalendarOwnerId} with failure reason {FailureReason}; keeping previous slots.",
+                mapping.PeerInstanceId,
+                mapping.CalendarOwnerId,
+                ex.Message);
+            await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
         }
-        catch (Exception ex)
+        catch (JsonException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Peer pull failed for peer {PeerId} and calendar owner {CalendarOwnerId} with failure reason {FailureReason}; keeping previous slots.",
+                mapping.PeerInstanceId,
+                mapping.CalendarOwnerId,
+                ex.Message);
+            await RecordSyncResultAsync(mapping.PeerConnectionId, succeeded: false);
+        }
+        catch (InvalidOperationException ex)
         {
             logger.LogWarning(
                 ex,
@@ -190,7 +207,14 @@ public sealed class InboundPeerPullSyncService(
                 await dbContext.SaveChangesAsync(CancellationToken.None);
             }
         }
-        catch (Exception ex)
+        catch (DbUpdateException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Failed to persist sync metadata for peer connection {PeerConnectionId}.",
+                peerConnectionId);
+        }
+        catch (InvalidOperationException ex)
         {
             logger.LogWarning(
                 ex,
