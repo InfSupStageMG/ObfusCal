@@ -84,10 +84,9 @@ internal sealed class CalendarOwnerObfuscationProfileService(AppDbContext dbCont
 
         var createdAny = false;
 
-        foreach (var context in Enum.GetValues<ObfuscationAuditContext>())
+        foreach (var context in Enum.GetValues<ObfuscationAuditContext>()
+                     .Where(context => !existingContexts.Contains(context)))
         {
-            if (existingContexts.Contains(context))
-                continue;
 
             var defaults = ObfuscationProfileSettings.CreateDefault(context);
             dbContext.ObfuscationProfiles.Add(new ObfuscationProfile

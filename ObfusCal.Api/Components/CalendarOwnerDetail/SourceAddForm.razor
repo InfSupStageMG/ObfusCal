@@ -140,9 +140,8 @@
 
                 @if (HasFieldEditors(ConfigurationFields))
                 {
-                    @foreach (var f in ConfigurationFields)
+                    @foreach (var field in ConfigurationFields)
                     {
-                        var field = f;
                         <div @key="field.Key" class="config-field">
                             <div class="field-label-row">
                                 <label>@field.Label</label>
@@ -171,9 +170,8 @@
                     <p class="hint-text wizard-secret-hint">
                         🔒 These values are stored encrypted and will not be shown again after saving.
                     </p>
-                    @foreach (var f in SecretFields)
+                    @foreach (var field in SecretFields)
                     {
-                        var field = f;
                         <div @key="field.Key" class="secret-field">
                             <div class="field-label-row">
                                 <label>@field.Label</label>

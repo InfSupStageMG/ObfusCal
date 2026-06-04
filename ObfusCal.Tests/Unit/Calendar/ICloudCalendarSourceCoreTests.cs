@@ -24,7 +24,7 @@ public class ICloudCalendarSourceCoreTests
         // Arrange
         await using var db = TestDbContextFactory.CreateInMemory();
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
-        var httpClient = new HttpClient();
+        using var httpClient = new HttpClient();
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
 
@@ -46,7 +46,7 @@ public class ICloudCalendarSourceCoreTests
         // Arrange
         await using var db = TestDbContextFactory.CreateInMemory();
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
-        var httpClient = new HttpClient();
+        using var httpClient = new HttpClient();
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
 
@@ -66,7 +66,7 @@ public class ICloudCalendarSourceCoreTests
         // Arrange
         await using var db = TestDbContextFactory.CreateInMemory();
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
-        var httpClient = new HttpClient();
+        using var httpClient = new HttpClient();
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
 
@@ -88,7 +88,7 @@ public class ICloudCalendarSourceCoreTests
         // Arrange
         await using var db = TestDbContextFactory.CreateInMemory();
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
-        var httpClient = new HttpClient();
+        using var httpClient = new HttpClient();
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
 
@@ -119,7 +119,7 @@ public class ICloudCalendarSourceCoreTests
         var from = new DateTimeOffset(2026, 5, 6, 0, 0, 0, TimeSpan.Zero);
         var to = new DateTimeOffset(2026, 5, 7, 0, 0, 0, TimeSpan.Zero);
 
-        var request = CreateCalendarQueryRequest(config, from, to);
+        using var request = CreateCalendarQueryRequest(config, from, to);
 
         Assert.IsNotNull(request);
         Assert.IsNotNull(request.Content);
@@ -136,7 +136,7 @@ public class ICloudCalendarSourceCoreTests
         var from = new DateTimeOffset(2026, 5, 6, 0, 0, 0, TimeSpan.Zero);
         var to = new DateTimeOffset(2026, 5, 7, 0, 0, 0, TimeSpan.Zero);
 
-        var request = CreateCalendarQueryRequest(config, from, to);
+        using var request = CreateCalendarQueryRequest(config, from, to);
         var body = await request.Content!.ReadAsStringAsync();
 
         Assert.Contains("<c:expand", body);
@@ -149,10 +149,8 @@ public class ICloudCalendarSourceCoreTests
     {
         await using var db = TestDbContextFactory.CreateInMemory();
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
-        var httpClient = new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(string.Empty)
-        }));
+        using var httpClient =
+            new HttpClient(new StubHttpMessageHandler(_ => TestHttpResponses.Text(HttpStatusCode.OK, string.Empty)));
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
 
@@ -184,23 +182,21 @@ public class ICloudCalendarSourceCoreTests
     {
         await using var db = TestDbContextFactory.CreateInMemory();
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
-        var httpClient = new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(
-                "<d:multistatus xmlns:d=\"DAV:\" xmlns:c=\"urn:ietf:params:xml:ns:caldav\">"
-                + "<d:response><d:propstat><d:prop><c:calendar-data>"
-                + "BEGIN:VCALENDAR\r\n"
-                + "BEGIN:VEVENT\r\n"
-                + "UID:test-1\r\n"
-                + "DTSTAMP:20260506T000000Z\r\n"
-                + "DTSTART:20260506T100000Z\r\n"
-                + "DTEND:20260506T110000Z\r\n"
-                + "SUMMARY:Test Event\r\n"
-                + "END:VEVENT\r\n"
-                + "END:VCALENDAR"
-                + "</c:calendar-data></d:prop></d:propstat></d:response>"
-                + "</d:multistatus>")
-        }));
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(_ => TestHttpResponses.Text(
+            HttpStatusCode.OK,
+            "<d:multistatus xmlns:d=\"DAV:\" xmlns:c=\"urn:ietf:params:xml:ns:caldav\">"
+            + "<d:response><d:propstat><d:prop><c:calendar-data>"
+            + "BEGIN:VCALENDAR\r\n"
+            + "BEGIN:VEVENT\r\n"
+            + "UID:test-1\r\n"
+            + "DTSTAMP:20260506T000000Z\r\n"
+            + "DTSTART:20260506T100000Z\r\n"
+            + "DTEND:20260506T110000Z\r\n"
+            + "SUMMARY:Test Event\r\n"
+            + "END:VEVENT\r\n"
+            + "END:VCALENDAR"
+            + "</c:calendar-data></d:prop></d:propstat></d:response>"
+            + "</d:multistatus>")));
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
 
@@ -237,10 +233,8 @@ public class ICloudCalendarSourceCoreTests
     {
         await using var db = TestDbContextFactory.CreateInMemory();
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
-        var httpClient = new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(string.Empty)
-        }));
+        using var httpClient =
+            new HttpClient(new StubHttpMessageHandler(_ => TestHttpResponses.Text(HttpStatusCode.OK, string.Empty)));
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
         var protector = new PrefixCalendarSourceSecretProtector("enc:");
@@ -306,26 +300,24 @@ public class ICloudCalendarSourceCoreTests
         var protector = new PrefixCalendarSourceSecretProtector("enc:");
 
         var requestCount = 0;
-        var httpClient = new HttpClient(new StubHttpMessageHandler(_ =>
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(_ =>
         {
             requestCount++;
-            return new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(
-                    "<d:multistatus xmlns:d=\"DAV:\" xmlns:c=\"urn:ietf:params:xml:ns:caldav\">"
-                    + "<d:response><d:propstat><d:prop><c:calendar-data>"
-                    + "BEGIN:VCALENDAR\r\n"
-                    + "BEGIN:VEVENT\r\n"
-                    + "UID:roundtrip-1\r\n"
-                    + "DTSTAMP:20260506T000000Z\r\n"
-                    + "DTSTART:20260506T100000Z\r\n"
-                    + "DTEND:20260506T110000Z\r\n"
-                    + "SUMMARY:Round Trip Event\r\n"
-                    + "END:VEVENT\r\n"
-                    + "END:VCALENDAR"
-                    + "</c:calendar-data></d:prop></d:propstat></d:response>"
-                    + "</d:multistatus>")
-            };
+            return TestHttpResponses.Text(
+                HttpStatusCode.OK,
+                "<d:multistatus xmlns:d=\"DAV:\" xmlns:c=\"urn:ietf:params:xml:ns:caldav\">"
+                + "<d:response><d:propstat><d:prop><c:calendar-data>"
+                + "BEGIN:VCALENDAR\r\n"
+                + "BEGIN:VEVENT\r\n"
+                + "UID:roundtrip-1\r\n"
+                + "DTSTAMP:20260506T000000Z\r\n"
+                + "DTSTART:20260506T100000Z\r\n"
+                + "DTEND:20260506T110000Z\r\n"
+                + "SUMMARY:Round Trip Event\r\n"
+                + "END:VEVENT\r\n"
+                + "END:VCALENDAR"
+                + "</c:calendar-data></d:prop></d:propstat></d:response>"
+                + "</d:multistatus>");
         }));
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
@@ -394,10 +386,8 @@ public class ICloudCalendarSourceCoreTests
         await using var db = TestDbContextFactory.CreateInMemory();
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
         var ownerProtector = dataProtectionProvider.CreateProtector("ObfusCal.ICloudCalendar.Credentials.v1");
-        var httpClient = new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(string.Empty)
-        }));
+        using var httpClient =
+            new HttpClient(new StubHttpMessageHandler(_ => TestHttpResponses.Text(HttpStatusCode.OK, string.Empty)));
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
         var instanceProtector = new PrefixCalendarSourceSecretProtector("enc:");
@@ -461,10 +451,8 @@ public class ICloudCalendarSourceCoreTests
     {
         await using var db = TestDbContextFactory.CreateInMemory();
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
-        var httpClient = new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(string.Empty)
-        }));
+        using var httpClient =
+            new HttpClient(new StubHttpMessageHandler(_ => TestHttpResponses.Text(HttpStatusCode.OK, string.Empty)));
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
         var protector = new PrefixCalendarSourceSecretProtector("enc:");
@@ -526,10 +514,8 @@ public class ICloudCalendarSourceCoreTests
     {
         await using var db = TestDbContextFactory.CreateInMemory();
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
-        var httpClient = new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(string.Empty)
-        }));
+        using var httpClient =
+            new HttpClient(new StubHttpMessageHandler(_ => TestHttpResponses.Text(HttpStatusCode.OK, string.Empty)));
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
         var protector = new PrefixCalendarSourceSecretProtector("enc:");
@@ -586,10 +572,8 @@ public class ICloudCalendarSourceCoreTests
         // New generic plugin UI format: appleId is a plain configuration field, not a secret.
         await using var db = TestDbContextFactory.CreateInMemory();
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
-        var httpClient = new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(string.Empty)
-        }));
+        using var httpClient =
+            new HttpClient(new StubHttpMessageHandler(_ => TestHttpResponses.Text(HttpStatusCode.OK, string.Empty)));
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
 
@@ -622,23 +606,21 @@ public class ICloudCalendarSourceCoreTests
         // New generic plugin UI format: appleId is a plain configuration field, not a secret.
         await using var db = TestDbContextFactory.CreateInMemory();
         var dataProtectionProvider = new EphemeralDataProtectionProvider();
-        var httpClient = new HttpClient(new StubHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new StringContent(
-                "<d:multistatus xmlns:d=\"DAV:\" xmlns:c=\"urn:ietf:params:xml:ns:caldav\">"
-                + "<d:response><d:propstat><d:prop><c:calendar-data>"
-                + "BEGIN:VCALENDAR\r\n"
-                + "BEGIN:VEVENT\r\n"
-                + "UID:config-appleid-1\r\n"
-                + "DTSTAMP:20260506T000000Z\r\n"
-                + "DTSTART:20260506T100000Z\r\n"
-                + "DTEND:20260506T110000Z\r\n"
-                + "SUMMARY:Config AppleId Event\r\n"
-                + "END:VEVENT\r\n"
-                + "END:VCALENDAR"
-                + "</c:calendar-data></d:prop></d:propstat></d:response>"
-                + "</d:multistatus>")
-        }));
+        using var httpClient = new HttpClient(new StubHttpMessageHandler(_ => TestHttpResponses.Text(
+            HttpStatusCode.OK,
+            "<d:multistatus xmlns:d=\"DAV:\" xmlns:c=\"urn:ietf:params:xml:ns:caldav\">"
+            + "<d:response><d:propstat><d:prop><c:calendar-data>"
+            + "BEGIN:VCALENDAR\r\n"
+            + "BEGIN:VEVENT\r\n"
+            + "UID:config-appleid-1\r\n"
+            + "DTSTAMP:20260506T000000Z\r\n"
+            + "DTSTART:20260506T100000Z\r\n"
+            + "DTEND:20260506T110000Z\r\n"
+            + "SUMMARY:Config AppleId Event\r\n"
+            + "END:VEVENT\r\n"
+            + "END:VCALENDAR"
+            + "</c:calendar-data></d:prop></d:propstat></d:response>"
+            + "</d:multistatus>")));
         var icloudOptions = Options.Create(new ICloudCalendarOptions { ReadinessProbeLookAheadDays = 1 });
         var logger = CreateLogger();
 
@@ -746,7 +728,9 @@ public class ICloudCalendarSourceCoreTests
 
         public string Unprotect(string protectedValue)
         {
-            return !protectedValue.StartsWith(prefix, StringComparison.Ordinal) ? throw new CryptographicException("Value is not protected.") : protectedValue[prefix.Length..];
+            return !protectedValue.StartsWith(prefix, StringComparison.Ordinal)
+                ? throw new CryptographicException("Value is not protected.")
+                : protectedValue[prefix.Length..];
         }
     }
 

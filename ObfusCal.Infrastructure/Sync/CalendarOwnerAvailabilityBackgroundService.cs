@@ -27,7 +27,7 @@ public sealed class CalendarOwnerAvailabilityBackgroundService(
             {
                 break;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogWarning(ex, "Scheduled availability sync cycle failed; continuing with next interval.");
             }

@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Xml;
 using System.Xml.Linq;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -42,9 +43,11 @@ public sealed partial class ICloudCalendarSourceCore(
         if (calendarOwnerId is null)
             return [];
 
+        var ownerId = calendarOwnerId.Value;
+
         var owner = await dbContext.CalendarOwners
             .AsNoTracking()
-            .SingleOrDefaultAsync(x => x.Id == calendarOwnerId.Value, ct);
+            .SingleOrDefaultAsync(x => x.Id == ownerId, ct);
 
         if (owner is null)
             return [];
@@ -317,11 +320,6 @@ public sealed partial class ICloudCalendarSourceCore(
             // Legacy/raw JSON at rest should be migrated to protected storage.
             return storedSecretData.TrimStart().StartsWith('{');
         }
-        catch
-        {
-            // Unknown failure (e.g., key ring mismatch): avoid destructive rewrites.
-            return false;
-        }
     }
 
     private async Task<ICloudCalendarQueryResult> QueryCalendarAsync(
@@ -396,11 +394,28 @@ public sealed partial class ICloudCalendarSourceCore(
 
             return new ICloudCalendarQueryResult(ICloudCalendarQueryStatus.Success, events);
         }
-        catch (OperationCanceledException)
+        catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
         {
-            throw;
+            logger.LogWarning(ex,
+                "iCloud CalDAV endpoint could not be reached for calendar owner {CalendarOwnerId}.",
+                calendarOwnerId);
+            return new ICloudCalendarQueryResult(ICloudCalendarQueryStatus.Unreachable, []);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex,
+                "iCloud CalDAV endpoint could not be reached for calendar owner {CalendarOwnerId}.",
+                calendarOwnerId);
+            return new ICloudCalendarQueryResult(ICloudCalendarQueryStatus.Unreachable, []);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex,
+                "iCloud CalDAV endpoint could not be reached for calendar owner {CalendarOwnerId}.",
+                calendarOwnerId);
+            return new ICloudCalendarQueryResult(ICloudCalendarQueryStatus.Unreachable, []);
+        }
+        catch (XmlException ex)
         {
             logger.LogWarning(ex,
                 "iCloud CalDAV endpoint could not be reached for calendar owner {CalendarOwnerId}.",
@@ -478,7 +493,7 @@ public sealed partial class ICloudCalendarSourceCore(
         {
             return JsonSerializer.Deserialize<ICloudCalendarInstanceConfiguration>(configurationJson, JsonOptions);
         }
-        catch
+        catch (JsonException)
         {
             return null;
         }
@@ -493,7 +508,7 @@ public sealed partial class ICloudCalendarSourceCore(
         {
             return JsonSerializer.Deserialize<ICloudCalendarInstanceSecretData>(secretDataJson, JsonOptions);
         }
-        catch
+        catch (JsonException)
         {
             return null;
         }
@@ -614,7 +629,13 @@ public sealed partial class ICloudCalendarSourceCore(
             owner.ICloudAppSpecificPasswordProtected = _credentialProtector.Protect(appSpecificPassword);
             await dbContext.SaveChangesAsync(ct);
         }
-        catch (Exception ex)
+        catch (DbUpdateException ex)
+        {
+            logger.LogWarning(ex,
+                "Failed to auto-migrate legacy iCloud credentials for calendar owner {CalendarOwnerId}.",
+                ownerId);
+        }
+        catch (InvalidOperationException ex)
         {
             logger.LogWarning(ex,
                 "Failed to auto-migrate legacy iCloud credentials for calendar owner {CalendarOwnerId}.",
@@ -635,10 +656,10 @@ public sealed partial class ICloudCalendarSourceCore(
             if (instance is null)
                 return;
 
-            var secretJson = JsonSerializer.Serialize(
-                new ICloudCalendarInstanceSecretData(appleId, appSpecificPassword),
-                JsonOptions);
-            instance.SecretDataJson = secretProtector.Protect(secretJson);
+            instance.SecretDataJson = secretProtector.Protect(
+                JsonSerializer.Serialize(
+                    new ICloudCalendarInstanceSecretData(appleId, appSpecificPassword),
+                    JsonOptions));
 
             if (string.IsNullOrWhiteSpace(instance.ConfigurationJson))
             {
@@ -654,7 +675,13 @@ public sealed partial class ICloudCalendarSourceCore(
                 "Auto-migrated iCloud credentials for calendar source instance {CalendarSourceInstanceId} to protected storage.",
                 instanceId);
         }
-        catch (Exception ex)
+        catch (DbUpdateException ex)
+        {
+            logger.LogWarning(ex,
+                "Failed to auto-migrate legacy iCloud credentials for calendar source instance {CalendarSourceInstanceId}.",
+                instanceId);
+        }
+        catch (InvalidOperationException ex)
         {
             logger.LogWarning(ex,
                 "Failed to auto-migrate legacy iCloud credentials for calendar source instance {CalendarSourceInstanceId}.",

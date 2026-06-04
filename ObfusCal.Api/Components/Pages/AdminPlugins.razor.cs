@@ -69,9 +69,8 @@ public partial class AdminPlugins : ComponentBase
             })
             .ToList();
 
-        foreach (var id in blockedIds)
+        foreach (var entry in blockedIds.Select(id => overrides[id]))
         {
-            var entry = overrides[id];
             _rows.Add(new PluginRow(
                 entry.PluginId,
                 entry.PluginId,

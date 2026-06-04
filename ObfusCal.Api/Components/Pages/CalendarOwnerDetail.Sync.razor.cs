@@ -33,7 +33,17 @@ public partial class CalendarOwnerDetail
             _ownerSyncMessage = $"Sync completed at {DateTimeOffset.UtcNow:HH:mm:ss} UTC.";
             _ownerSyncMessageIntent = MessageIntent.Success;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            _ownerSyncMessage = $"Sync failed: {ex.Message}";
+            _ownerSyncMessageIntent = MessageIntent.Error;
+        }
+        catch (HttpRequestException ex)
+        {
+            _ownerSyncMessage = $"Sync failed: {ex.Message}";
+            _ownerSyncMessageIntent = MessageIntent.Error;
+        }
+        catch (TaskCanceledException ex)
         {
             _ownerSyncMessage = $"Sync failed: {ex.Message}";
             _ownerSyncMessageIntent = MessageIntent.Error;
@@ -60,7 +70,17 @@ public partial class CalendarOwnerDetail
             _writeBackMessage = "Write-back settings saved.";
             _writeBackMessageIntent = MessageIntent.Success;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            _writeBackMessage = $"Failed to save settings: {ex.Message}";
+            _writeBackMessageIntent = MessageIntent.Error;
+        }
+        catch (HttpRequestException ex)
+        {
+            _writeBackMessage = $"Failed to save settings: {ex.Message}";
+            _writeBackMessageIntent = MessageIntent.Error;
+        }
+        catch (TaskCanceledException ex)
         {
             _writeBackMessage = $"Failed to save settings: {ex.Message}";
             _writeBackMessageIntent = MessageIntent.Error;

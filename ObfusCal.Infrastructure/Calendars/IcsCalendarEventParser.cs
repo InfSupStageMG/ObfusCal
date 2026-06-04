@@ -89,9 +89,8 @@ internal static class IcsCalendarEventParser
         var lines = normalized.Split('\n');
 
         var unfolded = new List<string>();
-        foreach (var rawLine in lines)
+        foreach (var line in lines.Select(static rawLine => rawLine.TrimEnd()))
         {
-            var line = rawLine.TrimEnd();
             if (string.IsNullOrEmpty(line))
                 continue;
 
@@ -124,18 +123,12 @@ internal static class IcsCalendarEventParser
             return false;
         }
 
-        DateTimeOffset end;
-        if (values.TryGetValue("DTEND", out var endValues)
-            && TryParseIcsDateTime(endValues[0], TryGetFirst(values, "DTEND#TZID"), out var parsedEnd))
-        {
-            end = parsedEnd;
-        }
-        else
-        {
-            end = startValues[0].Contains('T', StringComparison.OrdinalIgnoreCase)
+        var end = values.TryGetValue("DTEND", out var endValues)
+                  && TryParseIcsDateTime(endValues[0], TryGetFirst(values, "DTEND#TZID"), out var parsedEnd)
+            ? parsedEnd
+            : startValues[0].Contains('T', StringComparison.OrdinalIgnoreCase)
                 ? start.AddMinutes(30)
                 : start.AddDays(1);
-        }
 
         if (end <= start)
         {

@@ -39,8 +39,6 @@ public class MergeBlocksTransformerTests
     {
         // slot-outer (9–11) fully contains slot-inner (9:30–10:00)
         var transformer = new MergeBlocksTransformer();
-        var outer = Slot("outer", 0, 2);   // 9:00–11:00
-        var inner = Slot("inner", 1, 1);   // Use same absolute time hack: use minutes instead
 
         var outerSlot = new BusySlot("outer", Base, Base.AddHours(2));           // 9:00–11:00
         var innerSlot = new BusySlot("inner", Base.AddMinutes(30), Base.AddHours(1)); // 9:30–10:00

@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Security.Cryptography;
+using System.Text.Json;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Infrastructure.Calendars;
 
@@ -38,9 +39,9 @@ internal sealed class CalendarOwnerICloudConfigurationService(
         // encrypted in the secret blob (dedicated iCloud setup / legacy instances).
         var unprotectedAppleId = !string.IsNullOrWhiteSpace(configuration?.AppleId)
             ? configuration.AppleId
-            : TryUnprotect(secrets?.AppleId);
+            : ReadSecretValue(secrets?.AppleId);
 
-        var unprotectedAppPassword = TryUnprotect(secrets?.AppSpecificPassword);
+        var unprotectedAppPassword = ReadSecretValue(secrets?.AppSpecificPassword);
         var isConfigured = !string.IsNullOrWhiteSpace(configuration?.CalendarUrl)
             && !string.IsNullOrWhiteSpace(unprotectedAppleId)
             && !string.IsNullOrWhiteSpace(unprotectedAppPassword);
@@ -94,11 +95,12 @@ internal sealed class CalendarOwnerICloudConfigurationService(
                 ConfigurationJson: JsonSerializer.Serialize(
                     new ICloudCalendarSourceCore.ICloudCalendarInstanceConfiguration(input.CalendarUrl.Trim()),
                     JsonOptions),
-                SecretDataJson: JsonSerializer.Serialize(
-                    new ICloudCalendarSourceCore.ICloudCalendarInstanceSecretData(
-                        secretProtector.Protect(input.AppleId.Trim()),
-                        secretProtector.Protect(input.AppSpecificPassword.Trim())),
-                    JsonOptions),
+                SecretDataJson: secretProtector.Protect(
+                    JsonSerializer.Serialize(
+                        new ICloudCalendarSourceCore.ICloudCalendarInstanceSecretData(
+                            input.AppleId.Trim(),
+                            input.AppSpecificPassword.Trim()),
+                        JsonOptions)),
                 IsEnabled: true),
             ct);
 
@@ -144,10 +146,26 @@ internal sealed class CalendarOwnerICloudConfigurationService(
         {
             return secretProtector.Unprotect(value);
         }
-        catch
+        catch (CryptographicException)
         {
             return null;
         }
+        catch (FormatException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    private string? ReadSecretValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        return TryUnprotect(value) ?? value;
     }
 
 
@@ -175,13 +193,13 @@ internal sealed class CalendarOwnerICloudConfigurationService(
         {
             return JsonSerializer.Deserialize<ICloudCalendarSourceCore.ICloudCalendarInstanceConfiguration>(configurationJson, JsonOptions);
         }
-        catch
+        catch (JsonException)
         {
             return null;
         }
     }
 
-    private static ICloudCalendarSourceCore.ICloudCalendarInstanceSecretData? ParseSecretData(string? secretDataJson)
+    private ICloudCalendarSourceCore.ICloudCalendarInstanceSecretData? ParseSecretData(string? secretDataJson)
     {
         if (string.IsNullOrWhiteSpace(secretDataJson))
             return null;
@@ -190,9 +208,29 @@ internal sealed class CalendarOwnerICloudConfigurationService(
         {
             return JsonSerializer.Deserialize<ICloudCalendarSourceCore.ICloudCalendarInstanceSecretData>(secretDataJson, JsonOptions);
         }
-        catch
+        catch (JsonException)
         {
-            return null;
+            try
+            {
+                var decryptedJson = secretProtector.Unprotect(secretDataJson);
+                return JsonSerializer.Deserialize<ICloudCalendarSourceCore.ICloudCalendarInstanceSecretData>(decryptedJson, JsonOptions);
+            }
+            catch (CryptographicException)
+            {
+                return null;
+            }
+            catch (FormatException)
+            {
+                return null;
+            }
+            catch (InvalidOperationException)
+            {
+                return null;
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
         }
     }
 }

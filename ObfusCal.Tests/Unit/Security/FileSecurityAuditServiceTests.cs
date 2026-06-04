@@ -21,15 +21,14 @@ public class FileSecurityAuditServiceTests
         const string testSegment = "audit-tests";
         if (Path.IsPathRooted(appSegment) || Path.IsPathRooted(testSegment))
             throw new InvalidOperationException("Directory segments must be relative path segments.");
-        var baseDir = Path.Combine(tempRoot, appSegment);
-        baseDir = Path.Combine(baseDir, testSegment);
+        var baseDir = Path.Join(tempRoot, appSegment, testSegment);
 
         var leaf = Guid.NewGuid()
             .ToString("N")
             .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         if (Path.IsPathRooted(leaf))
             throw new InvalidOperationException("Leaf directory name must be a relative path segment.");
-        var dir = Path.Combine(baseDir, leaf);
+        var dir = Path.Join(baseDir, leaf);
         Directory.CreateDirectory(dir);
 
         const string auditFileName = "security-audit.ndjson";
@@ -270,13 +269,13 @@ public class FileSecurityAuditServiceTests
         await service.WriteAsync(auditEvent, TestContext.CancellationToken);
 
         var entries = await ReadAuditFileAsync(filePath);
-        Assert.AreEqual(1, entries.Count);
+        Assert.HasCount(1, entries);
 
         // Check that the value was truncated
         var metadata = entries[0].Metadata;
-        if (metadata?.TryGetValue("longfield", out var longfieldValue) == true && longfieldValue != null)
+        if (metadata.TryGetValue("longfield", out var longfieldValue) && longfieldValue != null)
         {
-            Assert.IsTrue(longfieldValue.Length <= 256, "Value should be truncated to 256 chars");
+            Assert.IsLessThanOrEqualTo(longfieldValue.Length, 256, "Value should be truncated to 256 chars");
         }
     }
 
@@ -371,8 +370,6 @@ public class FileSecurityAuditServiceTests
                 ActorIdentity: root.GetProperty("actorIdentity").GetString() ?? string.Empty,
                 TargetResource: root.GetProperty("targetResource").GetString() ?? string.Empty,
                 Outcome: root.GetProperty("outcome").GetString() ?? string.Empty,
-                CorrelationId: root.GetProperty("correlationId").GetString() ?? string.Empty,
-                EntryHash: root.GetProperty("entryHash").GetString(),
                 Metadata: metadata);
         }).ToList();
 
@@ -384,8 +381,6 @@ public class FileSecurityAuditServiceTests
         string ActorIdentity,
         string TargetResource,
         string Outcome,
-        string CorrelationId,
-        string? EntryHash,
         Dictionary<string, string?> Metadata);
 
 
@@ -480,7 +475,7 @@ public class FileSecurityAuditServiceTests
         await service.WriteAsync(BuildEvent("AUTH_SUCCESS", actorIdentity: longValue));
 
         var entry = ParseEntry((await ReadNonEmptyLinesAsync())[0]);
-        Assert.IsLessThanOrEqualTo(256, entry.ActorIdentity.Length,
+        Assert.IsLessThanOrEqualTo(entry.ActorIdentity.Length, 256,
             "Field values longer than 256 characters must be truncated before persisting.");
     }
 
@@ -552,8 +547,11 @@ public class FileSecurityAuditServiceTests
         using var service = CreateService();
         const int concurrentWrites = 10;
 
-        await Task.WhenAll(Enumerable.Range(0, concurrentWrites)
-            .Select(i => service.WriteAsync(BuildEvent($"CONCURRENT_{i}"))));
+        var writeTasks = Enumerable.Range(0, concurrentWrites)
+            .Select(i => service.WriteAsync(BuildEvent($"CONCURRENT_{i}")))
+            .ToArray();
+
+        await Task.WhenAll(writeTasks);
 
         var lines = await ReadNonEmptyLinesAsync();
         Assert.HasCount(concurrentWrites, lines,
@@ -590,7 +588,6 @@ public class FileSecurityAuditServiceTests
                                prev.ValueKind != JsonValueKind.Null
                 ? prev.GetString()
                 : null,
-            EventCode: root.GetProperty("eventCode").GetString() ?? string.Empty,
             ActorIdentity: root.GetProperty("actorIdentity").GetString() ?? string.Empty,
             Metadata: root.TryGetProperty("metadata", out var meta) && meta.ValueKind == JsonValueKind.Object
                 ? meta.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetString())
@@ -600,7 +597,6 @@ public class FileSecurityAuditServiceTests
     private sealed record PersistedAuditEntrySnapshot(
         string EntryHash,
         string? PreviousEntryHash,
-        string EventCode,
         string ActorIdentity,
         IReadOnlyDictionary<string, string?>? Metadata);
 }

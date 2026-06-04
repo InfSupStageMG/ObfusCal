@@ -39,7 +39,7 @@ public sealed class SyncController(
                 {
                     await syncService.RunSyncForOwnerAsync(targetOwnerId);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     var scopedLogger = scope.ServiceProvider.GetRequiredService<ILogger<SyncController>>();
                     scopedLogger.LogWarning(ex,
@@ -62,7 +62,7 @@ public sealed class SyncController(
                 {
                     await syncService.RunSyncCycleAsync();
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     var scopedLogger = scope.ServiceProvider.GetRequiredService<ILogger<SyncController>>();
                     scopedLogger.LogWarning(ex,

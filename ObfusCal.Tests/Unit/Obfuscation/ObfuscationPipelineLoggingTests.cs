@@ -119,15 +119,14 @@ public class ObfuscationPipelineLoggingTests
                     properties[pair.Key] = pair.Value;
 
             if (state is IEnumerable<KeyValuePair<string, object?>> pairs)
-                foreach (var pair in pairs)
-                    if (pair.Key != "{OriginalFormat}")
-                        properties[pair.Key] = pair.Value;
+                foreach (var pair in pairs.Where(pair => pair.Key != "{OriginalFormat}"))
+                    properties[pair.Key] = pair.Value;
 
             Entries.Add(new LogEntry(logLevel, message, properties));
         }
 
         public bool IsEnabled(LogLevel logLevel) => true;
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull
         {
             var scopeState = state is IEnumerable<KeyValuePair<string, object?>> pairs
                 ? pairs.ToDictionary(pair => pair.Key, pair => pair.Value)

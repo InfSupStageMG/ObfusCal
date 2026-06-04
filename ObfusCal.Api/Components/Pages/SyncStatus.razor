@@ -79,17 +79,17 @@
                     <span class="text-truncate">@context.BaseAddress</span>
                 </TemplateColumn>
                 <TemplateColumn Title="Status">
-                    @switch (context.LastSyncSucceeded)
+                    @if (context.LastSyncSucceeded == true)
                     {
-                        case true:
-                            <FluentBadge Appearance="Appearance.Accent" Color="Color.Success">Healthy</FluentBadge>
-                            break;
-                        case false:
-                            <FluentBadge Appearance="Appearance.Accent" Color="Color.Error">Failed</FluentBadge>
-                            break;
-                        default:
-                            <FluentBadge Appearance="Appearance.Neutral">Never synced</FluentBadge>
-                            break;
+                        <FluentBadge Appearance="Appearance.Accent" Color="Color.Success">Healthy</FluentBadge>
+                    }
+                    else if (context.LastSyncSucceeded == false)
+                    {
+                        <FluentBadge Appearance="Appearance.Accent" Color="Color.Error">Failed</FluentBadge>
+                    }
+                    else
+                    {
+                        <FluentBadge Appearance="Appearance.Neutral">Never synced</FluentBadge>
                     }
                 </TemplateColumn>
                 <PropertyColumn Property="@(p => p.LastSyncedAt)" Title="Last Synced" Format="yyyy-MM-dd HH:mm:ss"/>
