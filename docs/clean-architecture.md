@@ -115,7 +115,8 @@ public record CalendarEvent(
     string? Location,
     string? SourceLabel = null,
     bool IsAllDay = false,
-    string? ColorHex = null
+    string? ColorHex = null,
+    string? SourceName = null
 );
 ```
 <!-- END_SNIPPET -->
@@ -135,7 +136,8 @@ public record BusySlot(
     string? SourceLabel = null,
     IReadOnlyList<BusySlot>? SourceSlots = null,
     bool IsAllDay = false,
-    string? ColorHex = null
+    string? ColorHex = null,
+    string? SourceName = null
 );
 ```
 <!-- END_SNIPPET -->
@@ -191,6 +193,7 @@ public interface IObfuscationTransformer
 ```text
 ObfusCal.Application/
 ├── Calendars/
+│   ├── BusySlotTitleComposer.cs
 │   └── CalendarColorPalette.cs
 ├── Configuration/
 │   ├── CalendarSourceOptions.cs
