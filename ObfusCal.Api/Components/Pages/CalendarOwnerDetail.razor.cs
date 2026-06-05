@@ -29,6 +29,7 @@ public partial class CalendarOwnerDetail : ComponentBase
     private readonly List<SourceInstanceEditor> _sourceInstances = [];
     private PluginOption? _selectedPluginOption;
     private string? _newSourceDisplayName;
+    private string? _newSourceSourceName;
     private string? _newSourceColorHex;
     private string? _newSourceAuthenticationActionId;
     private string? _newSourceConfigurationJson;

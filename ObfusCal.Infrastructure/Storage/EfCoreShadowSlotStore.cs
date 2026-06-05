@@ -40,6 +40,7 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
             Description = s.Description,
             AttendeeEmails = s.AttendeeEmails?.ToArray(),
             Location = s.Location,
+            SourceName = s.SourceName,
             IsAllDay = s.IsAllDay,
             CreatedAtUtc = DateTimeOffset.UtcNow
         }).ToList();
@@ -78,6 +79,7 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
             Description = s.Description,
             AttendeeEmails = s.AttendeeEmails?.ToArray(),
             Location = s.Location,
+            SourceName = s.SourceName,
             IsAllDay = s.IsAllDay,
             CreatedAtUtc = DateTimeOffset.UtcNow
         }).ToList();
@@ -107,7 +109,8 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
             e.Description,
             e.AttendeeEmails,
             e.Location,
-            IsAllDay: e.IsAllDay)).ToArray();
+            IsAllDay: e.IsAllDay,
+            SourceName: e.SourceName)).ToArray();
 
         _logger.ForContext(PeerIdLogProperty, peerId)
             .ForContext(BusySlotCountLogProperty, result.Length)
@@ -135,7 +138,8 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
             e.Description,
             e.AttendeeEmails,
             e.Location,
-            IsAllDay: e.IsAllDay)).ToArray();
+            IsAllDay: e.IsAllDay,
+            SourceName: e.SourceName)).ToArray();
 
         _logger.ForContext(PeerIdLogProperty, peerId)
             .ForContext(CalendarOwnerIdLogProperty, calendarOwnerId)
@@ -161,7 +165,8 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
             e.Description,
             e.AttendeeEmails,
             e.Location,
-            IsAllDay: e.IsAllDay)).ToArray();
+            IsAllDay: e.IsAllDay,
+            SourceName: e.SourceName)).ToArray();
 
         _logger.ForContext(BusySlotCountLogProperty, result.Length)
             .Debug("Read all shadow slots from all peers");
@@ -210,7 +215,8 @@ public sealed class EfCoreShadowSlotStore(AppDbContext dbContext, ILogger logger
             e.Description,
             e.AttendeeEmails,
             e.Location,
-            IsAllDay: e.IsAllDay) with
+            IsAllDay: e.IsAllDay,
+            SourceName: e.SourceName) with
         {
             SourceLabel = peerLabels.GetValueOrDefault(e.PeerId)
         }).ToArray();

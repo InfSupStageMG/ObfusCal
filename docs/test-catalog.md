@@ -1,8 +1,8 @@
 # Test Catalog
 
-_Auto-generated from CI run. 800 tests across 85 classes._
+_Auto-generated from CI run. 819 tests across 85 classes._
 
-## Integration (212/212)
+## Integration (220/220)
 
 <details>
 <summary><b>AdminPeerConnectionsControllerTests</b> - 10/10</summary>
@@ -187,13 +187,14 @@ _Auto-generated from CI run. 800 tests across 85 classes._
 </details>
 
 <details>
-<summary><b>ShadowSlotsControllerTests</b> - 25/25</summary>
+<summary><b>ShadowSlotsControllerTests</b> - 26/26</summary>
 
 <table>
   <thead>
     <tr><th>Test</th><th>Result</th></tr>
   </thead>
   <tbody>
+    <tr><td><code>PullBusySlotsForPeer_ReturnsSourceNameInPayload</code></td><td>✅</td></tr>
     <tr><td><code>PullBusySlotsForPeer_WithMissingPullScope_ReturnsForbidden</code></td><td>✅</td></tr>
     <tr><td><code>PullBusySlotsForPeer_WithValidApiKeyAndMapping_ReturnsOk</code></td><td>✅</td></tr>
     <tr><td><code>PullBusySlotsForPeer_WithValidApiKeyButNoMapping_ReturnsForbidden</code></td><td>✅</td></tr>
@@ -420,7 +421,7 @@ _Auto-generated from CI run. 800 tests across 85 classes._
 </details>
 
 <details>
-<summary><b>CalendarOwnerAvailabilitySyncServiceTests</b> - 11/11</summary>
+<summary><b>CalendarOwnerAvailabilitySyncServiceTests</b> - 16/16</summary>
 
 <table>
   <thead>
@@ -432,9 +433,14 @@ _Auto-generated from CI run. 800 tests across 85 classes._
     <tr><td><code>RunSyncForOwnerAsync_WithWriteBackDisabled_DoesNotInvokeGoogleWriteBack</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncForOwnerAsync_WithWriteBackDisabled_DoesNotInvokeGraphWriteBack</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncForOwnerAsync_WithWriteBackDisabled_DoesNotInvokeICloudWriteBack</code></td><td>✅</td></tr>
+    <tr><td><code>RunSyncForOwnerAsync_WithWriteBackEnabled_AppendsAllMergedSourceNamesToManagedGraphPlaceholderTitle</code></td><td>✅</td></tr>
+    <tr><td><code>RunSyncForOwnerAsync_WithWriteBackEnabled_AppendsSourceNameToManagedGooglePlaceholderTitle</code></td><td>✅</td></tr>
+    <tr><td><code>RunSyncForOwnerAsync_WithWriteBackEnabled_AppendsSourceNameToManagedGraphPlaceholderTitle</code></td><td>✅</td></tr>
+    <tr><td><code>RunSyncForOwnerAsync_WithWriteBackEnabled_AppendsSourceNameToManagedICloudPlaceholderTitle</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncForOwnerAsync_WithWriteBackEnabled_DeletesStaleManagedGooglePlaceholder</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncForOwnerAsync_WithWriteBackEnabled_DeletesStaleManagedGraphPlaceholder</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncForOwnerAsync_WithWriteBackEnabled_DeletesStaleManagedICloudPlaceholder</code></td><td>✅</td></tr>
+    <tr><td><code>RunSyncForOwnerAsync_WithWriteBackEnabled_PatchesLegacyAllDayGraphPlaceholderWithoutSlotId</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncForOwnerAsync_WithWriteBackEnabled_WritesManagedGooglePlaceholderUsingConfiguredTitle</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncForOwnerAsync_WithWriteBackEnabled_WritesManagedGraphPlaceholderUsingConfiguredTitle</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncForOwnerAsync_WithWriteBackEnabled_WritesManagedICloudPlaceholderUsingConfiguredTitle</code></td><td>✅</td></tr>
@@ -444,7 +450,7 @@ _Auto-generated from CI run. 800 tests across 85 classes._
 </details>
 
 <details>
-<summary><b>InboundPeerPullSyncServiceTests</b> - 11/11</summary>
+<summary><b>InboundPeerPullSyncServiceTests</b> - 12/12</summary>
 
 <table>
   <thead>
@@ -456,6 +462,7 @@ _Auto-generated from CI run. 800 tests across 85 classes._
     <tr><td><code>RunSyncCycleAsync_OnSuccess_RecordsLastSyncedAtAndSucceededOnPeerConnection</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_OnSuccess_ReplacesOwnerScopedSlotsAndSendsPeerHeaders</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_PreservesIsAllDayFromPulledPayload</code></td><td>✅</td></tr>
+    <tr><td><code>RunSyncCycleAsync_PreservesSourceNameAndMetadataFromPulledPayload</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_SkipsWhenOnlyApiKeyIsConfigured</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_SkipsWhenOnlyInstanceIdIsConfigured</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_WhenPeerAFails_StillPullsFromPeerBAndLogsWarning</code></td><td>✅</td></tr>
@@ -468,7 +475,7 @@ _Auto-generated from CI run. 800 tests across 85 classes._
 </details>
 
 <details>
-<summary><b>OutboundPeerSyncServiceTests</b> - 9/9</summary>
+<summary><b>OutboundPeerSyncServiceTests</b> - 10/10</summary>
 
 <table>
   <thead>
@@ -476,6 +483,7 @@ _Auto-generated from CI run. 800 tests across 85 classes._
   </thead>
   <tbody>
     <tr><td><code>RunSyncCycleAsync_IncludesIsAllDayInPeerPayload</code></td><td>✅</td></tr>
+    <tr><td><code>RunSyncCycleAsync_IncludesSourceNameInPeerPayload</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_OnPeerHttpFailure_RecordsLastSyncedAtAndNotSucceededOnPeerConnection</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_PostsCalendarOwnerRefAndBusySlotsWithPeerHeaders</code></td><td>✅</td></tr>
     <tr><td><code>RunSyncCycleAsync_PropagatesPeerThumbprintsOnOutgoingRequest</code></td><td>✅</td></tr>
@@ -489,10 +497,10 @@ _Auto-generated from CI run. 800 tests across 85 classes._
 
 </details>
 
-## Unit (588/588)
+## Unit (599/599)
 
 <details>
-<summary><b>AggregateCalendarSourceTests</b> - 2/2</summary>
+<summary><b>AggregateCalendarSourceTests</b> - 3/3</summary>
 
 <table>
   <thead>
@@ -500,6 +508,7 @@ _Auto-generated from CI run. 800 tests across 85 classes._
   </thead>
   <tbody>
     <tr><td><code>GetEventsAsync_AssignsConfiguredColorToInstanceEvents</code></td><td>✅</td></tr>
+    <tr><td><code>WriteBackSlotsAsync_AppendsConfiguredSourceNameToOutboundTitles</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_WritesOtherSourceBusySlotsToEachWritableDestination</code></td><td>✅</td></tr>
   </tbody>
 </table>
@@ -536,7 +545,7 @@ _Auto-generated from CI run. 800 tests across 85 classes._
 </details>
 
 <details>
-<summary><b>GoogleCalendarSourceCoreTests</b> - 9/9</summary>
+<summary><b>GoogleCalendarSourceCoreTests</b> - 10/10</summary>
 
 <table>
   <thead>
@@ -549,6 +558,7 @@ _Auto-generated from CI run. 800 tests across 85 classes._
     <tr><td><code>GetEventsAsync_RefreshesExpiredToken_BeforeGoogleCall</code></td><td>✅</td></tr>
     <tr><td><code>GetEventsAsync_Throws_WhenGoogleApiBaseUrlIsMissing</code></td><td>✅</td></tr>
     <tr><td><code>GetReadinessAsync_ReturnsNotReady_WhenNoCredentialsExist</code></td><td>✅</td></tr>
+    <tr><td><code>WriteBackSlotsAsync_AppendsSourceNameToOutboundSummary</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_CreatesPlaceholderEventsForInstance</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_ForCalendarOwner_CreatesPlaceholderEventsUsingEnabledGoogleInstance</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_HandlesDuplicateManagedSlotIds_DeletesExtraAndContinues</code></td><td>✅</td></tr>
@@ -558,7 +568,7 @@ _Auto-generated from CI run. 800 tests across 85 classes._
 </details>
 
 <details>
-<summary><b>GraphCalendarSourceTests</b> - 21/21</summary>
+<summary><b>GraphCalendarSourceTests</b> - 26/26</summary>
 
 <table>
   <thead>
@@ -576,6 +586,8 @@ _Auto-generated from CI run. 800 tests across 85 classes._
     <tr><td><code>GetEventsAsync_StopsWhenNextLinkRepeats</code></td><td>✅</td></tr>
     <tr><td><code>GetReadinessAsync_ForReadOnlySourceInstance_ShowsReadOnlyStatus</code></td><td>✅</td></tr>
     <tr><td><code>GetReadinessAsync_ForSourceInstance_ReadOnlyChoiceOverridesBroaderReturnedScopes</code></td><td>✅</td></tr>
+    <tr><td><code>WriteBackSlotsAsync_AppendsSourceNameToOutboundSubject</code></td><td>✅</td></tr>
+    <tr><td><code>WriteBackSlotsAsync_AppendsSourceNameToOutboundSubject_ForAllDayEvents</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_CreatesPlaceholderEvents_ForEachActiveSlot</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_DeletesStaleEvents_WhenNoLongerActiveSlot</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_DoesNotDeleteManagedEvent_WhenStartIsOutsideWindow</code></td><td>✅</td></tr>
@@ -583,8 +595,11 @@ _Auto-generated from CI run. 800 tests across 85 classes._
     <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenReadOnlyChoiceOverridesBroaderReturnedScopes</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenReadOnlyConsent</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_ForSourceInstance_SkipsWrite_WhenScopesAreNull</code></td><td>✅</td></tr>
+    <tr><td><code>WriteBackSlotsAsync_PatchesExistingAllDayPlaceholder_WithSourceNameInSubject</code></td><td>✅</td></tr>
+    <tr><td><code>WriteBackSlotsAsync_PatchesLegacyAllDayPlaceholderWithoutSlotId_WithSourceNameInSubject</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_QueriesManagedEventsOnlyWithinWindow</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_SkipsWrite_WhenNoAccessToken</code></td><td>✅</td></tr>
+    <tr><td><code>WriteBackSlotsAsync_UsesCalendarViewQueryWithManagedAndSlotProperties</code></td><td>✅</td></tr>
     <tr><td><code>WriteBackSlotsAsync_UsesCustomPlaceholderTitle</code></td><td>✅</td></tr>
   </tbody>
 </table>
@@ -620,13 +635,14 @@ _Auto-generated from CI run. 800 tests across 85 classes._
 </details>
 
 <details>
-<summary><b>ICloudCalendarSourceCoreWriteBackTests</b> - 22/22</summary>
+<summary><b>ICloudCalendarSourceCoreWriteBackTests</b> - 23/23</summary>
 
 <table>
   <thead>
     <tr><th>Test</th><th>Result</th></tr>
   </thead>
   <tbody>
+    <tr><td><code>BuildPlaceholderIcsContent_AppendsSourceNameOnce</code></td><td>✅</td></tr>
     <tr><td><code>BuildPlaceholderIcsContent_ContainsRequiredICalFields</code></td><td>✅</td></tr>
     <tr><td><code>BuildPlaceholderIcsContent_UsesCrlfLineEndings</code></td><td>✅</td></tr>
     <tr><td><code>GetManagedEventUid_DifferentSlotIdsProduceDifferentUids</code></td><td>✅</td></tr>
@@ -1044,7 +1060,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
 </details>
 
 <details>
-<summary><b>MergeBlocksTransformerTests</b> - 13/13</summary>
+<summary><b>MergeBlocksTransformerTests</b> - 15/15</summary>
 
 <table>
   <thead>
@@ -1058,6 +1074,8 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
     <tr><td><code>Transform_WithContainedSlot_PreservesOuterEnd</code></td><td>✅</td></tr>
     <tr><td><code>Transform_WithEmptyList_ReturnsEmptyList</code></td><td>✅</td></tr>
     <tr><td><code>Transform_WithIdenticalEndTimes_MergesCorrectly</code></td><td>✅</td></tr>
+    <tr><td><code>Transform_WithMergedSlotsFromDifferentSources_CombinesSourceNames</code></td><td>✅</td></tr>
+    <tr><td><code>Transform_WithMergedSlotsFromRepeatedSources_DeduplicatesSourceNames</code></td><td>✅</td></tr>
     <tr><td><code>Transform_WithMergedSlots_CapturesAllSourceSlots</code></td><td>✅</td></tr>
     <tr><td><code>Transform_WithNonOverlappingSlots_KeepsBoth</code></td><td>✅</td></tr>
     <tr><td><code>Transform_WithOverlapping_WhereSecondEndsEarlier_KeepsFirstEnd</code></td><td>✅</td></tr>
@@ -1854,7 +1872,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
 </details>
 
 <details>
-<summary><b>GetBusySlotsQueryHandlerTests</b> - 7/7</summary>
+<summary><b>GetBusySlotsQueryHandlerTests</b> - 8/8</summary>
 
 <table>
   <thead>
@@ -1862,6 +1880,7 @@ Object name: 'AppDbContext'.")</code></td><td>✅</td></tr>
   </thead>
   <tbody>
     <tr><td><code>Handle_MapsAllFieldsToResponse</code></td><td>✅</td></tr>
+    <tr><td><code>Handle_MapsSourceNameToResponse</code></td><td>✅</td></tr>
     <tr><td><code>Handle_PreservesIsAllDayInResponse</code></td><td>✅</td></tr>
     <tr><td><code>Handle_ReturnsObfuscatedBusySlots</code></td><td>✅</td></tr>
     <tr><td><code>Handle_ThrowsRequestValidationException_WhenWindowExceedsConfiguredLimit</code></td><td>✅</td></tr>

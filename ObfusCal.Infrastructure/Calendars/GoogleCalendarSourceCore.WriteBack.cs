@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using ObfusCal.Application.Calendars;
 using ObfusCal.Application.Interfaces;
 using BusySlot = ObfusCal.Domain.Models.BusySlot;
 
@@ -159,7 +160,7 @@ public sealed partial class GoogleCalendarSourceCore
         string placeholderTitle,
         CancellationToken ct)
     {
-        var eventSummary = !string.IsNullOrWhiteSpace(slot.Title) ? slot.Title : placeholderTitle;
+        var eventSummary = BusySlotTitleComposer.Compose(slot.Title, slot.SourceName, placeholderTitle) ?? placeholderTitle;
 
         if (existing.Start == slot.Start
             && existing.End == slot.End
@@ -368,8 +369,7 @@ public sealed partial class GoogleCalendarSourceCore
             ? $"{GetGoogleApiBaseUrl().TrimEnd('/')}/calendar/v3/calendars/{Uri.EscapeDataString(calendarId)}/events"
             : $"{GetGoogleApiBaseUrl().TrimEnd('/')}/calendar/v3/calendars/{Uri.EscapeDataString(calendarId)}/events/{Uri.EscapeDataString(googleEventId)}";
 
-        // Use obfuscated title if available, otherwise use placeholder
-        var eventSummary = !string.IsNullOrWhiteSpace(slot.Title) ? slot.Title : placeholderTitle;
+        var eventSummary = BusySlotTitleComposer.Compose(slot.Title, slot.SourceName, placeholderTitle) ?? placeholderTitle;
 
         object body = includeSlotMetadata
             ? new

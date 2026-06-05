@@ -57,7 +57,8 @@ public sealed record CalendarSourceInstanceContext(
     string? ConfigurationJson,
     string? SecretDataJson,
     bool IsExternalPlugin,
-    string? ColorHex = null);
+    string? ColorHex = null,
+    string? SourceName = null);
 
 public sealed record CalendarSourceInstanceSummary(
     Guid Id,
@@ -70,7 +71,8 @@ public sealed record CalendarSourceInstanceSummary(
     string Title,
     string? Detail,
     bool IsExternalPlugin,
-    string? ColorHex = null);
+    string? ColorHex = null,
+    string? SourceName = null);
 
 public sealed record CreateCalendarSourceInstanceInput(
     string PluginId,
@@ -78,12 +80,14 @@ public sealed record CreateCalendarSourceInstanceInput(
     string? ConfigurationJson = null,
     string? SecretDataJson = null,
     bool IsEnabled = true,
-    string? ColorHex = null);
+    string? ColorHex = null,
+    string? SourceName = null);
 
 public sealed record UpdateCalendarSourceInstanceInput(
     string? DisplayName = null,
     string? ConfigurationJson = null,
     string? SecretDataJson = null,
     bool? IsEnabled = null,
-    string? ColorHex = null);
+    string? ColorHex = null,
+    string? SourceName = null);
 

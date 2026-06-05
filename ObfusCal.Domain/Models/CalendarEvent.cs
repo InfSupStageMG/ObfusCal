@@ -10,5 +10,6 @@ public record CalendarEvent(
     string? Location,
     string? SourceLabel = null,
     bool IsAllDay = false,
-    string? ColorHex = null
+    string? ColorHex = null,
+    string? SourceName = null
 );

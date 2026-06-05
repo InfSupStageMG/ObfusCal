@@ -79,6 +79,22 @@ public class GetBusySlotsQueryHandlerTests
     }
 
     [TestMethod]
+    public async Task Handle_MapsSourceNameToResponse()
+    {
+        var events = new CalendarEvent[]
+        {
+            new("evt-1", "Title", null,
+                From.AddHours(9), From.AddHours(10), [], null, SourceName: "CA")
+        };
+
+        var handler = CreateHandler(events);
+        var result = await handler.ExecuteAsync(new GetBusySlotsQuery(OwnerId, From, To), CancellationToken.None);
+
+        Assert.HasCount(1, result);
+        Assert.AreEqual("CA", result[0].SourceName);
+    }
+
+    [TestMethod]
     public async Task Handle_UsesClientContext()
     {
         var profileService = new FakeObfuscationProfileService();

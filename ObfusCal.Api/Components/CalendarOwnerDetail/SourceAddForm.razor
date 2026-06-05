@@ -50,6 +50,18 @@
                          Style="width: 100%; max-width: 420px; min-width: 0;"
                          Placeholder="@(SelectedOption?.DisplayName ?? "My calendar")"/>
 
+        <p class="hint-text" style="margin-top: 1rem;">
+            Source name is what gets added to write-back event titles so you can still recognise where the busy slot came from.
+        </p>
+
+        <FluentTextField Value="@_localSourceName"
+                         ValueChanged="@(async val => { _localSourceName = val; await SourceNameChanged.InvokeAsync(val); })"
+                         Immediate="true"
+                         Class="app-form-control"
+                         Style="width: 100%; max-width: 420px; min-width: 0;"
+                         Label="Source name"
+                         Placeholder="@(GetEffectiveDisplayName() ?? SelectedOption?.DisplayName ?? "CA")"/>
+
         <CalendarColorField InputId="source-color-input"
                             AutomaticColorHex="@AutomaticColorHex"
                             Value="@ColorHex"
@@ -64,6 +76,7 @@
     {
         @* ── Step 3: Review and confirm ── *@
         var effectiveName = string.IsNullOrWhiteSpace(_localDisplayName) ? SelectedOption?.DisplayName : _localDisplayName;
+        var effectiveSourceName = string.IsNullOrWhiteSpace(_localSourceName) ? effectiveName : _localSourceName;
         var requiresAuthentication = SelectedOption?.RequiresAuthentication == true;
         var selectedAuthenticationAction = SelectedOption?.AuthenticationActions.FirstOrDefault(action =>
             string.Equals(action.ActionId, SelectedAuthenticationActionId, StringComparison.Ordinal));
@@ -83,6 +96,10 @@
             <div class="wizard-summary-row">
                 <span class="wizard-summary-label">Name</span>
                 <span class="wizard-summary-value">@effectiveName</span>
+            </div>
+            <div class="wizard-summary-row">
+                <span class="wizard-summary-label">Source name</span>
+                <span class="wizard-summary-value">@effectiveSourceName</span>
             </div>
             @if (SelectedOption?.RequiresAuthenticationChoice == true)
             {
@@ -240,6 +257,12 @@
     public EventCallback<string?> DisplayNameChanged { get; set; }
 
     [Parameter]
+    public string? SourceName { get; set; }
+
+    [Parameter]
+    public EventCallback<string?> SourceNameChanged { get; set; }
+
+    [Parameter]
     public string? ColorHex { get; set; }
 
     [Parameter]
@@ -300,6 +323,8 @@
 
     private string? _localDisplayName;
     private string? _lastSeenDisplayName;
+    private string? _localSourceName;
+    private string? _lastSeenSourceName;
     private string? _stepValidationMessage;
 
     // Controls whether the Advanced settings section is pre-expanded.
@@ -310,6 +335,12 @@
         if (string.Equals(_lastSeenDisplayName, DisplayName, StringComparison.Ordinal)) return;
         _localDisplayName = DisplayName;
         _lastSeenDisplayName = DisplayName;
+
+        if (!string.Equals(_lastSeenSourceName, SourceName, StringComparison.Ordinal))
+        {
+            _localSourceName = SourceName;
+            _lastSeenSourceName = SourceName;
+        }
     }
 
     private static bool HasFieldEditors(IReadOnlyCollection<PluginFieldEditor> fields) => fields.Count > 0;
@@ -330,6 +361,9 @@
         _localDisplayName = option.DisplayName;
         _lastSeenDisplayName = _localDisplayName;
         await DisplayNameChanged.InvokeAsync(_localDisplayName);
+        _localSourceName = option.DisplayName;
+        _lastSeenSourceName = _localSourceName;
+        await SourceNameChanged.InvokeAsync(_localSourceName);
         _wizardStep = 2;
     }
 
@@ -354,6 +388,7 @@
             _wizardStep++;
 
             await DisplayNameChanged.InvokeAsync(GetEffectiveDisplayName());
+            await SourceNameChanged.InvokeAsync(GetEffectiveSourceName());
 
             _advancedOpenAttr = _wizardStep == 3 && HasRequiredMissingFields()
                 ? new Dictionary<string, object> { { "open", string.Empty } }
@@ -387,6 +422,11 @@
         => string.IsNullOrWhiteSpace(_localDisplayName)
             ? SelectedOption?.DisplayName
             : _localDisplayName.Trim();
+
+    private string? GetEffectiveSourceName()
+        => string.IsNullOrWhiteSpace(_localSourceName)
+            ? GetEffectiveDisplayName()
+            : _localSourceName.Trim();
 
     private string GetSubmitButtonText()
     {

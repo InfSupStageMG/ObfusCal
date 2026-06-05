@@ -8,6 +8,8 @@ public class CalendarSourceInstance
     public Guid CalendarOwnerId { get; set; }
     public required string PluginId { get; set; }
     public required string DisplayName { get; set; }
+    [MaxLength(256)]
+    public string? SourceName { get; set; }
     [MaxLength(7)]
     public string? ColorHex { get; set; }
     public bool IsEnabled { get; set; } = true;
