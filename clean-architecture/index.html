@@ -2531,7 +2531,8 @@ tests/
 <span class="w">    </span><span class="kt">string?</span><span class="w"> </span><span class="n">Location</span><span class="p">,</span>
 <span class="w">    </span><span class="kt">string?</span><span class="w"> </span><span class="n">SourceLabel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">,</span>
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsAllDay</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">,</span>
-<span class="w">    </span><span class="kt">string?</span><span class="w"> </span><span class="n">ColorHex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span>
+<span class="w">    </span><span class="kt">string?</span><span class="w"> </span><span class="n">ColorHex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">,</span>
+<span class="w">    </span><span class="kt">string?</span><span class="w"> </span><span class="n">SourceName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span>
 <span class="p">);</span>
 </code></pre></div>
 <!-- END_SNIPPET -->
@@ -2550,7 +2551,8 @@ tests/
 <span class="w">    </span><span class="kt">string?</span><span class="w"> </span><span class="n">SourceLabel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">,</span>
 <span class="w">    </span><span class="n">IReadOnlyList</span><span class="o">&lt;</span><span class="n">BusySlot</span><span class="o">&gt;?</span><span class="w"> </span><span class="n">SourceSlots</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">,</span>
 <span class="w">    </span><span class="kt">bool</span><span class="w"> </span><span class="n">IsAllDay</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="p">,</span>
-<span class="w">    </span><span class="kt">string?</span><span class="w"> </span><span class="n">ColorHex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span>
+<span class="w">    </span><span class="kt">string?</span><span class="w"> </span><span class="n">ColorHex</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span><span class="p">,</span>
+<span class="w">    </span><span class="kt">string?</span><span class="w"> </span><span class="n">SourceName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">null</span>
 <span class="p">);</span>
 </code></pre></div>
 <!-- END_SNIPPET -->
@@ -2599,6 +2601,7 @@ tests/
 <!-- START_TREE path="ObfusCal.Application" max_depth="2" -->
 <div class="highlight"><pre><span></span><code>ObfusCal.Application/
 ├── Calendars/
+│   ├── BusySlotTitleComposer.cs
 │   └── CalendarColorPalette.cs
 ├── Configuration/
 │   ├── CalendarSourceOptions.cs

@@ -1921,6 +1921,8 @@ the API container.</p>
 <p>Owner-configured calendar source colors are stored in the same application database as source-instance settings and
 availability snapshots. No extra service is required, but database migrations must be applied before the UI can persist
 or replay those colors from stored snapshots.</p>
+<p>The same database also stores each source instance's optional source name and peer shadow-slot copies of that value.
+Apply migrations before relying on source-name-aware write-back titles or peer-sync replay.</p>
 <h3 id="loading-custom-plugins">Loading Custom Plugins</h3>
 <p>To load third-party calendar providers or custom obfuscation transformers, compile your plugin DLL and mount it into the
 <code>/app/plugins</code> directory of the <code>api</code> container.</p>
@@ -2122,7 +2124,7 @@ local sign-out cycle.</p>
 </tr>
 <tr>
 <td><code>Sync__WriteBackPlaceholderTitle</code></td>
-<td>Fallback title used for write-back placeholders (default <code>Busy</code>)</td>
+<td>Fallback base title used for write-back placeholders before an optional per-source source name is appended (default <code>Busy</code>)</td>
 </tr>
 <tr>
 <td><code>PeerTransportSecurity__AllowSelfSignedCerts</code></td>

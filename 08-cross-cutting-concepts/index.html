@@ -1900,8 +1900,13 @@ not accept them for this flow.</p>
 reconciles provider-managed placeholder events in Outlook / Microsoft 365 and Google Calendar using provider-native
 metadata (<code>singleValueExtendedProperties</code> for Microsoft Graph, <code>extendedProperties.private</code> for Google). Those
 placeholders carry a stable ObfusCal marker plus slot identifier for safe cleanup, but the payload itself remains
-privacy-preserving: only the configured placeholder title and the start/end timestamps are written. Peer identity,
-attendee data, location, and raw event descriptions are never written back.</p>
+privacy-preserving: only the configured placeholder base title, the optional per-source source name suffix, and the
+start/end timestamps are written. Peer identity, attendee data, location, and raw event descriptions are never written
+back.</p>
+<p><strong>Dedicated source-name propagation:</strong> each calendar source instance has a separate <code>SourceName</code> value that defaults to
+the source display name but can be shortened (for example <code>CA</code>). This value is propagated through owner snapshots,
+peer push payloads, peer shadow-slot storage, and provider write-back so outbound titles can be composed as
+<code>Title (SourceName)</code> or <code>PlaceholderTitle (SourceName)</code> even when the original title was obfuscated.</p>
 <p>For Outlook source instances, the add-calendar flow now makes the delegated-access choice explicit: users choose
 between read-only Microsoft Graph consent and write-back consent before the OAuth redirect starts. Re-consenting an
 existing source instance replaces the stored Graph access level for that source instance.</p>
@@ -1953,6 +1958,9 @@ with secure defaults (all sensitive fields removed, rounding enabled with 15 min
 calendar can keep a stable visual mapping per configured source instance. This metadata follows the same privacy
 boundary as <code>SourceLabel</code>: if source labels are removed for a context, the color metadata must also be removed so it
 cannot reveal source identity indirectly.</p>
+<p><code>SourceName</code> is intentionally separate from <code>SourceLabel</code>. <code>SourceLabel</code> continues to represent owner-facing source
+identity and can be removed by <code>RemoveSourceLabel</code>, while <code>SourceName</code> is the explicit write-back/peer-sync title hint
+chosen for outbound visibility.</p>
 <h2 id="error-handling-resilience">Error Handling &amp; Resilience</h2>
 <ul>
 <li>A failed sync with one peer instance is logged and skipped; other peers continue unaffected.</li>
