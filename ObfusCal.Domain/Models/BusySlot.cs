@@ -11,5 +11,6 @@ public record BusySlot(
     string? SourceLabel = null,
     IReadOnlyList<BusySlot>? SourceSlots = null,
     bool IsAllDay = false,
-    string? ColorHex = null
+    string? ColorHex = null,
+    string? SourceName = null
 );

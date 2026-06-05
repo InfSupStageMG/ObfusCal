@@ -43,7 +43,8 @@ public sealed class MergeBlocksTransformer : IBusySlotTransformerPlugin
                     Title = newTitle,
                     Description = null,
                     AttendeeEmails = [],
-                    Location = null
+                    Location = null,
+                    SourceName = CombineSourceNames(currentSources)
                 };
             }
             else
@@ -72,6 +73,19 @@ public sealed class MergeBlocksTransformer : IBusySlotTransformerPlugin
 
     private static DateTimeOffset Max(DateTimeOffset a, DateTimeOffset b) =>
         a > b ? a : b;
+
+    private static string? CombineSourceNames(IReadOnlyList<BusySlot> sourceSlots)
+    {
+        var distinctSourceNames = sourceSlots.Select(slot => slot.SourceName)
+            .Where(static sourceName => !string.IsNullOrWhiteSpace(sourceName))
+            .Select(static sourceName => sourceName!.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        return distinctSourceNames.Count == 0
+            ? null
+            : string.Join(", ", distinctSourceNames);
+    }
 
     private static IReadOnlyList<BusySlot> NormalizeSourceSlotsToMergedWindow(
         IReadOnlyList<BusySlot> sourceSlots,

@@ -57,6 +57,8 @@ else
             <FluentStack Orientation="Orientation.Vertical" VerticalGap="8" Class="instance-actions-stack">
                 <FluentTextField @bind-Value="Instance.DisplayName" Immediate="true" Label="Display name" Class="app-form-control text-truncate" Style="width: 100%; max-width: 100%; min-width: 0;"/>
 
+                <FluentTextField @bind-Value="Instance.SourceName" Immediate="true" Label="Source name" Class="app-form-control text-truncate" Style="width: 100%; max-width: 100%; min-width: 0;"/>
+
                 <CalendarColorField InputId="@($"source-color-input-{Instance.Id}")"
                                     AutomaticColorHex="@Instance.AutomaticColorHex"
                                     @bind-Value="Instance.ColorHex" />

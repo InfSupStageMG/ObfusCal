@@ -154,6 +154,72 @@ public class AggregateCalendarSourceTests
             graphSource.Writes[0].BusySlots.Select(slot => slot.SourceEventId).ToArray());
     }
 
+    [TestMethod]
+    public async Task WriteBackSlotsAsync_AppendsConfiguredSourceNameToOutboundTitles()
+    {
+        var ownerId = Guid.NewGuid();
+        var instanceService = new FakeCalendarSourceInstanceService();
+
+        var googleSummary = await instanceService.CreateAsync(
+            ownerId,
+            new CreateCalendarSourceInstanceInput("google-test", "Google", SourceName: "CA"));
+        var graphSummary = await instanceService.CreateAsync(
+            ownerId,
+            new CreateCalendarSourceInstanceInput("graph-test", "Graph", SourceName: "Ops"));
+        Assert.IsNotNull(googleSummary);
+        Assert.IsNotNull(graphSummary);
+
+        var googleEvent = new CalendarEvent(
+            "google-1",
+            "Busy",
+            null,
+            new DateTimeOffset(2026, 5, 18, 9, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 5, 18, 10, 0, 0, TimeSpan.Zero),
+            [],
+            null);
+        var graphEvent = new CalendarEvent(
+            "graph-1",
+            "Busy (Ops)",
+            null,
+            new DateTimeOffset(2026, 5, 18, 11, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 5, 18, 12, 0, 0, TimeSpan.Zero),
+            [],
+            null);
+
+        var googleSource = new GoogleWritableTestSource([googleEvent]);
+        var graphSource = new GraphWritableTestSource([graphEvent]);
+
+        await using var applicationServices = new ServiceCollection()
+            .AddLogging()
+            .AddApplication()
+            .BuildServiceProvider();
+        await using var sourceServices = new ServiceCollection()
+            .AddSingleton(googleSource)
+            .AddSingleton(graphSource)
+            .BuildServiceProvider();
+
+        var aggregate = new AggregateCalendarSource(
+            ownerId,
+            new FakeCatalog(
+                new CalendarSourcePluginDescriptor("google-test", "Google", typeof(GoogleWritableTestSource), false),
+                new CalendarSourcePluginDescriptor("graph-test", "Graph", typeof(GraphWritableTestSource), false)),
+            instanceService,
+            sourceServices,
+            applicationServices.GetRequiredService<ObfuscationPipeline>(),
+            new StubCalendarOwnerObfuscationProfileService(),
+            NullLogger<AggregateCalendarSource>.Instance);
+
+        await aggregate.WriteBackSlotsAsync(
+            ownerId,
+            [],
+            "Busy",
+            new DateTimeOffset(2026, 5, 18, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 5, 19, 0, 0, 0, TimeSpan.Zero));
+
+        Assert.AreEqual("Busy (Ops)", googleSource.Writes[0].BusySlots.Single().Title);
+        Assert.AreEqual("Busy (CA)", graphSource.Writes[0].BusySlots.Single().Title);
+    }
+
     private sealed class StubCalendarOwnerObfuscationProfileService : ICalendarOwnerObfuscationProfileService
     {
         public Task<IReadOnlyList<ObfuscationProfileSettings>> GetProfilesAsync(Guid calendarOwnerId, CancellationToken ct = default)

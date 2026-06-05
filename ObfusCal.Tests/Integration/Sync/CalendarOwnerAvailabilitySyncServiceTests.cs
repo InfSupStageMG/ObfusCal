@@ -177,6 +177,203 @@ public class CalendarOwnerAvailabilitySyncServiceTests
     }
 
     [TestMethod]
+    public async Task RunSyncForOwnerAsync_WithWriteBackEnabled_AppendsSourceNameToManagedGraphPlaceholderTitle()
+    {
+        const string placeholderTitle = "Custom placeholder title";
+
+        await using var dbContext = SyncIntegrationTestHelpers.CreateDbContext();
+        var ownerId = Guid.NewGuid();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var protector = dataProtectionProvider.CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
+        var now = DateTimeOffset.UtcNow;
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Outlook owner",
+            WriteBackEnabled = true,
+            WriteBackPlaceholderTitle = placeholderTitle,
+            GraphAccessTokenProtected = protector.Protect("access-token"),
+            GraphRefreshTokenProtected = protector.Protect("refresh-token"),
+            GraphTokenExpiresAtUtc = now.AddHours(1)
+        });
+        await dbContext.SaveChangesAsync();
+
+        var shadowSlot = new BusySlot("peer-slot-1", now.AddMinutes(15), now.AddMinutes(75), SourceName: "CA");
+        var requests = new List<(HttpMethod Method, string Uri, string? Body)>();
+        var source = CreateGraphSource(
+            dbContext,
+            dataProtectionProvider,
+            async request =>
+            {
+                var body = request.Content is null ? null : await request.Content.ReadAsStringAsync();
+                requests.Add((request.Method, request.RequestUri!.ToString(), body));
+
+                if (request.RequestUri!.AbsolutePath.EndsWith("/me/calendarView", StringComparison.Ordinal) || request.Method == HttpMethod.Get)
+                    return TestHttpResponses.Json(HttpStatusCode.OK, "{\"value\":[]}");
+
+                return TestHttpResponses.Json(HttpStatusCode.Created, "{\"id\":\"managed-1\"}");
+            });
+
+        await using var service = CreateService(
+            dbContext,
+            source,
+            new CapturingLogger<CalendarOwnerAvailabilitySyncService>(),
+            new StubShadowSlotStore([shadowSlot]));
+
+        await service.RunSyncForOwnerAsync(ownerId);
+
+        var post = requests.Single(entry => entry.Method == HttpMethod.Post);
+        using var doc = JsonDocument.Parse(post.Body!);
+        Assert.AreEqual($"{placeholderTitle} (CA)", doc.RootElement.GetProperty("subject").GetString());
+    }
+
+    [TestMethod]
+    public async Task RunSyncForOwnerAsync_WithWriteBackEnabled_AppendsAllMergedSourceNamesToManagedGraphPlaceholderTitle()
+    {
+        const string placeholderTitle = "Custom placeholder title";
+
+        await using var dbContext = SyncIntegrationTestHelpers.CreateDbContext();
+        var ownerId = Guid.NewGuid();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var protector = dataProtectionProvider.CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
+        var start = new DateTimeOffset(2026, 6, 4, 0, 0, 0, TimeSpan.Zero);
+        var end = start.AddDays(3);
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Outlook owner",
+            WriteBackEnabled = true,
+            WriteBackPlaceholderTitle = placeholderTitle,
+            GraphAccessTokenProtected = protector.Protect("access-token"),
+            GraphRefreshTokenProtected = protector.Protect("refresh-token"),
+            GraphTokenExpiresAtUtc = DateTimeOffset.UtcNow.AddHours(1)
+        });
+        await dbContext.SaveChangesAsync();
+
+        var requests = new List<(HttpMethod Method, string Uri, string? Body)>();
+        var source = CreateGraphSource(
+            dbContext,
+            dataProtectionProvider,
+            async request =>
+            {
+                var body = request.Content is null ? null : await request.Content.ReadAsStringAsync();
+                requests.Add((request.Method, request.RequestUri!.ToString(), body));
+
+                if (request.RequestUri!.AbsolutePath.EndsWith("/me/calendarView", StringComparison.Ordinal) || request.Method == HttpMethod.Get)
+                    return TestHttpResponses.Json(HttpStatusCode.OK, "{\"value\":[]}");
+
+                return TestHttpResponses.Json(HttpStatusCode.Created, "{\"id\":\"managed-1\"}");
+            });
+
+        var mergedShadowSlots = new[]
+        {
+            new BusySlot("peer-slot-1", start, end, SourceName: "CA", IsAllDay: true),
+            new BusySlot("peer-slot-2", start.AddDays(1), end, SourceName: "Ops", IsAllDay: true)
+        };
+
+        await using var service = CreateService(
+            dbContext,
+            source,
+            new CapturingLogger<CalendarOwnerAvailabilitySyncService>(),
+            new StubShadowSlotStore(mergedShadowSlots));
+
+        await service.RunSyncForOwnerAsync(ownerId);
+
+        var post = requests.Single(entry => entry.Method == HttpMethod.Post);
+        using var doc = JsonDocument.Parse(post.Body!);
+        Assert.AreEqual($"{placeholderTitle} (CA, Ops)", doc.RootElement.GetProperty("subject").GetString());
+    }
+
+    [TestMethod]
+    public async Task RunSyncForOwnerAsync_WithWriteBackEnabled_PatchesLegacyAllDayGraphPlaceholderWithoutSlotId()
+    {
+        const string placeholderTitle = "Custom placeholder title";
+
+        await using var dbContext = SyncIntegrationTestHelpers.CreateDbContext();
+        var ownerId = Guid.NewGuid();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var protector = dataProtectionProvider.CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
+        var start = new DateTimeOffset(2026, 6, 4, 0, 0, 0, TimeSpan.Zero);
+        var end = start.AddDays(1);
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Outlook owner",
+            WriteBackEnabled = true,
+            WriteBackPlaceholderTitle = placeholderTitle,
+            GraphAccessTokenProtected = protector.Protect("access-token"),
+            GraphRefreshTokenProtected = protector.Protect("refresh-token"),
+            GraphTokenExpiresAtUtc = DateTimeOffset.UtcNow.AddHours(1)
+        });
+        await dbContext.SaveChangesAsync();
+
+        const string managedPropertyId = "String {e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0} Name ObfusCal.Managed";
+        const string slotIdPropertyId = "String {e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0} Name ObfusCal.SlotId";
+
+        var requests = new List<(HttpMethod Method, string Uri, string? Body)>();
+        var calendarViewRequestCount = 0;
+        var source = CreateGraphSource(
+            dbContext,
+            dataProtectionProvider,
+            async request =>
+            {
+                var body = request.Content is null ? null : await request.Content.ReadAsStringAsync();
+                requests.Add((request.Method, request.RequestUri!.ToString(), body));
+
+                if (request.RequestUri!.AbsolutePath.EndsWith("/me/calendarView", StringComparison.Ordinal))
+                {
+                    calendarViewRequestCount++;
+                    if (calendarViewRequestCount == 1)
+                        return TestHttpResponses.Json(HttpStatusCode.OK, "{\"value\":[]}");
+
+                    return TestHttpResponses.Json(
+                        HttpStatusCode.OK,
+                        $$"""
+                        {
+                          "value": [
+                            {
+                              "id": "managed-legacy-1",
+                              "subject": "{{placeholderTitle}}",
+                              "isAllDay": true,
+                              "start": { "dateTime": "2026-06-04T00:00:00.0000000", "timeZone": "UTC" },
+                              "end": { "dateTime": "2026-06-05T00:00:00.0000000", "timeZone": "UTC" },
+                              "singleValueExtendedProperties": [
+                                { "id": "{{managedPropertyId}}", "value": "1" }
+                              ]
+                            }
+                          ]
+                        }
+                        """);
+                }
+
+                return TestHttpResponses.Create(HttpStatusCode.OK);
+            });
+
+        await using var service = CreateService(
+            dbContext,
+            source,
+            new CapturingLogger<CalendarOwnerAvailabilitySyncService>(),
+            new StubShadowSlotStore([new BusySlot("peer-slot-1", start, end, SourceName: "CA", IsAllDay: true)]));
+
+        await service.RunSyncForOwnerAsync(ownerId);
+
+        var patch = requests.Single(entry => entry.Method == HttpMethod.Patch);
+        using var doc = JsonDocument.Parse(patch.Body!);
+        Assert.AreEqual($"{placeholderTitle} (CA)", doc.RootElement.GetProperty("subject").GetString());
+        var slotId = doc.RootElement
+            .GetProperty("singleValueExtendedProperties")
+            .EnumerateArray()
+            .First(property => string.Equals(property.GetProperty("id").GetString(), slotIdPropertyId, StringComparison.Ordinal))
+            .GetProperty("value")
+            .GetString();
+        Assert.AreEqual("peer-slot-1", slotId);
+        Assert.AreEqual(0, requests.Count(entry => entry.Method == HttpMethod.Post));
+    }
+
+    [TestMethod]
     public async Task RunSyncForOwnerAsync_WithWriteBackEnabled_DeletesStaleManagedGraphPlaceholder()
     {
         await using var dbContext = SyncIntegrationTestHelpers.CreateDbContext();
@@ -196,6 +393,7 @@ public class CalendarOwnerAvailabilitySyncServiceTests
         });
         await dbContext.SaveChangesAsync();
 
+        const string managedPropertyId = "String {e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0} Name ObfusCal.Managed";
         const string slotIdPropertyId = "String {e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0} Name ObfusCal.SlotId";
         var managedEventsJson = JsonSerializer.Serialize(new
         {
@@ -209,6 +407,7 @@ public class CalendarOwnerAvailabilitySyncServiceTests
                     end = new { dateTime = staleStart.AddHours(1).ToString("O"), timeZone = "UTC" },
                     singleValueExtendedProperties = new[]
                     {
+                        new { id = managedPropertyId, value = "1" },
                         new { id = slotIdPropertyId, value = "stale-slot" }
                     }
                 }
@@ -216,6 +415,7 @@ public class CalendarOwnerAvailabilitySyncServiceTests
         });
 
         var requests = new List<(HttpMethod Method, string Uri)>();
+        var calendarViewRequestCount = 0;
         var source = CreateGraphSource(
             dbContext,
             dataProtectionProvider,
@@ -225,12 +425,9 @@ public class CalendarOwnerAvailabilitySyncServiceTests
 
                 if (request.RequestUri!.AbsolutePath.EndsWith("/me/calendarView", StringComparison.Ordinal))
                 {
-                    return Task.FromResult(TestHttpResponses.Json(HttpStatusCode.OK, "{\"value\":[]}"));
-                }
-
-                if (request.Method == HttpMethod.Get)
-                {
-                    return Task.FromResult(TestHttpResponses.Json(HttpStatusCode.OK, managedEventsJson));
+                    calendarViewRequestCount++;
+                    var payload = calendarViewRequestCount == 1 ? "{\"value\":[]}" : managedEventsJson;
+                    return Task.FromResult(TestHttpResponses.Json(HttpStatusCode.OK, payload));
                 }
 
                 return Task.FromResult(TestHttpResponses.Create(HttpStatusCode.NoContent));
@@ -335,6 +532,50 @@ public class CalendarOwnerAvailabilitySyncServiceTests
         Assert.IsFalse(doc.RootElement.TryGetProperty("attendees", out _));
         Assert.IsFalse(doc.RootElement.TryGetProperty("location", out _));
         Assert.IsFalse(doc.RootElement.TryGetProperty("description", out _));
+    }
+
+    [TestMethod]
+    public async Task RunSyncForOwnerAsync_WithWriteBackEnabled_AppendsSourceNameToManagedGooglePlaceholderTitle()
+    {
+        const string placeholderTitle = "Custom placeholder title";
+
+        await using var dbContext = SyncIntegrationTestHelpers.CreateDbContext();
+        var ownerId = Guid.NewGuid();
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Google owner",
+            WriteBackEnabled = true,
+            WriteBackPlaceholderTitle = placeholderTitle
+        });
+        await dbContext.SaveChangesAsync();
+
+        var shadowSlot = new BusySlot("peer-slot-1", DateTimeOffset.UtcNow.AddMinutes(15), DateTimeOffset.UtcNow.AddMinutes(75), SourceName: "CA");
+        var requests = new List<(HttpMethod Method, string Uri, string? Body)>();
+        var source = CreateGoogleSource(
+            dbContext,
+            async request =>
+            {
+                var body = request.Content is null ? null : await request.Content.ReadAsStringAsync();
+                requests.Add((request.Method, request.RequestUri!.ToString(), body));
+
+                return request.Method == HttpMethod.Get
+                    ? TestHttpResponses.Json(HttpStatusCode.OK, "{\"items\":[]}")
+                    : TestHttpResponses.Json(HttpStatusCode.Created, "{\"id\":\"managed-google-1\"}");
+            });
+
+        await using var service = CreateService(
+            dbContext,
+            source,
+            new CapturingLogger<CalendarOwnerAvailabilitySyncService>(),
+            new StubShadowSlotStore([shadowSlot]));
+
+        await service.RunSyncForOwnerAsync(ownerId);
+
+        var post = requests.Single(entry => entry.Method == HttpMethod.Post);
+        using var doc = JsonDocument.Parse(post.Body!);
+        Assert.AreEqual($"{placeholderTitle} (CA)", doc.RootElement.GetProperty("summary").GetString());
     }
 
     [TestMethod]
@@ -486,6 +727,52 @@ public class CalendarOwnerAvailabilitySyncServiceTests
         Assert.HasCount(1, putRequests);
         Assert.Contains("X-OBFUSCAL-MANAGED:TRUE", putRequests[0].Body);
         Assert.Contains($"SUMMARY:{placeholderTitle}", putRequests[0].Body);
+    }
+
+    [TestMethod]
+    public async Task RunSyncForOwnerAsync_WithWriteBackEnabled_AppendsSourceNameToManagedICloudPlaceholderTitle()
+    {
+        const string placeholderTitle = "Custom placeholder title";
+
+        await using var dbContext = SyncIntegrationTestHelpers.CreateDbContext();
+        var ownerId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "iCloud owner",
+            WriteBackEnabled = true,
+            WriteBackPlaceholderTitle = placeholderTitle,
+            ICloudCalendarUrl = "https://caldav.icloud.com/user/calendar/",
+            ICloudAppleIdProtected = "user@icloud.com",
+            ICloudAppSpecificPasswordProtected = "app-specific-pw"
+        });
+        await dbContext.SaveChangesAsync();
+
+        var shadowSlot = new BusySlot("peer-slot-1", now.AddMinutes(15), now.AddMinutes(75), SourceName: "CA");
+        var putRequests = new List<(string Uri, string Body)>();
+        var emptyReportXml =
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+            "<d:multistatus xmlns:d=\"DAV:\" xmlns:cal=\"urn:ietf:params:xml:ns:caldav\"></d:multistatus>";
+
+        var source = CreateICloudSource(dbContext, async request =>
+        {
+            if (request.Method != HttpMethod.Put || request.Content is null)
+                return TestHttpResponses.Xml(HttpStatusCode.MultiStatus, emptyReportXml);
+            var body = await request.Content.ReadAsStringAsync();
+            putRequests.Add((request.RequestUri!.ToString(), body));
+            return TestHttpResponses.Create(HttpStatusCode.Created);
+
+        });
+
+        await using var service = CreateService(dbContext, source, new CapturingLogger<CalendarOwnerAvailabilitySyncService>(),
+            new StubShadowSlotStore([shadowSlot]));
+
+        await service.RunSyncForOwnerAsync(ownerId);
+
+        Assert.HasCount(1, putRequests);
+        Assert.Contains($"SUMMARY:{placeholderTitle} (CA)", putRequests[0].Body);
     }
 
     [TestMethod]

@@ -453,7 +453,7 @@ public sealed partial class GraphCalendarSource(
         DateTimeOffset from,
         DateTimeOffset to)
     {
-        var expand = $"singleValueExtendedProperties($filter=id eq '{ManagedPropertyId}')";
+        var expand = $"singleValueExtendedProperties($filter=id eq '{ManagedPropertyId}' or id eq '{SlotIdPropertyId}')";
         return
             $"{GraphCalendarViewPath}?startDateTime={Uri.EscapeDataString(from.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))}&endDateTime={Uri.EscapeDataString(to.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))}&$expand={Uri.EscapeDataString(expand)}&$top={GraphCalendarViewPageSize}";
     }

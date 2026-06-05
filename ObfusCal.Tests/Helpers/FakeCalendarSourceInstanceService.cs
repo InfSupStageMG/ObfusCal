@@ -24,7 +24,8 @@ internal sealed class FakeCalendarSourceInstanceService(Func<Guid, bool>? ownerE
                 "Configured.",
                 null,
                 instance.IsExternalPlugin,
-                instance.ColorHex))
+                instance.ColorHex,
+                instance.SourceName))
             .ToList();
 
         return Task.FromResult<IReadOnlyList<CalendarSourceInstanceSummary>>(items);
@@ -63,7 +64,10 @@ internal sealed class FakeCalendarSourceInstanceService(Func<Guid, bool>? ownerE
             input.ConfigurationJson,
             input.SecretDataJson,
             false,
-            input.ColorHex);
+            input.ColorHex,
+            string.IsNullOrWhiteSpace(input.SourceName)
+                ? (string.IsNullOrWhiteSpace(input.DisplayName) ? input.PluginId : input.DisplayName.Trim())
+                : input.SourceName.Trim());
 
         _instances.Add(context);
         return Task.FromResult<CalendarSourceInstanceSummary?>(new CalendarSourceInstanceSummary(
@@ -77,7 +81,8 @@ internal sealed class FakeCalendarSourceInstanceService(Func<Guid, bool>? ownerE
             "Configured.",
             null,
             context.IsExternalPlugin,
-            context.ColorHex));
+            context.ColorHex,
+            context.SourceName));
     }
 
     public Task<CalendarSourceInstanceSummary?> UpdateAsync(
@@ -96,7 +101,8 @@ internal sealed class FakeCalendarSourceInstanceService(Func<Guid, bool>? ownerE
             ConfigurationJson = input.ConfigurationJson ?? existing.ConfigurationJson,
             SecretDataJson = input.SecretDataJson ?? existing.SecretDataJson,
             IsEnabled = input.IsEnabled ?? existing.IsEnabled,
-            ColorHex = input.ColorHex ?? existing.ColorHex
+            ColorHex = input.ColorHex ?? existing.ColorHex,
+            SourceName = input.SourceName ?? existing.SourceName
         };
 
         _instances.Remove(existing);
@@ -113,7 +119,8 @@ internal sealed class FakeCalendarSourceInstanceService(Func<Guid, bool>? ownerE
             "Configured.",
             null,
             updated.IsExternalPlugin,
-            updated.ColorHex));
+            updated.ColorHex,
+            updated.SourceName));
     }
 
     public Task<bool> DeleteAsync(Guid calendarOwnerId, Guid instanceId, CancellationToken ct = default)

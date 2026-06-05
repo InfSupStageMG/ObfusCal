@@ -483,6 +483,10 @@ Use `.env.example` as the authoritative placeholder list for local/compose confi
   during a sync cycle (default `90`).
 - `Sync__WriteBackPlaceholderTitle` provides the fallback title for write-back placeholders when a calendar owner has
   not set a custom title in the UI (default `Busy`).
+- Each configured calendar source also has a separate **source name** (defaulting to the source display name). When a
+  busy slot is written back or pushed to peers, ObfusCal appends that source name to the outbound title in the form
+  `Title (SourceName)` so the destination calendar can still show where the slot originated, even when the original
+  title was obfuscated.
 - Security audit events are emitted with a stable taxonomy including `AUTH_SUCCESS`, `AUTH_FAILURE`,
   `PEER_SLOT_PUSH`, `PEER_SLOT_REJECTED`, `CONFIG_CHANGE`, `KEY_ROTATION`, and `KEY_REVOCATION`.
 - Alert templates are documented in `docs/security-alerting-template.md`.

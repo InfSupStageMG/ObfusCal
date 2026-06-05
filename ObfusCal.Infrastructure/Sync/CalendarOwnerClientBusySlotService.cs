@@ -1,4 +1,5 @@
 ﻿using ObfusCal.Application.Interfaces;
+using ObfusCal.Application.Calendars;
 using ObfusCal.Application.Obfuscation;
 using ObfusCal.Domain.Models;
 
@@ -27,7 +28,10 @@ public sealed class CalendarOwnerClientBusySlotService(
             slot.End,
             slot.AttendeeEmails ?? [],
             slot.Location,
-            IsAllDay: slot.IsAllDay
+            slot.SourceLabel,
+            IsAllDay: slot.IsAllDay,
+            ColorHex: slot.ColorHex,
+            SourceName: slot.SourceName
         )).ToList();
 
         // Apply client-level obfuscation
@@ -40,7 +44,12 @@ public sealed class CalendarOwnerClientBusySlotService(
             eventsFromSlots,
             calendarOwnerId.ToString(),
             ObfuscationAuditContext.Client,
-            clientProfile);
+            clientProfile)
+            .Select(slot => slot with
+            {
+                Title = BusySlotTitleComposer.Compose(slot.Title, slot.SourceName)
+            })
+            .ToList();
     }
 }
 

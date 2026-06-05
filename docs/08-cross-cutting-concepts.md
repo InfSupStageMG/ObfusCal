@@ -159,8 +159,14 @@ not accept them for this flow.
 reconciles provider-managed placeholder events in Outlook / Microsoft 365 and Google Calendar using provider-native
 metadata (`singleValueExtendedProperties` for Microsoft Graph, `extendedProperties.private` for Google). Those
 placeholders carry a stable ObfusCal marker plus slot identifier for safe cleanup, but the payload itself remains
-privacy-preserving: only the configured placeholder title and the start/end timestamps are written. Peer identity,
-attendee data, location, and raw event descriptions are never written back.
+privacy-preserving: only the configured placeholder base title, the optional per-source source name suffix, and the
+start/end timestamps are written. Peer identity, attendee data, location, and raw event descriptions are never written
+back.
+
+**Dedicated source-name propagation:** each calendar source instance has a separate `SourceName` value that defaults to
+the source display name but can be shortened (for example `CA`). This value is propagated through owner snapshots,
+peer push payloads, peer shadow-slot storage, and provider write-back so outbound titles can be composed as
+`Title (SourceName)` or `PlaceholderTitle (SourceName)` even when the original title was obfuscated.
 
 For Outlook source instances, the add-calendar flow now makes the delegated-access choice explicit: users choose
 between read-only Microsoft Graph consent and write-back consent before the OAuth redirect starts. Re-consenting an
@@ -226,6 +232,10 @@ For owner-facing UI only, busy slots can also carry source label and optional co
 calendar can keep a stable visual mapping per configured source instance. This metadata follows the same privacy
 boundary as `SourceLabel`: if source labels are removed for a context, the color metadata must also be removed so it
 cannot reveal source identity indirectly.
+
+`SourceName` is intentionally separate from `SourceLabel`. `SourceLabel` continues to represent owner-facing source
+identity and can be removed by `RemoveSourceLabel`, while `SourceName` is the explicit write-back/peer-sync title hint
+chosen for outbound visibility.
 
 ## Error Handling & Resilience
 

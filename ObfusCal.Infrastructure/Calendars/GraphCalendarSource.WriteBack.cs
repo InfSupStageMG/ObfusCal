@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using ObfusCal.Application.Calendars;
 using ObfusCal.Application.Interfaces;
 using BusySlot = ObfusCal.Domain.Models.BusySlot;
 
@@ -86,10 +87,20 @@ public sealed partial class GraphCalendarSource
         DateTimeOffset windowEnd,
         CancellationToken ct)
     {
-        var managedBySlotId = await GetManagedEventsBySlotIdAsync(tokenSession, calendarOwnerId, windowStart, windowEnd, ct);
+        var managedEvents = await GetManagedEventsAsync(tokenSession, calendarOwnerId, windowStart, windowEnd, ct);
+        var managedBySlotId = managedEvents
+            .Where(e => e.GraphId is not null && e.SlotId is not null)
+            .ToDictionary(e => e.SlotId!, e => e, StringComparer.Ordinal);
         var activeSlotIds = busySlots.Select(slot => slot.SourceEventId).ToHashSet(StringComparer.Ordinal);
 
-        await UpsertPlaceholderEventsAsync(tokenSession, busySlots, placeholderTitle, calendarOwnerId, managedBySlotId, ct);
+        await UpsertPlaceholderEventsAsync(
+            tokenSession,
+            busySlots,
+            placeholderTitle,
+            calendarOwnerId,
+            managedEvents,
+            managedBySlotId,
+            ct);
         var staleCount = await DeleteStaleManagedEventsAsync(
             tokenSession,
             managedBySlotId,
@@ -106,20 +117,6 @@ public sealed partial class GraphCalendarSource
             staleCount);
     }
 
-    private async Task<Dictionary<string, ManagedEventRecord>> GetManagedEventsBySlotIdAsync(
-        GraphAccessTokenSession tokenSession,
-        Guid calendarOwnerId,
-        DateTimeOffset windowStart,
-        DateTimeOffset windowEnd,
-        CancellationToken ct)
-    {
-        var managedEvents = await GetManagedEventsAsync(tokenSession, calendarOwnerId, windowStart, windowEnd, ct);
-
-        return managedEvents
-            .Where(e => e.GraphId is not null && e.SlotId is not null)
-            .ToDictionary(e => e.SlotId!, e => e, StringComparer.Ordinal);
-    }
-
     private async Task<IReadOnlyList<ManagedEventRecord>> GetManagedEventsAsync(
         GraphAccessTokenSession tokenSession,
         Guid calendarOwnerId,
@@ -127,52 +124,42 @@ public sealed partial class GraphCalendarSource
         DateTimeOffset windowEnd,
         CancellationToken ct)
     {
-        var requestUri = BuildManagedEventsRequestUri(windowStart, windowEnd);
-        var events = new List<ManagedEventRecord>();
-        string? nextPageUri = requestUri;
-
-        while (!string.IsNullOrWhiteSpace(nextPageUri))
+        using var response = await GetCalendarViewWithRetryAsync(tokenSession, windowStart, windowEnd, ct);
+        if (!response.IsSuccessStatusCode)
         {
-            using var response = await SendAuthorizedGetWithRetryAsync(nextPageUri, tokenSession, ct);
-            if (!response.IsSuccessStatusCode)
-            {
-                logger.LogWarning(
-                    "Failed to fetch ObfusCal-managed Graph events for calendar owner {CalendarOwnerId}: HTTP {StatusCode}.",
-                    calendarOwnerId,
-                    (int)response.StatusCode);
-                return [];
-            }
-
-            var payload = await response.Content.ReadFromJsonAsync<GraphManagedEventsResponse>(cancellationToken: ct);
-            if (payload?.Value is not null)
-                events.AddRange(payload.Value.Select(MapManagedEvent).Where(e => e.GraphId is not null));
-
-            nextPageUri = payload?.NextLink;
+            logger.LogWarning(
+                "Failed to fetch ObfusCal-managed Graph events for calendar owner {CalendarOwnerId}: HTTP {StatusCode}.",
+                calendarOwnerId,
+                (int)response.StatusCode);
+            return [];
         }
 
-        return events;
+        var payload = await response.Content.ReadFromJsonAsync<GraphCalendarViewResponse>(cancellationToken: ct);
+        var events = await CollectAllPagesAsync(payload, tokenSession, ct);
+
+        return events
+            .Where(IsManagedEvent)
+            .Select(MapManagedEvent)
+            .Where(e => e.GraphId is not null)
+            .ToList();
     }
 
-    private string BuildManagedEventsRequestUri(DateTimeOffset windowStart, DateTimeOffset windowEnd)
-    {
-        var managedFilter = $"singleValueExtendedProperties/Any(ep: ep/id eq '{ManagedPropertyId}' and ep/value eq '1')";
-        var windowFilter =
-            $"start/dateTime ge '{windowStart.UtcDateTime.ToString("O", CultureInfo.InvariantCulture)}' and start/dateTime lt '{windowEnd.UtcDateTime.ToString("O", CultureInfo.InvariantCulture)}'";
-        var filter = $"{managedFilter} and {windowFilter}";
-        var expand = $"singleValueExtendedProperties($filter=id eq '{SlotIdPropertyId}')";
-
-        return $"{GraphEventsPath}?$filter={Uri.EscapeDataString(filter)}&$expand={Uri.EscapeDataString(expand)}&$select=id,subject,start,end&$top={GraphCalendarViewPageSize}";
-    }
-
-    private ManagedEventRecord MapManagedEvent(GraphManagedEventDto dto)
+    private ManagedEventRecord MapManagedEvent(GraphEvent dto)
     {
         var slotId = dto.ExtendedProperties?
             .FirstOrDefault(p => string.Equals(p.Id, SlotIdPropertyId, StringComparison.Ordinal))
             ?.Value;
 
+        if (dto.IsAllDay)
+        {
+            TryParseGraphAllDayDate(dto.Start, out var allDayStart);
+            TryParseGraphAllDayDate(dto.End, out var allDayEnd);
+            return new ManagedEventRecord(dto.Id, slotId, dto.Subject, allDayStart, allDayEnd, true);
+        }
+
         TryParseGraphDateTime(dto.Start, out var start);
         TryParseGraphDateTime(dto.End, out var end);
-        return new ManagedEventRecord(dto.Id, slotId, dto.Subject, start, end);
+        return new ManagedEventRecord(dto.Id, slotId, dto.Subject, start, end, false);
     }
 
     private async Task UpsertPlaceholderEventsAsync(
@@ -180,19 +167,78 @@ public sealed partial class GraphCalendarSource
         IReadOnlyList<BusySlot> busySlots,
         string placeholderTitle,
         Guid calendarOwnerId,
+        IReadOnlyList<ManagedEventRecord> managedEvents,
         IReadOnlyDictionary<string, ManagedEventRecord> managedBySlotId,
         CancellationToken ct)
     {
+        var claimedGraphIds = managedBySlotId
+            .Values
+            .Where(record => record.GraphId is not null)
+            .Select(record => record.GraphId!)
+            .ToHashSet(StringComparer.Ordinal);
+
         foreach (var slot in busySlots)
         {
             if (managedBySlotId.TryGetValue(slot.SourceEventId, out var existing))
             {
+                claimedGraphIds.Add(existing.GraphId!);
                 await UpdatePlaceholderEventIfNeededAsync(tokenSession, existing, slot, placeholderTitle, calendarOwnerId, ct);
+                continue;
+            }
+
+            if (TryFindLegacyManagedEvent(managedEvents, claimedGraphIds, slot, placeholderTitle, out var legacyExisting))
+            {
+                claimedGraphIds.Add(legacyExisting.GraphId!);
+                await UpdatePlaceholderEventIfNeededAsync(tokenSession, legacyExisting, slot, placeholderTitle, calendarOwnerId, ct);
                 continue;
             }
 
             await CreatePlaceholderEventAsync(tokenSession, slot, placeholderTitle, calendarOwnerId, ct);
         }
+    }
+
+    private static bool TryFindLegacyManagedEvent(
+        IReadOnlyList<ManagedEventRecord> managedEvents,
+        IReadOnlySet<string> claimedGraphIds,
+        BusySlot slot,
+        string placeholderTitle,
+        out ManagedEventRecord match)
+    {
+        var preferredTitle = BusySlotTitleComposer.Compose(slot.Title, slot.SourceName, placeholderTitle) ?? placeholderTitle;
+        var candidates = managedEvents
+            .Where(e => e.GraphId is not null
+                && e.SlotId is null
+                && !claimedGraphIds.Contains(e.GraphId!)
+                && e.IsAllDay == slot.IsAllDay
+                && e.Start == slot.Start
+                && e.End == slot.End)
+            .ToList();
+
+        ManagedEventRecord? preferredMatch = candidates.FirstOrDefault(e =>
+            string.Equals(e.Subject, preferredTitle, StringComparison.Ordinal));
+        preferredMatch ??= candidates.FirstOrDefault(e =>
+            string.Equals(e.Subject, placeholderTitle, StringComparison.Ordinal));
+
+        if (!string.IsNullOrWhiteSpace(slot.Title))
+        {
+            preferredMatch ??= candidates.FirstOrDefault(e =>
+                string.Equals(e.Subject, slot.Title, StringComparison.Ordinal));
+        }
+
+        if (preferredMatch is not null)
+        {
+            match = preferredMatch;
+            return true;
+        }
+
+        if (candidates.Count == 1)
+        {
+            match = candidates[0];
+            return true;
+        }
+
+        match = default!;
+        return false;
     }
 
     private async Task UpdatePlaceholderEventIfNeededAsync(
@@ -203,16 +249,26 @@ public sealed partial class GraphCalendarSource
         Guid calendarOwnerId,
         CancellationToken ct)
     {
-        var eventTitle = !string.IsNullOrWhiteSpace(slot.Title) ? slot.Title : placeholderTitle;
+        var eventTitle = BusySlotTitleComposer.Compose(slot.Title, slot.SourceName, placeholderTitle) ?? placeholderTitle;
+        var needsSlotMetadataBackfill = string.IsNullOrWhiteSpace(existing.SlotId);
 
-        if (existing.Start == slot.Start
+        if (!needsSlotMetadataBackfill
+            && existing.Start == slot.Start
             && existing.End == slot.End
+            && existing.IsAllDay == slot.IsAllDay
             && string.Equals(existing.Subject, eventTitle, StringComparison.Ordinal))
         {
             return;
         }
 
-        await PatchPlaceholderEventAsync(tokenSession, existing.GraphId!, slot, placeholderTitle, calendarOwnerId, ct);
+        await PatchPlaceholderEventAsync(
+            tokenSession,
+            existing.GraphId!,
+            slot,
+            placeholderTitle,
+            calendarOwnerId,
+            includeSlotMetadata: needsSlotMetadataBackfill,
+            ct);
     }
 
     private async Task<int> DeleteStaleManagedEventsAsync(
@@ -245,24 +301,9 @@ public sealed partial class GraphCalendarSource
         Guid calendarOwnerId,
         CancellationToken ct)
     {
-        // Use obfuscated title if available, otherwise use placeholder
-        var eventTitle = !string.IsNullOrWhiteSpace(slot.Title) ? slot.Title : placeholderTitle;
+        var eventTitle = BusySlotTitleComposer.Compose(slot.Title, slot.SourceName, placeholderTitle) ?? placeholderTitle;
 
-        var body = new
-        {
-            subject = eventTitle,
-            description = slot.Description,
-            start = new { dateTime = slot.Start.UtcDateTime.ToString("O", CultureInfo.InvariantCulture), timeZone = "UTC" },
-            end = new { dateTime = slot.End.UtcDateTime.ToString("O", CultureInfo.InvariantCulture), timeZone = "UTC" },
-            location = string.IsNullOrWhiteSpace(slot.Location) ? null : new { displayName = slot.Location },
-            showAs = "busy",
-            isReminderOn = false,
-            singleValueExtendedProperties = new[]
-            {
-                new { id = ManagedPropertyId, value = "1" },
-                new { id = SlotIdPropertyId, value = slot.SourceEventId }
-            }
-        };
+        var body = CreateGraphWriteBody(slot, eventTitle, includeSlotMetadata: true);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, GraphEventsPath);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenSession.AccessToken);
@@ -286,19 +327,12 @@ public sealed partial class GraphCalendarSource
         BusySlot slot,
         string placeholderTitle,
         Guid calendarOwnerId,
+        bool includeSlotMetadata,
         CancellationToken ct)
     {
-        // Use obfuscated title if available, otherwise use placeholder
-        var eventTitle = !string.IsNullOrWhiteSpace(slot.Title) ? slot.Title : placeholderTitle;
+        var eventTitle = BusySlotTitleComposer.Compose(slot.Title, slot.SourceName, placeholderTitle) ?? placeholderTitle;
 
-        var body = new
-        {
-            subject = eventTitle,
-            description = slot.Description,
-            start = new { dateTime = slot.Start.UtcDateTime.ToString("O", CultureInfo.InvariantCulture), timeZone = "UTC" },
-            end = new { dateTime = slot.End.UtcDateTime.ToString("O", CultureInfo.InvariantCulture), timeZone = "UTC" },
-            location = string.IsNullOrWhiteSpace(slot.Location) ? null : new { displayName = slot.Location }
-        };
+        var body = CreateGraphWriteBody(slot, eventTitle, includeSlotMetadata);
 
         using var request = new HttpRequestMessage(HttpMethod.Patch, $"{GraphEventsPath}/{Uri.EscapeDataString(graphEventId)}");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokenSession.AccessToken);
@@ -334,6 +368,73 @@ public sealed partial class GraphCalendarSource
             graphEventId,
             calendarOwnerId,
             (int)response.StatusCode);
+    }
+
+    private object CreateGraphWriteBody(BusySlot slot, string eventTitle, bool includeSlotMetadata)
+    {
+        var basePayload = slot.IsAllDay
+            ? new
+            {
+                subject = eventTitle,
+                description = slot.Description,
+                start = new
+                {
+                    dateTime = slot.Start.UtcDateTime.ToString("yyyy-MM-dd'T'00:00:00.0000000", CultureInfo.InvariantCulture),
+                    timeZone = "UTC"
+                },
+                end = new
+                {
+                    dateTime = slot.End.UtcDateTime.ToString("yyyy-MM-dd'T'00:00:00.0000000", CultureInfo.InvariantCulture),
+                    timeZone = "UTC"
+                },
+                location = string.IsNullOrWhiteSpace(slot.Location) ? null : new { displayName = slot.Location },
+                isAllDay = true,
+                showAs = "busy",
+                isReminderOn = false
+            }
+            : new
+            {
+                subject = eventTitle,
+                description = slot.Description,
+                start = new { dateTime = slot.Start.UtcDateTime.ToString("O", CultureInfo.InvariantCulture), timeZone = "UTC" },
+                end = new { dateTime = slot.End.UtcDateTime.ToString("O", CultureInfo.InvariantCulture), timeZone = "UTC" },
+                location = string.IsNullOrWhiteSpace(slot.Location) ? null : new { displayName = slot.Location },
+                isAllDay = false,
+                showAs = "busy",
+                isReminderOn = false
+            };
+
+        if (!includeSlotMetadata)
+            return basePayload;
+
+        return new
+        {
+            subject = eventTitle,
+            description = slot.Description,
+            start = slot.IsAllDay
+                ? new
+                {
+                    dateTime = slot.Start.UtcDateTime.ToString("yyyy-MM-dd'T'00:00:00.0000000", CultureInfo.InvariantCulture),
+                    timeZone = "UTC"
+                }
+                : new { dateTime = slot.Start.UtcDateTime.ToString("O", CultureInfo.InvariantCulture), timeZone = "UTC" },
+            end = slot.IsAllDay
+                ? new
+                {
+                    dateTime = slot.End.UtcDateTime.ToString("yyyy-MM-dd'T'00:00:00.0000000", CultureInfo.InvariantCulture),
+                    timeZone = "UTC"
+                }
+                : new { dateTime = slot.End.UtcDateTime.ToString("O", CultureInfo.InvariantCulture), timeZone = "UTC" },
+            location = string.IsNullOrWhiteSpace(slot.Location) ? null : new { displayName = slot.Location },
+            isAllDay = slot.IsAllDay,
+            showAs = "busy",
+            isReminderOn = false,
+            singleValueExtendedProperties = new[]
+            {
+                new { id = ManagedPropertyId, value = "1" },
+                new { id = SlotIdPropertyId, value = slot.SourceEventId }
+            }
+        };
     }
 }
 

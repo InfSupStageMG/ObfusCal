@@ -71,6 +71,7 @@ public partial class CalendarOwnerDetail
                 PluginId = instance.PluginId,
                 PluginDisplayName = plugin?.DisplayName ?? instance.PluginId,
                 DisplayName = instance.DisplayName,
+                SourceName = instance.SourceName ?? instance.DisplayName,
                 ColorHex = instance.ColorHex,
                 AutomaticColorHex = automaticColorsByDisplayName[instance.DisplayName],
                 IsEnabled = instance.IsEnabled,
@@ -101,6 +102,7 @@ public partial class CalendarOwnerDetail
         if (_selectedPluginOption is null)
         {
             _newSourceDisplayName = null;
+            _newSourceSourceName = null;
             _newSourceConfigurationJson = null;
             _newSourceSecretDataJson = null;
             _newSourceConfigurationFields = [];
@@ -109,6 +111,7 @@ public partial class CalendarOwnerDetail
         }
 
         _newSourceDisplayName = null;
+        _newSourceSourceName = _selectedPluginOption.DisplayName;
         _newSourceColorHex = null;
         _newSourceAuthenticationActionId = _selectedPluginOption.DefaultAuthenticationActionId;
         _newSourceConfigurationJson = _selectedPluginOption.ConfigurationJsonTemplate;
@@ -160,13 +163,12 @@ public partial class CalendarOwnerDetail
                 Id,
                 new CreateCalendarSourceInstanceInput(
                     selectedPlugin.Id,
-                    string.IsNullOrWhiteSpace(_newSourceDisplayName)
-                        ? selectedPlugin.DisplayName
-                        : _newSourceDisplayName,
+                    ResolveNewSourceDisplayName(selectedPlugin),
                     configurationJson,
                     secretDataJson,
                     _newSourceIsEnabled,
-                    _newSourceColorHex));
+                    _newSourceColorHex,
+                    ResolveNewSourceName(selectedPlugin)));
 
             if (created is null)
             {
@@ -229,7 +231,8 @@ public partial class CalendarOwnerDetail
                     configurationJson,
                     secretDataJson,
                     instance.IsEnabled,
-                    instance.ColorHex ?? string.Empty));
+                    instance.ColorHex ?? string.Empty,
+                    string.IsNullOrWhiteSpace(instance.SourceName) ? instance.DisplayName : instance.SourceName));
 
             if (updated is null)
             {
@@ -332,6 +335,16 @@ public partial class CalendarOwnerDetail
         => string.IsNullOrWhiteSpace(_newSourceDisplayName)
             ? _selectedPluginOption?.DisplayName
             : _newSourceDisplayName.Trim();
+
+    private string ResolveNewSourceDisplayName(PluginOption selectedPlugin)
+        => string.IsNullOrWhiteSpace(_newSourceDisplayName)
+            ? selectedPlugin.DisplayName
+            : _newSourceDisplayName.Trim();
+
+    private string ResolveNewSourceName(PluginOption selectedPlugin)
+        => string.IsNullOrWhiteSpace(_newSourceSourceName)
+            ? ResolveNewSourceDisplayName(selectedPlugin)
+            : _newSourceSourceName.Trim();
 
     private async Task InvokePluginActionAsync(SourceInstanceEditor instance,
         CalendarSourcePluginActionDescriptor action)

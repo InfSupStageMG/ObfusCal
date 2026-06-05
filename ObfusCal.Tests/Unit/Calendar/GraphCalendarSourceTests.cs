@@ -793,6 +793,7 @@ public class GraphCalendarSourceTests
         await dbContext.SaveChangesAsync();
 
         const string staleGraphId = "stale-graph-event-id";
+        const string managedPropId = "String {e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0} Name ObfusCal.Managed";
         const string slotIdPropId = "String {e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0} Name ObfusCal.SlotId";
 
         var managedEventsJson = JsonSerializer.Serialize(new
@@ -807,6 +808,7 @@ public class GraphCalendarSourceTests
                     end = new { dateTime = "2026-05-10T09:00:00Z", timeZone = "UTC" },
                     singleValueExtendedProperties = new[]
                     {
+                        new { id = managedPropId, value = "1" },
                         new { id = slotIdPropId, value = "stale-slot-id" }
                     }
                 }
@@ -935,6 +937,341 @@ public class GraphCalendarSourceTests
     }
 
     [TestMethod]
+    public async Task WriteBackSlotsAsync_AppendsSourceNameToOutboundSubject()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var protector = dataProtectionProvider.CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Owner",
+            GraphAccessTokenProtected = protector.Protect("access-token"),
+            GraphTokenExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(30)
+        });
+        await dbContext.SaveChangesAsync();
+
+        string? capturedSubject = null;
+        var handler = new DelegatingHttpMessageHandler(async request =>
+        {
+            if (request.Method == HttpMethod.Get)
+                return TestHttpResponses.Json(HttpStatusCode.OK, "{\"value\":[]}");
+
+            var body = await request.Content!.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(body);
+            capturedSubject = doc.RootElement.GetProperty("subject").GetString();
+            return TestHttpResponses.Json(HttpStatusCode.Created, "{\"id\":\"new\"}");
+        });
+
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
+        var source = CreateSource(
+            dbContext,
+            httpClient,
+            new StubGraphOAuthTokenClient(),
+            new CapturingLogger<GraphCalendarSource>(),
+            dataProtectionProvider);
+
+        var from = DateTimeOffset.UtcNow;
+        await source.WriteBackSlotsAsync(
+            ownerId,
+            [new BusySlot("s1", from, from.AddHours(1), SourceName: "CA")],
+            "Busy",
+            from,
+            from.AddHours(1));
+
+        Assert.AreEqual("Busy (CA)", capturedSubject);
+    }
+
+    [TestMethod]
+    public async Task WriteBackSlotsAsync_AppendsSourceNameToOutboundSubject_ForAllDayEvents()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var protector = dataProtectionProvider.CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Owner",
+            GraphAccessTokenProtected = protector.Protect("access-token"),
+            GraphTokenExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(30)
+        });
+        await dbContext.SaveChangesAsync();
+
+        string? capturedSubject = null;
+        bool? capturedIsAllDay = null;
+        string? capturedStart = null;
+        string? capturedEnd = null;
+        var handler = new DelegatingHttpMessageHandler(async request =>
+        {
+            if (request.Method == HttpMethod.Get)
+                return TestHttpResponses.Json(HttpStatusCode.OK, "{\"value\":[]}");
+
+            var body = await request.Content!.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(body);
+            capturedSubject = doc.RootElement.GetProperty("subject").GetString();
+            capturedIsAllDay = doc.RootElement.GetProperty("isAllDay").GetBoolean();
+            capturedStart = doc.RootElement.GetProperty("start").GetProperty("dateTime").GetString();
+            capturedEnd = doc.RootElement.GetProperty("end").GetProperty("dateTime").GetString();
+            return TestHttpResponses.Json(HttpStatusCode.Created, "{\"id\":\"new\"}");
+        });
+
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
+        var source = CreateSource(
+            dbContext,
+            httpClient,
+            new StubGraphOAuthTokenClient(),
+            new CapturingLogger<GraphCalendarSource>(),
+            dataProtectionProvider);
+
+        var start = new DateTimeOffset(2026, 6, 4, 0, 0, 0, TimeSpan.Zero);
+        var end = start.AddDays(1);
+        await source.WriteBackSlotsAsync(
+            ownerId,
+            [new BusySlot("s1", start, end, SourceName: "CA", IsAllDay: true)],
+            "Busy",
+            start,
+            end);
+
+        Assert.AreEqual("Busy (CA)", capturedSubject);
+        Assert.IsTrue(capturedIsAllDay);
+        Assert.AreEqual("2026-06-04T00:00:00.0000000", capturedStart);
+        Assert.AreEqual("2026-06-05T00:00:00.0000000", capturedEnd);
+    }
+
+    [TestMethod]
+    public async Task WriteBackSlotsAsync_PatchesExistingAllDayPlaceholder_WithSourceNameInSubject()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var protector = dataProtectionProvider.CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Owner",
+            GraphAccessTokenProtected = protector.Protect("access-token"),
+            GraphTokenExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(30)
+        });
+        await dbContext.SaveChangesAsync();
+
+        const string managedPropId = "String {e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0} Name ObfusCal.Managed";
+        const string slotIdPropId = "String {e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0} Name ObfusCal.SlotId";
+
+        var requestLog = new List<(HttpMethod Method, string Uri)>();
+        string? patchedSubject = null;
+        bool? patchedIsAllDay = null;
+        var handler = new DelegatingHttpMessageHandler(async request =>
+        {
+            requestLog.Add((request.Method, request.RequestUri!.ToString()));
+
+            if (request.Method == HttpMethod.Get)
+            {
+                return TestHttpResponses.Json(
+                    HttpStatusCode.OK,
+                    $$"""
+                    {
+                      "value": [
+                        {
+                          "id": "managed-1",
+                          "subject": "Busy",
+                          "isAllDay": true,
+                          "start": { "dateTime": "2026-06-04T00:00:00.0000000", "timeZone": "UTC" },
+                          "end": { "dateTime": "2026-06-05T00:00:00.0000000", "timeZone": "UTC" },
+                          "singleValueExtendedProperties": [
+                            { "id": "{{managedPropId}}", "value": "1" },
+                            { "id": "{{slotIdPropId}}", "value": "slot-1" }
+                          ]
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (request.Method == HttpMethod.Patch)
+            {
+                var body = await request.Content!.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(body);
+                patchedSubject = doc.RootElement.GetProperty("subject").GetString();
+                patchedIsAllDay = doc.RootElement.GetProperty("isAllDay").GetBoolean();
+                return TestHttpResponses.Create(HttpStatusCode.OK);
+            }
+
+            throw new AssertFailedException($"Unexpected request method {request.Method}.");
+        });
+
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
+        var source = CreateSource(
+            dbContext,
+            httpClient,
+            new StubGraphOAuthTokenClient(),
+            new CapturingLogger<GraphCalendarSource>(),
+            dataProtectionProvider);
+
+        var start = new DateTimeOffset(2026, 6, 4, 0, 0, 0, TimeSpan.Zero);
+        var end = start.AddDays(1);
+        await source.WriteBackSlotsAsync(
+            ownerId,
+            [new BusySlot("slot-1", start, end, SourceName: "CA", IsAllDay: true)],
+            "Busy",
+            start,
+            end);
+
+        Assert.AreEqual("Busy (CA)", patchedSubject);
+        Assert.IsTrue(patchedIsAllDay);
+        Assert.ContainsSingle(entry => entry.Method == HttpMethod.Get, requestLog);
+        Assert.ContainsSingle(entry => entry.Method == HttpMethod.Patch, requestLog);
+        Assert.AreEqual(0, requestLog.Count(entry => entry.Method == HttpMethod.Post));
+    }
+
+    [TestMethod]
+    public async Task WriteBackSlotsAsync_PatchesLegacyAllDayPlaceholderWithoutSlotId_WithSourceNameInSubject()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var protector = dataProtectionProvider.CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Owner",
+            GraphAccessTokenProtected = protector.Protect("access-token"),
+            GraphTokenExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(30)
+        });
+        await dbContext.SaveChangesAsync();
+
+        const string managedPropId = "String {e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0} Name ObfusCal.Managed";
+        const string slotIdPropId = "String {e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0} Name ObfusCal.SlotId";
+
+        var requestLog = new List<(HttpMethod Method, string Uri)>();
+        string? patchedSubject = null;
+        string? patchedSlotId = null;
+        var handler = new DelegatingHttpMessageHandler(async request =>
+        {
+            requestLog.Add((request.Method, request.RequestUri!.ToString()));
+
+            if (request.Method == HttpMethod.Get)
+            {
+                return TestHttpResponses.Json(
+                    HttpStatusCode.OK,
+                    $$"""
+                    {
+                      "value": [
+                        {
+                          "id": "managed-legacy-1",
+                          "subject": "Busy",
+                          "isAllDay": true,
+                          "start": { "dateTime": "2026-06-04T00:00:00.0000000", "timeZone": "UTC" },
+                          "end": { "dateTime": "2026-06-05T00:00:00.0000000", "timeZone": "UTC" },
+                          "singleValueExtendedProperties": [
+                            { "id": "{{managedPropId}}", "value": "1" }
+                          ]
+                        }
+                      ]
+                    }
+                    """);
+            }
+
+            if (request.Method == HttpMethod.Patch)
+            {
+                var body = await request.Content!.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(body);
+                patchedSubject = doc.RootElement.GetProperty("subject").GetString();
+                patchedSlotId = doc.RootElement
+                    .GetProperty("singleValueExtendedProperties")
+                    .EnumerateArray()
+                    .FirstOrDefault(property => string.Equals(property.GetProperty("id").GetString(), slotIdPropId, StringComparison.Ordinal))
+                    .GetProperty("value")
+                    .GetString();
+                return TestHttpResponses.Create(HttpStatusCode.OK);
+            }
+
+            throw new AssertFailedException($"Unexpected request method {request.Method}.");
+        });
+
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
+        var source = CreateSource(
+            dbContext,
+            httpClient,
+            new StubGraphOAuthTokenClient(),
+            new CapturingLogger<GraphCalendarSource>(),
+            dataProtectionProvider);
+
+        var start = new DateTimeOffset(2026, 6, 4, 0, 0, 0, TimeSpan.Zero);
+        var end = start.AddDays(1);
+        await source.WriteBackSlotsAsync(
+            ownerId,
+            [new BusySlot("slot-1", start, end, SourceName: "CA", IsAllDay: true)],
+            "Busy",
+            start,
+            end);
+
+        Assert.AreEqual("Busy (CA)", patchedSubject);
+        Assert.AreEqual("slot-1", patchedSlotId);
+        Assert.ContainsSingle(entry => entry.Method == HttpMethod.Get, requestLog);
+        Assert.ContainsSingle(entry => entry.Method == HttpMethod.Patch, requestLog);
+        Assert.AreEqual(0, requestLog.Count(entry => entry.Method == HttpMethod.Post));
+    }
+
+    [TestMethod]
+    public async Task WriteBackSlotsAsync_UsesCalendarViewQueryWithManagedAndSlotProperties()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var protector = dataProtectionProvider.CreateProtector("ObfusCal.GraphConsent.TokenStore.v1");
+
+        dbContext.CalendarOwners.Add(new CalendarOwner
+        {
+            Id = ownerId,
+            Name = "Owner",
+            GraphAccessTokenProtected = protector.Protect("access-token"),
+            GraphTokenExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(30)
+        });
+        await dbContext.SaveChangesAsync();
+
+        string? requestUri = null;
+        var handler = new DelegatingHttpMessageHandler(request =>
+        {
+            if (request.Method == HttpMethod.Get)
+                requestUri = request.RequestUri!.ToString();
+            return Task.FromResult(TestHttpResponses.Json(HttpStatusCode.OK, "{\"value\":[]}"));
+        });
+
+        using var httpClient = new HttpClient(handler);
+        httpClient.BaseAddress = new Uri("https://graph.microsoft.com/");
+        var source = CreateSource(
+            dbContext,
+            httpClient,
+            new StubGraphOAuthTokenClient(),
+            new CapturingLogger<GraphCalendarSource>(),
+            dataProtectionProvider);
+
+        var start = new DateTimeOffset(2026, 6, 4, 0, 0, 0, TimeSpan.Zero);
+        var end = start.AddDays(1);
+        await source.WriteBackSlotsAsync(
+            ownerId,
+            [new BusySlot("slot-1", start, end, SourceName: "CA", IsAllDay: true)],
+            "Busy",
+            start,
+            end);
+
+        Assert.IsNotNull(requestUri);
+        Assert.IsTrue(requestUri.Contains("/v1.0/me/calendarView", StringComparison.Ordinal));
+        Assert.IsTrue(requestUri.Contains(Uri.EscapeDataString("ObfusCal.Managed"), StringComparison.Ordinal));
+        Assert.IsTrue(requestUri.Contains(Uri.EscapeDataString("ObfusCal.SlotId"), StringComparison.Ordinal));
+    }
+
+    [TestMethod]
     public async Task WriteBackSlotsAsync_DoesNotDeleteManagedEvent_WhenStartIsOutsideWindow()
     {
         // A placeholder event whose start is beyond the write-back window must be left alone to
@@ -954,6 +1291,7 @@ public class GraphCalendarSourceTests
         await dbContext.SaveChangesAsync();
 
         const string futureGraphId = "future-graph-event-id";
+        const string managedPropId = "String {e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0} Name ObfusCal.Managed";
         const string slotIdPropId = "String {e65f4da1-6bc9-45ac-a364-5b91d9b5f3e0} Name ObfusCal.SlotId";
         // The managed event starts 30 days from now - well outside the 14-day window.
         var futureStart = DateTimeOffset.UtcNow.AddDays(30);
@@ -969,6 +1307,7 @@ public class GraphCalendarSourceTests
                     end = new { dateTime = futureStart.AddHours(1).ToString("O"), timeZone = "UTC" },
                     singleValueExtendedProperties = new[]
                     {
+                        new { id = managedPropId, value = "1" },
                         new { id = slotIdPropId, value = "future-slot-id" }
                     }
                 }

@@ -60,7 +60,8 @@ public sealed class ObfuscationPipeline(
                 calendarEvent.Location,
                 calendarEvent.SourceLabel,
                 IsAllDay: calendarEvent.IsAllDay,
-                ColorHex: calendarEvent.ColorHex))
+                ColorHex: calendarEvent.ColorHex,
+                SourceName: calendarEvent.SourceName))
             .ToList();
 
         // Apply slot transformers (e.g., merging)

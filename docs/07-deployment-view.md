@@ -105,6 +105,9 @@ Owner-configured calendar source colors are stored in the same application datab
 availability snapshots. No extra service is required, but database migrations must be applied before the UI can persist
 or replay those colors from stored snapshots.
 
+The same database also stores each source instance's optional source name and peer shadow-slot copies of that value.
+Apply migrations before relying on source-name-aware write-back titles or peer-sync replay.
+
 ### Loading Custom Plugins
 
 To load third-party calendar providers or custom obfuscation transformers, compile your plugin DLL and mount it into the
@@ -197,7 +200,7 @@ local sign-out cycle.
 | `Sync__MaxShadowSlotsPerRequest`                      | Maximum allowed shadow slots in one push payload (default `500`)                                                                           |
 | `Sync__ShadowSlotRetentionDays`                       | Days to retain received shadow slots before automatic purge (default `90`)                                                                 |
 | `Sync__WriteBackLookAheadDays`                        | Provider-managed placeholder reconciliation horizon in days (default `90`)                                                                 |
-| `Sync__WriteBackPlaceholderTitle`                     | Fallback title used for write-back placeholders (default `Busy`)                                                                           |
+| `Sync__WriteBackPlaceholderTitle`                     | Fallback base title used for write-back placeholders before an optional per-source source name is appended (default `Busy`)                |
 | `PeerTransportSecurity__AllowSelfSignedCerts`         | Accept self-signed peer certificates when `true` (default `false`)                                                                         |
 | `SecurityAudit__FilePath`                             | Optional dedicated append-only NDJSON audit sink path; keep it on persistent storage if you want one continuous hash chain across restarts |
 | `PeerConnections.PinnedCertificateThumbprint`         | Optional peer leaf certificate thumbprint used to pin the expected server certificate                                                      |
