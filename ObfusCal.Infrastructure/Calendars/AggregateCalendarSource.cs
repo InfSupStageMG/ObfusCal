@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ObfusCal.Application.Calendars;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Application.Obfuscation;
 using ObfusCal.Domain.Models;
@@ -66,7 +67,7 @@ internal sealed class AggregateCalendarSource(
         foreach (var destination in writableDestinations)
         {
             var outboundSlots = BuildOutboundSlots(destination.Instance.Id, eventsByInstanceId, busySlots,
-                calendarOwnerId, profile);
+                calendarOwnerId, profile, placeholderTitle);
             await TryWriteToDestinationAsync(destination, outboundSlots, placeholderTitle, calendarOwnerId, windowStart,
                 windowEnd, ct);
         }
@@ -84,18 +85,26 @@ internal sealed class AggregateCalendarSource(
         IReadOnlyDictionary<Guid, IReadOnlyList<CalendarEvent>> eventsByInstanceId,
         IReadOnlyList<BusySlot> busySlots,
         Guid calendarOwnerId,
-        ObfuscationProfileSettings profile)
+        ObfuscationProfileSettings profile,
+        string placeholderTitle)
     {
         var eventsFromOtherSources = eventsByInstanceId
             .Where(entry => entry.Key != destinationInstanceId)
             .SelectMany(entry => entry.Value)
             .ToList();
 
-        return obfuscationPipeline.Process(
+        var localOutboundSlots = obfuscationPipeline.Process(
                 eventsFromOtherSources,
                 calendarOwnerId.ToString(),
                 ObfuscationAuditContext.Client,
                 profile)
+            .Select(slot => slot with
+            {
+                Title = BusySlotTitleComposer.Compose(slot.Title, slot.SourceName, placeholderTitle)
+            })
+            .ToList();
+
+        return localOutboundSlots
             .Concat(busySlots)
             .OrderBy(slot => slot.Start)
             .ToList();
@@ -174,7 +183,8 @@ internal sealed class AggregateCalendarSource(
                     {
                         Id = $"{sourceInstance.Instance.Id:N}:{calendarEvent.Id}",
                         SourceLabel = sourceInstance.Instance.DisplayName,
-                        ColorHex = sourceInstance.Instance.ColorHex
+                        ColorHex = sourceInstance.Instance.ColorHex,
+                        SourceName = sourceInstance.Instance.SourceName
                     })
                     .ToList();
             }

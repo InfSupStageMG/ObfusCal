@@ -364,6 +364,64 @@ public class GoogleCalendarSourceCoreTests
     }
 
     [TestMethod]
+    public async Task WriteBackSlotsAsync_AppendsSourceNameToOutboundSummary()
+    {
+        await using var dbContext = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        dbContext.CalendarOwners.Add(new CalendarOwner { Id = ownerId, Name = "Owner" });
+        await dbContext.SaveChangesAsync();
+
+        var dataProtectionProvider = new EphemeralDataProtectionProvider();
+        var secretProtector = new CalendarSourceSecretProtector(dataProtectionProvider);
+        var instances = new FakeCalendarSourceInstanceService(id => id == ownerId);
+
+        var created = await instances.CreateAsync(ownerId,
+            new CreateCalendarSourceInstanceInput(
+                "google",
+                "Google Calendar",
+                "{\"calendarId\":\"primary\"}",
+                SerializeSecret(secretProtector, "access-token", "refresh-token", DateTimeOffset.UtcNow.AddHours(1))));
+        Assert.IsNotNull(created);
+
+        var requestLog = new List<(HttpMethod Method, string Uri, string? Body)>();
+        var handler = new DelegatingHttpMessageHandler(async request =>
+        {
+            var body = request.Content is null ? null : await request.Content.ReadAsStringAsync();
+            requestLog.Add((request.Method, request.RequestUri!.ToString(), body));
+
+            return request.Method == HttpMethod.Get
+                ? TestHttpResponses.Json(HttpStatusCode.OK, "{\"items\":[]}")
+                : TestHttpResponses.Json(HttpStatusCode.Created, "{\"id\":\"new-google-event\"}");
+        });
+
+        using var httpClient = new HttpClient(handler);
+
+        var source = CreateSource(
+            dbContext,
+            instances,
+            secretProtector,
+            new StubGoogleOAuthTokenClient(),
+            httpClient,
+            new CapturingLogger<GoogleCalendarSourceCore>());
+
+        var from = new DateTimeOffset(2026, 6, 10, 8, 0, 0, TimeSpan.Zero);
+        var to = from.AddHours(1);
+
+        await source.WriteBackSlotsAsync(
+            ownerId,
+            [new Domain.Models.BusySlot("slot-1", from, to, SourceName: "CA")],
+            "Busy",
+            from.AddHours(-1),
+            to.AddHours(1));
+
+        var post = requestLog.Single(entry => entry.Method == HttpMethod.Post);
+        Assert.IsNotNull(post.Body);
+
+        using var doc = JsonDocument.Parse(post.Body);
+        Assert.AreEqual("Busy (CA)", doc.RootElement.GetProperty("summary").GetString());
+    }
+
+    [TestMethod]
     public async Task WriteBackSlotsAsync_HandlesDuplicateManagedSlotIds_DeletesExtraAndContinues()
     {
         await using var dbContext = TestDbContextFactory.CreateInMemory();

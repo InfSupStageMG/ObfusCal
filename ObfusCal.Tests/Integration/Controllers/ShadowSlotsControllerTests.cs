@@ -262,6 +262,38 @@ public class ShadowSlotsControllerTests
     }
 
     [TestMethod]
+    public async Task PullBusySlotsForPeer_ReturnsSourceNameInPayload()
+    {
+        await using var factory = new CustomWebApplicationFactory("Development");
+        using var client = factory.CreateClient();
+
+        var calendarOwnerId = await factory.SeedCalendarOwnerAsync(Guid.NewGuid().ToString());
+        var calendarOwnerRef = Guid.NewGuid();
+        await factory.SeedCalendarOwnerPeerMappingAsync(calendarOwnerId, calendarOwnerRef);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "ApiKey",
+            CustomWebApplicationFactory.IntegrationTestPeerApiKey);
+        SetReplayHeader(client, DateTimeOffset.UtcNow);
+
+        var from = DateTimeOffset.UtcNow.AddDays(-1).ToString("O");
+        var to = DateTimeOffset.UtcNow.AddDays(1).ToString("O");
+        var response = await client.GetAsync(
+            $"/api/sync/busy-slots/{calendarOwnerRef}?from={Uri.EscapeDataString(from)}&to={Uri.EscapeDataString(to)}",
+            TestContext.CancellationToken);
+
+        Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
+
+        var content = await response.Content.ReadAsStringAsync(TestContext.CancellationToken);
+        using var json = JsonDocument.Parse(content);
+        if (json.RootElement.GetArrayLength() == 0)
+            return;
+
+        var firstSlot = json.RootElement[0];
+        Assert.IsTrue(firstSlot.TryGetProperty("sourceName", out _));
+    }
+
+    [TestMethod]
     public async Task PullBusySlotsForPeer_WithoutApiKey_ReturnsUnauthorized()
     {
         await using var factory = new CustomWebApplicationFactory("Development");

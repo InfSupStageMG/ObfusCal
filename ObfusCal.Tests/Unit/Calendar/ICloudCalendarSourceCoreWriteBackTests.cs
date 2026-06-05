@@ -198,6 +198,40 @@ public class ICloudCalendarSourceCoreWriteBackTests
     }
 
     [TestMethod]
+    public async Task WriteBackSlotsAsync_AppendsSourceNameToOutboundSummary()
+    {
+        await using var db = TestDbContextFactory.CreateInMemory();
+        var ownerId = Guid.NewGuid();
+        SeedOwnerWithICloudConfig(db, ownerId);
+
+        var slot = MakeSlot(
+            "slot-source-name",
+            new DateTimeOffset(2026, 6, 10, 9, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 6, 10, 10, 0, 0, TimeSpan.Zero)) with
+        {
+            SourceName = "CA"
+        };
+
+        string? capturedBody = null;
+
+        var handler = new StubHttpMessageHandler(async request =>
+        {
+            if (request.Method == HttpMethod.Put && request.Content is not null)
+                capturedBody = await request.Content.ReadAsStringAsync();
+
+            return TestHttpResponses.Xml(HttpStatusCode.Created, BuildEmptyCalDavReportResponse());
+        });
+
+        using var httpClient = new HttpClient(handler);
+        var core = CreateCore(httpClient, db);
+
+        await core.WriteBackSlotsAsync(ownerId, [slot], "Busy", slot.Start.AddHours(-1), slot.End.AddHours(1));
+
+        Assert.IsNotNull(capturedBody);
+        Assert.Contains("SUMMARY:Busy (CA)", capturedBody);
+    }
+
+    [TestMethod]
     public async Task WriteBackSlotsAsync_WritesCorrectStartAndEnd()
     {
         await using var db = TestDbContextFactory.CreateInMemory();
@@ -430,6 +464,25 @@ public class ICloudCalendarSourceCoreWriteBackTests
         Assert.Contains("DTEND:20260610T100000Z", ics);
         Assert.Contains("X-OBFUSCAL-MANAGED:TRUE", ics);
         Assert.Contains($"X-OBFUSCAL-SLOT-ID:{slotId}", ics);
+    }
+
+    [TestMethod]
+    public void BuildPlaceholderIcsContent_AppendsSourceNameOnce()
+    {
+        var slotId = "s43";
+        var uid = ICloudCalendarSourceCore.GetManagedEventUid(slotId);
+        var start = new DateTimeOffset(2026, 6, 10, 9, 0, 0, TimeSpan.Zero);
+        var end = start.AddHours(1);
+        var slot = MakeSlot(slotId, start, end) with
+        {
+            Title = "Conference Block (CA)",
+            SourceName = "CA"
+        };
+
+        var ics = ICloudCalendarSourceCore.BuildPlaceholderIcsContent(uid, slot, "Conference Block");
+
+        Assert.Contains("SUMMARY:Conference Block (CA)", ics);
+        Assert.IsFalse(ics.Contains("SUMMARY:Conference Block (CA) (CA)", StringComparison.Ordinal));
     }
 
     [TestMethod]

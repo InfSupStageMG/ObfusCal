@@ -38,7 +38,8 @@ public sealed class PushShadowSlotsUseCase(
                 slot.Description,
                 slot.AttendeeEmails,
                 slot.Location,
-                IsAllDay: slot.IsAllDay))
+                IsAllDay: slot.IsAllDay,
+                SourceName: slot.SourceName))
             .ToArray();
 
         foreach (var calendarOwnerId in command.CalendarOwnerIds.Distinct())

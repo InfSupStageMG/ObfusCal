@@ -35,7 +35,8 @@ public sealed class EfCoreCalendarOwnerAvailabilitySlotStore(AppDbContext dbCont
                 slot.SourceLabel,
                 SourceSlots: DeserializeSourceSlots(slot.SourceSlotsJson),
                 IsAllDay: slot.IsAllDay,
-                ColorHex: slot.ColorHex))
+                ColorHex: slot.ColorHex,
+                SourceName: slot.SourceName))
             .ToList();
     }
 
@@ -61,7 +62,8 @@ public sealed class EfCoreCalendarOwnerAvailabilitySlotStore(AppDbContext dbCont
                     dto.Location,
                     dto.SourceLabel,
                     IsAllDay: dto.IsAllDay,
-                    ColorHex: dto.ColorHex))
+                    ColorHex: dto.ColorHex,
+                    SourceName: dto.SourceName))
                 .ToList();
         }
         catch (JsonException)
@@ -84,6 +86,7 @@ public sealed class EfCoreCalendarOwnerAvailabilitySlotStore(AppDbContext dbCont
         string? Location,
         string? SourceLabel = null,
         bool IsAllDay = false,
-        string? ColorHex = null
+        string? ColorHex = null,
+        string? SourceName = null
     );
 }

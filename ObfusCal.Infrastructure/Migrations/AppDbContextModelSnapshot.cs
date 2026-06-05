@@ -76,6 +76,10 @@ namespace ObfusCal.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("SourceName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<DateTimeOffset>("Start")
                         .HasColumnType("timestamp with time zone");
 
@@ -206,6 +210,10 @@ namespace ObfusCal.Infrastructure.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
+                    b.Property<string>("SourceName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<string>("SourceSlotsJson")
                         .HasColumnType("text");
 
@@ -306,6 +314,10 @@ namespace ObfusCal.Infrastructure.Migrations
                     b.Property<string>("SecretDataJson")
                         .HasMaxLength(32768)
                         .HasColumnType("character varying(32768)");
+
+                    b.Property<string>("SourceName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");

@@ -223,4 +223,31 @@ public class MergeBlocksTransformerTests
         Assert.AreEqual("Another meeting", sources[1].Title);
         Assert.HasCount(1, sources[1].AttendeeEmails ?? []);
     }
+
+    [TestMethod]
+    public void Transform_WithMergedSlotsFromDifferentSources_CombinesSourceNames()
+    {
+        var transformer = new MergeBlocksTransformer();
+        var first = new BusySlot("first", Base, Base.AddHours(1), SourceName: "CA");
+        var second = new BusySlot("second", Base.AddHours(1), Base.AddHours(2), SourceName: "Ops");
+
+        var result = transformer.Transform([first, second]);
+
+        Assert.HasCount(1, result);
+        Assert.AreEqual("CA, Ops", result[0].SourceName);
+    }
+
+    [TestMethod]
+    public void Transform_WithMergedSlotsFromRepeatedSources_DeduplicatesSourceNames()
+    {
+        var transformer = new MergeBlocksTransformer();
+        var first = new BusySlot("first", Base, Base.AddHours(1), SourceName: "CA");
+        var second = new BusySlot("second", Base.AddMinutes(30), Base.AddHours(2), SourceName: "Ops");
+        var third = new BusySlot("third", Base.AddHours(1), Base.AddHours(3), SourceName: "CA");
+
+        var result = transformer.Transform([first, second, third]);
+
+        Assert.HasCount(1, result);
+        Assert.AreEqual("CA, Ops", result[0].SourceName);
+    }
 }

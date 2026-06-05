@@ -58,6 +58,7 @@ public partial class CalendarOwnerDetail
         public required string PluginId { get; init; }
         public required string PluginDisplayName { get; init; }
         public required string DisplayName { get; set; }
+        public required string SourceName { get; set; }
         public string? ColorHex { get; set; }
         public required string AutomaticColorHex { get; init; }
         public bool IsEnabled { get; set; }

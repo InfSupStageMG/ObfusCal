@@ -7,6 +7,7 @@ using System.Xml;
 using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using ObfusCal.Application.Calendars;
 using ObfusCal.Application.Interfaces;
 using ObfusCal.Domain.Models;
 
@@ -177,8 +178,7 @@ public sealed partial class ICloudCalendarSourceCore
     {
         foreach (var slot in busySlots)
         {
-            // Use obfuscated title if available, otherwise use placeholder
-            var eventSummary = !string.IsNullOrWhiteSpace(slot.Title) ? slot.Title : placeholderTitle;
+            var eventSummary = BusySlotTitleComposer.Compose(slot.Title, slot.SourceName, placeholderTitle) ?? placeholderTitle;
 
             // Skip if already up-to-date
             if (managedBySlotId.TryGetValue(slot.SourceEventId, out var existing)
@@ -484,8 +484,7 @@ public sealed partial class ICloudCalendarSourceCore
         var endStamp = slot.End.UtcDateTime.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
         var dtstamp = DateTimeOffset.UtcNow.UtcDateTime.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
 
-        // Use obfuscated title if available, otherwise use placeholder
-        var eventTitle = !string.IsNullOrWhiteSpace(slot.Title) ? slot.Title : placeholderTitle;
+        var eventTitle = BusySlotTitleComposer.Compose(slot.Title, slot.SourceName, placeholderTitle) ?? placeholderTitle;
         var escapedTitle = EscapeIcsText(eventTitle);
 
         var lines = new List<string>

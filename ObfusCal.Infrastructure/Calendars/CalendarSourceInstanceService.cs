@@ -40,7 +40,8 @@ internal sealed class CalendarSourceInstanceService(
                 readiness.Title,
                 readiness.Detail,
                 context.IsExternalPlugin,
-                context.ColorHex));
+                context.ColorHex,
+                context.SourceName));
         }
 
         return summaries;
@@ -101,6 +102,10 @@ internal sealed class CalendarSourceInstanceService(
         if (displayName.Length > 256)
             throw new ArgumentException("Display name must be 256 characters or fewer.");
 
+        var sourceName = ResolveSourceName(input.SourceName, displayName);
+        if (sourceName.Length > 256)
+            throw new ArgumentException("Source name must be 256 characters or fewer.");
+
         await ValidateIcalConfigurationAsync(plugin.Id, input.ConfigurationJson, ct);
         var colorHex = CalendarColorPalette.NormalizeHexColorOrNull(input.ColorHex);
 
@@ -110,6 +115,7 @@ internal sealed class CalendarSourceInstanceService(
             CalendarOwnerId = calendarOwnerId,
             PluginId = plugin.Id,
             DisplayName = displayName,
+            SourceName = sourceName,
             ColorHex = colorHex,
             IsEnabled = input.IsEnabled,
             ConfigurationJson = input.ConfigurationJson,
@@ -134,7 +140,8 @@ internal sealed class CalendarSourceInstanceService(
             readiness.Title,
             readiness.Detail,
             context.IsExternalPlugin,
-            context.ColorHex);
+            context.ColorHex,
+            context.SourceName);
     }
 
     public async Task<CalendarSourceInstanceSummary?> UpdateAsync(
@@ -155,6 +162,14 @@ internal sealed class CalendarSourceInstanceService(
             if (newName.Length > 256)
                 throw new ArgumentException("Display name must be 256 characters or fewer.");
             instance.DisplayName = newName;
+        }
+
+        if (input.SourceName is not null)
+        {
+            var newSourceName = ResolveSourceName(input.SourceName, instance.DisplayName);
+            if (newSourceName.Length > 256)
+                throw new ArgumentException("Source name must be 256 characters or fewer.");
+            instance.SourceName = newSourceName;
         }
 
         if (input.ColorHex is not null)
@@ -188,7 +203,8 @@ internal sealed class CalendarSourceInstanceService(
             readiness.Title,
             readiness.Detail,
             context.IsExternalPlugin,
-            context.ColorHex);
+            context.ColorHex,
+            context.SourceName);
     }
 
     public async Task<bool> DeleteAsync(Guid calendarOwnerId, Guid instanceId, CancellationToken ct = default)
@@ -246,8 +262,12 @@ internal sealed class CalendarSourceInstanceService(
             instance.ConfigurationJson,
             TryUnprotectSecret(instance.SecretDataJson),
             plugin?.IsExternalPlugin ?? false,
-            instance.ColorHex);
+            instance.ColorHex,
+            ResolveSourceName(instance.SourceName, instance.DisplayName));
     }
+
+    private static string ResolveSourceName(string? sourceName, string displayName)
+        => string.IsNullOrWhiteSpace(sourceName) ? displayName : sourceName.Trim();
 
     private string? TryUnprotectSecret(string? protectedValue)
     {

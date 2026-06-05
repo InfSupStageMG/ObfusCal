@@ -124,6 +124,47 @@ public class InboundPeerPullSyncServiceTests
     }
 
     [TestMethod]
+    public async Task RunSyncCycleAsync_PreservesSourceNameAndMetadataFromPulledPayload()
+    {
+        await using var dbContext = CreateDbContext();
+        var calendarOwnerId = Guid.NewGuid();
+        var calendarOwnerRef = Guid.NewGuid();
+        SeedOwnerAndPeerMapping(dbContext, calendarOwnerId, calendarOwnerRef, "peer-a", "https://peer-a.local/");
+
+        var store = new EfCoreShadowSlotStore(dbContext, Serilog.Core.Logger.None);
+        var pulledSlots = new[]
+        {
+            new
+            {
+                start = new DateTimeOffset(2026, 6, 4, 9, 0, 0, TimeSpan.Zero),
+                end = new DateTimeOffset(2026, 6, 4, 10, 0, 0, TimeSpan.Zero),
+                title = "Busy (CA)",
+                description = "Client hold",
+                attendeeEmails = new[] { "owner@example.test" },
+                location = "Remote",
+                isAllDay = false,
+                sourceName = "CA"
+            }
+        };
+
+        using var httpClient = new HttpClient(new DelegatingHttpMessageHandler(_ =>
+            Task.FromResult(TestHttpResponses.Text(HttpStatusCode.OK, JsonSerializer.Serialize(pulledSlots)))));
+        var httpClientFactory = new StubHttpClientFactory(httpClient);
+
+        var service = CreateService(dbContext, store, httpClientFactory);
+
+        await service.RunSyncCycleAsync();
+
+        var storedSlots = await store.GetSlotsAsync("peer-a", calendarOwnerId);
+        Assert.HasCount(1, storedSlots);
+        Assert.AreEqual("Busy (CA)", storedSlots[0].Title);
+        Assert.AreEqual("Client hold", storedSlots[0].Description);
+        Assert.AreEqual("owner@example.test", storedSlots[0].AttendeeEmails![0]);
+        Assert.AreEqual("Remote", storedSlots[0].Location);
+        Assert.AreEqual("CA", storedSlots[0].SourceName);
+    }
+
+    [TestMethod]
     public async Task RunSyncCycleAsync_OnSuccess_RecordsLastSyncedAtAndSucceededOnPeerConnection()
     {
         await using var dbContext = CreateDbContext();

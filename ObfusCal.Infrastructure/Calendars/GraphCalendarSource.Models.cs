@@ -42,6 +42,7 @@ public sealed partial class GraphCalendarSource
         [property: JsonPropertyName("subject")] string? Subject,
         [property: JsonPropertyName("start")] GraphDateTimeTimeZone? Start,
         [property: JsonPropertyName("end")] GraphDateTimeTimeZone? End,
+        [property: JsonPropertyName("isAllDay")] bool IsAllDay,
         [property: JsonPropertyName("singleValueExtendedProperties")] List<GraphExtendedProperty>? ExtendedProperties);
 
     private sealed record GraphExtendedProperty(
@@ -53,7 +54,8 @@ public sealed partial class GraphCalendarSource
         string? SlotId,
         string? Subject,
         DateTimeOffset Start,
-        DateTimeOffset End);
+        DateTimeOffset End,
+        bool IsAllDay);
 
     private sealed record GraphTokenRefreshResult(string AccessToken, GraphSourceSecretData SecretData)
     {
