@@ -90,7 +90,7 @@ Navigate to **Peer Connections** (`/peers`).
 
 | Field        | Value                                           |
 |--------------|-------------------------------------------------|
-| Instance ID  | `instance-b`                                    |
+| Instance ID  | `katoen-natie`                                  |
 | Base Address | `https://proxy-b`                               |
 | API Key      | value of `SYNC__APIKEY_B` from `.env.peer-demo` |
 
@@ -106,7 +106,7 @@ Navigate to **Peer Connections** (`/peers`).
 
 | Field        | Value                                           |
 |--------------|-------------------------------------------------|
-| Instance ID  | `instance-a`                                    |
+| Instance ID  | `info-support`                                  |
 | Base Address | `https://proxy-a`                               |
 | API Key      | value of `SYNC__APIKEY_A` from `.env.peer-demo` |
 

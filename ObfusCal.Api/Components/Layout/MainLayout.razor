@@ -65,7 +65,7 @@
         get
         {
             var instanceId = Configuration[$"{SyncOptions.SectionName}:InstanceId"];
-            return string.Equals(instanceId, "instance-b", StringComparison.OrdinalIgnoreCase)
+            return string.Equals(instanceId, "katoen-natie", StringComparison.OrdinalIgnoreCase)
                 ? "layout-header layout-header--instance-secondary"
                 : "layout-header";
         }
@@ -76,7 +76,7 @@
         get
         {
             var instanceId = Configuration[$"{SyncOptions.SectionName}:InstanceId"];
-            return string.Equals(instanceId, "instance-b", StringComparison.OrdinalIgnoreCase)
+            return string.Equals(instanceId, "katoen-natie", StringComparison.OrdinalIgnoreCase)
                 ? "--accent-fill-rest: #b42318; --accent-foreground-rest: #821109;"
                 : null;
         }
